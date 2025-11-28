@@ -1,0 +1,480 @@
+---
+description: Project Information, Specifications, Requirements
+alwaysApply: false
+---
+
+## 1. Project Overview
+
+- **Project name:** Digitalisasi Gadai Top Indonesia
+- **Client:** PT Gadai Top Indonesia
+- **Goal:** Full digitalization of pawn operations (gadai) across multiple PT and branches (Toko), including:
+  - Loan contracts (SPK)
+  - Payment contracts (NKB)
+  - Cash flow center ↔ branch
+  - Stock opname (inventory check)
+  - Auction preparation (lelangan)
+  - Reporting & monitoring
+
+### 1.1 Target Platforms
+
+- **Web backoffice**
+  - For: Super Admin/Pemilik, Admin PT, Staff Toko, Stock Opname, Lelang, Marketing
+- **(Optionally) Mobile**
+  - For: operational staff (e.g. scanning, stock opname, lelang pickup)
+
+### 1.2 Tech Stack (Assumed)
+
+When generating code, **assume**:
+
+- **Frontend:** Next.js (App Router), TypeScript, React, Tailwind, Shadcn
+- **Backend:** Nest.js, TypeScript, REST APIs
+- **DB:** SQL (e.g. PostgreSQL)
+- **Auth:** JWT-based authentication + role-based authorization
+- **Integrations:**
+  - Payment gateway with **Virtual Account (VA)** for Setor Uang
+  - OCR service for reading KTP
+
+---
+
+## 2. Core Domain Concepts
+
+> Use these exact names in code (PascalCase for models, snake_case/kebab-case for DB/paths).
+
+### 2.1 Organizational Structure
+
+- **Pemilik (Owner / SuperAdmin)**
+  - The ultimate owner of one or more **PT**.
+- **PT**
+  - Legal entity under a specific Pemilik.
+  - Has many **Toko**.
+- **Toko (Branch)**
+  - Operational branch where transactions happen.
+  - Has its own SPK, NKB, mutasi, stock, etc.
+- **Pinjam PT**
+  - Special case where a **Pemilik** can own a **Toko** under another Pemilik’s PT (borrowing).
+
+### 2.2 People
+
+- **User**
+  - Has role + assigned PT/Toko.
+  - Roles:
+    - SuperAdmin / Pemilik
+    - AdminPT
+    - StaffToko
+    - StaffStockOpname
+    - StaffLelang
+    - StaffMarketing
+- **Customer (Nasabah)**
+  - Pawn customer.
+  - Customer data is independent **per PT** (same person can exist in multiple PTs).
+
+### 2.3 Financial & Transactional
+
+- **SPK (Loan Contract)**
+  - Main pawn/loan contract.
+  - Links:
+    - Customer
+    - Toko & PT
+    - Pawned item
+    - NKB history
+- **NKB (Payment Contract)**
+  - Any payment or extension transaction related to an SPK.
+  - Types:
+    - Pelunasan (full repayment)
+    - Perpanjangan (extension)
+- **Mutasi (Journal Entry)**
+  - Financial movement for PT and Toko.
+  - Covers:
+    - SPK, NKB
+    - TambahModal
+    - SetorUang
+    - Operational expenses
+- **TambahModal**
+  - Capital injection from PT center to Toko.
+- **SetorUang**
+  - Branch deposit to PT center via **VA**.
+
+### 2.4 Operational Control
+
+- **Katalog (Item Catalog)**
+  - Price reference per item type, with **historical records**.
+- **PotonganHarga**
+  - Discount rules for specific catalog items.
+- **StockOpname**
+  - Scheduled physical verification of items not yet redeemed or auctioned.
+  - Uses:
+    - **JadwalSO** (schedule)
+    - **SyaratMata** (prioritized items)
+    - **HasilSO** (results)
+- **Lelangan**
+  - Process for handling overdue items for auction.
+  - Uses:
+    - **BatchLelang** (grouped jobs per Toko)
+    - **ItemLelang** (individual items in a batch)
+
+---
+
+## 3. Roles & Permissions (High Level)
+
+> When implementing auth/guards, start from this mapping.
+
+### 3.1 SuperAdmin / Pemilik
+
+- Full access to:
+  - Their PT & Toko
+  - All data and transactions under them
+- Can manage:
+  - PT, Toko, PinjamPT approvals
+  - Users (AdminPT, Staff roles)
+  - MasterTipeBarang
+  - View Katalog
+
+### 3.2 AdminPT
+
+- Scoped to their PT and its Toko.
+- Can manage:
+  - Katalog (upload/update via Excel)
+  - PotonganHarga
+  - TambahModal (respond to requests)
+  - Mutasi per Toko
+  - StockOpname planning & monitoring
+  - Lelangan indexing & job creation
+  - PT-level reporting
+
+### 3.3 StaffToko
+
+- Scoped to their Toko (and PT).
+- Can:
+  - Manage Customer data + blacklist
+  - Create SPK (loans)
+  - View SPK history
+  - Create NKB (pelunasan / perpanjangan)
+  - Execute SetorUang payments via VA
+
+### 3.4 StaffStockOpname
+
+- Scoped to assigned PT/Toko.
+- Can:
+  - View assigned StockOpname schedules
+  - Scan SPK QR
+  - Input stock opname results + photos
+
+### 3.5 StaffLelang
+
+- Scoped to assigned batches.
+- Can:
+  - View BatchLelang tasks
+  - Scan items at Toko during pickup
+  - Mark items as taken / failed with reason
+
+### 3.6 StaffMarketing
+
+- Scoped to items in BatchLelang.
+- Can:
+  - Validate items (identity & condition)
+  - Set verdict: OK / Return / Reject
+  - Finalize batch status as “Siap Lelang”
+
+---
+
+## 4. Important Identifiers & Numbering Rules
+
+### 4.1 SPK Number
+
+- **Internal SPK Number**
+  - Format: `[TipeBarangCode][8-digit sequence per Toko]`
+  - Example: `H00000001`
+  - Sequence is unique per Toko (different Toko can reuse same sequence).
+- **Customer SPK Number**
+  - Format: `YYYYMMDD[4 random digits]`
+  - Must be **globally** unique.
+
+### 4.2 NKB Number
+
+- Format: `[KodeLokasi]-NKB-[YYYYMMDD]-[4 random digits]`
+- Must be unique across the entire system.
+
+### 4.3 SetorUang VA
+
+- Each SetorUang request generates a unique **VA number**:
+  - Bound to:
+    - Specific Toko
+    - Amount
+    - Due date (same day)
+
+---
+
+## 5. Business Logic – Interest & Penalty
+
+> These parameters **MUST be configurable** per owner/PT via admin UI (no hardcoding).
+
+### 5.1 Config Variables
+
+```text
+x   = quick interest rate (default 5%)
+y   = normal interest rate (default 10%)
+adm = administration fee (percentage, default 0%)
+as  = insurance fee (flat amount, default 0 IDR)
+d   = late penalty rate (default 2% per late month)
+minimal_principal_payment = 50_000 IDR
+```
+
+### 5.2 Pelunasan (Full Repayment)
+
+- Input: SPK, payment_date
+- Cases:
+
+1. **Pelunasan < 15 days since gadai date**
+   - Quick interest (bunga ringan)
+   - Formula:
+     - `total = principal + (principal * x%)`
+
+2. **Pelunasan ≤ 1 month since gadai date**
+   - Normal interest
+   - Formula:
+     - `total = principal + (principal * y%)`
+
+3. Penalty (if late > 1 month)
+   - Apply penalty `d%` per late month as per config and spec rules (combine with base interest).
+
+### 5.3 Perpanjangan (Extension)
+
+- Input:
+  - SPK, payment_date, amount_paid
+- Behavior:
+  - Customer pays:
+    - Interest (`principal_before_payment * y%`)
+    - Admin fee (`adm%` of principal or other config)
+    - Insurance fee (`as`)
+    - Minimal principal portion (`>= minimal_principal_payment`)
+  - Principal used for **interest calculation** is the **principal before this payment**.
+  - Future SPK principal is reduced by the principal portion actually paid (depending on spec adaptation).
+
+### 5.4 Late Extension
+
+- If extension is done **after due date**:
+  - Add late penalty `d%`.
+  - For multiple late months:
+    - `late_penalty = principal_before_payment * d% * number_of_late_months`
+
+### 5.5 SPK Status Transitions
+
+Model SPK as a **state machine**:
+
+- `Draft` → `Aktif` (after initial SPK creation & PIN set)
+- `Aktif`:
+  - With due_date in future, no full payment yet
+- `Berjalan` (extended):
+  - After NKB extension payment
+- `Terlambat`:
+  - Due date passed, no extension or full repayment
+- `Lunas`:
+  - Principal fully paid, item can be redeemed
+- `Dilelang`:
+  - Item marked for auction (after lelangan process)
+
+---
+
+## 6. Operational Modules (For UI / API Design)
+
+> Use these as a starting point for routes, pages, and API endpoints.
+
+### 6.1 Master & Setup
+
+- **Pemilik Management**
+- **PT Management**
+  - Includes PinjamPT approval flow
+- **Toko Management**
+- **User Management**
+  - Role assignment per PT/Toko
+- **MasterTipeBarang**
+- **Katalog Management**
+  - Excel upload
+  - Historical price records
+- **PotonganHarga Management**
+
+### 6.2 Loan & Payment (Toko)
+
+- **Customer Management**
+  - CRUD, blacklist
+  - KTP OCR for NIK
+- **SPK Creation**
+  - Customer selection (search by NIK/name)
+  - Item details + Katalog reference price
+  - SPK number generation
+  - Customer PIN creation (on dedicated PIN screen)
+  - SPK QR generation & printing
+- **SPK History / Detail**
+  - List & search SPK
+  - Show payment history & status
+- **NKB**
+  - Start by scanning SPK QR
+  - Show SPK details
+  - Choose NKB type:
+    - Pelunasan (PIN required)
+    - Perpanjangan
+  - Apply interest/penalty rules
+  - Generate NKB number
+  - Update SPK status
+
+### 6.3 Cash Flow (PT ↔ Toko)
+
+- **TambahModal**
+  - Toko sends request → AdminPT approves & uploads proof
+  - Create journal entries for PT & Toko
+- **SetorUang**
+  - Admin center creates VA request for Toko
+  - Toko pays via bank/app
+  - Payment gateway callback:
+    - Validate VA and amount
+    - Mark SetorUang as `Lunas` if success (or `Expired` if passed deadline)
+    - Create journal entries
+
+### 6.4 Stock Opname
+
+- **AdminPT:**
+  - Define SyaratMata rules
+  - Create JadwalSO (schedules) with:
+    - Toko list
+    - StaffStockOpname list
+    - Date/time
+  - Monitor progress and results
+- **StaffStockOpname:**
+  - See assigned schedules
+  - Scan SPK QR
+  - Input condition/result
+  - Upload photos (mandatory for “Mata”)
+
+### 6.5 Lelangan & Marketing
+
+- **AdminPT:**
+  - Index JatuhTempo list (overdue SPK)
+  - Create BatchLelang per Toko
+  - Assign to StaffLelang
+- **StaffLelang:**
+  - View assigned batches
+  - Scan and pick up items at Toko
+  - Mark each item as:
+    - Taken (ok)
+    - Failed (with reason)
+- **StaffMarketing:**
+  - Validate taken items:
+    - Verify identity & condition
+    - Verdict: OK / Return / Reject
+    - Add notes and photos
+  - Finalize batch as `Siap Lelang` when all OK
+
+---
+
+## 7. Reporting Requirements (High Level)
+
+> Exact columns can be refined per page, but core filters and semantics must be respected.
+
+### 7.1 Laporan Mutasi per Cabang (Toko)
+
+- Filters:
+  - Date range
+  - PT, Toko
+  - Transaction type
+  - Payment method
+  - Status (Sukses / Pending / Expired)
+- Purpose:
+  - Show branch-level financial movements, with running saldo.
+
+### 7.2 Laporan Mutasi per PT
+
+- Filters:
+  - Date range
+  - PT, Owner
+  - Transaction type
+  - Status
+- Purpose:
+  - Show PT-level cash flow across its branches.
+
+### 7.3 Laporan SPK
+
+- Filters:
+  - SPK date range
+  - PT, Toko
+  - SPK status
+  - Item type
+- Purpose:
+  - Monitor portfolio of loans (active, closed, auctioned).
+
+### 7.4 Laporan Pembayaran (NKB)
+
+- Filters:
+  - Payment date range
+  - PT, Toko
+  - NKB type (Pelunasan / Perpanjangan)
+  - SPK status after payment
+- Purpose:
+  - Analyze repayment behavior & revenue (interest, penalty, fees).
+
+### 7.5 Laporan Stock Opname
+
+- Filters:
+  - SO schedule date range
+  - PT, Toko
+  - Staff
+  - Schedule status
+  - “Mata” focus
+- Purpose:
+  - Monitor stock verification accuracy and issues.
+
+---
+
+## 8. Non-Functional & Constraints
+
+### 8.1 Security
+
+- PIN and sensitive fields must be **encrypted**.
+- JWT-based auth, role-based access control.
+- Access restricted to:
+  - VPN-only network
+  - MAC-address-based device whitelisting (if enforced).
+- **No hard delete**:
+  - Every delete is soft delete or archival with audit trail.
+
+### 8.2 Availability & Backup
+
+- High-uptime target (24/7).
+- Automated daily backups.
+
+### 8.3 Configurability
+
+- Admin PT/Pemilik must be able to change:
+  - Interest rates (x, y)
+  - Penalty rate (d)
+  - Admin & insurance fees (adm, as)
+  - Minimal principal payment amount
+  - SyaratMata rules
+
+> Do **not** hardcode these values in business logic.
+
+### 8.4 Timeline & Ownership
+
+- Target project timeline: **max ~3.5 months**.
+- **Staging server:** vendor-owned & paid.
+- **Production server:** client-owned & paid.
+
+---
+
+## 9. How LLMs Should Use This Context
+
+When generating code, tests, or docs:
+
+1. **Respect domain vocabulary** exactly:
+   - Use `SPK`, `NKB`, `Mutasi`, `TambahModal`, `SetorUang`, `StockOpname`, `BatchLelang`, etc. as core entities.
+2. **Preserve numbering rules**:
+   - Do not change SPK/NKB/VA formats unless explicitly requested.
+3. **Keep financial logic configurable**:
+   - Expose variables in config or DB, not constants in code.
+4. **Model state machines explicitly**:
+   - For SPK, BatchLelang, StockOpname schedules, etc.
+5. **Always consider roles**:
+   - Any page/endpoint must specify which roles can access it.
+6. **Do not introduce hard delete**:
+   - Use soft delete and maintain audit logs.
+
+If something is unclear in future prompts, **use this file as the single source of truth** for domain & business logic unless a newer spec is provided.
