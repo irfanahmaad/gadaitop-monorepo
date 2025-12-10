@@ -1,0 +1,65 @@
+---
+description: Use pnpm instead of others
+globs: "*.ts, *.tsx, *.html, *.css, *.js, *.jsx, package.json"
+alwaysApply: false
+---
+
+# Use pnpm exclusively in this monorepo
+
+This monorepo uses **pnpm** as the package manager. Always use pnpm commands instead of npm, yarn, bun, or any other package manager.
+
+## Rules
+
+1. **Always use pnpm commands:**
+   - Use `pnpm install` instead of `npm install` or `yarn install`
+   - Use `pnpm add <package>` instead of `npm install <package>` or `yarn add <package>`
+   - Use `pnpm remove <package>` instead of `npm uninstall <package>` or `yarn remove <package>`
+   - Use `pnpm run <script>` instead of `npm run <script>` or `yarn <script>`
+   - Use `pnpm exec <command>` instead of `npx <command>` or `yarn exec <command>`
+
+2. **Package installation:**
+   - Install dependencies: `pnpm install`
+   - Add a dependency: `pnpm add <package>`
+   - Add a dev dependency: `pnpm add -D <package>`
+   - Add a peer dependency: `pnpm add -P <package>`
+   - Add a workspace dependency: `pnpm add -w <package>`
+
+3. **Scripts execution:**
+   - Run scripts: `pnpm run <script-name>`
+   - Run scripts in workspace: `pnpm --filter <workspace> run <script-name>`
+
+4. **Workspace commands:**
+   - Install in specific workspace: `pnpm --filter <workspace> add <package>`
+   - Run command in workspace: `pnpm --filter <workspace> <command>`
+
+5. **Never use:**
+   - ❌ `npm install`, `npm i`, `npm add`, `npm run`
+   - ❌ `yarn install`, `yarn add`, `yarn run`
+   - ❌ `bun install`, `bun add`, `bun run`
+   - ❌ `npx` (use `pnpm exec` instead)
+
+6. **When suggesting commands or making changes:**
+   - Always use pnpm syntax in all code examples, documentation, and terminal commands
+   - When updating package.json, ensure scripts and dependencies are compatible with pnpm
+   - When creating new files or modifying existing ones, use pnpm commands in any instructions or examples
+
+## Examples
+
+✅ **Correct:**
+
+```bash
+pnpm install
+pnpm add react
+pnpm add -D @types/node
+pnpm run dev
+pnpm exec next build
+```
+
+❌ **Incorrect:**
+
+```bash
+npm install
+yarn add react
+npm run dev
+npx next build
+```

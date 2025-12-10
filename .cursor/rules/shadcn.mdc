@@ -1,0 +1,229 @@
+---
+description: shadcn/ui monorepo best practices and requirements
+globs: "*.ts, *.tsx, *.json, components.json"
+alwaysApply: true
+---
+
+# shadcn/ui Monorepo Best Practices
+
+This monorepo uses shadcn/ui with a monorepo structure. Follow these rules when working with shadcn/ui components.
+
+## Monorepo Structure
+
+The project follows this structure:
+
+- `apps/web` - Next.js application (your app)
+- `packages/ui` - Shared UI components, hooks, and utilities
+
+## Requirements
+
+### 1. components.json Files
+
+**Every workspace MUST have a `components.json` file:**
+
+- `apps/web/components.json` - Configuration for the app workspace
+- `packages/ui/components.json` - Configuration for the UI package workspace
+
+### 2. components.json Configuration Rules
+
+**Both `components.json` files must:**
+
+- Have the same `style` value (currently: `"new-york"`)
+- Have the same `iconLibrary` value (currently: `"lucide"`)
+- Have the same `baseColor` value (currently: `"neutral"`)
+- For Tailwind CSS v4, leave the `tailwind.config` empty (`""`)
+
+**apps/web/components.json aliases:**
+
+```json
+{
+  "aliases": {
+    "components": "@/components", // App-specific components
+    "hooks": "@/hooks", // App-specific hooks
+    "lib": "@/lib", // App-specific lib
+    "utils": "@workspace/ui/lib/utils", // Shared utils from UI package
+    "ui": "@workspace/ui/components" // Shared UI components
+  }
+}
+```
+
+**packages/ui/components.json aliases:**
+
+```json
+{
+  "aliases": {
+    "components": "@workspace/ui/components",
+    "utils": "@workspace/ui/lib/utils",
+    "hooks": "@workspace/ui/hooks",
+    "lib": "@workspace/ui/lib",
+    "ui": "@workspace/ui/components"
+  }
+}
+```
+
+## Adding Components
+
+### Rules for Adding Components
+
+1. **Always run shadcn CLI from the app directory:**
+
+   ```bash
+   cd apps/web
+   pnpm dlx shadcn@latest add [COMPONENT]
+   ```
+
+2. **Component Installation Behavior:**
+   - **UI Components** (e.g., `button`, `input`, `card`): Installed to `packages/ui/src/components/`
+   - **Blocks** (e.g., `login-01`, `dashboard-01`):
+     - Dependencies (button, input, etc.) → `packages/ui/src/components/`
+     - Block component itself → `apps/web/components/`
+
+3. **The CLI automatically:**
+   - Installs components to the correct paths
+   - Updates import paths correctly
+   - Handles workspace dependencies
+
+## Import Patterns
+
+### Importing UI Components
+
+Always import shared UI components from `@workspace/ui`:
+
+```tsx
+// ✅ Correct - Import from workspace package
+import { Button } from "@workspace/ui/components/button";
+import { Input } from "@workspace/ui/components/input";
+import { Card } from "@workspace/ui/components/card";
+```
+
+### Importing Hooks and Utilities
+
+```tsx
+// ✅ Correct - Import hooks and utils from workspace package
+import { useTheme } from "@workspace/ui/hooks/use-theme";
+import { cn } from "@workspace/ui/lib/utils";
+```
+
+### Importing App-Specific Components
+
+App-specific components (blocks, forms, etc.) use local aliases:
+
+```tsx
+// ✅ Correct - App-specific components
+import { LoginForm } from "@/components/login-form";
+import { DashboardLayout } from "@/components/dashboard-layout";
+```
+
+## File Structure
+
+```
+apps/
+└── web/                    # Your Next.js app
+    ├── app/
+    ├── components/         # App-specific components (blocks, forms)
+    ├── components.json     # REQUIRED: App workspace config
+    └── package.json
+
+packages/
+└── ui/                     # Shared UI components
+    ├── src/
+    │   ├── components/     # shadcn/ui components (button, input, etc.)
+    │   ├── hooks/          # Shared hooks
+    │   ├── lib/
+    │   │   └── utils.ts    # Shared utilities (cn function)
+    │   └── styles/
+    │       └── globals.css # Tailwind CSS
+    ├── components.json     # REQUIRED: UI package config
+    └── package.json
+```
+
+## CLI Usage
+
+### Initialization
+
+If setting up a new monorepo, use:
+
+```bash
+pnpm dlx shadcn@latest init
+```
+
+Select: `Next.js (Monorepo)`
+
+### Adding Components
+
+**Always run from `apps/web` directory:**
+
+```bash
+cd apps/web
+pnpm dlx shadcn@latest add button
+pnpm dlx shadcn@latest add login-01
+```
+
+### Never Use
+
+- ❌ Running shadcn CLI from root directory
+- ❌ Using `npx` (use `pnpm dlx` instead per pnpm rules)
+- ❌ Manually installing components to wrong locations
+- ❌ Inconsistent `components.json` configurations between workspaces
+
+## Best Practices
+
+1. **Keep components.json in sync:**
+   - Ensure `style`, `iconLibrary`, and `baseColor` match in both files
+   - Update both files when changing theme settings
+
+2. **Component Organization:**
+   - Shared/reusable UI components → `packages/ui/src/components/`
+   - App-specific components/blocks → `apps/web/components/`
+
+3. **Import Consistency:**
+   - Always use `@workspace/ui` for shared components
+   - Use `@/` aliases for app-specific code
+   - Never import directly from `packages/ui/src/` paths
+
+4. **When Creating New Components:**
+   - If it's a reusable UI component → Add to `packages/ui`
+   - If it's app-specific (forms, pages, layouts) → Add to `apps/web/components`
+
+5. **Dependencies:**
+   - UI component dependencies are installed to `packages/ui`
+   - The CLI handles this automatically when adding components
+
+## Examples
+
+✅ **Correct Component Addition:**
+
+```bash
+cd apps/web
+pnpm dlx shadcn@latest add button
+# Button installed to: packages/ui/src/components/button.tsx
+# Import in app: import { Button } from "@workspace/ui/components/button"
+```
+
+✅ **Correct Block Addition:**
+
+```bash
+cd apps/web
+pnpm dlx shadcn@latest add login-01
+# Dependencies (button, input, etc.) → packages/ui/src/components/
+# Login form → apps/web/components/login-form.tsx
+```
+
+❌ **Incorrect:**
+
+```bash
+# Running from root
+pnpm dlx shadcn@latest add button  # ❌ Wrong directory
+
+# Wrong import
+import { Button } from "@/components/button"  # ❌ Should be from @workspace/ui
+```
+
+## Troubleshooting
+
+If components aren't installing correctly:
+
+1. Verify both `components.json` files exist
+2. Check that aliases are correctly configured
+3. Ensure you're running commands from `apps/web` directory
+4. Verify `style`, `iconLibrary`, and `baseColor` match in both files
