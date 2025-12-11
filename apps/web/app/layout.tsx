@@ -2,11 +2,17 @@ import { Inter } from "next/font/google"
 
 import "@workspace/ui/globals.css"
 import { Providers } from "@/components/providers"
+import { Metadata } from "next"
 
 const fontSans = Inter({
   subsets: ["latin"],
   variable: "--font-sans",
 })
+
+export const metadata: Metadata = {
+  title: "Gadai Top",
+  description: "Gadai Top",
+}
 
 export default function RootLayout({
   children,
