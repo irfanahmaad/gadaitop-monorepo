@@ -21,7 +21,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${fontSans.variable} font-sans antialiased`}>
+      <body
+        className={`${fontSans.variable} bg-slate-200 font-sans antialiased`}
+      >
         <Providers>{children}</Providers>
       </body>
     </html>
