@@ -1,7 +1,8 @@
 import * as React from "react"
+import { LayoutDashboard, UserCog, Building2, Package } from "lucide-react"
 
 // import { SearchForm } from "@/components/search-form"
-import { VersionSwitcher } from "@/components/version-switcher"
+// import { VersionSwitcher } from "@/components/version-switcher"
 import {
   Sidebar,
   SidebarContent,
@@ -28,6 +29,7 @@ const data = {
           title: "Dashboard",
           url: "#",
           isActive: true,
+          icon: LayoutDashboard,
         },
       ],
     },
@@ -39,14 +41,17 @@ const data = {
           title: "Master Super Admin",
           url: "#",
           isActive: false,
+          icon: UserCog,
         },
         {
           title: "Master PT",
           url: "#",
+          icon: Building2,
         },
         {
           title: "Master Tipe Barang",
           url: "#",
+          icon: Package,
         },
       ],
     },
@@ -73,13 +78,19 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <SidebarGroupLabel>{item.title}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {item.items.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild isActive={item.isActive}>
-                      <a href={item.url}>{item.title}</a>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
+                {item.items.map((item) => {
+                  const Icon = item.icon || LayoutDashboard
+                  return (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton asChild isActive={item.isActive}>
+                        <a href={item.url} className="flex items-center gap-2">
+                          <Icon className="size-4 shrink-0" />
+                          <span>{item.title}</span>
+                        </a>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )
+                })}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>

@@ -490,7 +490,7 @@ const sidebarMenuButtonVariants = cva(
     },
     defaultVariants: {
       variant: "default",
-      size: "default",
+      size: "lg",
     },
   }
 );
@@ -499,7 +499,7 @@ function SidebarMenuButton({
   asChild = false,
   isActive = false,
   variant = "default",
-  size = "default",
+  size = "lg",
   tooltip,
   className,
   ...props
