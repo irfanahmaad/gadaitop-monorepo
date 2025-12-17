@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import {
   Calendar as CalendarIcon,
   FileText,
@@ -270,7 +271,9 @@ export default function Page() {
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
-                <BreadcrumbLink href="#">Pages</BreadcrumbLink>
+                <BreadcrumbLink asChild>
+                  <Link href="/">Pages</Link>
+                </BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>

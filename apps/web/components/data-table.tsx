@@ -1,0 +1,318 @@
+"use client"
+
+import * as React from "react"
+import {
+  ColumnDef,
+  ColumnFiltersState,
+  flexRender,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  useReactTable,
+  VisibilityState,
+} from "@tanstack/react-table"
+import { MoreHorizontal, SearchIcon, Eye, Pencil, Trash2 } from "lucide-react"
+
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@workspace/ui/components/table"
+import { Button } from "@workspace/ui/components/button"
+import { Input } from "@workspace/ui/components/input"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@workspace/ui/components/dropdown-menu"
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@workspace/ui/components/pagination"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@workspace/ui/components/card"
+
+interface DataTableProps<TData, TValue> {
+  columns: ColumnDef<TData, TValue>[]
+  data: TData[]
+  title?: string
+  searchPlaceholder?: string
+  onDetail?: (row: TData) => void
+  onEdit?: (row: TData) => void
+  onDelete?: (row: TData) => void
+}
+
+export function DataTable<TData, TValue>({
+  columns,
+  data,
+  title,
+  searchPlaceholder = "Search...",
+  onDetail,
+  onEdit,
+  onDelete,
+}: DataTableProps<TData, TValue>) {
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
+    []
+  )
+  const [columnVisibility, setColumnVisibility] =
+    React.useState<VisibilityState>({})
+  const [rowSelection, setRowSelection] = React.useState({})
+  const [globalFilter, setGlobalFilter] = React.useState("")
+
+  // Add actions column if any action handlers are provided
+  const columnsWithActions = React.useMemo(() => {
+    if (!onDetail && !onEdit && !onDelete) {
+      return columns
+    }
+
+    const actionsColumn: ColumnDef<TData, TValue> = {
+      id: "actions",
+      enableHiding: false,
+      cell: ({ row }) => {
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0">
+                <span className="sr-only">Open menu</span>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {onDetail && (
+                <DropdownMenuItem onClick={() => onDetail(row.original)}>
+                  <Eye className="mr-2 h-4 w-4" />
+                  Detail
+                </DropdownMenuItem>
+              )}
+              {onEdit && (
+                <DropdownMenuItem onClick={() => onEdit(row.original)}>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Edit
+                </DropdownMenuItem>
+              )}
+              {onDelete && (
+                <DropdownMenuItem
+                  onClick={() => onDelete(row.original)}
+                  variant="destructive"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Hapus
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )
+      },
+    }
+
+    return [...columns, actionsColumn]
+  }, [columns, onDetail, onEdit, onDelete])
+
+  const table = useReactTable({
+    data,
+    columns: columnsWithActions,
+    onColumnFiltersChange: setColumnFilters,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    onColumnVisibilityChange: setColumnVisibility,
+    onRowSelectionChange: setRowSelection,
+    state: {
+      columnFilters,
+      columnVisibility,
+      rowSelection,
+      globalFilter,
+    },
+    onGlobalFilterChange: setGlobalFilter,
+    globalFilterFn: "includesString",
+  })
+
+  const currentPage = table.getState().pagination.pageIndex + 1
+  const pageSize = table.getState().pagination.pageSize
+  const totalRows = table.getFilteredRowModel().rows.length
+  const startRow = totalRows === 0 ? 0 : (currentPage - 1) * pageSize + 1
+  const endRow = Math.min(currentPage * pageSize, totalRows)
+  const totalPages = table.getPageCount()
+
+  // Generate page numbers to display
+  const getPageNumbers = () => {
+    const pages: (number | "ellipsis")[] = []
+    const current = currentPage
+    const total = totalPages
+
+    if (total <= 7) {
+      // Show all pages if 7 or fewer
+      for (let i = 1; i <= total; i++) {
+        pages.push(i)
+      }
+    } else {
+      // Always show first page
+      pages.push(1)
+
+      if (current <= 4) {
+        // Near the start
+        for (let i = 2; i <= 5; i++) {
+          pages.push(i)
+        }
+        pages.push("ellipsis")
+        pages.push(total)
+      } else if (current >= total - 3) {
+        // Near the end
+        pages.push("ellipsis")
+        for (let i = total - 4; i <= total; i++) {
+          pages.push(i)
+        }
+      } else {
+        // In the middle
+        pages.push("ellipsis")
+        for (let i = current - 1; i <= current + 1; i++) {
+          pages.push(i)
+        }
+        pages.push("ellipsis")
+        pages.push(total)
+      }
+    }
+
+    return pages
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          {title && <CardTitle className="text-xl">{title}</CardTitle>}
+          <div className="w-full sm:w-auto sm:max-w-sm">
+            <Input
+              placeholder={searchPlaceholder}
+              value={globalFilter ?? ""}
+              onChange={(e) => setGlobalFilter(e.target.value)}
+              icon={<SearchIcon className="size-4" />}
+              className="w-full"
+            />
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => {
+                    return (
+                      <TableHead key={header.id}>
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
+                      </TableHead>
+                    )
+                  })}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows?.length ? (
+                table.getRowModel().rows.map((row) => (
+                  <TableRow
+                    key={row.id}
+                    data-state={row.getIsSelected() && "selected"}
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id}>
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext()
+                        )}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell
+                    colSpan={columnsWithActions.length}
+                    className="h-24 text-center"
+                  >
+                    No results.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+        <div className="flex flex-col gap-4 pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-muted-foreground text-sm whitespace-nowrap">
+            Showing {startRow}–{endRow} of {totalRows} results
+          </div>
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  onClick={(e) => {
+                    e.preventDefault()
+                    table.previousPage()
+                  }}
+                  href="#"
+                  className={
+                    !table.getCanPreviousPage()
+                      ? "pointer-events-none opacity-50"
+                      : "cursor-pointer"
+                  }
+                />
+              </PaginationItem>
+              {getPageNumbers().map((page, index) => (
+                <PaginationItem key={index}>
+                  {page === "ellipsis" ? (
+                    <PaginationEllipsis />
+                  ) : (
+                    <PaginationLink
+                      onClick={(e) => {
+                        e.preventDefault()
+                        table.setPageIndex(page - 1)
+                      }}
+                      href="#"
+                      isActive={page === currentPage}
+                      className="cursor-pointer"
+                    >
+                      {page}
+                    </PaginationLink>
+                  )}
+                </PaginationItem>
+              ))}
+              <PaginationItem>
+                <PaginationNext
+                  onClick={(e) => {
+                    e.preventDefault()
+                    table.nextPage()
+                  }}
+                  href="#"
+                  className={
+                    !table.getCanNextPage()
+                      ? "pointer-events-none opacity-50"
+                      : "cursor-pointer"
+                  }
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}

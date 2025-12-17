@@ -1,0 +1,400 @@
+"use client"
+
+import React, { useState } from "react"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import * as z from "zod"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+import {
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  User,
+  Upload,
+  X,
+  IdCard,
+  Phone,
+} from "lucide-react"
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@workspace/ui/components/breadcrumb"
+import { Button } from "@workspace/ui/components/button"
+import { Input } from "@workspace/ui/components/input"
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@workspace/ui/components/form"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@workspace/ui/components/card"
+
+const superAdminSchema = z
+  .object({
+    image: z.union([z.instanceof(File), z.string()]).optional(),
+    name: z.string().min(1, "Nama Lengkap harus diisi"),
+    email: z
+      .string()
+      .min(1, "Email harus diisi")
+      .email("Format email tidak valid"),
+    phone: z.string().min(1, "No. Telepon harus diisi"),
+    password: z
+      .string()
+      .min(1, "Kata Sandi harus diisi")
+      .min(8, "Kata Sandi minimal 8 karakter"),
+    confirmPassword: z.string().min(1, "Ulangi Kata Sandi harus diisi"),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Kata Sandi tidak cocok",
+    path: ["confirmPassword"],
+  })
+
+type SuperAdminFormValues = z.infer<typeof superAdminSchema>
+
+export default function SuperAdminCreatePage() {
+  const router = useRouter()
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [previewImage, setPreviewImage] = useState<string | null>(null)
+
+  const form = useForm<SuperAdminFormValues>({
+    resolver: zodResolver(superAdminSchema),
+    defaultValues: {
+      image: undefined,
+      name: "",
+      email: "",
+      phone: "",
+      password: "",
+      confirmPassword: "",
+    },
+  })
+
+  const handleImageChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    field: { onChange: (value: File | undefined) => void }
+  ) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      field.onChange(file)
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setPreviewImage(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const handleRemoveImage = (field: {
+    onChange: (value: undefined) => void
+  }) => {
+    field.onChange(undefined)
+    setPreviewImage(null)
+  }
+
+  const onSubmit = (values: SuperAdminFormValues) => {
+    console.log("Form values:", values)
+    // Handle form submission logic here
+    // After successful submission, redirect to list page
+    // router.push("/super-admin")
+  }
+
+  return (
+    <>
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-2xl font-bold">Tambah Data</h1>
+            <Breadcrumb>
+              <BreadcrumbList>
+                <BreadcrumbItem>
+                  <BreadcrumbLink asChild>
+                    <Link href="/">Pages</Link>
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbLink asChild>
+                    <Link href="/super-admin">Master Super Admin</Link>
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbPage>Tambah Data</BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Form Tambah Super Admin</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Form {...form}>
+              <form
+                onSubmit={form.handleSubmit(onSubmit)}
+                className="grid grid-cols-1 space-y-8 lg:grid-cols-[250px_1fr]"
+              >
+                <div>
+                  {/* Image Upload Section */}
+                  <div className="flex justify-center">
+                    <FormField
+                      control={form.control}
+                      name="image"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormControl>
+                            <div className="space-y-4">
+                              {previewImage ? (
+                                <div className="border-input bg-muted/50 relative aspect-square w-48 overflow-hidden rounded-full border-2 border-dashed">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img
+                                    src={previewImage}
+                                    alt="Preview"
+                                    className="h-full w-full object-cover"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveImage(field)}
+                                    className="bg-destructive hover:bg-destructive/90 absolute top-2 right-2 z-10 rounded-full p-1.5 text-white shadow-sm transition-colors"
+                                    aria-label="Hapus gambar"
+                                  >
+                                    <X className="size-4" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <label
+                                  htmlFor="image-upload"
+                                  className="border-input bg-muted/50 hover:bg-muted flex aspect-square w-48 cursor-pointer flex-col items-center justify-center gap-3 rounded-full border-2 border-dashed transition-colors"
+                                >
+                                  <div className="flex flex-col items-center gap-2">
+                                    <div className="bg-primary/10 rounded-full p-3">
+                                      <Upload className="text-primary size-6" />
+                                    </div>
+                                    <div className="text-center">
+                                      <p className="text-sm font-medium">
+                                        Upload Gambar
+                                      </p>
+                                      <p className="text-muted-foreground text-xs">
+                                        PNG, JPG hingga 5MB
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <input
+                                    id="image-upload"
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) =>
+                                      handleImageChange(e, field)
+                                    }
+                                  />
+                                </label>
+                              )}
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  {/* Detail Super Admin Section */}
+                  <div className="mb-10 space-y-6">
+                    <div className="flex items-center gap-3">
+                      <IdCard className="text-destructive size-6" />
+                      <h2 className="text-destructive text-lg font-semibold">
+                        Detail Super Admin
+                      </h2>
+                    </div>
+                    <div className="grid gap-6 md:grid-cols-2">
+                      {/* Nama Lengkap Field */}
+                      <FormField
+                        control={form.control}
+                        name="name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>
+                              Nama Lengkap{" "}
+                              <span className="text-destructive">*</span>
+                            </FormLabel>
+                            <FormControl>
+                              <Input
+                                type="text"
+                                placeholder="Contoh: Agung Prasetyo"
+                                icon={<User className="size-4" />}
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      {/* Email Field */}
+                      <FormField
+                        control={form.control}
+                        name="email"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Email</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="email"
+                                placeholder="Contoh: agung.pras@mail.com"
+                                icon={<Mail className="size-4" />}
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      {/* No. Telepon Field */}
+                      <FormField
+                        control={form.control}
+                        name="phone"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>No. Telepon</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="tel"
+                                placeholder="Contoh: 0812345678910"
+                                icon={<Phone className="size-4" />}
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Keamanan Section */}
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-3">
+                      <Lock className="text-destructive size-6" />
+                      <h2 className="text-destructive text-lg font-semibold">
+                        Keamanan
+                      </h2>
+                    </div>
+                    <div className="grid gap-6 md:grid-cols-2">
+                      {/* Kata Sandi Field */}
+                      <FormField
+                        control={form.control}
+                        name="password"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Kata Sandi</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <Input
+                                  type={showPassword ? "text" : "password"}
+                                  placeholder="Minimal 8 Karakter"
+                                  icon={<Lock className="size-4" />}
+                                  {...field}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setShowPassword(!showPassword)}
+                                  className="text-muted-foreground hover:text-foreground absolute top-1/2 right-3 -translate-y-1/2"
+                                  aria-label={
+                                    showPassword
+                                      ? "Sembunyikan password"
+                                      : "Tampilkan password"
+                                  }
+                                >
+                                  {showPassword ? (
+                                    <EyeOff className="size-4" />
+                                  ) : (
+                                    <Eye className="size-4" />
+                                  )}
+                                </button>
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      {/* Ulangi Kata Sandi Field */}
+                      <FormField
+                        control={form.control}
+                        name="confirmPassword"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Ulangi Kata Sandi</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <Input
+                                  type={
+                                    showConfirmPassword ? "text" : "password"
+                                  }
+                                  placeholder="Minimal 8 Karakter"
+                                  icon={<Lock className="size-4" />}
+                                  {...field}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setShowConfirmPassword(!showConfirmPassword)
+                                  }
+                                  className="text-muted-foreground hover:text-foreground absolute top-1/2 right-3 -translate-y-1/2"
+                                  aria-label={
+                                    showConfirmPassword
+                                      ? "Sembunyikan password"
+                                      : "Tampilkan password"
+                                  }
+                                >
+                                  {showConfirmPassword ? (
+                                    <EyeOff className="size-4" />
+                                  ) : (
+                                    <Eye className="size-4" />
+                                  )}
+                                </button>
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Form Actions */}
+                  <div className="flex justify-end gap-4 pt-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => router.back()}
+                    >
+                      Batal
+                    </Button>
+                    <Button type="submit">Simpan</Button>
+                  </div>
+                </div>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
+      </div>
+    </>
+  )
+}

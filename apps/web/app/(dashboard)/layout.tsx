@@ -27,7 +27,7 @@ export default function DashboardLayout({
             </div>
           </header>
 
-          <div className="bg-slate-200/50">
+          <div className="min-h-[calc(100vh-64px)] bg-slate-200/50">
             <div className="container">
               <div className="flex flex-1 flex-col gap-4 p-4">{children}</div>
             </div>
