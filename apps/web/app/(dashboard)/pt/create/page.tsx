@@ -4,7 +4,6 @@ import React, { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
   Mail,
@@ -18,14 +17,7 @@ import {
   Phone,
   UserPlus,
 } from "lucide-react"
-import {
-  Breadcrumb,
-  BreadcrumbList,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@workspace/ui/components/breadcrumb"
+import { Breadcrumbs } from "@/components/breadcrumbs"
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
 import {
@@ -132,25 +124,13 @@ export default function PTCreatePage() {
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-2">
           <h1 className="text-2xl font-bold">Tambah Data</h1>
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbLink asChild>
-                  <Link href="/">Pages</Link>
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbLink asChild>
-                  <Link href="/pt">Master PT</Link>
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage>Tambah Data</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
+          <Breadcrumbs
+            items={[
+              { label: "Pages", href: "/" },
+              { label: "Master PT", href: "/pt" },
+              { label: "Tambah Data" },
+            ]}
+          />
         </div>
 
         <Card>

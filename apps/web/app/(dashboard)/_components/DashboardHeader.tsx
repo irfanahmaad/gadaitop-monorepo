@@ -1,15 +1,7 @@
 "use client"
 
-import Link from "next/link"
 import { Calendar as CalendarIcon } from "lucide-react"
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@workspace/ui/components/breadcrumb"
+import { Breadcrumbs } from "@/components/breadcrumbs"
 import {
   Select,
   SelectContent,
@@ -47,19 +39,9 @@ export function DashboardHeader({
     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
       <div className="flex flex-col gap-2">
         <h1 className="text-foreground text-3xl font-bold">Dashboard</h1>
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink asChild>
-                <Link href="/">Pages</Link>
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>Dashboard</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
+        <Breadcrumbs
+          items={[{ label: "Pages", href: "/" }, { label: "Dashboard" }]}
+        />
       </div>
 
       {/* Filter Controls */}

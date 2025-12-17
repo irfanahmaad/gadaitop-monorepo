@@ -1,17 +1,9 @@
 "use client"
 
 import React from "react"
-import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { Pencil, Trash2, IdCard, User } from "lucide-react"
-import {
-  Breadcrumb,
-  BreadcrumbList,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@workspace/ui/components/breadcrumb"
+import { Breadcrumbs } from "@/components/breadcrumbs"
 import { Button } from "@workspace/ui/components/button"
 import {
   Card,
@@ -62,27 +54,13 @@ export default function DetailSuperAdminPage() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex flex-col gap-2">
             <h1 className="text-2xl font-bold">{superAdmin.name}</h1>
-            <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem>
-                  <BreadcrumbLink asChild>
-                    <Link href="/">Pages</Link>
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator />
-                <BreadcrumbItem>
-                  <BreadcrumbLink asChild>
-                    <Link href="/super-admin">Master Super Admin</Link>
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator />
-                <BreadcrumbItem>
-                  <BreadcrumbPage className="text-destructive">
-                    Detail
-                  </BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
+            <Breadcrumbs
+              items={[
+                { label: "Pages", href: "/" },
+                { label: "Master Super Admin", href: "/super-admin" },
+                { label: "Detail" },
+              ]}
+            />
           </div>
 
           <div className="flex gap-2">

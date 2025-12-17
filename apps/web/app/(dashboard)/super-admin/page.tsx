@@ -1,17 +1,9 @@
 "use client"
 
 import React from "react"
-import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { ColumnDef } from "@tanstack/react-table"
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@workspace/ui/components/breadcrumb"
+import { Breadcrumbs } from "@/components/breadcrumbs"
 import { Button } from "@workspace/ui/components/button"
 import { DataTable } from "@/components/data-table"
 import { PlusIcon } from "lucide-react"
@@ -103,19 +95,12 @@ export default function SuperAdminPage() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex flex-col gap-2">
             <h1 className="text-2xl font-bold">Super Admin</h1>
-            <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem>
-                  <BreadcrumbLink asChild>
-                    <Link href="/">Pages</Link>
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator />
-                <BreadcrumbItem>
-                  <BreadcrumbPage>Master Super Admin</BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
+            <Breadcrumbs
+              items={[
+                { label: "Pages", href: "/" },
+                { label: "Master Super Admin" },
+              ]}
+            />
           </div>
 
           <div>
