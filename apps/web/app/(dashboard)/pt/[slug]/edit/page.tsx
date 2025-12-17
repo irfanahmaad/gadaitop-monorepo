@@ -277,8 +277,8 @@ export default function EditPTPage() {
 
                 <div>
                   {/* Data PT Section */}
-                  <div className="mb-10 space-y-6">
-                    <div className="space-y-6">
+                  <div className="mb-10 space-y-4">
+                    <div className="space-y-4">
                       <div className="flex items-center gap-3 border-b border-dashed pb-4">
                         <Building2 className="text-destructive size-6" />
                         <h3 className="text-destructive text-base font-semibold">
@@ -376,7 +376,7 @@ export default function EditPTPage() {
                   </div>
 
                   {/* Admin Primary Section */}
-                  <div className="mb-10 space-y-6">
+                  <div className="mb-10 space-y-4">
                     <div className="flex items-center gap-3 border-b border-dashed pb-4">
                       <UserPlus className="text-destructive size-6" />
                       <h2 className="text-destructive text-lg font-semibold">
@@ -450,7 +450,7 @@ export default function EditPTPage() {
                   </div>
 
                   {/* Keamanan (Admin Primary) Section */}
-                  <div className="space-y-6">
+                  <div className="space-y-4">
                     <div className="flex items-center gap-3 border-b border-dashed pb-4">
                       <Lock className="text-destructive size-6" />
                       <h2 className="text-destructive text-lg font-semibold">

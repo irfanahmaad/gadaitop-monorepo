@@ -164,25 +164,25 @@ export default function EditSuperAdminPage() {
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-2">
           <h1 className="text-2xl font-bold">Edit Data</h1>
-            <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem>
-                  <BreadcrumbLink asChild>
-                    <Link href="/">Pages</Link>
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator />
-                <BreadcrumbItem>
-                  <BreadcrumbLink asChild>
-                    <Link href="/super-admin">Master Super Admin</Link>
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator />
-                <BreadcrumbItem>
-                  <BreadcrumbPage>Edit Data</BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <Link href="/">Pages</Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <Link href="/super-admin">Master Super Admin</Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>Edit Data</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
         </div>
 
         <Card>
@@ -262,7 +262,7 @@ export default function EditSuperAdminPage() {
 
                 <div>
                   {/* Detail Super Admin Section */}
-                  <div className="mb-10 space-y-6">
+                  <div className="mb-10 space-y-4">
                     <div className="flex items-center gap-3">
                       <IdCard className="text-destructive size-6" />
                       <h2 className="text-destructive text-lg font-semibold">
@@ -336,16 +336,18 @@ export default function EditSuperAdminPage() {
                   </div>
 
                   {/* Keamanan Section */}
-                  <div className="space-y-6">
+                  <div className="space-y-4">
                     <div className="flex items-center gap-3">
                       <Lock className="text-destructive size-6" />
                       <h2 className="text-destructive text-lg font-semibold">
                         Keamanan
                       </h2>
                     </div>
+
                     <div className="text-muted-foreground mb-4 text-sm">
                       Kosongkan jika tidak ingin mengubah kata sandi
                     </div>
+
                     <div className="grid gap-6 md:grid-cols-2">
                       {/* Kata Sandi Field */}
                       <FormField

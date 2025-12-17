@@ -15,6 +15,7 @@ import { Badge } from "@workspace/ui/components/badge"
 import { Button } from "@workspace/ui/components/button"
 import { ScrollArea } from "@workspace/ui/components/scroll-area"
 import { cn } from "@workspace/ui/lib/utils"
+import Link from "next/link"
 
 interface Notification {
   id: string
@@ -130,8 +131,8 @@ export function NotificationDropdown({
         {notifications.length > 0 && (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="justify-center text-center">
-              View all notifications
+            <DropdownMenuItem asChild className="justify-center text-center">
+              <Link href="/notifikasi">View all notifications</Link>
             </DropdownMenuItem>
           </>
         )}

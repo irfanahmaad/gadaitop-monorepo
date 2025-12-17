@@ -92,9 +92,9 @@ export function TipeBarangFormDialog({
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             {/* Detail Tipe Barang Section */}
-            <div className="space-y-6">
+            <div className="space-y-4">
               <div className="flex items-center gap-3 border-b border-dashed pb-4">
                 <FileText className="text-destructive size-6" />
                 <h3 className="text-destructive text-base font-semibold">

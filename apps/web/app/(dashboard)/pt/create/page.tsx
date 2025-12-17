@@ -132,25 +132,25 @@ export default function PTCreatePage() {
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-2">
           <h1 className="text-2xl font-bold">Tambah Data</h1>
-            <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem>
-                  <BreadcrumbLink asChild>
-                    <Link href="/">Pages</Link>
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator />
-                <BreadcrumbItem>
-                  <BreadcrumbLink asChild>
-                    <Link href="/pt">Master PT</Link>
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator />
-                <BreadcrumbItem>
-                  <BreadcrumbPage>Tambah Data</BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <Link href="/">Pages</Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <Link href="/pt">Master PT</Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>Tambah Data</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
         </div>
 
         <Card>
@@ -224,14 +224,8 @@ export default function PTCreatePage() {
 
                 <div>
                   {/* Data PT Section */}
-                  <div className="mb-10 space-y-6">
-                    <div className="flex items-center gap-3">
-                      <Building2 className="text-destructive size-6" />
-                      <h2 className="text-destructive text-lg font-semibold">
-                        Data PT
-                      </h2>
-                    </div>
-                    <div className="space-y-6">
+                  <div className="mb-10 space-y-4">
+                    <div className="space-y-4">
                       <div className="flex items-center gap-3 border-b border-dashed pb-4">
                         <Building2 className="text-destructive size-6" />
                         <h3 className="text-destructive text-base font-semibold">
@@ -329,7 +323,7 @@ export default function PTCreatePage() {
                   </div>
 
                   {/* Admin Primary Section */}
-                  <div className="mb-10 space-y-6">
+                  <div className="mb-10 space-y-4">
                     <div className="flex items-center gap-3 border-b border-dashed pb-4">
                       <UserPlus className="text-destructive size-6" />
                       <h2 className="text-destructive text-lg font-semibold">
@@ -403,7 +397,7 @@ export default function PTCreatePage() {
                   </div>
 
                   {/* Keamanan (Admin Primary) Section */}
-                  <div className="space-y-6">
+                  <div className="space-y-4">
                     <div className="flex items-center gap-3 border-b border-dashed pb-4">
                       <Lock className="text-destructive size-6" />
                       <h2 className="text-destructive text-lg font-semibold">

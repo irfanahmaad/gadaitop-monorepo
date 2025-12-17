@@ -14,6 +14,7 @@ import {
 } from "@workspace/ui/components/breadcrumb"
 import { Button } from "@workspace/ui/components/button"
 import { DataTable } from "@/components/data-table"
+import { PlusIcon } from "lucide-react"
 
 // Sample data type
 type SuperAdmin = {
@@ -119,6 +120,7 @@ export default function SuperAdminPage() {
 
           <div>
             <Button onClick={() => router.push("/super-admin/create")}>
+              <PlusIcon className="h-4 w-4" />
               Tambah Data
             </Button>
           </div>

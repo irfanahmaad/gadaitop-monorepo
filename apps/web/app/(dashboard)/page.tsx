@@ -1,57 +1,19 @@
 "use client"
 
 import { useState } from "react"
-import Link from "next/link"
 import {
-  Calendar as CalendarIcon,
-  FileText,
-  Package,
-  CheckCircle2,
-  XCircle,
-} from "lucide-react"
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@workspace/ui/components/breadcrumb"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@workspace/ui/components/select"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@workspace/ui/components/card"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@workspace/ui/components/table"
-import { Badge } from "@workspace/ui/components/badge"
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@workspace/ui/components/avatar"
-import { Calendar } from "@workspace/ui/components/calendar"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@workspace/ui/components/popover"
-import { Button } from "@workspace/ui/components/button"
-import { cn } from "@workspace/ui/lib/utils"
+  imgMetricsDashboard1,
+  imgMetricsDashboard2,
+  imgMetricsDashboard3,
+  imgMetricsDashboard4,
+} from "@/assets/commons"
+import { DashboardHeader } from "./_components/DashboardHeader"
+import { MetricsGrid } from "./_components/MetricsGrid"
+import { SPKOverdueChartCard } from "./_components/SPKOverdueChartCard"
+import { TrenBarangGadaiChartCard } from "./_components/TrenBarangGadaiChartCard"
+import { SPKBaruTable } from "./_components/SPKBaruTable"
+import { NKBBaruTable } from "./_components/NKBBaruTable"
+import { SPKJatuhTempoTable } from "./_components/SPKJatuhTempoTable"
 
 export default function Page() {
   const [date, setDate] = useState<Date>(new Date(2025, 10, 20)) // November 20, 2025
@@ -239,304 +201,53 @@ export default function Page() {
     {
       title: "SPK Jatuh Tempo (Di bawah 1 Bulan)",
       value: "10",
-      icon: FileText,
+      icon: imgMetricsDashboard1,
       iconColor: "text-orange-600",
     },
     {
       title: "SPK Jatuh Tempo (Di atas 1 Bulan)",
       value: "5",
-      icon: XCircle,
+      icon: imgMetricsDashboard2,
       iconColor: "text-red-600",
     },
     {
       title: "Barang Gadai Aktif",
       value: "12",
-      icon: Package,
+      icon: imgMetricsDashboard3,
       iconColor: "text-green-600",
     },
     {
       title: "SPK Baru Hari ini",
       value: "5",
-      icon: CheckCircle2,
+      icon: imgMetricsDashboard4,
       iconColor: "text-green-600",
     },
   ]
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Header Section */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-foreground text-3xl font-bold">Dashboard</h1>
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbLink asChild>
-                  <Link href="/">Pages</Link>
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage>Dashboard</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-        </div>
+      <DashboardHeader
+        selectedPT={selectedPT}
+        selectedToko={selectedToko}
+        date={date}
+        onPTChange={setSelectedPT}
+        onTokoChange={setSelectedToko}
+        onDateChange={setDate}
+      />
 
-        {/* Filter Controls */}
-        <div className="flex flex-wrap items-center gap-3">
-          <Select value={selectedPT} onValueChange={setSelectedPT}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Pilih PT" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="pt-gadai-top">
-                PT Gadai Top Indonesia
-              </SelectItem>
-            </SelectContent>
-          </Select>
+      <MetricsGrid metrics={metrics} />
 
-          <Select value={selectedToko} onValueChange={setSelectedToko}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Pilih Toko" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="gt-jakarta-satu">GT Jakarta Satu</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  "w-[220px] justify-start text-left font-normal",
-                  !date && "text-muted-foreground"
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {date ? (
-                  date.toLocaleDateString("id-ID", {
-                    day: "numeric",
-                    month: "long",
-                    year: "numeric",
-                  })
-                ) : (
-                  <span>Pilih tanggal</span>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="end">
-              <Calendar
-                mode="single"
-                selected={date}
-                onSelect={(selectedDate) =>
-                  selectedDate && setDate(selectedDate)
-                }
-                initialFocus
-              />
-            </PopoverContent>
-          </Popover>
-        </div>
-      </div>
-
-      {/* Metric Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {metrics.map((metric) => {
-          return (
-            <Card key={metric.title} className="py-4 shadow-sm">
-              <CardContent className="flex items-center gap-4">
-                <div
-                  className={cn(
-                    "flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gray-500/50"
-                  )}
-                >
-                  {/* <Icon className={cn("h-6 w-6", metric.iconColor)} /> */}
-                </div>
-                <div className="flex min-w-0 flex-col gap-1">
-                  <p className="text-foreground leading-none font-bold">
-                    {metric.value}
-                  </p>
-                  <p className="text-muted-foreground line-clamp-2 h-8 text-sm leading-tight">
-                    {metric.title}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          )
-        })}
-      </div>
-
-      {/* SPK Baru and NKB Baru Tables - 2 Column Grid */}
       <div className="grid gap-4 md:grid-cols-2">
-        {/* SPK Baru Table */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex flex-col gap-2">
-                <CardTitle>SPK Baru</CardTitle>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nomor SPK</TableHead>
-                  <TableHead className="text-right">Nominal Dibayar</TableHead>
-                  <TableHead>Nama Customer</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {spkBaruData.map((spk) => (
-                  <TableRow key={spk.id}>
-                    <TableCell className="font-medium">
-                      {spk.spkNumber}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <span className="font-medium">
-                        {new Intl.NumberFormat("id-ID", {
-                          style: "currency",
-                          currency: "IDR",
-                          minimumFractionDigits: 0,
-                        }).format(spk.nominalDibayar)}
-                      </span>
-                    </TableCell>
-                    <TableCell>{spk.customerName}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-
-        {/* NKB Baru Table */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex flex-col gap-2">
-                <CardTitle>NKB Baru</CardTitle>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nomor NKB</TableHead>
-                  <TableHead className="text-right">Nominal Dibayar</TableHead>
-                  <TableHead>Jenis</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {nkbBaruData.map((nkb) => (
-                  <TableRow key={nkb.id}>
-                    <TableCell className="font-medium">
-                      {nkb.nkbNumber}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <span className="font-medium">
-                        {new Intl.NumberFormat("id-ID", {
-                          style: "currency",
-                          currency: "IDR",
-                          minimumFractionDigits: 0,
-                        }).format(nkb.nominalDibayar)}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{nkb.jenis}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          nkb.status === "Lunas"
-                            ? "secondary"
-                            : nkb.status === "Berjalan"
-                              ? "default"
-                              : "destructive"
-                        }
-                      >
-                        {nkb.status}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        <SPKOverdueChartCard />
+        <TrenBarangGadaiChartCard />
       </div>
 
-      {/* SPK Jatuh Tempo Hari ini Table */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex flex-col gap-2">
-              <CardTitle>Daftar SPK Jatuh Tempo Hari ini</CardTitle>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[60px]">No</TableHead>
-                <TableHead className="w-[80px]">Foto</TableHead>
-                <TableHead>Nomor SPK</TableHead>
-                <TableHead>Nama Customer</TableHead>
-                <TableHead className="text-right">Jumlah SPK</TableHead>
-                <TableHead className="text-right">Sisa SPK</TableHead>
-                <TableHead>Tanggal & Waktu SPK</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {spkJatuhTempoData.map((spk) => (
-                <TableRow key={spk.id}>
-                  <TableCell>{spk.no}</TableCell>
-                  <TableCell>
-                    <Avatar>
-                      <AvatarImage src={spk.foto} alt={spk.customerName} />
-                      <AvatarFallback>
-                        {spk.customerName
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")
-                          .toUpperCase()
-                          .slice(0, 2)}
-                      </AvatarFallback>
-                    </Avatar>
-                  </TableCell>
-                  <TableCell className="font-medium">{spk.spkNumber}</TableCell>
-                  <TableCell>{spk.customerName}</TableCell>
-                  <TableCell className="text-right">
-                    <span className="font-medium">
-                      {new Intl.NumberFormat("id-ID", {
-                        style: "currency",
-                        currency: "IDR",
-                        minimumFractionDigits: 0,
-                      }).format(spk.jumlahSPK)}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <span className="font-medium">{spk.sisaSPK}</span>
-                  </TableCell>
-                  <TableCell>
-                    {new Date(spk.tanggalWaktuSPK).toLocaleString("id-ID", {
-                      day: "numeric",
-                      month: "long",
-                      year: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      second: "2-digit",
-                    })}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <div className="grid gap-4 md:grid-cols-2">
+        <SPKBaruTable data={spkBaruData} />
+        <NKBBaruTable data={nkbBaruData} />
+      </div>
+
+      <SPKJatuhTempoTable data={spkJatuhTempoData} />
     </div>
   )
 }

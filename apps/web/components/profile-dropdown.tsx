@@ -78,10 +78,6 @@ export function ProfileDropdown({ user = defaultUser }: ProfileDropdownProps) {
             <span>Profile</span>
           </DropdownMenuItem>
           <DropdownMenuItem>
-            <CreditCard className="mr-2 size-4" />
-            <span>Billing</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem>
             <Bell className="mr-2 size-4" />
             <span>Notifications</span>
           </DropdownMenuItem>
@@ -97,7 +93,7 @@ export function ProfileDropdown({ user = defaultUser }: ProfileDropdownProps) {
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem className="text-destructive focus:text-destructive">
-          <LogOut className="mr-2 size-4" />
+          <LogOut className="text-destructive mr-2 size-4" />
           <span>Log out</span>
         </DropdownMenuItem>
       </DropdownMenuContent>

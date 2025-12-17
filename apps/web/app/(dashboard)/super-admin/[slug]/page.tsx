@@ -115,7 +115,7 @@ export default function DetailSuperAdminPage() {
               </div>
 
               {/* Detail Information */}
-              <div className="space-y-6">
+              <div className="space-y-4">
                 {/* Detail Super Admin Label */}
                 <div className="flex items-center gap-3">
                   <IdCard className="text-destructive size-6" />

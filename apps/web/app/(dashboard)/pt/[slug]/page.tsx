@@ -3,7 +3,7 @@
 import React from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
-import { Pencil, Trash2, Building2, UserPlus, Mail, Phone } from "lucide-react"
+import { Pencil, Trash2, Building2, UserPlus } from "lucide-react"
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -112,9 +112,9 @@ export default function DetailPTPage() {
               </div>
 
               {/* Detail Information */}
-              <div className="space-y-6">
+              <div className="space-y-4">
                 {/* Data PT Section */}
-                <div className="space-y-6">
+                <div className="space-y-4">
                   <div className="flex items-center gap-3 border-b border-dashed pb-4">
                     <Building2 className="text-destructive size-6" />
                     <h3 className="text-destructive text-base font-semibold">
@@ -167,7 +167,7 @@ export default function DetailPTPage() {
                 </div>
 
                 {/* Admin Primary Section */}
-                <div className="space-y-6 border-t border-dashed pt-6">
+                <div className="space-y-4 border-t border-dashed pt-6">
                   <div className="flex items-center gap-3 border-b border-dashed pb-4">
                     <UserPlus className="text-destructive size-6" />
                     <h2 className="text-destructive text-lg font-semibold">
