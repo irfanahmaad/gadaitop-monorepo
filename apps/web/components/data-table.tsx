@@ -10,6 +10,7 @@ import {
   getPaginationRowModel,
   useReactTable,
   VisibilityState,
+  PaginationState,
 } from "@tanstack/react-table"
 import {
   MoreHorizontal,
@@ -67,6 +68,11 @@ interface DataTableProps<TData, TValue> {
   onDetail?: (row: TData) => void
   onEdit?: (row: TData) => void
   onDelete?: (row: TData) => void
+  initialPageSize?: number
+  onPageSizeChange?: (pageSize: number) => void
+  searchValue?: string
+  onSearchChange?: (value: string) => void
+  getRowClassName?: (row: TData) => string
 }
 
 export function DataTable<TData, TValue>({
@@ -82,6 +88,11 @@ export function DataTable<TData, TValue>({
   onDetail,
   onEdit,
   onDelete,
+  initialPageSize = 10,
+  onPageSizeChange,
+  searchValue: controlledSearchValue,
+  onSearchChange,
+  getRowClassName,
 }: DataTableProps<TData, TValue>) {
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
@@ -89,8 +100,29 @@ export function DataTable<TData, TValue>({
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = React.useState({})
-  const [globalFilter, setGlobalFilter] = React.useState("")
+  const [internalGlobalFilter, setInternalGlobalFilter] = React.useState("")
   const [filterDialogOpen, setFilterDialogOpen] = React.useState(false)
+
+  // Use controlled search value if provided, otherwise use internal state
+  const globalFilter =
+    controlledSearchValue !== undefined
+      ? controlledSearchValue
+      : internalGlobalFilter
+  const setGlobalFilter = React.useCallback(
+    (value: string | ((prev: string) => string)) => {
+      const newValue = typeof value === "function" ? value(globalFilter) : value
+      if (onSearchChange) {
+        onSearchChange(newValue)
+      } else {
+        setInternalGlobalFilter(newValue)
+      }
+    },
+    [globalFilter, onSearchChange]
+  )
+  const [pagination, setPagination] = React.useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: initialPageSize,
+  })
 
   // Add actions column if any action handlers are provided
   const columnsWithActions = React.useMemo(() => {
@@ -150,11 +182,22 @@ export function DataTable<TData, TValue>({
     getFilteredRowModel: getFilteredRowModel(),
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
+    onPaginationChange: (updater) => {
+      setPagination((prev) => {
+        const newPagination =
+          typeof updater === "function" ? updater(prev) : updater
+        if (onPageSizeChange && newPagination.pageSize !== prev.pageSize) {
+          onPageSizeChange(newPagination.pageSize)
+        }
+        return newPagination
+      })
+    },
     state: {
       columnFilters,
       columnVisibility,
       rowSelection,
       globalFilter,
+      pagination,
     },
     onGlobalFilterChange: setGlobalFilter,
     globalFilterFn: "includesString",
@@ -274,6 +317,7 @@ export function DataTable<TData, TValue>({
                   <TableRow
                     key={row.id}
                     data-state={row.getIsSelected() && "selected"}
+                    className={getRowClassName?.(row.original)}
                   >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id}>
