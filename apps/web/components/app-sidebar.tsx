@@ -3,7 +3,24 @@
 import * as React from "react"
 import { usePathname } from "next/navigation"
 import Link from "next/link"
-import { LayoutDashboard, UserCog, Building2, Package } from "lucide-react"
+import {
+  LayoutDashboard,
+  UserCog,
+  Building2,
+  Package,
+  FileText,
+  Box,
+  Gavel,
+  Wallet,
+  Coins,
+  ArrowRightLeft,
+  FileBarChart,
+  Store,
+  Users,
+  User,
+  BookOpen,
+  Eye,
+} from "lucide-react"
 
 // import { SearchForm } from "@/components/search-form"
 // import { VersionSwitcher } from "@/components/version-switcher"
@@ -41,7 +58,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Dashboard</SidebarGroupLabel>
+          <SidebarGroupLabel>Menu Utama</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
@@ -49,6 +66,92 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   <Link href="/" className="flex items-center gap-2">
                     <LayoutDashboard className="size-4 shrink-0" />
                     <span>Dashboard</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname?.startsWith("/spk")}
+                >
+                  <Link href="/spk" className="flex items-center gap-2">
+                    <FileText className="size-4 shrink-0" />
+                    <span>SPK</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname?.startsWith("/stock-opname")}
+                >
+                  <Link
+                    href="/stock-opname"
+                    className="flex items-center gap-2"
+                  >
+                    <Box className="size-4 shrink-0" />
+                    <span>Stock Opname</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname?.startsWith("/lelang")}
+                >
+                  <Link href="/lelang" className="flex items-center gap-2">
+                    <Gavel className="size-4 shrink-0" />
+                    <span>Lelangan</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname?.startsWith("/tambah-modal")}
+                >
+                  <Link
+                    href="/tambah-modal"
+                    className="flex items-center gap-2"
+                  >
+                    <Wallet className="size-4 shrink-0" />
+                    <span>Tambah Modal</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname?.startsWith("/setor-uang")}
+                >
+                  <Link href="/setor-uang" className="flex items-center gap-2">
+                    <Coins className="size-4 shrink-0" />
+                    <span>Setor Uang</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname?.startsWith("/mutasi-transaksi")}
+                >
+                  <Link
+                    href="/mutasi-transaksi"
+                    className="flex items-center gap-2"
+                  >
+                    <ArrowRightLeft className="size-4 shrink-0" />
+                    <span>Mutasi Transaksi</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname?.startsWith("/laporan")}
+                >
+                  <Link href="/laporan" className="flex items-center gap-2">
+                    <FileBarChart className="size-4 shrink-0" />
+                    <span>Laporan</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -60,6 +163,73 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarGroupLabel>Master Data</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname?.startsWith("/master-toko")}
+                >
+                  <Link href="/master-toko" className="flex items-center gap-2">
+                    <Store className="size-4 shrink-0" />
+                    <span>Master Toko</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname?.startsWith("/master-customer")}
+                >
+                  <Link
+                    href="/master-customer"
+                    className="flex items-center gap-2"
+                  >
+                    <Users className="size-4 shrink-0" />
+                    <span>Master Customer</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname?.startsWith("/master-pengguna")}
+                >
+                  <Link
+                    href="/master-pengguna"
+                    className="flex items-center gap-2"
+                  >
+                    <User className="size-4 shrink-0" />
+                    <span>Master Pengguna</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname?.startsWith("/master-katalog")}
+                >
+                  <Link
+                    href="/master-katalog"
+                    className="flex items-center gap-2"
+                  >
+                    <BookOpen className="size-4 shrink-0" />
+                    <span>Master Katalog</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname?.startsWith("/master-syarat-mata")}
+                >
+                  <Link
+                    href="/master-syarat-mata"
+                    className="flex items-center gap-2"
+                  >
+                    <Eye className="size-4 shrink-0" />
+                    <span>Master Syarat Mata</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
