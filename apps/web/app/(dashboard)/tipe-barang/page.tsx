@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { ColumnDef } from "@tanstack/react-table"
 import { Breadcrumbs } from "@/components/breadcrumbs"
 import { Button } from "@workspace/ui/components/button"
@@ -16,35 +16,37 @@ type TipeBarang = {
   createdAt: string
 }
 
-// Sample data
-const sampleData: TipeBarang[] = Array.from({ length: 10 }, (_, i) => ({
-  id: `B${String(i + 1).padStart(3, "0")}`,
-  code: `B${String(i + 1).padStart(3, "0")}`,
-  name:
-    [
-      "Handphone",
-      "Sepeda Motor",
-      "Drone",
-      "Komputer",
-      "Kamera",
-      "Aksesoris Motor",
-      "Handphone Apple",
-      "Aksesoris Komputer",
-      "TV",
-      "Speaker",
-    ][i] ?? `Tipe Barang ${i + 1}`,
-  createdAt: new Date(Date.now() - i * 24 * 60 * 60 * 1000).toLocaleString(
-    "id-ID",
-    {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    }
-  ),
-}))
+// Helper function to generate sample data
+const generateSampleData = (): TipeBarang[] => {
+  return Array.from({ length: 10 }, (_, i) => ({
+    id: `B${String(i + 1).padStart(3, "0")}`,
+    code: `B${String(i + 1).padStart(3, "0")}`,
+    name:
+      [
+        "Handphone",
+        "Sepeda Motor",
+        "Drone",
+        "Komputer",
+        "Kamera",
+        "Aksesoris Motor",
+        "Handphone Apple",
+        "Aksesoris Komputer",
+        "TV",
+        "Speaker",
+      ][i] ?? `Tipe Barang ${i + 1}`,
+    createdAt: new Date(Date.now() - i * 24 * 60 * 60 * 1000).toLocaleString(
+      "id-ID",
+      {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      }
+    ),
+  }))
+}
 
 // Column definitions
 const columns: ColumnDef<TipeBarang>[] = [
@@ -74,6 +76,12 @@ const columns: ColumnDef<TipeBarang>[] = [
 export default function TipeBarangListPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<TipeBarang | null>(null)
+  const [sampleData, setSampleData] = useState<TipeBarang[]>([])
+
+  // Generate sample data only on client to avoid hydration mismatch
+  useEffect(() => {
+    setSampleData(generateSampleData())
+  }, [])
 
   const handleEdit = (row: TipeBarang) => {
     setEditingItem(row)

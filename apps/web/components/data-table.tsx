@@ -11,7 +11,14 @@ import {
   useReactTable,
   VisibilityState,
 } from "@tanstack/react-table"
-import { MoreHorizontal, SearchIcon, Eye, Pencil, Trash2 } from "lucide-react"
+import {
+  MoreHorizontal,
+  SearchIcon,
+  Eye,
+  Pencil,
+  Trash2,
+  SlidersHorizontal,
+} from "lucide-react"
 
 import {
   Table,
@@ -44,12 +51,19 @@ import {
   CardHeader,
   CardTitle,
 } from "@workspace/ui/components/card"
+import { FilterDialog } from "./filter-dialog"
+import { FilterConfig } from "@/hooks/use-filter-params"
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
   title?: string
   searchPlaceholder?: string
+  headerLeft?: React.ReactNode
+  headerRight?: React.ReactNode
+  filterConfig?: FilterConfig[]
+  filterValues?: Record<string, unknown>
+  onFilterChange?: (filters: Record<string, unknown>) => void
   onDetail?: (row: TData) => void
   onEdit?: (row: TData) => void
   onDelete?: (row: TData) => void
@@ -60,6 +74,11 @@ export function DataTable<TData, TValue>({
   data,
   title,
   searchPlaceholder = "Search...",
+  headerLeft,
+  headerRight,
+  filterConfig,
+  filterValues = {},
+  onFilterChange,
   onDetail,
   onEdit,
   onDelete,
@@ -71,6 +90,7 @@ export function DataTable<TData, TValue>({
     React.useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = React.useState({})
   const [globalFilter, setGlobalFilter] = React.useState("")
+  const [filterDialogOpen, setFilterDialogOpen] = React.useState(false)
 
   // Add actions column if any action handlers are provided
   const columnsWithActions = React.useMemo(() => {
@@ -193,15 +213,37 @@ export function DataTable<TData, TValue>({
     <Card>
       <CardHeader>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          {title && <CardTitle className="text-xl">{title}</CardTitle>}
-          <div className="w-full sm:w-auto sm:max-w-sm">
-            <Input
-              placeholder={searchPlaceholder}
-              value={globalFilter ?? ""}
-              onChange={(e) => setGlobalFilter(e.target.value)}
-              icon={<SearchIcon className="size-4" />}
-              className="w-full"
-            />
+          {/* Left: headerLeft slot or title fallback */}
+          <div className="flex items-center gap-4">
+            {headerLeft ||
+              (title && <CardTitle className="text-xl">{title}</CardTitle>)}
+          </div>
+
+          {/* Right: headerRight slot or default (Search + Filter) */}
+          <div className="flex w-full items-center gap-2 sm:w-auto">
+            {headerRight || (
+              <>
+                <div className="w-full sm:w-auto sm:max-w-sm">
+                  <Input
+                    placeholder={searchPlaceholder}
+                    value={globalFilter ?? ""}
+                    onChange={(e) => setGlobalFilter(e.target.value)}
+                    icon={<SearchIcon className="size-4" />}
+                    className="w-full"
+                  />
+                </div>
+                {filterConfig && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setFilterDialogOpen(true)}
+                    className="flex items-center gap-2"
+                  >
+                    <SlidersHorizontal className="h-4 w-4" />
+                    Filter
+                  </Button>
+                )}
+              </>
+            )}
           </div>
         </div>
       </CardHeader>
@@ -313,6 +355,17 @@ export function DataTable<TData, TValue>({
           </Pagination>
         </div>
       </CardContent>
+
+      {/* Filter Dialog */}
+      {filterConfig && (
+        <FilterDialog
+          open={filterDialogOpen}
+          onOpenChange={setFilterDialogOpen}
+          filterConfig={filterConfig}
+          filterValues={filterValues}
+          onFilterChange={onFilterChange || (() => {})}
+        />
+      )}
     </Card>
   )
 }

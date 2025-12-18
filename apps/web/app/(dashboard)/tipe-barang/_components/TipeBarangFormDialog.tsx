@@ -50,6 +50,7 @@ export function TipeBarangFormDialog({
   onClose,
   initialData,
 }: TipeBarangFormDialogProps) {
+  const [mounted, setMounted] = React.useState(false)
   const isEditMode = !!initialData
 
   const form = useForm<TipeBarangFormValues>({
@@ -59,6 +60,11 @@ export function TipeBarangFormDialog({
       name: initialData?.name || "",
     },
   })
+
+  // Ensure component only renders on client to prevent hydration mismatch
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Reset form when dialog opens/closes or initialData changes
   React.useEffect(() => {
@@ -82,11 +88,16 @@ export function TipeBarangFormDialog({
     onClose()
   }
 
+  // Don't render on server to prevent hydration mismatch with Radix UI IDs
+  if (!mounted) {
+    return null
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold">
+          <DialogTitle className="border-b pb-4 text-2xl font-bold">
             {isEditMode ? "Edit Tipe Barang" : "Tambah Tipe Barang"}
           </DialogTitle>
         </DialogHeader>
@@ -95,13 +106,6 @@ export function TipeBarangFormDialog({
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             {/* Detail Tipe Barang Section */}
             <div className="space-y-4">
-              <div className="flex items-center gap-3 border-b border-dashed pb-4">
-                <FileText className="text-destructive size-6" />
-                <h3 className="text-destructive text-base font-semibold">
-                  Detail Tipe Barang
-                </h3>
-              </div>
-
               <div className="grid gap-6">
                 {/* Kode Tipe Barang Field */}
                 <FormField
