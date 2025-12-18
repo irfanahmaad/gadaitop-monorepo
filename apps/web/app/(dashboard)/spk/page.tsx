@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useMemo } from "react"
+import React, { useMemo, Suspense } from "react"
 import { ColumnDef } from "@tanstack/react-table"
 import { Breadcrumbs } from "@/components/breadcrumbs"
 import { DataTable } from "@/components/data-table"
@@ -128,7 +128,7 @@ const columns: ColumnDef<SPK>[] = [
   },
 ]
 
-export default function SPKPage() {
+function SPKPageContent() {
   // Filter state management via URL params
   const { filterValues, setFilters } = useFilterParams(filterConfig)
   const [selectedBranch, setSelectedBranch] = React.useState<string>("")
@@ -227,5 +227,13 @@ export default function SPKPage() {
         onFilterChange={setFilters}
       />
     </div>
+  )
+}
+
+export default function SPKPage() {
+  return (
+    <Suspense fallback={<div className="flex flex-col gap-6">Loading...</div>}>
+      <SPKPageContent />
+    </Suspense>
   )
 }
