@@ -1,0 +1,74 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Query,
+  ParseUUIDPipe,
+} from '@nestjs/common';
+
+import { Auth } from '../../decorators';
+import { UserService } from './user.service';
+import { UserDto } from './dtos/user.dto';
+import { CreateUserDto } from './dtos/create-user.dto';
+import { UpdateUserDto } from './dtos/update-user.dto';
+import { AssignRoleDto } from './dtos/assign-role.dto';
+import { ResetPasswordDto } from './dtos/reset-password.dto';
+import { PageOptionsDto } from '../../common/dtos/page-options.dto';
+import { PageMetaDto } from '../../common/dtos/page-meta.dto';
+
+@Controller({ path: 'users', version: '1' })
+export class UserController {
+  constructor(private readonly userService: UserService) {}
+
+  @Get()
+  @Auth([])
+  async findAll(@Query() query: PageOptionsDto): Promise<{
+    data: UserDto[];
+    meta: PageMetaDto;
+  }> {
+    return this.userService.findAll(query);
+  }
+
+  @Get(':id')
+  @Auth([])
+  async findOne(@Param('id', ParseUUIDPipe) id: string): Promise<UserDto> {
+    return this.userService.findOne({ uuid: id });
+  }
+
+  @Post()
+  @Auth([])
+  async create(@Body() createDto: CreateUserDto): Promise<UserDto> {
+    return this.userService.create(createDto);
+  }
+
+  @Patch(':id')
+  @Auth([])
+  async update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateDto: UpdateUserDto,
+  ): Promise<UserDto> {
+    return this.userService.updateByUuid(id, updateDto);
+  }
+
+  @Post(':id/assign-roles')
+  @Auth([])
+  async assignRoles(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() assignDto: AssignRoleDto,
+  ): Promise<UserDto> {
+    return this.userService.assignRoles(id, assignDto);
+  }
+
+  @Post(':id/reset-password')
+  @Auth([])
+  async resetPassword(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() resetDto: ResetPasswordDto,
+  ): Promise<{ message: string }> {
+    await this.userService.resetPassword(id, resetDto);
+    return { message: 'Password reset successfully' };
+  }
+}

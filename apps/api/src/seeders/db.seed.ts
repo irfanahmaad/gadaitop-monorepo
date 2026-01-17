@@ -6,6 +6,9 @@ import { DataSource } from 'typeorm';
 import { SeedingSource } from '@concepta/typeorm-seeding';
 
 import { SnakeNamingStrategy } from '../snake-naming.strategy';
+import { BranchSeed } from './branch/branch.seed';
+import { CompanySeed } from './company/company.seed';
+import { ItemTypeSeed } from './item-type/item-type.seed';
 import { RoleSeed } from './role/role.seed';
 import { UserSeed } from './user/user.seed';
 
@@ -27,5 +30,5 @@ export const dataSource = new DataSource({
 
 export default new SeedingSource({
   dataSource,
-  seeders: [RoleSeed, UserSeed],
+  seeders: [RoleSeed, UserSeed, CompanySeed, BranchSeed, ItemTypeSeed],
 });

@@ -30,15 +30,15 @@ export class UserSeed extends Seeder {
       console.log('Could not check existing user, proceeding with seed...');
     }
 
-    // Get SUPER_ADMIN role
+    // Get owner role
     try {
-      const superAdminRole = await dataSource
+      const ownerRole = await dataSource
         .getRepository(RoleEntity)
-        .findOne({ where: { code: 'SUPER_ADMIN' } });
+        .findOne({ where: { code: 'owner' } });
 
-      if (!superAdminRole) {
+      if (!ownerRole) {
         throw new Error(
-          'SUPER_ADMIN role not found. Please run RoleSeed first.',
+          'owner role not found. Please run RoleSeed first.',
         );
       }
 
@@ -46,16 +46,14 @@ export class UserSeed extends Seeder {
       const superAdminUser = await userFactory.create({
         email: 'admin@gadaitop.com',
         password: 'admin123',
-        name: 'Super Admin',
-        isAdministrator: true,
+        fullName: 'Super Admin',
         activeStatus: ActiveStatusEnum.Active,
         isEmailVerified: true,
         isPhoneVerified: false,
-        isRegistrationComplete: true,
       });
 
-      // Assign SUPER_ADMIN role to user
-      superAdminUser.roles = [superAdminRole];
+      // Assign owner role to user
+      superAdminUser.roles = [ownerRole];
       await dataSource.getRepository(UserEntity).save(superAdminUser);
     } catch (error) {
       console.error('Error seeding user:', error);

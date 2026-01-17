@@ -24,20 +24,20 @@ export class RoleSeed extends Seeder {
       await dataSource.initialize();
     }
 
-    // Check if roles already exist
-    try {
-      const existingRoles = await dataSource
-        .getRepository(RoleEntity)
-        .find({ where: [{ code: 'SUPER_ADMIN' }] });
+      // Check if roles already exist
+      try {
+        const existingRoles = await dataSource
+          .getRepository(RoleEntity)
+          .find({ where: [{ code: 'owner' }] });
 
-      if (existingRoles.length > 0) {
-        console.log('Roles already exist, skipping seed');
-        return;
+        if (existingRoles.length > 0) {
+          console.log('Roles already exist, skipping seed');
+          return;
+        }
+      } catch (error) {
+        // If we can't check, continue with seeding (unique constraints will handle duplicates)
+        console.log('Could not check existing roles, proceeding with seed...');
       }
-    } catch (error) {
-      // If we can't check, continue with seeding (unique constraints will handle duplicates)
-      console.log('Could not check existing roles, proceeding with seed...');
-    }
 
     // SUPER_ADMIN permissions
     const superAdminPermissions = [
@@ -170,33 +170,33 @@ export class RoleSeed extends Seeder {
 
     const roles: IRole[] = [
       {
-        name: 'Super Admin',
-        code: 'SUPER_ADMIN',
+        name: 'Pemilik / Super Admin',
+        code: 'owner',
         permissions: superAdminPermissions,
       },
       {
-        name: 'PT Admin',
-        code: 'ADMIN_PT',
+        name: 'Admin PT',
+        code: 'company_admin',
         permissions: adminPtPermissions,
       },
       {
-        name: 'Store Staff',
-        code: 'STAFF_TOKO',
+        name: 'Staff Toko',
+        code: 'branch_staff',
         permissions: staffTokoPermissions,
       },
       {
-        name: 'Stock Opname Staff',
-        code: 'STOCK_OPNAME',
+        name: 'Stock Opname',
+        code: 'stock_auditor',
         permissions: stockOpnamePermissions,
       },
       {
-        name: 'Auction Staff',
-        code: 'STAFF_LELANG',
+        name: 'Lelang',
+        code: 'auction_staff',
         permissions: staffLelangPermissions,
       },
       {
-        name: 'Marketing Staff',
-        code: 'STAFF_MARKETING',
+        name: 'Marketing',
+        code: 'marketing',
         permissions: staffMarketingPermissions,
       },
     ];
@@ -206,7 +206,10 @@ export class RoleSeed extends Seeder {
         roleFactory.create({
           name: role.name,
           code: role.code,
+          description: `System role: ${role.name}`,
           permissions: role.permissions,
+          isSystemRole: true,
+          isActive: true,
         }),
       ),
     );
