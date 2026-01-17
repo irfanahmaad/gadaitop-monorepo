@@ -78,16 +78,21 @@ export class AuthService {
           message: "You don't have permission to access this resource!",
         });
       }
-      const isSuperAdminRoleExist = roles.find((role) => role.id === 1); // SUPER ADMIN
+      const isSuperAdminRoleExist = roles.find(
+        (role) => role.code === 'SUPER_ADMIN',
+      );
       if (!isSuperAdminRoleExist) {
         throw new ForbiddenException({
           message: "You don't have permission to access this resource!",
         });
       }
     } else {
-      const isUser = roles.find((role) => role.id === 2); // USER
+      // For non-admin login, user must have at least one role that's not SUPER_ADMIN
+      const hasNonSuperAdminRole = roles.some(
+        (role) => role.code !== 'SUPER_ADMIN',
+      );
 
-      if (!isUser) {
+      if (!hasNonSuperAdminRole) {
         throw new ForbiddenException({
           message: "You don't have permission to access this resource!",
         });

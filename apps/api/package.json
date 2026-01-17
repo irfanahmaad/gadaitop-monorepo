@@ -17,7 +17,8 @@
     "migration:run": "ts-node -r tsconfig-paths/register -r reflect-metadata src/database/migrate.ts",
     "migration:check": "ts-node -r tsconfig-paths/register -r reflect-metadata src/database/check-migrations.ts",
     "migration:revert": "ts-node -r tsconfig-paths/register -r reflect-metadata src/database/revert.ts",
-    "migration:create": "ts-node -r tsconfig-paths/register -r reflect-metadata ./node_modules/typeorm/cli.js migration:create"
+    "migration:create": "ts-node -r tsconfig-paths/register -r reflect-metadata ./node_modules/typeorm/cli.js migration:create",
+    "seed": "TS_NODE_PROJECT=tsconfig.json ts-node -r tsconfig-paths/register -r reflect-metadata ./node_modules/@concepta/typeorm-seeding/dist/cli.js seed -c src/seeders/db.seed"
   },
   "dependencies": {
     "@casl/ability": "^6.7.5",
@@ -42,7 +43,8 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "typeorm": "^0.3.28",
-    "uuid": "^9.0.1"
+    "uuid": "^9.0.1",
+    "@concepta/typeorm-seeding": "^4.0.0"
   },
   "devDependencies": {
     "@jest/globals": "^29.7.0",

@@ -1,7 +1,10 @@
 import { Exclude } from 'class-transformer';
-import { Column, Entity, JoinTable, ManyToMany, Relation } from 'typeorm';
+import {
+    BeforeInsert, BeforeUpdate, Column, Entity, JoinTable, ManyToMany, Relation,
+} from 'typeorm';
 
 import { AbstractEntity } from '../../../common/abstract.entity';
+import { generateHash } from '../../../common/utils';
 import { ActiveStatusEnum } from '../../../constants/active-status';
 import { RoleEntity } from '../../role/entities/role.entity';
 
@@ -68,4 +71,16 @@ export class UserEntity extends AbstractEntity {
 
   @Column({ type: 'timestamp', nullable: true })
   resetPasswordExpires: Date | null;
+
+  @BeforeInsert()
+  @BeforeUpdate()
+  async hashPassword?(): Promise<void> {
+    if (
+      this.password &&
+      this.password.length > 0 &&
+      !this.password.match(/^\$2[ayb]\$.{56}$/)
+    ) {
+      this.password = await generateHash(this.password);
+    }
+  }
 }
