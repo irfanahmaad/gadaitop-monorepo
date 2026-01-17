@@ -4,6 +4,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import { SnakeNamingStrategy } from '../../snake-naming.strategy';
+import { AuditSubscriber } from '../../modules/audit/audit.subscriber';
 
 import type { TypeOrmModuleOptions } from '@nestjs/typeorm';
 
@@ -73,6 +74,7 @@ export class ApiConfigService {
       synchronize: false, // Use migrations in production
       logging: this.getBoolean('ENABLE_ORM_LOGS'),
       namingStrategy: new SnakeNamingStrategy(),
+      subscribers: [AuditSubscriber],
     };
   }
 
