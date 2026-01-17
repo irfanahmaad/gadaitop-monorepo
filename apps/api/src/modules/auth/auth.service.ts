@@ -141,21 +141,10 @@ export class AuthService {
 
     const roles = await this.roleService.findByUser(user.id);
 
-    if (userLoginDto.isAdmin) {
-      // Check if user has owner role (Super Admin)
-      const isOwnerRole = roles.find((role) => role.code === 'owner');
-      if (!isOwnerRole) {
-        throw new ForbiddenException({
-          message: "You don't have permission to access this resource!",
-        });
-      }
-    } else {
-      // For non-admin login, user must have at least one role
-      if (roles.length === 0) {
-        throw new ForbiddenException({
-          message: "You don't have permission to access this resource!",
-        });
-      }
+    if (!roles || roles.length === 0) {
+      throw new ForbiddenException({
+        message: "You don't have permission to access this resource!",
+      });
     }
 
     return new UserDto(user, { rolesIds: roles.map((role) => role.id) });

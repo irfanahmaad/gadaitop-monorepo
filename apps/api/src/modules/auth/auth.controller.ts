@@ -16,7 +16,7 @@ import { LoginPayloadDto } from './dtos/login-payload.dto';
 import { UserLoginDto } from './dtos/user-login.dto';
 import { UserRegisterDto } from './dtos/user-register.dto';
 
-@Controller({ path: 'auth' })
+@Controller({ path: 'auth', version: '1' })
 export class AuthController {
   constructor(
     private userService: UserService,

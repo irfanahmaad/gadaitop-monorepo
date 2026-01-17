@@ -1,11 +1,12 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { AuditLogEntity } from './entities/audit-log.entity';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+
+import { PageMetaDto } from '../../common/dtos/page-meta.dto';
 import { AuditLogDto } from './dto/audit-log.dto';
 import { QueryAuditLogDto } from './dto/query-audit-log.dto';
-import { PageMetaDto } from '../../common/dtos/page-meta.dto';
+import { AuditLogEntity } from './entities/audit-log.entity';
 
 @Injectable()
 export class AuditService {
@@ -42,8 +43,11 @@ export class AuditService {
     }
 
     query.orderBy('audit.createdAt', 'DESC');
-    query.skip(queryDto.skip || 0);
-    query.take(queryDto.pageSize || 10);
+    query.skip(queryDto.getSkip());
+    const take = queryDto.getTake();
+    if (take !== undefined) {
+      query.take(take);
+    }
 
     const [logs, count] = await query.getManyAndCount();
 

@@ -22,8 +22,10 @@ export class PageMetaDto {
     this.count = itemCount;
     this.page = pageOptionsDto.page;
     this.pageSize = pageOptionsDto.pageSize;
-    this.pageCount = Math.ceil(this.count / this.pageSize);
+    // If pageSize is 0, it means load all data, so pageCount is 1
+    this.pageCount = this.pageSize === 0 ? 1 : Math.ceil(this.count / this.pageSize);
     this.hasPreviousPage = this.page > 1;
-    this.hasNextPage = this.page < this.pageCount;
+    // If pageSize is 0, there's no next page since all data is loaded
+    this.hasNextPage = this.pageSize === 0 ? false : this.page < this.pageCount;
   }
 }

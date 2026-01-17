@@ -20,13 +20,20 @@ export class ItemTypeService {
     data: ItemTypeDto[];
     meta: PageMetaDto;
   }> {
-    const [items, count] = await this.itemTypeRepository.findAndCount({
-      skip: options.skip,
-      take: options.pageSize,
+    const findOptions: any = {
+      skip: options.getSkip(),
       order: options.sortBy
         ? { [options.sortBy]: options.order }
         : { sortOrder: 'ASC', createdAt: 'DESC' },
-    });
+    };
+
+    // Only add take if pageSize is not 0 (0 means load all)
+    const take = options.getTake();
+    if (take !== undefined) {
+      findOptions.take = take;
+    }
+
+    const [items, count] = await this.itemTypeRepository.findAndCount(findOptions);
 
     const data = items.map((item) => new ItemTypeDto(item));
     const meta = new PageMetaDto({ pageOptionsDto: options, itemCount: count });

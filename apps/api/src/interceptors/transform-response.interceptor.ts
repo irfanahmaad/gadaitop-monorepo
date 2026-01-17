@@ -4,6 +4,7 @@ import {
   Injectable,
   type NestInterceptor,
 } from '@nestjs/common';
+import { instanceToPlain } from 'class-transformer';
 import { map } from 'rxjs';
 import type { Observable } from 'rxjs';
 
@@ -19,8 +20,10 @@ export class TransformResponseInterceptor implements NestInterceptor {
 
         return {
           statusCode: context.switchToHttp().getResponse().statusCode,
-          data,
-          meta,
+          // instanceToPlain respects @Exclude() decorators when called on class instances
+          // If data is already plain (from ClassSerializerInterceptor), it will pass through
+          data: data ? instanceToPlain(data, { excludeExtraneousValues: false }) : data,
+          meta: meta ? instanceToPlain(meta, { excludeExtraneousValues: false }) : meta,
         };
       }),
     );

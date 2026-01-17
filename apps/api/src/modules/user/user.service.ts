@@ -52,14 +52,21 @@ export class UserService {
     data: UserDto[];
     meta: PageMetaDto;
   }> {
-    const [res, count] = await this.userRepository.findAndCount({
+    const findOptions: any = {
       relations: { roles: true },
-      skip: options.skip,
-      take: options.pageSize,
+      skip: options.getSkip(),
       order: options.sortBy
         ? { [options.sortBy]: options.order }
         : { id: 'ASC' },
-    });
+    };
+
+    // Only add take if pageSize is not 0 (0 means load all)
+    const take = options.getTake();
+    if (take !== undefined) {
+      findOptions.take = take;
+    }
+
+    const [res, count] = await this.userRepository.findAndCount(findOptions);
 
     const data = res.map((user) => new UserDto(user));
     const meta = new PageMetaDto({ pageOptionsDto: options, itemCount: count });

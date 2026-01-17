@@ -1,6 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class InitialSchema1768648965210 implements MigrationInterface {
+export class InitialSchema1768658029307 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`CREATE TABLE "roles" ("id" SERIAL NOT NULL, "uuid" uuid NOT NULL DEFAULT uuid_generate_v4(), "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP WITH TIME ZONE, "version" integer NOT NULL, "created_by" uuid, "updated_by" uuid, "deleted_by" uuid, "name" character varying(100) NOT NULL, "code" character varying(50) NOT NULL, "description" text, "permissions" jsonb NOT NULL DEFAULT '[]', "is_system_role" boolean NOT NULL DEFAULT false, "is_active" boolean NOT NULL DEFAULT true, "company_id" uuid, "companyId" uuid, CONSTRAINT "UQ_cdc7776894e484eaed828ca0616" UNIQUE ("uuid"), CONSTRAINT "UQ_f6d54f95c31b73fb1bdd8e91d0c" UNIQUE ("code"), CONSTRAINT "PK_c1433d71a4838793a49dcad46ab" PRIMARY KEY ("id"))`);
     await queryRunner.query(`CREATE INDEX "IDX_f6d54f95c31b73fb1bdd8e91d0" ON "roles" ("code") `);
@@ -19,6 +19,17 @@ export class InitialSchema1768648965210 implements MigrationInterface {
     await queryRunner.query(`CREATE INDEX "IDX_c59133f1df5217119eedb39754" ON "companies" ("company_code") `);
     await queryRunner.query(`CREATE INDEX "IDX_63e7e33fa9ee7faabb6534b699" ON "companies" ("company_name") `);
     await queryRunner.query(`CREATE INDEX "IDX_df63e1563bbd91b428b5c50d8a" ON "companies" ("owner_id") `);
+    await queryRunner.query(`CREATE TABLE "device_registrations" ("id" SERIAL NOT NULL, "uuid" uuid NOT NULL DEFAULT uuid_generate_v4(), "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP WITH TIME ZONE, "version" integer NOT NULL, "created_by" uuid, "updated_by" uuid, "deleted_by" uuid, "user_id" uuid NOT NULL, "mac_address" character varying(17) NOT NULL, "device_name" character varying(100) NOT NULL, "device_type" character varying(20), "os_info" character varying(100), "is_active" boolean NOT NULL DEFAULT true, "registered_by" uuid, "registered_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "last_used_at" TIMESTAMP WITH TIME ZONE, "last_ip_address" inet, "userId" uuid, CONSTRAINT "UQ_3f3305b966ff1098cafe84612f6" UNIQUE ("uuid"), CONSTRAINT "UQ_50ea8038a4b793c32732d74923a" UNIQUE ("user_id", "mac_address"), CONSTRAINT "PK_a83f3de55b187b15c6c9adc6275" PRIMARY KEY ("id"))`);
+    await queryRunner.query(`CREATE INDEX "IDX_361fb756ccde5676f88f7b5bc8" ON "device_registrations" ("user_id") `);
+    await queryRunner.query(`CREATE INDEX "IDX_6f74f950bd3c6bdf8f1e76bd22" ON "device_registrations" ("mac_address") `);
+    await queryRunner.query(`CREATE TYPE "public"."borrow_requests_status_enum" AS ENUM('pending', 'approved', 'rejected')`);
+    await queryRunner.query(`CREATE TABLE "borrow_requests" ("id" SERIAL NOT NULL, "uuid" uuid NOT NULL DEFAULT uuid_generate_v4(), "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP WITH TIME ZONE, "version" integer NOT NULL, "created_by" uuid, "updated_by" uuid, "deleted_by" uuid, "branch_id" uuid NOT NULL, "requester_id" uuid NOT NULL, "target_company_id" uuid NOT NULL, "status" "public"."borrow_requests_status_enum" NOT NULL DEFAULT 'pending', "request_reason" text, "processed_by" uuid, "processed_at" TIMESTAMP WITH TIME ZONE, "rejection_reason" text, "branchId" uuid, "requesterId" uuid, "targetCompanyId" uuid, "processedBy" uuid, CONSTRAINT "UQ_012251449e6e78f1630739e1663" UNIQUE ("uuid"), CONSTRAINT "PK_dd534a057b1e97d763fb193973f" PRIMARY KEY ("id"))`);
+    await queryRunner.query(`CREATE INDEX "IDX_55334515060f63e9558e4ad7d3" ON "borrow_requests" ("branch_id") `);
+    await queryRunner.query(`CREATE INDEX "IDX_ae71e4e8e347da0360916e67ab" ON "borrow_requests" ("requester_id") `);
+    await queryRunner.query(`CREATE INDEX "IDX_277c74ec8c535eaa07ec13c77a" ON "borrow_requests" ("target_company_id") `);
+    await queryRunner.query(`CREATE INDEX "IDX_3bc7de02526ba5123ca2da7a52" ON "borrow_requests" ("status") `);
+    await queryRunner.query(`CREATE INDEX "IDX_3ae8fd40eb594619cafccbabbd" ON "borrow_requests" ("target_company_id", "status") `);
+    await queryRunner.query(`CREATE INDEX "IDX_83a892a1e12e5efc1bf9439935" ON "borrow_requests" ("requester_id", "status") `);
     await queryRunner.query(`CREATE TYPE "public"."branches_status_enum" AS ENUM('draft', 'pending_approval', 'active', 'inactive')`);
     await queryRunner.query(`CREATE TABLE "branches" ("id" SERIAL NOT NULL, "uuid" uuid NOT NULL DEFAULT uuid_generate_v4(), "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP WITH TIME ZONE, "version" integer NOT NULL, "created_by" uuid, "updated_by" uuid, "deleted_by" uuid, "branch_code" character varying(20) NOT NULL, "short_name" character varying(50) NOT NULL, "full_name" character varying(255) NOT NULL, "address" text NOT NULL, "phone" character varying(20) NOT NULL, "city" character varying(100) NOT NULL, "company_id" uuid NOT NULL, "is_borrowed" boolean NOT NULL DEFAULT false, "actual_owner_id" uuid, "status" "public"."branches_status_enum" NOT NULL DEFAULT 'draft', "approved_by" uuid, "approved_at" TIMESTAMP WITH TIME ZONE, "rejection_reason" text, "transaction_sequence" integer NOT NULL DEFAULT '0', "companyId" uuid, "actualOwnerId" uuid, "approvedBy" uuid, CONSTRAINT "UQ_8953580d67f223880443061cfbd" UNIQUE ("uuid"), CONSTRAINT "UQ_7b48a680eb17f642cc36ff78d8f" UNIQUE ("branch_code"), CONSTRAINT "UQ_d6d58bb4c363b381f3d47e461f0" UNIQUE ("company_id", "branch_code"), CONSTRAINT "PK_7f37d3b42defea97f1df0d19535" PRIMARY KEY ("id"))`);
     await queryRunner.query(`CREATE INDEX "IDX_7b48a680eb17f642cc36ff78d8" ON "branches" ("branch_code") `);
@@ -36,17 +47,6 @@ export class InitialSchema1768648965210 implements MigrationInterface {
     await queryRunner.query(`CREATE INDEX "IDX_2cd10fda8276bb995288acfbfb" ON "audit_logs" ("created_at") `);
     await queryRunner.query(`CREATE INDEX "IDX_2f68e345c05e8166ff9deea1ab" ON "audit_logs" ("user_id", "created_at") `);
     await queryRunner.query(`CREATE INDEX "IDX_9ac4b82f0b0f68801024154d19" ON "audit_logs" ("entity_name", "entity_id") `);
-    await queryRunner.query(`CREATE TYPE "public"."borrow_requests_status_enum" AS ENUM('pending', 'approved', 'rejected')`);
-    await queryRunner.query(`CREATE TABLE "borrow_requests" ("id" SERIAL NOT NULL, "uuid" uuid NOT NULL DEFAULT uuid_generate_v4(), "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP WITH TIME ZONE, "version" integer NOT NULL, "created_by" uuid, "updated_by" uuid, "deleted_by" uuid, "branch_id" uuid NOT NULL, "requester_id" uuid NOT NULL, "target_company_id" uuid NOT NULL, "status" "public"."borrow_requests_status_enum" NOT NULL DEFAULT 'pending', "request_reason" text, "processed_by" uuid, "processed_at" TIMESTAMP WITH TIME ZONE, "rejection_reason" text, "branchId" uuid, "requesterId" uuid, "targetCompanyId" uuid, "processedBy" uuid, CONSTRAINT "UQ_012251449e6e78f1630739e1663" UNIQUE ("uuid"), CONSTRAINT "PK_dd534a057b1e97d763fb193973f" PRIMARY KEY ("id"))`);
-    await queryRunner.query(`CREATE INDEX "IDX_55334515060f63e9558e4ad7d3" ON "borrow_requests" ("branch_id") `);
-    await queryRunner.query(`CREATE INDEX "IDX_ae71e4e8e347da0360916e67ab" ON "borrow_requests" ("requester_id") `);
-    await queryRunner.query(`CREATE INDEX "IDX_277c74ec8c535eaa07ec13c77a" ON "borrow_requests" ("target_company_id") `);
-    await queryRunner.query(`CREATE INDEX "IDX_3bc7de02526ba5123ca2da7a52" ON "borrow_requests" ("status") `);
-    await queryRunner.query(`CREATE INDEX "IDX_3ae8fd40eb594619cafccbabbd" ON "borrow_requests" ("target_company_id", "status") `);
-    await queryRunner.query(`CREATE INDEX "IDX_83a892a1e12e5efc1bf9439935" ON "borrow_requests" ("requester_id", "status") `);
-    await queryRunner.query(`CREATE TABLE "device_registrations" ("id" SERIAL NOT NULL, "uuid" uuid NOT NULL DEFAULT uuid_generate_v4(), "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP WITH TIME ZONE, "version" integer NOT NULL, "created_by" uuid, "updated_by" uuid, "deleted_by" uuid, "user_id" uuid NOT NULL, "mac_address" character varying(17) NOT NULL, "device_name" character varying(100) NOT NULL, "device_type" character varying(20), "os_info" character varying(100), "is_active" boolean NOT NULL DEFAULT true, "registered_by" uuid, "registered_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "last_used_at" TIMESTAMP WITH TIME ZONE, "last_ip_address" inet, "userId" uuid, CONSTRAINT "UQ_3f3305b966ff1098cafe84612f6" UNIQUE ("uuid"), CONSTRAINT "UQ_50ea8038a4b793c32732d74923a" UNIQUE ("user_id", "mac_address"), CONSTRAINT "PK_a83f3de55b187b15c6c9adc6275" PRIMARY KEY ("id"))`);
-    await queryRunner.query(`CREATE INDEX "IDX_361fb756ccde5676f88f7b5bc8" ON "device_registrations" ("user_id") `);
-    await queryRunner.query(`CREATE INDEX "IDX_6f74f950bd3c6bdf8f1e76bd22" ON "device_registrations" ("mac_address") `);
     await queryRunner.query(`CREATE TABLE "user_roles" ("user_id" integer NOT NULL, "role_id" integer NOT NULL, CONSTRAINT "PK_23ed6f04fe43066df08379fd034" PRIMARY KEY ("user_id", "role_id"))`);
     await queryRunner.query(`CREATE INDEX "IDX_87b8888186ca9769c960e92687" ON "user_roles" ("user_id") `);
     await queryRunner.query(`CREATE INDEX "IDX_b23c65e50a758245a33ee35fda" ON "user_roles" ("role_id") `);
@@ -55,15 +55,15 @@ export class InitialSchema1768648965210 implements MigrationInterface {
     await queryRunner.query(`ALTER TABLE "users" ADD CONSTRAINT "FK_246426dfd001466a1d5e47322f4" FOREIGN KEY ("branchId") REFERENCES "branches"("uuid") ON DELETE NO ACTION ON UPDATE NO ACTION`);
     await queryRunner.query(`ALTER TABLE "users" ADD CONSTRAINT "FK_8d40e01b5d2c0b68995b772b753" FOREIGN KEY ("ownedCompanyId") REFERENCES "companies"("uuid") ON DELETE NO ACTION ON UPDATE NO ACTION`);
     await queryRunner.query(`ALTER TABLE "companies" ADD CONSTRAINT "FK_6dcdcbb7d72f64602307ec4ab39" FOREIGN KEY ("ownerId") REFERENCES "users"("uuid") ON DELETE NO ACTION ON UPDATE NO ACTION`);
-    await queryRunner.query(`ALTER TABLE "branches" ADD CONSTRAINT "FK_a35729a94e7280cbebaaa541a20" FOREIGN KEY ("companyId") REFERENCES "companies"("uuid") ON DELETE NO ACTION ON UPDATE NO ACTION`);
-    await queryRunner.query(`ALTER TABLE "branches" ADD CONSTRAINT "FK_b25de1593df36a5a3bc9842640d" FOREIGN KEY ("actualOwnerId") REFERENCES "users"("uuid") ON DELETE NO ACTION ON UPDATE NO ACTION`);
-    await queryRunner.query(`ALTER TABLE "branches" ADD CONSTRAINT "FK_fa751a8ad737b772d475bca88d0" FOREIGN KEY ("approvedBy") REFERENCES "users"("uuid") ON DELETE NO ACTION ON UPDATE NO ACTION`);
-    await queryRunner.query(`ALTER TABLE "audit_logs" ADD CONSTRAINT "FK_cfa83f61e4d27a87fcae1e025ab" FOREIGN KEY ("userId") REFERENCES "users"("uuid") ON DELETE NO ACTION ON UPDATE NO ACTION`);
+    await queryRunner.query(`ALTER TABLE "device_registrations" ADD CONSTRAINT "FK_b06a166e4a5525b9a8773cc3249" FOREIGN KEY ("userId") REFERENCES "users"("uuid") ON DELETE NO ACTION ON UPDATE NO ACTION`);
     await queryRunner.query(`ALTER TABLE "borrow_requests" ADD CONSTRAINT "FK_9b60bbf713076d0ac07aa036060" FOREIGN KEY ("branchId") REFERENCES "branches"("uuid") ON DELETE NO ACTION ON UPDATE NO ACTION`);
     await queryRunner.query(`ALTER TABLE "borrow_requests" ADD CONSTRAINT "FK_2cacce10122fa14aa0bdc43103c" FOREIGN KEY ("requesterId") REFERENCES "users"("uuid") ON DELETE NO ACTION ON UPDATE NO ACTION`);
     await queryRunner.query(`ALTER TABLE "borrow_requests" ADD CONSTRAINT "FK_4f4d3ec42069f54a2a1d574d98a" FOREIGN KEY ("targetCompanyId") REFERENCES "companies"("uuid") ON DELETE NO ACTION ON UPDATE NO ACTION`);
     await queryRunner.query(`ALTER TABLE "borrow_requests" ADD CONSTRAINT "FK_effe7e9ada364e852a9786119a4" FOREIGN KEY ("processedBy") REFERENCES "users"("uuid") ON DELETE NO ACTION ON UPDATE NO ACTION`);
-    await queryRunner.query(`ALTER TABLE "device_registrations" ADD CONSTRAINT "FK_b06a166e4a5525b9a8773cc3249" FOREIGN KEY ("userId") REFERENCES "users"("uuid") ON DELETE NO ACTION ON UPDATE NO ACTION`);
+    await queryRunner.query(`ALTER TABLE "branches" ADD CONSTRAINT "FK_a35729a94e7280cbebaaa541a20" FOREIGN KEY ("companyId") REFERENCES "companies"("uuid") ON DELETE NO ACTION ON UPDATE NO ACTION`);
+    await queryRunner.query(`ALTER TABLE "branches" ADD CONSTRAINT "FK_b25de1593df36a5a3bc9842640d" FOREIGN KEY ("actualOwnerId") REFERENCES "users"("uuid") ON DELETE NO ACTION ON UPDATE NO ACTION`);
+    await queryRunner.query(`ALTER TABLE "branches" ADD CONSTRAINT "FK_fa751a8ad737b772d475bca88d0" FOREIGN KEY ("approvedBy") REFERENCES "users"("uuid") ON DELETE NO ACTION ON UPDATE NO ACTION`);
+    await queryRunner.query(`ALTER TABLE "audit_logs" ADD CONSTRAINT "FK_cfa83f61e4d27a87fcae1e025ab" FOREIGN KEY ("userId") REFERENCES "users"("uuid") ON DELETE NO ACTION ON UPDATE NO ACTION`);
     await queryRunner.query(`ALTER TABLE "user_roles" ADD CONSTRAINT "FK_87b8888186ca9769c960e926870" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE`);
     await queryRunner.query(`ALTER TABLE "user_roles" ADD CONSTRAINT "FK_b23c65e50a758245a33ee35fda1" FOREIGN KEY ("role_id") REFERENCES "roles"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
   }
@@ -71,15 +71,15 @@ export class InitialSchema1768648965210 implements MigrationInterface {
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`ALTER TABLE "user_roles" DROP CONSTRAINT "FK_b23c65e50a758245a33ee35fda1"`);
     await queryRunner.query(`ALTER TABLE "user_roles" DROP CONSTRAINT "FK_87b8888186ca9769c960e926870"`);
-    await queryRunner.query(`ALTER TABLE "device_registrations" DROP CONSTRAINT "FK_b06a166e4a5525b9a8773cc3249"`);
-    await queryRunner.query(`ALTER TABLE "borrow_requests" DROP CONSTRAINT "FK_effe7e9ada364e852a9786119a4"`);
-    await queryRunner.query(`ALTER TABLE "borrow_requests" DROP CONSTRAINT "FK_4f4d3ec42069f54a2a1d574d98a"`);
-    await queryRunner.query(`ALTER TABLE "borrow_requests" DROP CONSTRAINT "FK_2cacce10122fa14aa0bdc43103c"`);
-    await queryRunner.query(`ALTER TABLE "borrow_requests" DROP CONSTRAINT "FK_9b60bbf713076d0ac07aa036060"`);
     await queryRunner.query(`ALTER TABLE "audit_logs" DROP CONSTRAINT "FK_cfa83f61e4d27a87fcae1e025ab"`);
     await queryRunner.query(`ALTER TABLE "branches" DROP CONSTRAINT "FK_fa751a8ad737b772d475bca88d0"`);
     await queryRunner.query(`ALTER TABLE "branches" DROP CONSTRAINT "FK_b25de1593df36a5a3bc9842640d"`);
     await queryRunner.query(`ALTER TABLE "branches" DROP CONSTRAINT "FK_a35729a94e7280cbebaaa541a20"`);
+    await queryRunner.query(`ALTER TABLE "borrow_requests" DROP CONSTRAINT "FK_effe7e9ada364e852a9786119a4"`);
+    await queryRunner.query(`ALTER TABLE "borrow_requests" DROP CONSTRAINT "FK_4f4d3ec42069f54a2a1d574d98a"`);
+    await queryRunner.query(`ALTER TABLE "borrow_requests" DROP CONSTRAINT "FK_2cacce10122fa14aa0bdc43103c"`);
+    await queryRunner.query(`ALTER TABLE "borrow_requests" DROP CONSTRAINT "FK_9b60bbf713076d0ac07aa036060"`);
+    await queryRunner.query(`ALTER TABLE "device_registrations" DROP CONSTRAINT "FK_b06a166e4a5525b9a8773cc3249"`);
     await queryRunner.query(`ALTER TABLE "companies" DROP CONSTRAINT "FK_6dcdcbb7d72f64602307ec4ab39"`);
     await queryRunner.query(`ALTER TABLE "users" DROP CONSTRAINT "FK_8d40e01b5d2c0b68995b772b753"`);
     await queryRunner.query(`ALTER TABLE "users" DROP CONSTRAINT "FK_246426dfd001466a1d5e47322f4"`);
@@ -88,17 +88,6 @@ export class InitialSchema1768648965210 implements MigrationInterface {
     await queryRunner.query(`DROP INDEX "public"."IDX_b23c65e50a758245a33ee35fda"`);
     await queryRunner.query(`DROP INDEX "public"."IDX_87b8888186ca9769c960e92687"`);
     await queryRunner.query(`DROP TABLE "user_roles"`);
-    await queryRunner.query(`DROP INDEX "public"."IDX_6f74f950bd3c6bdf8f1e76bd22"`);
-    await queryRunner.query(`DROP INDEX "public"."IDX_361fb756ccde5676f88f7b5bc8"`);
-    await queryRunner.query(`DROP TABLE "device_registrations"`);
-    await queryRunner.query(`DROP INDEX "public"."IDX_83a892a1e12e5efc1bf9439935"`);
-    await queryRunner.query(`DROP INDEX "public"."IDX_3ae8fd40eb594619cafccbabbd"`);
-    await queryRunner.query(`DROP INDEX "public"."IDX_3bc7de02526ba5123ca2da7a52"`);
-    await queryRunner.query(`DROP INDEX "public"."IDX_277c74ec8c535eaa07ec13c77a"`);
-    await queryRunner.query(`DROP INDEX "public"."IDX_ae71e4e8e347da0360916e67ab"`);
-    await queryRunner.query(`DROP INDEX "public"."IDX_55334515060f63e9558e4ad7d3"`);
-    await queryRunner.query(`DROP TABLE "borrow_requests"`);
-    await queryRunner.query(`DROP TYPE "public"."borrow_requests_status_enum"`);
     await queryRunner.query(`DROP INDEX "public"."IDX_9ac4b82f0b0f68801024154d19"`);
     await queryRunner.query(`DROP INDEX "public"."IDX_2f68e345c05e8166ff9deea1ab"`);
     await queryRunner.query(`DROP INDEX "public"."IDX_2cd10fda8276bb995288acfbfb"`);
@@ -116,6 +105,17 @@ export class InitialSchema1768648965210 implements MigrationInterface {
     await queryRunner.query(`DROP INDEX "public"."IDX_7b48a680eb17f642cc36ff78d8"`);
     await queryRunner.query(`DROP TABLE "branches"`);
     await queryRunner.query(`DROP TYPE "public"."branches_status_enum"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_83a892a1e12e5efc1bf9439935"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_3ae8fd40eb594619cafccbabbd"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_3bc7de02526ba5123ca2da7a52"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_277c74ec8c535eaa07ec13c77a"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_ae71e4e8e347da0360916e67ab"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_55334515060f63e9558e4ad7d3"`);
+    await queryRunner.query(`DROP TABLE "borrow_requests"`);
+    await queryRunner.query(`DROP TYPE "public"."borrow_requests_status_enum"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_6f74f950bd3c6bdf8f1e76bd22"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_361fb756ccde5676f88f7b5bc8"`);
+    await queryRunner.query(`DROP TABLE "device_registrations"`);
     await queryRunner.query(`DROP INDEX "public"."IDX_df63e1563bbd91b428b5c50d8a"`);
     await queryRunner.query(`DROP INDEX "public"."IDX_63e7e33fa9ee7faabb6534b699"`);
     await queryRunner.query(`DROP INDEX "public"."IDX_c59133f1df5217119eedb39754"`);

@@ -9,9 +9,9 @@ export class UserRegisterDto {
 
   @IsString()
   @IsOptional()
-  name?: string;
+  fullName?: string;
 
   @IsString()
   @IsOptional()
-  phone?: string;
+  phoneNumber?: string;
 }

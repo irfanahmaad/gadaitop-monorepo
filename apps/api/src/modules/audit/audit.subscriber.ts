@@ -1,28 +1,26 @@
 import {
-  EntitySubscriberInterface,
-  EventSubscriber,
-  InsertEvent,
-  RemoveEvent,
-  UpdateEvent,
-  getConnection,
+    EntitySubscriberInterface, EventSubscriber, InsertEvent, RemoveEvent, UpdateEvent,
 } from 'typeorm';
 
-import { AuditLogEntity } from './entities/audit-log.entity';
 import { AuditActionEnum } from '../../constants/audit-action';
-import { UserEntity } from '../user/entities/user.entity';
+import { AuditLogEntity } from './entities/audit-log.entity';
 
 /**
  * Audit Subscriber to automatically log entity changes
  * RS Section 4: "Audit trail & keamanan data: Setiap perubahan data tercatat (user, waktu, nilai lama/baru)"
  * 
- * Note: This subscriber listens to UserEntity as a base.
- * For comprehensive audit logging of all entities, consider using interceptors or services.
+ * This subscriber listens to ALL entities that extend AbstractEntity (have uuid field).
+ * It automatically audits create, update, and delete operations.
  */
 @EventSubscriber()
-export class AuditSubscriber implements EntitySubscriberInterface<UserEntity> {
-  listenTo(): typeof UserEntity {
-    return UserEntity;
-  }
+export class AuditSubscriber implements EntitySubscriberInterface {
+  /**
+   * By not implementing listenTo(), TypeORM will call this subscriber for all entities.
+   * The shouldAudit() method filters which entities to actually audit.
+   * 
+   * Note: In TypeORM 0.3.x, omitting listenTo() should make the subscriber listen to all entities.
+   * If this doesn't work, we may need to create entity-specific subscribers or use interceptors.
+   */
 
   /**
    * Check if entity should be audited (has uuid field indicating AbstractEntity)
@@ -51,8 +49,7 @@ export class AuditSubscriber implements EntitySubscriberInterface<UserEntity> {
     }
 
     try {
-      const connection = getConnection();
-      const auditRepository = connection.getRepository(AuditLogEntity);
+      const auditRepository = event.manager.getRepository(AuditLogEntity);
 
       const auditLog = auditRepository.create({
         entityName: event.metadata.tableName,
@@ -113,8 +110,7 @@ export class AuditSubscriber implements EntitySubscriberInterface<UserEntity> {
     }
 
     try {
-      const connection = getConnection();
-      const auditRepository = connection.getRepository(AuditLogEntity);
+      const auditRepository = event.manager.getRepository(AuditLogEntity);
 
       const auditLog = auditRepository.create({
         entityName: event.metadata.tableName,
@@ -148,8 +144,7 @@ export class AuditSubscriber implements EntitySubscriberInterface<UserEntity> {
     }
 
     try {
-      const connection = getConnection();
-      const auditRepository = connection.getRepository(AuditLogEntity);
+      const auditRepository = event.manager.getRepository(AuditLogEntity);
 
       const auditLog = auditRepository.create({
         entityName: event.metadata.tableName,

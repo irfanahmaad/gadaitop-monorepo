@@ -48,8 +48,11 @@ export class BranchService {
       query.orderBy('branch.createdAt', 'DESC');
     }
 
-    query.skip(queryDto.skip || 0);
-    query.take(queryDto.pageSize || 10);
+    query.skip(queryDto.getSkip());
+    const take = queryDto.getTake();
+    if (take !== undefined) {
+      query.take(take);
+    }
 
     const [branches, count] = await query.getManyAndCount();
 

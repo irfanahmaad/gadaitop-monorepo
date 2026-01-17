@@ -1,13 +1,14 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { BorrowRequestEntity } from './entities/borrow-request.entity';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+
+import { PageMetaDto } from '../../common/dtos/page-meta.dto';
+import { PageOptionsDto } from '../../common/dtos/page-options.dto';
+import { BorrowRequestStatusEnum } from '../../constants/borrow-request-status';
 import { BorrowRequestDto } from './dto/borrow-request.dto';
 import { CreateBorrowRequestDto } from './dto/create-borrow-request.dto';
-import { BorrowRequestStatusEnum } from '../../constants/borrow-request-status';
-import { PageOptionsDto } from '../../common/dtos/page-options.dto';
-import { PageMetaDto } from '../../common/dtos/page-meta.dto';
+import { BorrowRequestEntity } from './entities/borrow-request.entity';
 
 @Injectable()
 export class BorrowRequestService {
@@ -31,8 +32,11 @@ export class BorrowRequestService {
     }
 
     query.orderBy('request.createdAt', 'DESC');
-    query.skip(options.skip || 0);
-    query.take(options.pageSize || 10);
+    query.skip(options.getSkip());
+    const take = options.getTake();
+    if (take !== undefined) {
+      query.take(take);
+    }
 
     const [requests, count] = await query.getManyAndCount();
 
