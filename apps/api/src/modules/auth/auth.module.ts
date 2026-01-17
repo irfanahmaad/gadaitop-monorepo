@@ -7,6 +7,7 @@ import { ApiConfigService } from '../../shared/services/api-config.service';
 import { RoleModule } from '../role/role.module';
 import { UserEntity } from '../user/entities/user.entity';
 import { UserModule } from '../user/user.module';
+import { DeviceModule } from '../device/device.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './jwt.strategy';
@@ -16,6 +17,7 @@ import { PublicStrategy } from './public.strategy';
   imports: [
     forwardRef(() => UserModule),
     forwardRef(() => RoleModule),
+    forwardRef(() => DeviceModule),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       useFactory: (configService: ApiConfigService) => ({

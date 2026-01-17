@@ -1,6 +1,6 @@
 import {
     BaseEntity, Column, CreateDateColumn, DeleteDateColumn, Generated, PrimaryGeneratedColumn,
-    UpdateDateColumn,
+    UpdateDateColumn, VersionColumn,
 } from 'typeorm';
 
 export abstract class AbstractEntity extends BaseEntity {
@@ -29,9 +29,17 @@ export abstract class AbstractEntity extends BaseEntity {
   })
   deletedAt: Date | null;
 
+  // Optimistic locking
+  @VersionColumn()
+  version: number;
+
+  // Audit fields
   @Column({ type: 'uuid', nullable: true })
   createdBy: string | null;
 
   @Column({ type: 'uuid', nullable: true })
   updatedBy: string | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  deletedBy: string | null;
 }

@@ -28,8 +28,11 @@ export class AuthController {
   @PublicRoute()
   async userLogin(
     @Body() userLoginDto: UserLoginDto,
+    // @Req() req: Request, // TODO: Get IP from request
   ): Promise<{ data: LoginPayloadDto }> {
-    const user = await this.authService.validateUser(userLoginDto);
+    // TODO: Extract IP from request: req.ip or req.headers['x-forwarded-for']
+    const ipAddress = undefined;
+    const user = await this.authService.validateUser(userLoginDto, ipAddress);
 
     const token = await this.authService.createAccessToken(user);
 

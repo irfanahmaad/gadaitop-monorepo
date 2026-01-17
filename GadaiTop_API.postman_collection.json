@@ -88,7 +88,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\",\n  \"isAdmin\": false\n}",
+							"raw": "{\n  \"email\": \"admin@gadaitop.com\",\n  \"password\": \"admin123\",\n  \"isAdmin\": false,\n  \"macAddress\": \"00:1B:44:11:3A:B7\"\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -105,7 +105,7 @@
 								"login"
 							]
 						},
-						"description": "Login with email and password"
+						"description": "Login with email and password. Optional macAddress for device verification."
 					},
 					"response": []
 				},
@@ -268,6 +268,1601 @@
 				}
 			],
 			"description": "Authentication endpoints"
+		},
+		{
+			"name": "Companies",
+			"item": [
+				{
+					"name": "Get Company",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/companies/:id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"companies",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "",
+									"description": "Company UUID"
+								}
+							]
+						},
+						"description": "Get company details by ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Company",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"companyName\": \"Updated Company Name\",\n  \"phoneNumber\": \"+6281234567890\",\n  \"address\": \"Updated Address\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/companies/:id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"companies",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "",
+									"description": "Company UUID"
+								}
+							]
+						},
+						"description": "Update company information"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Company Config",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"earlyInterestRate\": 1.5,\n  \"normalInterestRate\": 2.0,\n  \"adminFeeRate\": 0.5,\n  \"insuranceFee\": 10000,\n  \"latePenaltyRate\": 0.1,\n  \"minPrincipalPayment\": 50000,\n  \"defaultTenorDays\": 30,\n  \"earlyPaymentDays\": 7\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/companies/:id/config",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"companies",
+								":id",
+								"config"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "",
+									"description": "Company UUID"
+								}
+							]
+						},
+						"description": "Update company interest and fee configuration"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Company Statistics",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/companies/:id/statistics",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"companies",
+								":id",
+								"statistics"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "",
+									"description": "Company UUID"
+								}
+							]
+						},
+						"description": "Get company statistics"
+					},
+					"response": []
+				}
+			],
+			"description": "Company management endpoints"
+		},
+		{
+			"name": "Branches",
+			"item": [
+				{
+					"name": "List Branches",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/branches?page=1&limit=10&companyId=&status=&city=",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"branches"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1",
+									"description": "Page number"
+								},
+								{
+									"key": "limit",
+									"value": "10",
+									"description": "Items per page"
+								},
+								{
+									"key": "companyId",
+									"value": "",
+									"description": "Filter by company ID",
+									"disabled": true
+								},
+								{
+									"key": "status",
+									"value": "",
+									"description": "Filter by status (draft, pending_approval, active, inactive)",
+									"disabled": true
+								},
+								{
+									"key": "city",
+									"value": "",
+									"description": "Filter by city",
+									"disabled": true
+								}
+							]
+						},
+						"description": "List all branches with optional filters"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Branch",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/branches/:id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"branches",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "",
+									"description": "Branch UUID"
+								}
+							]
+						},
+						"description": "Get branch details by ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Branch",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"branchCode\": \"BR001\",\n  \"shortName\": \"Jakarta Pusat\",\n  \"fullName\": \"Cabang Jakarta Pusat\",\n  \"address\": \"Jl. Sudirman No. 1\",\n  \"phone\": \"+6281234567890\",\n  \"city\": \"Jakarta\",\n  \"companyId\": \"company-uuid-here\",\n  \"isBorrowed\": false\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/branches",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"branches"
+							]
+						},
+						"description": "Create a new branch"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Branch",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"shortName\": \"Updated Short Name\",\n  \"fullName\": \"Updated Full Name\",\n  \"address\": \"Updated Address\",\n  \"phone\": \"+6281234567891\",\n  \"city\": \"Updated City\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/branches/:id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"branches",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "",
+									"description": "Branch UUID"
+								}
+							]
+						},
+						"description": "Update branch information"
+					},
+					"response": []
+				},
+				{
+					"name": "Deactivate Branch",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/branches/:id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"branches",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "",
+									"description": "Branch UUID"
+								}
+							]
+						},
+						"description": "Deactivate a branch (soft delete)"
+					},
+					"response": []
+				},
+				{
+					"name": "Approve Borrow Request",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/branches/:id/approve",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"branches",
+								":id",
+								"approve"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "",
+									"description": "Branch UUID"
+								}
+							]
+						},
+						"description": "Approve a borrow request (Pinjam PT) for a branch"
+					},
+					"response": []
+				},
+				{
+					"name": "Reject Borrow Request",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"rejectionReason\": \"Reason for rejection\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/branches/:id/reject",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"branches",
+								":id",
+								"reject"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "",
+									"description": "Branch UUID"
+								}
+							]
+						},
+						"description": "Reject a borrow request (Pinjam PT) for a branch"
+					},
+					"response": []
+				}
+			],
+			"description": "Branch management endpoints"
+		},
+		{
+			"name": "Item Types",
+			"item": [
+				{
+					"name": "List Item Types",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/item-types?page=1&limit=10",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"item-types"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1",
+									"description": "Page number"
+								},
+								{
+									"key": "limit",
+									"value": "10",
+									"description": "Items per page"
+								}
+							]
+						},
+						"description": "List all item types"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Item Type",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/item-types/:id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"item-types",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "",
+									"description": "Item Type UUID"
+								}
+							]
+						},
+						"description": "Get item type details by ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Item Type",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"typeCode\": \"GOLD\",\n  \"typeName\": \"Emas\",\n  \"description\": \"Jenis barang emas\",\n  \"isActive\": true,\n  \"sortOrder\": 1,\n  \"iconUrl\": \"https://example.com/icon.png\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/item-types",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"item-types"
+							]
+						},
+						"description": "Create a new item type"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Item Type",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"typeName\": \"Updated Type Name\",\n  \"description\": \"Updated description\",\n  \"isActive\": true,\n  \"sortOrder\": 2,\n  \"iconUrl\": \"https://example.com/updated-icon.png\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/item-types/:id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"item-types",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "",
+									"description": "Item Type UUID"
+								}
+							]
+						},
+						"description": "Update item type information"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Item Type",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/item-types/:id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"item-types",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "",
+									"description": "Item Type UUID"
+								}
+							]
+						},
+						"description": "Delete an item type"
+					},
+					"response": []
+				}
+			],
+			"description": "Item Type master data endpoints"
+		},
+		{
+			"name": "Devices",
+			"item": [
+				{
+					"name": "List User Devices",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/users/:userId/devices",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"users",
+								":userId",
+								"devices"
+							],
+							"variable": [
+								{
+									"key": "userId",
+									"value": "{{userId}}",
+									"description": "User UUID"
+								}
+							]
+						},
+						"description": "List all registered devices for a user"
+					},
+					"response": []
+				},
+				{
+					"name": "Register Device",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"macAddress\": \"00:1B:44:11:3A:B7\",\n  \"deviceName\": \"iPhone 13 Pro\",\n  \"deviceType\": \"mobile\",\n  \"osInfo\": \"iOS 15.0\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/users/:userId/devices",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"users",
+								":userId",
+								"devices"
+							],
+							"variable": [
+								{
+									"key": "userId",
+									"value": "{{userId}}",
+									"description": "User UUID"
+								}
+							]
+						},
+						"description": "Register a new device for a user (MAC address locking)"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Device",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"deviceName\": \"Updated Device Name\",\n  \"isActive\": true\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/users/:userId/devices/:deviceId",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"users",
+								":userId",
+								"devices",
+								":deviceId"
+							],
+							"variable": [
+								{
+									"key": "userId",
+									"value": "{{userId}}",
+									"description": "User UUID"
+								},
+								{
+									"key": "deviceId",
+									"value": "",
+									"description": "Device UUID"
+								}
+							]
+						},
+						"description": "Update device registration information"
+					},
+					"response": []
+				},
+				{
+					"name": "Deactivate Device",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/users/:userId/devices/:deviceId",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"users",
+								":userId",
+								"devices",
+								":deviceId"
+							],
+							"variable": [
+								{
+									"key": "userId",
+									"value": "{{userId}}",
+									"description": "User UUID"
+								},
+								{
+									"key": "deviceId",
+									"value": "",
+									"description": "Device UUID"
+								}
+							]
+						},
+						"description": "Deactivate a device registration"
+					},
+					"response": []
+				}
+			],
+			"description": "Device registration endpoints (MAC address locking)"
+		},
+		{
+			"name": "Audit Logs",
+			"item": [
+				{
+					"name": "List Audit Logs",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/audit-logs?page=1&limit=10&entityName=&action=&userId=&startDate=&endDate=",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"audit-logs"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1",
+									"description": "Page number"
+								},
+								{
+									"key": "limit",
+									"value": "10",
+									"description": "Items per page"
+								},
+								{
+									"key": "entityName",
+									"value": "",
+									"description": "Filter by entity name",
+									"disabled": true
+								},
+								{
+									"key": "action",
+									"value": "",
+									"description": "Filter by action (create, update, delete, login, logout, password_change, status_change)",
+									"disabled": true
+								},
+								{
+									"key": "userId",
+									"value": "",
+									"description": "Filter by user ID",
+									"disabled": true
+								},
+								{
+									"key": "startDate",
+									"value": "",
+									"description": "Filter by start date (ISO 8601)",
+									"disabled": true
+								},
+								{
+									"key": "endDate",
+									"value": "",
+									"description": "Filter by end date (ISO 8601)",
+									"disabled": true
+								}
+							]
+						},
+						"description": "List audit logs with optional filters"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Audit Log",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/audit-logs/:id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"audit-logs",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "",
+									"description": "Audit Log UUID"
+								}
+							]
+						},
+						"description": "Get audit log details by ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Export Audit Logs",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/audit-logs/export?entityName=&action=&userId=&startDate=&endDate=",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"audit-logs",
+								"export"
+							],
+							"query": [
+								{
+									"key": "entityName",
+									"value": "",
+									"description": "Filter by entity name",
+									"disabled": true
+								},
+								{
+									"key": "action",
+									"value": "",
+									"description": "Filter by action",
+									"disabled": true
+								},
+								{
+									"key": "userId",
+									"value": "",
+									"description": "Filter by user ID",
+									"disabled": true
+								},
+								{
+									"key": "startDate",
+									"value": "",
+									"description": "Filter by start date (ISO 8601)",
+									"disabled": true
+								},
+								{
+									"key": "endDate",
+									"value": "",
+									"description": "Filter by end date (ISO 8601)",
+									"disabled": true
+								}
+							]
+						},
+						"description": "Export audit logs as JSON"
+					},
+					"response": []
+				}
+			],
+			"description": "Audit log endpoints"
+		},
+		{
+			"name": "Borrow Requests",
+			"item": [
+				{
+					"name": "List Borrow Requests",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/borrow-requests?page=1&limit=10",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"borrow-requests"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1",
+									"description": "Page number"
+								},
+								{
+									"key": "limit",
+									"value": "10",
+									"description": "Items per page"
+								}
+							]
+						},
+						"description": "List all borrow requests (Pinjam PT)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Borrow Request",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/borrow-requests/:id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"borrow-requests",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "",
+									"description": "Borrow Request UUID"
+								}
+							]
+						},
+						"description": "Get borrow request details by ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Borrow Request",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"branchId\": \"branch-uuid-here\",\n  \"targetCompanyId\": \"target-company-uuid-here\",\n  \"requestReason\": \"Need to borrow this branch for temporary operations\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/borrow-requests",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"borrow-requests"
+							]
+						},
+						"description": "Create a new borrow request (Pinjam PT)"
+					},
+					"response": []
+				},
+				{
+					"name": "Approve Borrow Request",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/borrow-requests/:id/approve",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"borrow-requests",
+								":id",
+								"approve"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "",
+									"description": "Borrow Request UUID"
+								}
+							]
+						},
+						"description": "Approve a borrow request"
+					},
+					"response": []
+				},
+				{
+					"name": "Reject Borrow Request",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"rejectionReason\": \"Reason for rejection\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/borrow-requests/:id/reject",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"borrow-requests",
+								":id",
+								"reject"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "",
+									"description": "Borrow Request UUID"
+								}
+							]
+						},
+						"description": "Reject a borrow request with reason"
+					},
+					"response": []
+				}
+			],
+			"description": "Borrow Request (Pinjam PT) endpoints"
+		},
+		{
+			"name": "Users",
+			"item": [
+				{
+					"name": "List Users",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/users?page=1&limit=10",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"users"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1",
+									"description": "Page number"
+								},
+								{
+									"key": "limit",
+									"value": "10",
+									"description": "Items per page"
+								}
+							]
+						},
+						"description": "List all users"
+					},
+					"response": []
+				},
+				{
+					"name": "Get User",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/users/:id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"users",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "",
+									"description": "User UUID"
+								}
+							]
+						},
+						"description": "Get user details by ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Create User",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"fullName\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"password\": \"password123\",\n  \"phoneNumber\": \"+6281234567890\",\n  \"companyId\": \"company-uuid-here\",\n  \"branchId\": \"branch-uuid-here\",\n  \"roleIds\": [\"role-uuid-1\", \"role-uuid-2\"]\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/users",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"users"
+							]
+						},
+						"description": "Create a new user"
+					},
+					"response": []
+				},
+				{
+					"name": "Update User",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"fullName\": \"Updated Name\",\n  \"phoneNumber\": \"+6281234567891\",\n  \"companyId\": \"company-uuid-here\",\n  \"branchId\": \"branch-uuid-here\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/users/:id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"users",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "",
+									"description": "User UUID"
+								}
+							]
+						},
+						"description": "Update user information"
+					},
+					"response": []
+				},
+				{
+					"name": "Assign Roles to User",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"roleIds\": [\"role-uuid-1\", \"role-uuid-2\"]\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/users/:id/assign-roles",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"users",
+								":id",
+								"assign-roles"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "",
+									"description": "User UUID"
+								}
+							]
+						},
+						"description": "Assign roles to a user"
+					},
+					"response": []
+				},
+				{
+					"name": "Reset User Password",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"newPassword\": \"newPassword123\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/users/:id/reset-password",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"users",
+								":id",
+								"reset-password"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "",
+									"description": "User UUID"
+								}
+							]
+						},
+						"description": "Reset a user's password"
+					},
+					"response": []
+				}
+			],
+			"description": "User management endpoints"
 		},
 		{
 			"name": "Health",

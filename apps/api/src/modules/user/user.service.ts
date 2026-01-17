@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   HttpException,
   HttpStatus,
   Injectable,
@@ -8,6 +9,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import {
   type FindOptionsRelations,
   type FindOptionsWhere,
+  In,
   Repository,
 } from 'typeorm';
 
@@ -19,6 +21,10 @@ import { UserRegisterDto } from '../auth/dtos/user-register.dto';
 import { RoleEntity } from '../role/entities/role.entity';
 import { UserDto } from './dtos/user.dto';
 import { UserEntity } from './entities/user.entity';
+import { CreateUserDto } from './dtos/create-user.dto';
+import { UpdateUserDto } from './dtos/update-user.dto';
+import { AssignRoleDto } from './dtos/assign-role.dto';
+import { ResetPasswordDto } from './dtos/reset-password.dto';
 
 @Injectable()
 export class UserService {
@@ -142,5 +148,96 @@ export class UserService {
       validateEmailToken: null,
       validateEmailExpires: null,
     });
+  }
+
+  async create(createDto: CreateUserDto): Promise<UserDto> {
+    const isExist = await this.checkEmail(createDto.email);
+
+    if (isExist) {
+      throw new BadRequestException('Email is already registered');
+    }
+
+    const hashedPassword = await generateHash(createDto.password);
+    const user = this.userRepository.create({
+      fullName: createDto.fullName,
+      email: createDto.email,
+      password: hashedPassword,
+      phoneNumber: createDto.phoneNumber,
+      companyId: createDto.companyId,
+      branchId: createDto.branchId,
+      activeStatus: ActiveStatusEnum.Active,
+    });
+
+    const savedUser = await this.userRepository.save(user);
+
+    // Assign roles if provided
+    if (createDto.roleIds && createDto.roleIds.length > 0) {
+      await this.assignRoles(savedUser.uuid, { roleIds: createDto.roleIds });
+    }
+
+    return this.findOne({ uuid: savedUser.uuid });
+  }
+
+  async updateByUuid(uuid: string, updateDto: UpdateUserDto): Promise<UserDto> {
+    const user = await this.userRepository.findOne({
+      where: { uuid },
+      relations: { roles: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User with UUID ${uuid} not found`);
+    }
+
+    Object.assign(user, updateDto);
+    const updated = await this.userRepository.save(user);
+
+    return new UserDto(updated);
+  }
+
+  async assignRoles(uuid: string, assignDto: AssignRoleDto): Promise<UserDto> {
+    const user = await this.userRepository.findOne({
+      where: { uuid },
+      relations: { roles: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User with UUID ${uuid} not found`);
+    }
+
+    const roles = await this.roleRepository.find({
+      where: { uuid: In(assignDto.roleIds) },
+    });
+
+    if (roles.length !== assignDto.roleIds.length) {
+      throw new BadRequestException('One or more roles not found');
+    }
+
+    user.roles = roles;
+    const updated = await this.userRepository.save(user);
+
+    return new UserDto(updated);
+  }
+
+  async resetPassword(uuid: string, resetDto: ResetPasswordDto): Promise<void> {
+    const user = await this.userRepository.findOne({
+      where: { uuid },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User with UUID ${uuid} not found`);
+    }
+
+    const hashedPassword = await generateHash(resetDto.newPassword);
+
+    await this.userRepository.update(
+      { uuid },
+      {
+        password: hashedPassword,
+        resetPasswordToken: null,
+        resetPasswordExpires: null,
+        accessToken: null,
+        refreshToken: null, // Invalidate all sessions
+      },
+    );
   }
 }
