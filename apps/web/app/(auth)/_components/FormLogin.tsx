@@ -1,10 +1,14 @@
 "use client"
+
 import React, { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { Mail, Lock, Eye, EyeOff, LogIn } from "lucide-react"
+import { Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react"
 import Image from "next/image"
+import { useRouter, useSearchParams } from "next/navigation"
+import { signIn } from "next-auth/react"
+
 import { imgLogoGadaiTop } from "@/assets"
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
@@ -16,6 +20,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@workspace/ui/components/form"
+import { Alert, AlertDescription } from "@workspace/ui/components/alert"
 
 const loginSchema = z.object({
   email: z
@@ -31,7 +36,16 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>
 
 export default function FormLogin() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const callbackUrl = searchParams.get("callbackUrl") || "/"
+  const errorParam = searchParams.get("error")
+
   const [showPassword, setShowPassword] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(
+    errorParam === "SessionExpired" ? "Sesi Anda telah berakhir. Silakan login kembali." : null
+  )
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -41,9 +55,31 @@ export default function FormLogin() {
     },
   })
 
-  const onSubmit = (values: LoginFormValues) => {
-    console.log(values)
-    // Handle login logic here
+  const onSubmit = async (values: LoginFormValues) => {
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const result = await signIn("credentials", {
+        email: values.email,
+        password: values.password,
+        redirect: false,
+      })
+
+      if (result?.error) {
+        setError(result.error)
+        return
+      }
+
+      if (result?.ok) {
+        router.push(callbackUrl)
+        router.refresh()
+      }
+    } catch {
+      setError("Terjadi kesalahan saat login. Silakan coba lagi.")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -61,6 +97,12 @@ export default function FormLogin() {
         Silakan masukkan email & password untuk masuk ke akunmu.
       </p>
 
+      {error && (
+        <Alert variant="destructive" className="mb-4 text-left">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <FormField
@@ -74,6 +116,7 @@ export default function FormLogin() {
                     type="email"
                     placeholder="Masukkan email"
                     icon={<Mail className="size-4" />}
+                    disabled={isLoading}
                     {...field}
                   />
                 </FormControl>
@@ -94,12 +137,14 @@ export default function FormLogin() {
                       type={showPassword ? "text" : "password"}
                       placeholder="Masukkan password"
                       icon={<Lock className="size-4" />}
+                      disabled={isLoading}
                       {...field}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       className="text-muted-foreground hover:text-foreground absolute top-1/2 right-3 -translate-y-1/2"
+                      disabled={isLoading}
                       aria-label={
                         showPassword
                           ? "Sembunyikan password"
@@ -119,8 +164,15 @@ export default function FormLogin() {
             )}
           />
 
-          <Button type="submit" className="w-full" size="default">
-            Masuk
+          <Button type="submit" className="w-full" size="default" disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 size-4 animate-spin" />
+                Memproses...
+              </>
+            ) : (
+              "Masuk"
+            )}
           </Button>
         </form>
       </Form>

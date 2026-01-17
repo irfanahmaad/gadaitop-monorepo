@@ -5,9 +5,9 @@ import {
   User,
   Settings,
   LogOut,
-  CreditCard,
   Bell,
   HelpCircle,
+  Loader2,
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -24,40 +24,34 @@ import {
   AvatarImage,
 } from "@workspace/ui/components/avatar"
 import { Button } from "@workspace/ui/components/button"
+import { useAuth, useLogout } from "@/lib/react-query/hooks/use-auth"
 
-interface ProfileDropdownProps {
-  user?: {
-    name?: string
-    email?: string
-    avatar?: string
-  }
-}
+export function ProfileDropdown() {
+  const { user, isLoading } = useAuth()
+  const logoutMutation = useLogout()
 
-const defaultUser = {
-  name: "John Doe",
-  email: "john.doe@example.com",
-  avatar: undefined,
-}
-
-export function ProfileDropdown({ user = defaultUser }: ProfileDropdownProps) {
   const userInitials = React.useMemo(() => {
-    if (user.name) {
-      return user.name
+    if (user?.fullName) {
+      return user.fullName
         .split(" ")
         .map((n) => n[0])
         .join("")
         .toUpperCase()
         .slice(0, 2)
     }
-    return "JD"
-  }, [user.name])
+    return "U"
+  }, [user?.fullName])
+
+  const handleLogout = () => {
+    logoutMutation.mutate()
+  }
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-8 w-8 rounded-full p-0">
           <Avatar className="size-8">
-            <AvatarImage src={user.avatar} alt={user.name} />
+            <AvatarImage src={undefined} alt={user?.fullName} />
             <AvatarFallback>{userInitials}</AvatarFallback>
           </Avatar>
         </Button>
@@ -65,9 +59,11 @@ export function ProfileDropdown({ user = defaultUser }: ProfileDropdownProps) {
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm leading-none font-medium">{user.name}</p>
+            <p className="text-sm leading-none font-medium">
+              {isLoading ? "Loading..." : user?.fullName || "User"}
+            </p>
             <p className="text-muted-foreground text-xs leading-none">
-              {user.email}
+              {user?.email || ""}
             </p>
           </div>
         </DropdownMenuLabel>
@@ -92,8 +88,16 @@ export function ProfileDropdown({ user = defaultUser }: ProfileDropdownProps) {
           <span>Support</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="text-destructive focus:text-destructive">
-          <LogOut className="text-destructive mr-2 size-4" />
+        <DropdownMenuItem
+          className="text-destructive focus:text-destructive"
+          onClick={handleLogout}
+          disabled={logoutMutation.isPending}
+        >
+          {logoutMutation.isPending ? (
+            <Loader2 className="text-destructive mr-2 size-4 animate-spin" />
+          ) : (
+            <LogOut className="text-destructive mr-2 size-4" />
+          )}
           <span>Log out</span>
         </DropdownMenuItem>
       </DropdownMenuContent>

@@ -1,22 +1,6 @@
+import { getSession } from "next-auth/react"
+
 import type { ApiError, ApiResponse, PageOptions, PaginatedResponse } from "./types"
-
-const TOKEN_KEY = "auth_token"
-
-// Token management
-export function getToken(): string | null {
-  if (typeof window === "undefined") return null
-  return localStorage.getItem(TOKEN_KEY)
-}
-
-export function setToken(token: string): void {
-  if (typeof window === "undefined") return
-  localStorage.setItem(TOKEN_KEY, token)
-}
-
-export function removeToken(): void {
-  if (typeof window === "undefined") return
-  localStorage.removeItem(TOKEN_KEY)
-}
 
 // Build query string from PageOptions
 function buildQueryString(options?: PageOptions): string {
@@ -62,6 +46,19 @@ interface RequestOptions<TBody = unknown> {
   body?: TBody
   headers?: Record<string, string>
   requireAuth?: boolean
+  /** Provide access token directly (for server-side usage) */
+  accessToken?: string
+}
+
+// Get access token from NextAuth session (client-side)
+async function getAccessToken(): Promise<string | null> {
+  if (typeof window === "undefined") {
+    // Server-side: token should be passed via options.accessToken
+    return null
+  }
+
+  const session = await getSession()
+  return session?.accessToken ?? null
 }
 
 // Base fetch function
@@ -69,7 +66,7 @@ async function request<TResponse, TBody = unknown>(
   url: string,
   options: RequestOptions<TBody> = {}
 ): Promise<TResponse> {
-  const { method = "GET", body, headers = {}, requireAuth = true } = options
+  const { method = "GET", body, headers = {}, requireAuth = true, accessToken: providedToken } = options
 
   const requestHeaders: Record<string, string> = {
     "Content-Type": "application/json",
@@ -79,7 +76,7 @@ async function request<TResponse, TBody = unknown>(
 
   // Add auth header if required
   if (requireAuth) {
-    const token = getToken()
+    const token = providedToken ?? (await getAccessToken())
     if (token) {
       requestHeaders.Authorization = `Bearer ${token}`
     }
@@ -147,6 +144,37 @@ export const apiClient = {
   delete<TResponse>(url: string, options?: Omit<RequestOptions, "method" | "body">) {
     return request<TResponse>(url, { ...options, method: "DELETE" })
   },
+}
+
+// Server-side API client helper
+// Use this in server components or API routes
+export function createServerApiClient(accessToken: string) {
+  return {
+    get<TResponse>(url: string, options?: Omit<RequestOptions, "method" | "body" | "accessToken">) {
+      return request<TResponse>(url, { ...options, method: "GET", accessToken })
+    },
+
+    getList<TData>(url: string, pageOptions?: PageOptions, options?: Omit<RequestOptions, "method" | "body" | "accessToken">) {
+      const queryString = buildQueryString(pageOptions)
+      return request<PaginatedResponse<TData>>(`${url}${queryString}`, { ...options, method: "GET", accessToken })
+    },
+
+    post<TResponse, TBody = unknown>(url: string, body?: TBody, options?: Omit<RequestOptions<TBody>, "method" | "accessToken">) {
+      return request<TResponse, TBody>(url, { ...options, method: "POST", body, accessToken })
+    },
+
+    put<TResponse, TBody = unknown>(url: string, body?: TBody, options?: Omit<RequestOptions<TBody>, "method" | "accessToken">) {
+      return request<TResponse, TBody>(url, { ...options, method: "PUT", body, accessToken })
+    },
+
+    patch<TResponse, TBody = unknown>(url: string, body?: TBody, options?: Omit<RequestOptions<TBody>, "method" | "accessToken">) {
+      return request<TResponse, TBody>(url, { ...options, method: "PATCH", body, accessToken })
+    },
+
+    delete<TResponse>(url: string, options?: Omit<RequestOptions, "method" | "body" | "accessToken">) {
+      return request<TResponse>(url, { ...options, method: "DELETE", accessToken })
+    },
+  }
 }
 
 // Export individual response type helpers

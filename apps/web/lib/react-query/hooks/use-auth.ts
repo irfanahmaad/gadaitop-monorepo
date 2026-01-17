@@ -1,16 +1,13 @@
 "use client"
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { signIn, signOut, useSession } from "next-auth/react"
+import { useRouter } from "next/navigation"
 
-import { apiClient, removeToken, setToken } from "@/lib/api/client"
+import { apiClient } from "@/lib/api/client"
 import { endpoints } from "@/lib/api/endpoints"
-import type {
-  ApiResponse,
-  LoginCredentials,
-  LoginPayload,
-  RegisterCredentials,
-  User,
-} from "@/lib/api/types"
+import type { ApiResponse, LoginCredentials, RegisterCredentials } from "@/lib/api/types"
+import type { AuthUser } from "@/lib/auth/types"
 
 // Query keys
 export const authKeys = {
@@ -18,69 +15,127 @@ export const authKeys = {
   me: () => [...authKeys.all, "me"] as const,
 }
 
-// Get current user
-export function useMe() {
-  return useQuery({
-    queryKey: authKeys.me(),
-    queryFn: () => apiClient.get<ApiResponse<User>>(endpoints.auth.me),
-    select: (data) => data.data,
-    retry: false,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  })
+// Hook to get the current authenticated user from NextAuth session
+export function useAuth() {
+  const { data: session, status, update } = useSession()
+
+  return {
+    user: session?.user as AuthUser | undefined,
+    accessToken: session?.accessToken,
+    isAuthenticated: status === "authenticated",
+    isLoading: status === "loading",
+    error: session?.error,
+    updateSession: update,
+  }
 }
 
-// Login mutation
+// Hook to get current user (alias for useAuth for backward compatibility)
+export function useMe() {
+  const { user, isLoading, isAuthenticated } = useAuth()
+
+  return {
+    data: user,
+    isLoading,
+    isSuccess: isAuthenticated && !!user,
+    isError: false,
+  }
+}
+
+// Login mutation using NextAuth
 export function useLogin() {
-  const queryClient = useQueryClient()
+  const router = useRouter()
 
   return useMutation({
-    mutationFn: (credentials: LoginCredentials) =>
-      apiClient.post<ApiResponse<LoginPayload>, LoginCredentials>(
-        endpoints.auth.login,
-        credentials,
-        { requireAuth: false }
-      ),
-    onSuccess: (data) => {
-      setToken(data.data.token.accessToken)
-      queryClient.setQueryData(authKeys.me(), { data: data.data.user })
+    mutationFn: async (credentials: LoginCredentials & { callbackUrl?: string }) => {
+      const result = await signIn("credentials", {
+        email: credentials.email,
+        password: credentials.password,
+        redirect: false,
+      })
+
+      if (result?.error) {
+        throw new Error(result.error)
+      }
+
+      return result
+    },
+    onSuccess: (_, variables) => {
+      router.push(variables.callbackUrl || "/")
+      router.refresh()
     },
   })
 }
 
 // Register mutation
 export function useRegister() {
-  const queryClient = useQueryClient()
+  const router = useRouter()
 
   return useMutation({
-    mutationFn: (credentials: RegisterCredentials) =>
-      apiClient.post<ApiResponse<LoginPayload>, RegisterCredentials>(
-        endpoints.auth.register,
-        credentials,
-        { requireAuth: false }
-      ),
-    onSuccess: (data) => {
-      setToken(data.data.token.accessToken)
-      queryClient.setQueryData(authKeys.me(), { data: data.data.user })
+    mutationFn: async (credentials: RegisterCredentials) => {
+      // First register with the backend
+      const response = await apiClient.post<
+        ApiResponse<{
+          user: AuthUser
+          token: { accessToken: string; expiresIn: number }
+        }>,
+        RegisterCredentials
+      >(endpoints.auth.register, credentials, { requireAuth: false })
+
+      // Then sign in with NextAuth using the newly registered credentials
+      const result = await signIn("credentials", {
+        email: credentials.email,
+        password: credentials.password,
+        redirect: false,
+      })
+
+      if (result?.error) {
+        throw new Error(result.error)
+      }
+
+      return response
+    },
+    onSuccess: () => {
+      router.push("/")
+      router.refresh()
     },
   })
 }
 
-// Logout mutation
+// Logout mutation using NextAuth
 export function useLogout() {
   const queryClient = useQueryClient()
+  const router = useRouter()
 
   return useMutation({
-    mutationFn: () => apiClient.post<ApiResponse<boolean>>(endpoints.auth.logout),
+    mutationFn: async () => {
+      // First call backend logout to invalidate the token on server
+      try {
+        await apiClient.post<ApiResponse<boolean>>(endpoints.auth.logout)
+      } catch {
+        // Continue with logout even if backend call fails
+        console.warn("Backend logout failed, continuing with client-side logout")
+      }
+
+      // Then sign out from NextAuth
+      await signOut({ redirect: false })
+    },
     onSuccess: () => {
-      removeToken()
+      // Clear all React Query cache
       queryClient.removeQueries({ queryKey: authKeys.all })
       queryClient.clear()
+
+      // Redirect to login
+      router.push("/login")
+      router.refresh()
     },
     onError: () => {
-      // Even if logout fails on server, clear local state
-      removeToken()
-      queryClient.removeQueries({ queryKey: authKeys.all })
-      queryClient.clear()
+      // Even if logout fails, attempt to sign out and redirect
+      signOut({ redirect: false }).then(() => {
+        queryClient.removeQueries({ queryKey: authKeys.all })
+        queryClient.clear()
+        router.push("/login")
+        router.refresh()
+      })
     },
   })
 }
