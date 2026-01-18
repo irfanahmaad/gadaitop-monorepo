@@ -22,6 +22,7 @@ import {
 } from "@workspace/ui/components/tabs"
 import { Input } from "@workspace/ui/components/input"
 import { Plus, SearchIcon, SlidersHorizontal } from "lucide-react"
+import { ConfirmationDialog } from "@/components/confirmation-dialog"
 
 // Sample data type
 type StockOpname = {
@@ -178,6 +179,8 @@ const columns: ColumnDef<StockOpname>[] = [
 export default function StockOpnamePage() {
   const [pageSize, setPageSize] = useState(100)
   const [searchValue, setSearchValue] = useState("")
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
+  const [itemToDelete, setItemToDelete] = useState<StockOpname | null>(null)
 
   const handleCreate = () => {
     // Implement create action
@@ -195,8 +198,13 @@ export default function StockOpnamePage() {
   }
 
   const handleDelete = (row: StockOpname) => {
-    if (confirm("Apakah Anda yakin ingin menghapus data ini?")) {
-      console.log("Delete:", row)
+    setItemToDelete(row)
+    setIsConfirmDialogOpen(true)
+  }
+
+  const handleConfirmDelete = () => {
+    if (itemToDelete) {
+      console.log("Delete:", itemToDelete)
       // Implement delete action
     }
   }
@@ -280,6 +288,14 @@ export default function StockOpnamePage() {
           {/* Keep blank for now */}
         </TabsContent>
       </Tabs>
+
+      {/* Confirmation Dialog for Delete */}
+      <ConfirmationDialog
+        open={isConfirmDialogOpen}
+        onOpenChange={setIsConfirmDialogOpen}
+        onConfirm={handleConfirmDelete}
+        description="Anda akan menghapus data Stock Opname dari dalam sistem."
+      />
     </div>
   )
 }

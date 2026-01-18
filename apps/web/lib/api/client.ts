@@ -99,13 +99,32 @@ async function request<TResponse, TBody = unknown>(
     return undefined as TResponse
   }
 
-  const data = await response.json()
+  // Check if response has a body before parsing JSON
+  const contentType = response.headers.get("content-type")
+  let data: unknown
+
+  if (contentType?.includes("application/json")) {
+    const text = await response.text()
+    if (text && text.trim() !== "") {
+      try {
+        data = JSON.parse(text)
+      } catch {
+        // If JSON parsing fails, treat as empty response
+        data = undefined
+      }
+    } else {
+      data = undefined
+    }
+  } else {
+    // No JSON content type, treat as empty response for successful requests
+    data = undefined
+  }
 
   if (!response.ok) {
     const error: ApiError = {
       statusCode: response.status,
-      message: data.message || "An error occurred",
-      error: data.error,
+      message: (data && typeof data === "object" && "message" in data ? data.message : "An error occurred") as string,
+      error: (data && typeof data === "object" && "error" in data ? data.error : undefined) as string | undefined,
     }
     throw ApiClientError.fromApiError(error)
   }

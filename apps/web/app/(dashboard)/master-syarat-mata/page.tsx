@@ -16,6 +16,7 @@ import {
 import { Input } from "@workspace/ui/components/input"
 import { SearchIcon, SlidersHorizontal, Plus } from "lucide-react"
 import { formatCurrencyDisplay } from "@/lib/format-currency"
+import { ConfirmationDialog } from "@/components/confirmation-dialog"
 
 // Type for Syarat Mata
 type SyaratMata = {
@@ -217,6 +218,8 @@ const syaratMataColumns: ColumnDef<SyaratMata>[] = [
 export default function MasterSyaratMataPage() {
   const [pageSize, setPageSize] = useState(100)
   const [searchValue, setSearchValue] = useState("")
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
+  const [itemToDelete, setItemToDelete] = useState<SyaratMata | null>(null)
 
   const handleDetail = (row: SyaratMata) => {
     console.log("Detail:", row)
@@ -229,8 +232,13 @@ export default function MasterSyaratMataPage() {
   }
 
   const handleDelete = (row: SyaratMata) => {
-    if (confirm("Apakah Anda yakin ingin menghapus data ini?")) {
-      console.log("Delete:", row)
+    setItemToDelete(row)
+    setIsConfirmDialogOpen(true)
+  }
+
+  const handleConfirmDelete = () => {
+    if (itemToDelete) {
+      console.log("Delete:", itemToDelete)
       // Implement delete action
     }
   }
@@ -308,6 +316,14 @@ export default function MasterSyaratMataPage() {
         onDetail={handleDetail}
         onEdit={handleEdit}
         onDelete={handleDelete}
+      />
+
+      {/* Confirmation Dialog for Delete */}
+      <ConfirmationDialog
+        open={isConfirmDialogOpen}
+        onOpenChange={setIsConfirmDialogOpen}
+        onConfirm={handleConfirmDelete}
+        description="Anda akan menghapus data Syarat Mata dari dalam sistem."
       />
     </div>
   )

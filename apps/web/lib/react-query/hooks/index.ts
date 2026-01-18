@@ -46,7 +46,10 @@ export {
 // Company hooks
 export {
   companyKeys,
+  useCompanies,
   useCompany,
+  useCreateCompany,
+  useDeleteCompany,
   useCompanyStatistics,
   useUpdateCompany,
   useUpdateCompanyConfig,

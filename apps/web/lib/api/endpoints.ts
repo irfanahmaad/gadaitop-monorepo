@@ -28,8 +28,11 @@ export const endpoints = {
 
   // Companies
   companies: {
+    list: baseUrl("companies"),
+    create: baseUrl("companies"),
     detail: (id: string) => baseUrl(`companies/${id}`),
     update: (id: string) => baseUrl(`companies/${id}`),
+    delete: (id: string) => baseUrl(`companies/${id}`),
     updateConfig: (id: string) => baseUrl(`companies/${id}/config`),
     statistics: (id: string) => baseUrl(`companies/${id}/statistics`),
   },

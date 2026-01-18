@@ -1,8 +1,9 @@
 "use client"
 
-import React from "react"
+import React, { useState } from "react"
 import { useRouter } from "next/navigation"
 import { ColumnDef } from "@tanstack/react-table"
+import { toast } from "sonner"
 import { Breadcrumbs } from "@/components/breadcrumbs"
 import { Button } from "@workspace/ui/components/button"
 import { DataTable } from "@/components/data-table"
@@ -11,32 +12,22 @@ import {
   AvatarImage,
   AvatarFallback,
 } from "@workspace/ui/components/avatar"
-import { Building2, Plus } from "lucide-react"
-
-// Sample data type
-type PT = {
-  id: string
-  code: string
-  name: string
-  email: string
-  phone: string
-  image?: string
-  adminPrimary: string
-}
-
-// Sample data
-const sampleData: PT[] = Array.from({ length: 6 }, (_, i) => ({
-  id: `PT${String(i + 1).padStart(3, "0")}`,
-  code: `PT${String(i + 1).padStart(3, "0")}`,
-  name: i % 2 === 0 ? "PT Gadai Top Indonesia" : "PT Gadai Top Premium",
-  email: i % 2 === 0 ? "gadaitop@mail.com" : "gadai_top@mail.com",
-  phone: "081234567891012",
-  image: "/commons/img_logo-gadai-top-img-only.png",
-  adminPrimary: "Ben Affleck",
-}))
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@workspace/ui/components/alert-dialog"
+import { Building2, Plus, Loader2 } from "lucide-react"
+import { useCompanies, useDeleteCompany } from "@/lib/react-query/hooks"
+import type { Company } from "@/lib/api/types"
 
 // Column definitions
-const columns: ColumnDef<PT>[] = [
+const columns: ColumnDef<Company>[] = [
   {
     id: "no",
     header: "No",
@@ -47,13 +38,12 @@ const columns: ColumnDef<PT>[] = [
   },
   {
     id: "foto",
-    accessorKey: "image",
     header: "Foto",
     cell: ({ row }) => {
-      const pt = row.original
+      const company = row.original
       return (
         <Avatar className="size-10">
-          <AvatarImage src={pt.image} alt={pt.name} />
+          <AvatarImage src="" alt={company.companyName} />
           <AvatarFallback>
             <Building2 className="size-5" />
           </AvatarFallback>
@@ -63,47 +53,83 @@ const columns: ColumnDef<PT>[] = [
   },
   {
     id: "code",
-    accessorKey: "code",
+    accessorKey: "companyCode",
     header: "Kode PT",
   },
   {
-    accessorKey: "name",
+    id: "name",
+    accessorKey: "companyName",
     header: "Nama PT",
   },
   {
-    accessorKey: "email",
-    header: "E-mail PT",
-  },
-  {
-    accessorKey: "phone",
+    id: "phone",
+    accessorKey: "phoneNumber",
     header: "No. Telp PT",
+    cell: ({ row }) => row.original.phoneNumber || "-",
   },
   {
-    accessorKey: "adminPrimary",
+    id: "adminPrimary",
     header: "Admin Primary",
+    cell: ({ row }) => row.original.owner?.fullName || "-",
   },
 ]
 
 export default function PTListPage() {
   const router = useRouter()
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null)
 
-  const handleDetail = (row: PT) => {
-    router.push(`/pt/${row.id}`)
+  // Fetch companies
+  const { data, isLoading, isError } = useCompanies()
+  const deleteMutation = useDeleteCompany()
+
+  const handleDetail = (row: Company) => {
+    router.push(`/pt/${row.uuid}`)
   }
 
-  const handleEdit = (row: PT) => {
-    router.push(`/pt/${row.id}/edit`)
+  const handleEdit = (row: Company) => {
+    router.push(`/pt/${row.uuid}/edit`)
   }
 
-  const handleDelete = (row: PT) => {
-    if (confirm("Apakah Anda yakin ingin menghapus data ini?")) {
-      console.log("Delete:", row)
-      // Implement delete action
+  const handleDelete = (row: Company) => {
+    setSelectedCompany(row)
+    setDeleteDialogOpen(true)
+  }
+
+  const confirmDelete = async () => {
+    if (!selectedCompany) return
+
+    try {
+      await deleteMutation.mutateAsync(selectedCompany.uuid)
+      toast.success("PT berhasil dihapus")
+      setDeleteDialogOpen(false)
+      setSelectedCompany(null)
+    } catch {
+      toast.error("Gagal menghapus PT")
     }
   }
 
   const handleCreate = () => {
     router.push("/pt/create")
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <Loader2 className="size-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (isError) {
+    return (
+      <div className="flex h-64 flex-col items-center justify-center gap-2">
+        <p className="text-muted-foreground">Gagal memuat data PT</p>
+        <Button variant="outline" onClick={() => window.location.reload()}>
+          Coba Lagi
+        </Button>
+      </div>
+    )
   }
 
   return (
@@ -131,7 +157,7 @@ export default function PTListPage() {
 
         <DataTable
           columns={columns}
-          data={sampleData}
+          data={data?.data ?? []}
           title="Daftar PT"
           searchPlaceholder="Search"
           onDetail={handleDetail}
@@ -139,6 +165,37 @@ export default function PTListPage() {
           onDelete={handleDelete}
         />
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus PT</AlertDialogTitle>
+            <AlertDialogDescription>
+              Apakah Anda yakin ingin menghapus{" "}
+              <strong>{selectedCompany?.companyName}</strong>? Tindakan ini tidak
+              dapat dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  Menghapus...
+                </>
+              ) : (
+                "Hapus"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }

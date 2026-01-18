@@ -129,14 +129,25 @@ export interface IAbility {
 
 // Company types
 export interface Company {
-  id: string
+  id: number
   uuid: string
-  name: string
+  companyCode: string
+  companyName: string
+  phoneNumber?: string
   address?: string
-  phone?: string
-  email?: string
-  logo?: string
-  config?: CompanyConfig
+  ownerId: string
+  owner?: User
+  branches?: Branch[]
+  // Interest & Fee Configuration
+  earlyInterestRate: number
+  normalInterestRate: number
+  adminFeeRate: number
+  insuranceFee: number
+  latePenaltyRate: number
+  minPrincipalPayment: number
+  defaultTenorDays: number
+  earlyPaymentDays: number
+  activeStatus: ActiveStatus
   createdAt: string
   updatedAt: string
 }
@@ -145,22 +156,41 @@ export interface CompanyConfig {
   [key: string]: unknown
 }
 
-export interface UpdateCompanyDto {
-  name?: string
+export interface CreateCompanyWithAdminDto {
+  // Company data
+  companyCode: string
+  companyName: string
+  phoneNumber?: string
   address?: string
-  phone?: string
-  email?: string
-  logo?: string
+  companyEmail?: string
+  // Admin Primary (Owner) data
+  adminName: string
+  adminEmail: string
+  adminPhone?: string
+  password: string
+}
+
+export interface UpdateCompanyDto {
+  companyName?: string
+  phoneNumber?: string
+  address?: string
 }
 
 export interface UpdateCompanyConfigDto {
-  config: CompanyConfig
+  earlyInterestRate?: number
+  normalInterestRate?: number
+  adminFeeRate?: number
+  insuranceFee?: number
+  latePenaltyRate?: number
+  minPrincipalPayment?: number
+  defaultTenorDays?: number
+  earlyPaymentDays?: number
 }
 
 export interface CompanyStatistics {
   totalBranches: number
   totalUsers: number
-  totalBorrowRequests: number
+  activeBranches: number
 }
 
 // Branch types

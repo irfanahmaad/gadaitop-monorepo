@@ -27,6 +27,7 @@ import {
   AvatarImage,
 } from "@workspace/ui/components/avatar"
 import { SearchIcon, SlidersHorizontal, Plus } from "lucide-react"
+import { ConfirmationDialog } from "@/components/confirmation-dialog"
 
 // Types for Toko Utama and Toko Pinjaman
 type Toko = {
@@ -355,6 +356,8 @@ export default function MasterTokoPage() {
   const [pageSize, setPageSize] = useState(100)
   const [searchValue, setSearchValue] = useState("")
   const [activeTab, setActiveTab] = useState("toko-utama")
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
+  const [itemToDelete, setItemToDelete] = useState<Toko | RequestToko | null>(null)
   const requestCount = sampleRequest.length
 
   const handleDetail = (row: Toko | RequestToko) => {
@@ -368,8 +371,13 @@ export default function MasterTokoPage() {
   }
 
   const handleDelete = (row: Toko | RequestToko) => {
-    if (confirm("Apakah Anda yakin ingin menghapus data ini?")) {
-      console.log("Delete:", row)
+    setItemToDelete(row)
+    setIsConfirmDialogOpen(true)
+  }
+
+  const handleConfirmDelete = () => {
+    if (itemToDelete) {
+      console.log("Delete:", itemToDelete)
       // Implement delete action
     }
   }
@@ -566,6 +574,14 @@ export default function MasterTokoPage() {
           />
         </TabsContent>
       </Tabs>
+
+      {/* Confirmation Dialog for Delete */}
+      <ConfirmationDialog
+        open={isConfirmDialogOpen}
+        onOpenChange={setIsConfirmDialogOpen}
+        onConfirm={handleConfirmDelete}
+        description="Anda akan menghapus data Toko dari dalam sistem."
+      />
     </div>
   )
 }

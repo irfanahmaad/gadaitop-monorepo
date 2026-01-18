@@ -14,6 +14,7 @@ import {
 } from "@workspace/ui/components/card"
 import { Plus } from "lucide-react"
 import { TipeBarangFormDialog } from "./_components/TipeBarangFormDialog"
+import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { useItemTypes, useDeleteItemType } from "@/lib/react-query/hooks"
 import type { ItemType } from "@/lib/api/types"
 
@@ -86,6 +87,8 @@ function TableSkeleton() {
 export default function TipeBarangListPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<ItemType | null>(null)
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
+  const [itemToDelete, setItemToDelete] = useState<ItemType | null>(null)
 
   // Fetch item types from API
   const { data: itemTypesResponse, isLoading, isError } = useItemTypes()
@@ -99,10 +102,17 @@ export default function TipeBarangListPage() {
   }
 
   const handleDelete = (row: ItemType) => {
-    if (confirm("Apakah Anda yakin ingin menghapus data ini?")) {
-      deleteItemType.mutate(row.id, {
+    setItemToDelete(row)
+    setIsConfirmDialogOpen(true)
+  }
+
+  const handleConfirmDelete = () => {
+    if (itemToDelete) {
+      deleteItemType.mutate(itemToDelete.uuid, {
         onSuccess: () => {
           toast.success("Tipe Barang berhasil dihapus")
+          setIsConfirmDialogOpen(false)
+          setItemToDelete(null)
         },
         onError: (error) => {
           toast.error(error.message || "Gagal menghapus Tipe Barang")
@@ -170,6 +180,14 @@ export default function TipeBarangListPage() {
         onOpenChange={setIsDialogOpen}
         onClose={handleDialogClose}
         initialData={editingItem}
+      />
+
+      {/* Confirmation Dialog for Delete */}
+      <ConfirmationDialog
+        open={isConfirmDialogOpen}
+        onOpenChange={setIsConfirmDialogOpen}
+        onConfirm={handleConfirmDelete}
+        description="Anda akan menghapus data Tipe Barang dari dalam sistem."
       />
     </>
   )
