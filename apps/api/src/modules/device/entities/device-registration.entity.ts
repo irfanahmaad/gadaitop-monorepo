@@ -4,11 +4,11 @@ import { AbstractEntity } from '../../../common/abstract.entity';
 
 /**
  * RS Section 9 - Non-Functional Requirements:
- * - "Terdapat penguncian mac address untuk menentukan pc atau laptop 
+ * - "Terdapat penguncian IP address untuk menentukan pc atau laptop 
  *    mana saja yang dapat mengakses aplikasi atau VPN"
  */
 @Entity({ name: 'device_registrations' })
-@Unique(['userId', 'macAddress'])
+@Unique(['userId', 'ipAddress'])
 export class DeviceRegistrationEntity extends AbstractEntity {
   @Column({ type: 'uuid' })
   @Index()
@@ -19,11 +19,12 @@ export class DeviceRegistrationEntity extends AbstractEntity {
   user: Relation<any>;
 
   /**
-   * MAC Address format: XX:XX:XX:XX:XX:XX
+   * IP Address (IPv4 or IPv6) used to identify the device
+   * This is easier to obtain in web and mobile apps compared to MAC address
    */
-  @Column({ type: 'varchar', length: 17 })
+  @Column({ type: 'inet' })
   @Index()
-  macAddress: string;
+  ipAddress: string;
 
   /**
    * Device identifier/name for user reference

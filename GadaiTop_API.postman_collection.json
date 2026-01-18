@@ -83,14 +83,14 @@
 							}
 						],
 						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"email\": \"admin@gadaitop.com\",\n  \"password\": \"admin123\",\n  \"isAdmin\": false,\n  \"macAddress\": \"00:1B:44:11:3A:B7\"\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@gadaitop.com\",\n  \"password\": \"admin123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
 						"url": {
 							"raw": "{{baseUrl}}/v1/auth/login",
 							"host": [

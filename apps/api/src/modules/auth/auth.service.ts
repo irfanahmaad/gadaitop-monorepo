@@ -78,47 +78,36 @@ export class AuthService {
       });
     }
 
-    // Handle device registration/MAC address verification
-    if (userLoginDto.macAddress) {
-      // Check if user has any registered devices
+      if (ipAddress) {
       const hasRegisteredDevices = await this.deviceService.hasRegisteredDevices(user.uuid);
 
       if (hasRegisteredDevices) {
-        // User has devices registered - verify MAC address
-        const isMacValid = await this.deviceService.verifyMacAddress(
+        const isIpValid = await this.deviceService.verifyIpAddress(
           user.uuid,
-          userLoginDto.macAddress,
+          ipAddress,
         );
 
-        if (!isMacValid) {
-          // MAC not registered - auto-register it for convenience
-          // This allows users to login from new devices without manual registration
+        if (!isIpValid) {
           await this.deviceService.autoRegisterDevice(
             user.uuid,
-            userLoginDto.macAddress,
             ipAddress,
           );
         }
       } else {
         // User has no devices registered - auto-register this device
-        // This allows first-time login and bypasses MAC check
         await this.deviceService.autoRegisterDevice(
           user.uuid,
-          userLoginDto.macAddress,
           ipAddress,
         );
       }
     } else {
-      // No MAC address provided
       const hasRegisteredDevices = await this.deviceService.hasRegisteredDevices(user.uuid);
       
       if (hasRegisteredDevices) {
-        // User has devices registered but no MAC provided - require MAC for security
         throw new UnauthorizedException(
-          'MAC address diperlukan untuk login. Perangkat Anda belum terdaftar.',
+          'IP address diperlukan untuk login. Perangkat Anda belum terdaftar.',
         );
       }
-      // If no devices registered and no MAC provided, allow login (bypass)
     }
 
     const isPasswordValid = await validateHash(
@@ -148,6 +137,18 @@ export class AuthService {
     }
 
     return new UserDto(user, { rolesIds: roles.map((role) => role.id) });
+  }
+
+  /**
+   * Register device for a user (used during registration)
+   */
+  async registerDeviceForUser(userId: string, ipAddress: string): Promise<void> {
+    try {
+      await this.deviceService.autoRegisterDevice(userId, ipAddress);
+    } catch (error) {
+      // Silently fail device registration to not break user registration
+      console.error('Device registration failed during user registration:', error);
+    }
   }
 
   private async handleFailedLogin(user: UserEntity): Promise<void> {
