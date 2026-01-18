@@ -1,25 +1,24 @@
-import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { ClsModule } from 'nestjs-cls';
 import { DataSource } from 'typeorm';
 
+import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
+
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { BorrowRequestModule } from './modules/borrow-request/borrow-request.module';
+import { BranchModule } from './modules/branch/branch.module';
+import { CompanyModule } from './modules/company/company.module';
+import { DeviceModule } from './modules/device/device.module';
 import { HealthCheckerModule } from './modules/health-checker/health.module';
+import { ItemTypeModule } from './modules/item-type/item-type.module';
 import { RoleModule } from './modules/role/role.module';
 import { UserModule } from './modules/user/user.module';
-import { CompanyModule } from './modules/company/company.module';
-import { BranchModule } from './modules/branch/branch.module';
-import { ItemTypeModule } from './modules/item-type/item-type.module';
-import { DeviceModule } from './modules/device/device.module';
-import { AuditModule } from './modules/audit/audit.module';
-import { BorrowRequestModule } from './modules/borrow-request/borrow-request.module';
 import { ApiConfigService } from './shared/services/api-config.service';
 import { SharedModule } from './shared/shared.module';
-import { LinksModule } from './links/links.module';
-
-import { AppService } from './app.service';
-import { AppController } from './app.controller';
 
 @Module({
   imports: [
@@ -57,7 +56,6 @@ import { AppController } from './app.controller';
     AuditModule,
     BorrowRequestModule,
     HealthCheckerModule,
-    LinksModule,
   ],
   controllers: [AppController],
   providers: [AppService],
