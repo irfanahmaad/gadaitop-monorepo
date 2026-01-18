@@ -21,6 +21,7 @@ export const endpoints = {
     detail: (id: string) => baseUrl(`users/${id}`),
     create: baseUrl("users"),
     update: (id: string) => baseUrl(`users/${id}`),
+    delete: (id: string) => baseUrl(`users/${id}`),
     assignRoles: (id: string) => baseUrl(`users/${id}/assign-roles`),
     resetPassword: (id: string) => baseUrl(`users/${id}/reset-password`),
   },
@@ -76,6 +77,12 @@ export const endpoints = {
   audit: {
     list: baseUrl("audit-logs"),
     detail: (id: string) => baseUrl(`audit-logs/${id}`),
+  },
+
+  // Roles
+  roles: {
+    list: baseUrl("roles"),
+    byCode: (code: string) => baseUrl(`roles/code/${code}`),
   },
 
   // Health

@@ -15,7 +15,9 @@ import {
   X,
   IdCard,
   Phone,
+  Loader2,
 } from "lucide-react"
+import { toast } from "sonner"
 import { Breadcrumbs } from "@/components/breadcrumbs"
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
@@ -33,16 +35,17 @@ import {
   CardHeader,
   CardTitle,
 } from "@workspace/ui/components/card"
+import { useCreateSuperAdmin, useOwnerRole } from "@/lib/react-query/hooks"
 
 const superAdminSchema = z
   .object({
     image: z.union([z.instanceof(File), z.string()]).optional(),
-    name: z.string().min(1, "Nama Lengkap harus diisi"),
+    fullName: z.string().min(1, "Nama Lengkap harus diisi"),
     email: z
       .string()
       .min(1, "Email harus diisi")
       .email("Format email tidak valid"),
-    phone: z.string().min(1, "No. Telepon harus diisi"),
+    phoneNumber: z.string().min(1, "No. Telepon harus diisi"),
     password: z
       .string()
       .min(1, "Kata Sandi harus diisi")
@@ -62,13 +65,17 @@ export default function SuperAdminCreatePage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [previewImage, setPreviewImage] = useState<string | null>(null)
 
+  // Fetch owner role to get the UUID
+  const { data: ownerRole, isLoading: isLoadingRole } = useOwnerRole()
+  const createMutation = useCreateSuperAdmin()
+
   const form = useForm<SuperAdminFormValues>({
     resolver: zodResolver(superAdminSchema),
     defaultValues: {
       image: undefined,
-      name: "",
+      fullName: "",
       email: "",
-      phone: "",
+      phoneNumber: "",
       password: "",
       confirmPassword: "",
     },
@@ -96,11 +103,33 @@ export default function SuperAdminCreatePage() {
     setPreviewImage(null)
   }
 
-  const onSubmit = (values: SuperAdminFormValues) => {
-    console.log("Form values:", values)
-    // Handle form submission logic here
-    // After successful submission, redirect to list page
-    // router.push("/super-admin")
+  const onSubmit = async (values: SuperAdminFormValues) => {
+    if (!ownerRole?.uuid) {
+      toast.error("Role owner tidak ditemukan. Silakan hubungi administrator.")
+      return
+    }
+
+    try {
+      await createMutation.mutateAsync({
+        fullName: values.fullName,
+        email: values.email,
+        password: values.password,
+        phoneNumber: values.phoneNumber,
+        roleId: ownerRole.uuid,
+      })
+      toast.success("Super Admin berhasil ditambahkan")
+      router.push("/super-admin")
+    } catch (error: any) {
+      toast.error(error?.errorMessage || "Gagal menambahkan Super Admin")
+    }
+  }
+
+  if (isLoadingRole) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <Loader2 className="size-8 animate-spin text-muted-foreground" />
+      </div>
+    )
   }
 
   return (
@@ -205,7 +234,7 @@ export default function SuperAdminCreatePage() {
                       {/* Nama Lengkap Field */}
                       <FormField
                         control={form.control}
-                        name="name"
+                        name="fullName"
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>
@@ -231,7 +260,10 @@ export default function SuperAdminCreatePage() {
                         name="email"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Email</FormLabel>
+                            <FormLabel>
+                              Email{" "}
+                              <span className="text-destructive">*</span>
+                            </FormLabel>
                             <FormControl>
                               <Input
                                 type="email"
@@ -248,10 +280,13 @@ export default function SuperAdminCreatePage() {
                       {/* No. Telepon Field */}
                       <FormField
                         control={form.control}
-                        name="phone"
+                        name="phoneNumber"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>No. Telepon</FormLabel>
+                            <FormLabel>
+                              No. Telepon{" "}
+                              <span className="text-destructive">*</span>
+                            </FormLabel>
                             <FormControl>
                               <Input
                                 type="tel"
@@ -282,7 +317,10 @@ export default function SuperAdminCreatePage() {
                         name="password"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Kata Sandi</FormLabel>
+                            <FormLabel>
+                              Kata Sandi{" "}
+                              <span className="text-destructive">*</span>
+                            </FormLabel>
                             <FormControl>
                               <div className="relative">
                                 <Input
@@ -320,7 +358,10 @@ export default function SuperAdminCreatePage() {
                         name="confirmPassword"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Ulangi Kata Sandi</FormLabel>
+                            <FormLabel>
+                              Ulangi Kata Sandi{" "}
+                              <span className="text-destructive">*</span>
+                            </FormLabel>
                             <FormControl>
                               <div className="relative">
                                 <Input
@@ -364,10 +405,20 @@ export default function SuperAdminCreatePage() {
                       type="button"
                       variant="outline"
                       onClick={() => router.back()}
+                      disabled={createMutation.isPending}
                     >
                       Batal
                     </Button>
-                    <Button type="submit">Simpan</Button>
+                    <Button type="submit" disabled={createMutation.isPending}>
+                      {createMutation.isPending ? (
+                        <>
+                          <Loader2 className="mr-2 size-4 animate-spin" />
+                          Menyimpan...
+                        </>
+                      ) : (
+                        "Simpan"
+                      )}
+                    </Button>
                   </div>
                 </div>
               </form>

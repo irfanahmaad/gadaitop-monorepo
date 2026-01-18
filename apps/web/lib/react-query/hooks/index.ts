@@ -14,12 +14,22 @@ export {
 export {
   useAssignRoles,
   useCreateUser,
+  useDeleteUser,
   useResetUserPassword,
   useUpdateUser,
   useUser,
   userKeys,
   useUsers,
 } from "./use-users"
+
+// Super Admin hooks
+export {
+  superAdminKeys,
+  useCreateSuperAdmin,
+  useDeleteSuperAdmin,
+  useSuperAdmins,
+  useUpdateSuperAdmin,
+} from "./use-super-admins"
 
 // Branch hooks
 export {
@@ -61,3 +71,11 @@ export {
   useCreateBorrowRequest,
   useRejectBorrowRequest,
 } from "./use-borrow-requests"
+
+// Role hooks
+export {
+  roleKeys,
+  useOwnerRole,
+  useRoleByCode,
+  useRoles,
+} from "./use-roles"

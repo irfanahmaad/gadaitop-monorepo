@@ -90,3 +90,16 @@ export function useResetUserPassword() {
       ),
   })
 }
+
+// Delete user
+export function useDeleteUser() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiClient.delete<{ message: string }>(endpoints.users.delete(id)),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: userKeys.lists() })
+    },
+  })
+}

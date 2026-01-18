@@ -59,16 +59,24 @@ export interface RegisterCredentials {
 }
 
 // User types
+export type ActiveStatus = "active" | "inactive"
+
 export interface User {
-  id: string
+  id: number
   uuid: string
   email: string
-  firstName: string
-  lastName?: string
-  isActive: boolean
+  fullName: string
+  phoneNumber?: string
+  activeStatus: ActiveStatus
   isEmailVerified: boolean
+  isPhoneVerified: boolean
+  companyId?: string
+  branchId?: string
+  ownedCompanyId?: string
   roles?: Role[]
   company?: Company
+  branch?: Branch
+  ownedCompany?: Company
   createdAt: string
   updatedAt: string
 }
@@ -76,17 +84,18 @@ export interface User {
 export interface CreateUserDto {
   email: string
   password: string
-  firstName: string
-  lastName?: string
+  fullName: string
+  phoneNumber?: string
   roleIds?: string[]
   companyId?: string
+  branchId?: string
 }
 
 export interface UpdateUserDto {
   email?: string
-  firstName?: string
-  lastName?: string
-  isActive?: boolean
+  fullName?: string
+  phoneNumber?: string
+  activeStatus?: ActiveStatus
 }
 
 export interface AssignRoleDto {
@@ -99,12 +108,23 @@ export interface ResetPasswordDto {
 
 // Role types
 export interface Role {
-  id: string
+  id: number
   uuid: string
   name: string
-  permissions: string[]
+  code: string
+  description?: string
+  permissions: IAbility[]
+  isSystemRole: boolean
+  isActive: boolean
+  companyId?: string
   createdAt: string
   updatedAt: string
+}
+
+export interface IAbility {
+  action: string
+  subject: string
+  condition?: unknown
 }
 
 // Company types

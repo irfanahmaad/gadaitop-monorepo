@@ -64,8 +64,6 @@ export const authOptions: NextAuthOptions = {
             body: JSON.stringify({
               email: credentials.email,
               password: credentials.password,
-              macAddress: "3c:06:30:49:36:4a", // hardcoded at the moment
-              isAdmin: false
             }),
           })
 

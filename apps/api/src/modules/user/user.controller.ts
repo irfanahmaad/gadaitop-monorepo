@@ -4,6 +4,7 @@ import {
   Post,
   Body,
   Patch,
+  Delete,
   Param,
   Query,
   ParseUUIDPipe,
@@ -16,7 +17,7 @@ import { CreateUserDto } from './dtos/create-user.dto';
 import { UpdateUserDto } from './dtos/update-user.dto';
 import { AssignRoleDto } from './dtos/assign-role.dto';
 import { ResetPasswordDto } from './dtos/reset-password.dto';
-import { PageOptionsDto } from '../../common/dtos/page-options.dto';
+import { QueryUserDto } from './dtos/query-user.dto';
 import { PageMetaDto } from '../../common/dtos/page-meta.dto';
 
 @Controller({ path: 'users', version: '1' })
@@ -25,7 +26,7 @@ export class UserController {
 
   @Get()
   @Auth([])
-  async findAll(@Query() query: PageOptionsDto): Promise<{
+  async findAll(@Query() query: QueryUserDto): Promise<{
     data: UserDto[];
     meta: PageMetaDto;
   }> {
@@ -70,5 +71,14 @@ export class UserController {
   ): Promise<{ message: string }> {
     await this.userService.resetPassword(id, resetDto);
     return { message: 'Password reset successfully' };
+  }
+
+  @Delete(':id')
+  @Auth([])
+  async delete(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<{ message: string }> {
+    await this.userService.deleteByUuid(id);
+    return { message: 'User deleted successfully' };
   }
 }

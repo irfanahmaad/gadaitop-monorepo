@@ -14,9 +14,10 @@ function buildQueryString(options?: PageOptions): string {
   if (options.sortBy) params.set("sortBy", options.sortBy)
   if (options.query) params.set("query", options.query)
 
+  // Pass filter properties as direct query parameters
   if (options.filter) {
     Object.entries(options.filter).forEach(([key, value]) => {
-      params.set(`filter[${key}]`, String(value))
+      params.set(key, String(value))
     })
   }
 

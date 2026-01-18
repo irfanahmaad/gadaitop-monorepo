@@ -58,4 +58,8 @@ export class RoleService {
   async findOne(id: number) {
     return this.roleRepository.findOneBy({ id });
   }
+
+  async findByCode(code: string) {
+    return this.roleRepository.findOneBy({ code });
+  }
 }
