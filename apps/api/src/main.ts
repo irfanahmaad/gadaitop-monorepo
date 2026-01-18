@@ -10,6 +10,8 @@ async function bootstrap() {
   const configService = app.get(ApiConfigService);
   const reflector = app.get(Reflector);
 
+  app.getHttpAdapter().getInstance().set('trust proxy', true);
+
   app.setGlobalPrefix('api');
 
   app.enableVersioning({

@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsOptional, IsString, IsUUID, Matches, MaxLength } from 'class-validator';
+import { IsIP, IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 
 export class RegisterDeviceDto {
   @IsNotEmpty()
@@ -6,11 +6,10 @@ export class RegisterDeviceDto {
   userId: string;
 
   @IsNotEmpty()
-  @IsString()
-  @Matches(/^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/, {
-    message: 'MAC address must be in format XX:XX:XX:XX:XX:XX or XX-XX-XX-XX-XX-XX',
+  @IsIP(undefined, {
+    message: 'IP address must be a valid IPv4 or IPv6 address',
   })
-  macAddress: string;
+  ipAddress: string;
 
   @IsNotEmpty()
   @IsString()

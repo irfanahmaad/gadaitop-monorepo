@@ -1,14 +1,6 @@
-import {
-  Body,
-  Controller,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Post,
-} from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req } from '@nestjs/common';
 
 import { Auth, AuthUser, PublicRoute } from '../../decorators';
-import type { UserDto } from '../user/dtos/user.dto';
 import { UserService } from '../user/user.service';
 import { AuthService } from './auth.service';
 import { LogedUserDto } from './dtos/loged-user.dto';
@@ -16,6 +8,9 @@ import { LoginPayloadDto } from './dtos/login-payload.dto';
 import { UserLoginDto } from './dtos/user-login.dto';
 import { UserRegisterDto } from './dtos/user-register.dto';
 
+import type { Request } from 'express';
+
+import type { UserDto } from '../user/dtos/user.dto';
 @Controller({ path: 'auth', version: '1' })
 export class AuthController {
   constructor(
@@ -28,10 +23,17 @@ export class AuthController {
   @PublicRoute()
   async userLogin(
     @Body() userLoginDto: UserLoginDto,
-    // @Req() req: Request, // TODO: Get IP from request
+    @Req() req: Request,
   ): Promise<{ data: LoginPayloadDto }> {
-    // TODO: Extract IP from request: req.ip or req.headers['x-forwarded-for']
-    const ipAddress = undefined;
+    const rawIp =
+      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
+      (req.headers['x-real-ip'] as string) ||
+      req.ip ||
+      req.socket.remoteAddress ||
+      undefined;
+
+    const ipAddress = this.normalizeIpAddress(rawIp);
+    
     const user = await this.authService.validateUser(userLoginDto, ipAddress);
 
     const token = await this.authService.createAccessToken(user);
@@ -44,8 +46,22 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async userRegister(
     @Body() userRegisterDto: UserRegisterDto,
+    @Req() req: Request,
   ): Promise<{ data: LoginPayloadDto }> {
     const registeredUser = await this.userService.registerUser(userRegisterDto);
+
+    const rawIp =
+      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
+      (req.headers['x-real-ip'] as string) ||
+      req.ip ||
+      req.socket.remoteAddress ||
+      undefined;
+
+    const ipAddress = this.normalizeIpAddress(rawIp);
+
+    if (ipAddress) {
+      await this.authService.registerDeviceForUser(registeredUser.uuid, ipAddress);
+    }
 
     const token = await this.authService.createAccessToken(registeredUser);
 
@@ -102,5 +118,35 @@ export class AuthController {
     await this.userService.validateEmail(token);
 
     return { data: true };
+  }
+
+  private normalizeIpAddress(ip?: string): string | undefined {
+    if (!ip) {
+      return undefined;
+    }
+
+    let normalizedIp = ip;
+
+    if (ip.startsWith('[') && ip.endsWith(']')) {
+      normalizedIp = ip.slice(1, -1);
+    }
+
+    if (normalizedIp === '::1' || normalizedIp === '::') {
+      return undefined;
+    }
+
+    if (normalizedIp.startsWith('::ffff:')) {
+      normalizedIp = normalizedIp.substring(7);
+    }
+
+    if (
+      normalizedIp === '127.0.0.1' ||
+      normalizedIp === 'localhost' ||
+      normalizedIp.startsWith('127.')
+    ) {
+      return undefined;
+    }
+
+    return normalizedIp;
   }
 }

@@ -93,7 +93,7 @@ export class UserEntity extends AbstractEntity {
   @Index()
   activeStatus: ActiveStatusEnum;
 
-  // RS Section 9: "Terdapat penguncian mac address"
+  // RS Section 9: "Terdapat penguncian IP address"
   // Registered devices stored in separate table
   @OneToMany('DeviceRegistrationEntity', 'user')
   registeredDevices: Relation<any[]>;
