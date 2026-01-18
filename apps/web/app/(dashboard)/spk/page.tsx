@@ -18,6 +18,7 @@ import {
 } from "@workspace/ui/components/select"
 import { User } from "lucide-react"
 import { useFilterParams, FilterConfig } from "@/hooks/use-filter-params"
+import { ConfirmationDialog } from "@/components/confirmation-dialog"
 
 // Sample data type
 type SPK = {
@@ -132,6 +133,8 @@ function SPKPageContent() {
   // Filter state management via URL params
   const { filterValues, setFilters } = useFilterParams(filterConfig)
   const [selectedBranch, setSelectedBranch] = React.useState<string>("")
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = React.useState(false)
+  const [itemToDelete, setItemToDelete] = React.useState<SPK | null>(null)
 
   // Apply filters to data
   const filteredData = useMemo(() => {
@@ -180,8 +183,13 @@ function SPKPageContent() {
   }
 
   const handleDelete = (row: SPK) => {
-    if (confirm("Apakah Anda yakin ingin menghapus data ini?")) {
-      console.log("Delete:", row)
+    setItemToDelete(row)
+    setIsConfirmDialogOpen(true)
+  }
+
+  const handleConfirmDelete = () => {
+    if (itemToDelete) {
+      console.log("Delete:", itemToDelete)
       // Implement delete action
     }
   }
@@ -225,6 +233,14 @@ function SPKPageContent() {
         filterConfig={filterConfig}
         filterValues={filterValues}
         onFilterChange={setFilters}
+      />
+
+      {/* Confirmation Dialog for Delete */}
+      <ConfirmationDialog
+        open={isConfirmDialogOpen}
+        onOpenChange={setIsConfirmDialogOpen}
+        onConfirm={handleConfirmDelete}
+        description="Anda akan menghapus data SPK dari dalam sistem."
       />
     </div>
   )

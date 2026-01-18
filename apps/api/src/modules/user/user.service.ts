@@ -15,7 +15,6 @@ import {
 
 import { generateHash } from '../../common/utils';
 import { PageMetaDto } from '../../common/dtos/page-meta.dto';
-import type { PageOptionsDto } from '../../common/dtos/page-options.dto';
 import { ActiveStatusEnum } from '../../constants/active-status';
 import { UserRegisterDto } from '../auth/dtos/user-register.dto';
 import { RoleEntity } from '../role/entities/role.entity';
@@ -25,6 +24,7 @@ import { CreateUserDto } from './dtos/create-user.dto';
 import { UpdateUserDto } from './dtos/update-user.dto';
 import { AssignRoleDto } from './dtos/assign-role.dto';
 import { ResetPasswordDto } from './dtos/reset-password.dto';
+import { QueryUserDto } from './dtos/query-user.dto';
 
 @Injectable()
 export class UserService {
@@ -48,10 +48,43 @@ export class UserService {
     return new UserDto(user);
   }
 
-  async findAll(options: PageOptionsDto): Promise<{
+  async findAll(options: QueryUserDto): Promise<{
     data: UserDto[];
     meta: PageMetaDto;
   }> {
+    // Check if we need to filter by role code
+    const roleCode = options.roleCode;
+
+    if (roleCode) {
+      // Use query builder for role filtering with join
+      const queryBuilder = this.userRepository
+        .createQueryBuilder('user')
+        .leftJoinAndSelect('user.roles', 'role')
+        .where('role.code = :roleCode', { roleCode });
+
+      // Apply sorting
+      if (options.sortBy) {
+        queryBuilder.orderBy(`user.${options.sortBy}`, options.order || 'ASC');
+      } else {
+        queryBuilder.orderBy('user.id', 'ASC');
+      }
+
+      // Apply pagination
+      queryBuilder.skip(options.getSkip());
+      const take = options.getTake();
+      if (take !== undefined) {
+        queryBuilder.take(take);
+      }
+
+      const [res, count] = await queryBuilder.getManyAndCount();
+
+      const data = res.map((user) => new UserDto(user));
+      const meta = new PageMetaDto({ pageOptionsDto: options, itemCount: count });
+
+      return { data, meta };
+    }
+
+    // Default behavior without role filtering
     const findOptions: any = {
       relations: { roles: true },
       skip: options.getSkip(),
@@ -246,5 +279,17 @@ export class UserService {
         refreshToken: null, // Invalidate all sessions
       },
     );
+  }
+
+  async deleteByUuid(uuid: string): Promise<void> {
+    const user = await this.userRepository.findOne({
+      where: { uuid },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User with UUID ${uuid} not found`);
+    }
+
+    await this.userRepository.remove(user);
   }
 }

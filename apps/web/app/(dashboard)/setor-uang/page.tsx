@@ -21,6 +21,7 @@ import {
 } from "@workspace/ui/components/avatar"
 import { Plus, SearchIcon, SlidersHorizontal } from "lucide-react"
 import { formatCurrencyDisplay } from "@/lib/format-currency"
+import { ConfirmationDialog } from "@/components/confirmation-dialog"
 
 // Type for Setor Uang (Capital Addition Request)
 type SetorUang = {
@@ -218,6 +219,8 @@ const columns: ColumnDef<SetorUang>[] = [
 export default function SetorUangPage() {
   const [pageSize, setPageSize] = useState(100)
   const [searchValue, setSearchValue] = useState("")
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
+  const [itemToDelete, setItemToDelete] = useState<SetorUang | null>(null)
 
   const handleCreate = () => {
     // Implement create action
@@ -235,8 +238,13 @@ export default function SetorUangPage() {
   }
 
   const handleDelete = (row: SetorUang) => {
-    if (confirm("Apakah Anda yakin ingin menghapus data ini?")) {
-      console.log("Delete:", row)
+    setItemToDelete(row)
+    setIsConfirmDialogOpen(true)
+  }
+
+  const handleConfirmDelete = () => {
+    if (itemToDelete) {
+      console.log("Delete:", itemToDelete)
       // Implement delete action
     }
   }
@@ -304,6 +312,14 @@ export default function SetorUangPage() {
         onDetail={handleDetail}
         onEdit={handleEdit}
         onDelete={handleDelete}
+      />
+
+      {/* Confirmation Dialog for Delete */}
+      <ConfirmationDialog
+        open={isConfirmDialogOpen}
+        onOpenChange={setIsConfirmDialogOpen}
+        onConfirm={handleConfirmDelete}
+        description="Anda akan menghapus data Setor Uang dari dalam sistem."
       />
     </div>
   )

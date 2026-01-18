@@ -1,4 +1,4 @@
-import React from "react"
+import React, { Suspense } from "react"
 import { bgLogin } from "@/assets/bgs"
 import Image from "next/image"
 import FormLogin from "../_components/FormLogin"
@@ -26,7 +26,9 @@ export default function Login() {
             </div>
           </div>
           <div className="flex items-center justify-center">
-            <FormLogin />
+            <Suspense fallback={<div>Loading...</div>}>
+              <FormLogin />
+            </Suspense>
           </div>
         </div>
       </div>

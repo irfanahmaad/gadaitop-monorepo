@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { useRouter, useParams } from "next/navigation"
+import { toast } from "sonner"
 import {
   Mail,
   Lock,
@@ -16,6 +17,7 @@ import {
   Building2,
   Phone,
   UserPlus,
+  Loader2,
 } from "lucide-react"
 import { Breadcrumbs } from "@/components/breadcrumbs"
 import { Button } from "@workspace/ui/components/button"
@@ -29,18 +31,15 @@ import {
   FormMessage,
 } from "@workspace/ui/components/form"
 import { Card, CardContent } from "@workspace/ui/components/card"
+import { useCompany, useUpdateCompany } from "@/lib/react-query/hooks"
 
 const ptEditSchema = z
   .object({
     image: z.union([z.instanceof(File), z.string()]).optional(),
     code: z.string().min(1, "Kode PT harus diisi"),
     name: z.string().min(1, "Nama PT harus diisi"),
-    email: z
-      .string()
-      .email("Format email tidak valid")
-      .optional()
-      .or(z.literal("")),
     phone: z.string().optional(),
+    address: z.string().optional(),
     adminName: z.string().min(1, "Nama Lengkap harus diisi"),
     adminEmail: z
       .string()
@@ -71,19 +70,6 @@ const ptEditSchema = z
 
 type PTEditFormValues = z.infer<typeof ptEditSchema>
 
-// Sample data - in a real app, this would come from an API
-const samplePT = {
-  id: "PT001",
-  code: "PT001",
-  name: "PT Gadai Top Indonesia",
-  email: "gadaitop@mail.com",
-  phone: "0812345678910",
-  image: "/commons/img_logo-gadai-top-img-only.png",
-  adminName: "Ben Affleck",
-  adminEmail: "ben.aff@mail.com",
-  adminPhone: "0812345678910",
-}
-
 export default function EditPTPage() {
   const router = useRouter()
   const params = useParams()
@@ -91,7 +77,10 @@ export default function EditPTPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [previewImage, setPreviewImage] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+
+  // Fetch company data
+  const { data: company, isLoading, isError } = useCompany(slug)
+  const updateCompanyMutation = useUpdateCompany()
 
   const form = useForm<PTEditFormValues>({
     resolver: zodResolver(ptEditSchema),
@@ -99,8 +88,8 @@ export default function EditPTPage() {
       image: undefined,
       code: "",
       name: "",
-      email: "",
       phone: "",
+      address: "",
       adminName: "",
       adminEmail: "",
       adminPhone: "",
@@ -109,31 +98,23 @@ export default function EditPTPage() {
     },
   })
 
-  // Fetch and populate form data
+  // Populate form when company data is loaded
   useEffect(() => {
-    // In a real app, fetch data based on slug
-    // For now, using sample data
-    const pt = samplePT
-
-    if (pt) {
+    if (company) {
       form.reset({
-        image: pt.image,
-        code: pt.code,
-        name: pt.name,
-        email: pt.email,
-        phone: pt.phone,
-        adminName: pt.adminName,
-        adminEmail: pt.adminEmail,
-        adminPhone: pt.adminPhone,
+        image: undefined,
+        code: company.companyCode,
+        name: company.companyName,
+        phone: company.phoneNumber || "",
+        address: company.address || "",
+        adminName: company.owner?.fullName || "",
+        adminEmail: company.owner?.email || "",
+        adminPhone: company.owner?.phoneNumber || "",
         password: "",
         confirmPassword: "",
       })
-      if (pt.image) {
-        setPreviewImage(pt.image)
-      }
     }
-    setIsLoading(false)
-  }, [slug, form])
+  }, [company, form])
 
   const handleImageChange = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -157,17 +138,39 @@ export default function EditPTPage() {
     setPreviewImage(null)
   }
 
-  const onSubmit = (values: PTEditFormValues) => {
-    console.log("Form values:", values)
-    // Handle form submission logic here
-    // After successful submission, redirect to list page
-    // router.push("/pt")
+  const onSubmit = async (values: PTEditFormValues) => {
+    try {
+      await updateCompanyMutation.mutateAsync({
+        id: slug,
+        data: {
+          companyName: values.name,
+          phoneNumber: values.phone || undefined,
+          address: values.address || undefined,
+        },
+      })
+      toast.success("PT berhasil diperbarui")
+      router.push("/pt")
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Gagal memperbarui PT"
+      toast.error(message)
+    }
   }
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <p>Memuat data...</p>
+      <div className="flex h-64 items-center justify-center">
+        <Loader2 className="size-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (isError || !company) {
+    return (
+      <div className="flex h-64 flex-col items-center justify-center gap-2">
+        <p className="text-muted-foreground">Gagal memuat data PT</p>
+        <Button variant="outline" onClick={() => router.push("/pt")}>
+          Kembali ke Daftar PT
+        </Button>
       </div>
     )
   }
@@ -281,6 +284,7 @@ export default function EditPTPage() {
                                   type="text"
                                   placeholder="Contoh: PT001"
                                   icon={<Building2 className="size-4" />}
+                                  disabled
                                   {...field}
                                 />
                               </FormControl>
@@ -312,26 +316,6 @@ export default function EditPTPage() {
                           )}
                         />
 
-                        {/* Email PT Field */}
-                        <FormField
-                          control={form.control}
-                          name="email"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Email PT</FormLabel>
-                              <FormControl>
-                                <Input
-                                  type="email"
-                                  placeholder="Contoh: gadaitop@mail.com"
-                                  icon={<Mail className="size-4" />}
-                                  {...field}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
                         {/* No. Telepon PT Field */}
                         <FormField
                           control={form.control}
@@ -351,6 +335,26 @@ export default function EditPTPage() {
                             </FormItem>
                           )}
                         />
+
+                        {/* Alamat Field */}
+                        <FormField
+                          control={form.control}
+                          name="address"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Alamat</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="text"
+                                  placeholder="Contoh: Jl. Sudirman No. 1"
+                                  icon={<Building2 className="size-4" />}
+                                  {...field}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
                       </div>
                     </div>
                   </div>
@@ -363,6 +367,9 @@ export default function EditPTPage() {
                         Admin Primary
                       </h2>
                     </div>
+                    <p className="text-muted-foreground text-sm">
+                      Data admin primary tidak dapat diubah di halaman ini.
+                    </p>
                     <div className="grid gap-6 md:grid-cols-2">
                       {/* Nama Lengkap Field */}
                       <FormField
@@ -379,6 +386,7 @@ export default function EditPTPage() {
                                 type="text"
                                 placeholder="Contoh: Agung Prasetyo"
                                 icon={<User className="size-4" />}
+                                disabled
                                 {...field}
                               />
                             </FormControl>
@@ -399,6 +407,7 @@ export default function EditPTPage() {
                                 type="email"
                                 placeholder="Contoh: agung.pras@mail.com"
                                 icon={<Mail className="size-4" />}
+                                disabled
                                 {...field}
                               />
                             </FormControl>
@@ -419,6 +428,7 @@ export default function EditPTPage() {
                                 type="tel"
                                 placeholder="Contoh: 0812345678910"
                                 icon={<Phone className="size-4" />}
+                                disabled
                                 {...field}
                               />
                             </FormControl>
@@ -438,7 +448,7 @@ export default function EditPTPage() {
                       </h2>
                     </div>
                     <div className="text-muted-foreground mb-4 text-sm">
-                      Kosongkan jika tidak ingin mengubah kata sandi
+                      Untuk mengubah kata sandi admin, silakan gunakan fitur reset password.
                     </div>
                     <div className="grid gap-6 md:grid-cols-2">
                       {/* Kata Sandi Field */}
@@ -454,6 +464,7 @@ export default function EditPTPage() {
                                   type={showPassword ? "text" : "password"}
                                   placeholder="Kosongkan jika tidak ingin mengubah"
                                   icon={<Lock className="size-4" />}
+                                  disabled
                                   {...field}
                                 />
                                 <button
@@ -494,6 +505,7 @@ export default function EditPTPage() {
                                   }
                                   placeholder="Kosongkan jika tidak ingin mengubah"
                                   icon={<Lock className="size-4" />}
+                                  disabled
                                   {...field}
                                 />
                                 <button
@@ -529,11 +541,21 @@ export default function EditPTPage() {
                       type="button"
                       variant="outline"
                       onClick={() => router.back()}
+                      disabled={updateCompanyMutation.isPending}
                     >
                       <X className="mr-2 size-4" />
                       Batal
                     </Button>
-                    <Button type="submit">Simpan</Button>
+                    <Button type="submit" disabled={updateCompanyMutation.isPending}>
+                      {updateCompanyMutation.isPending ? (
+                        <>
+                          <Loader2 className="mr-2 size-4 animate-spin" />
+                          Menyimpan...
+                        </>
+                      ) : (
+                        "Simpan"
+                      )}
+                    </Button>
                   </div>
                 </div>
               </form>

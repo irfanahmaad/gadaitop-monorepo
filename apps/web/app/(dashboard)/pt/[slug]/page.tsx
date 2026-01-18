@@ -1,8 +1,9 @@
 "use client"
 
-import React from "react"
+import React, { useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { Pencil, Trash2, Building2, UserPlus } from "lucide-react"
+import { toast } from "sonner"
+import { Pencil, Trash2, Building2, UserPlus, Loader2 } from "lucide-react"
 import { Breadcrumbs } from "@/components/breadcrumbs"
 import { Button } from "@workspace/ui/components/button"
 import { Card, CardContent } from "@workspace/ui/components/card"
@@ -11,40 +12,63 @@ import {
   AvatarImage,
   AvatarFallback,
 } from "@workspace/ui/components/avatar"
-
-// Sample data - in a real app, this would come from an API
-const samplePT = {
-  id: "PT001",
-  code: "PT001",
-  name: "PT Gadai Top Indonesia",
-  email: "gadaitop@mail.com",
-  phone: "0812345678910",
-  image: "/commons/img_logo-gadai-top-img-only.png",
-  type: "PT Utama",
-  adminName: "Ben Affleck",
-  adminEmail: "ben.aff@mail.com",
-  adminPhone: "0812345678910",
-}
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@workspace/ui/components/alert-dialog"
+import { useCompany, useDeleteCompany } from "@/lib/react-query/hooks"
 
 export default function DetailPTPage() {
   const params = useParams()
   const router = useRouter()
   const slug = params.slug as string
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
-  // In a real app, fetch data based on slug
-  const pt = samplePT
+  // Fetch company data
+  const { data: company, isLoading, isError } = useCompany(slug)
+  const deleteMutation = useDeleteCompany()
 
   const handleEdit = () => {
-    // Navigate to edit page
     router.push(`/pt/${slug}/edit`)
   }
 
   const handleDelete = () => {
-    // Handle delete logic
-    if (confirm("Apakah Anda yakin ingin menghapus data ini?")) {
-      // Perform delete action
+    setDeleteDialogOpen(true)
+  }
+
+  const confirmDelete = async () => {
+    try {
+      await deleteMutation.mutateAsync(slug)
+      toast.success("PT berhasil dihapus")
       router.push("/pt")
+    } catch {
+      toast.error("Gagal menghapus PT")
     }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <Loader2 className="size-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (isError || !company) {
+    return (
+      <div className="flex h-64 flex-col items-center justify-center gap-2">
+        <p className="text-muted-foreground">Gagal memuat data PT</p>
+        <Button variant="outline" onClick={() => router.push("/pt")}>
+          Kembali ke Daftar PT
+        </Button>
+      </div>
+    )
   }
 
   return (
@@ -53,7 +77,7 @@ export default function DetailPTPage() {
         {/* Header Section */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex flex-col gap-2">
-            <h1 className="text-2xl font-bold">{pt.name}</h1>
+            <h1 className="text-2xl font-bold">{company.companyName}</h1>
             <Breadcrumbs
               items={[
                 { label: "Pages", href: "/" },
@@ -82,7 +106,7 @@ export default function DetailPTPage() {
               {/* Profile Picture */}
               <div className="flex justify-center">
                 <Avatar className="size-48">
-                  <AvatarImage src={pt.image} alt={pt.name} />
+                  <AvatarImage src="" alt={company.companyName} />
                   <AvatarFallback>
                     <Building2 className="text-muted-foreground size-24" />
                   </AvatarFallback>
@@ -107,7 +131,7 @@ export default function DetailPTPage() {
                       <label className="text-muted-foreground text-sm font-medium">
                         Kode PT
                       </label>
-                      <p className="text-base">{pt.code}</p>
+                      <p className="text-base">{company.companyCode}</p>
                     </div>
 
                     {/* Nama PT */}
@@ -115,15 +139,7 @@ export default function DetailPTPage() {
                       <label className="text-muted-foreground text-sm font-medium">
                         Nama PT
                       </label>
-                      <p className="text-base">{pt.name}</p>
-                    </div>
-
-                    {/* E-mail PT */}
-                    <div className="space-y-2">
-                      <label className="text-muted-foreground text-sm font-medium">
-                        E-mail PT
-                      </label>
-                      <p className="text-base">{pt.email}</p>
+                      <p className="text-base">{company.companyName}</p>
                     </div>
 
                     {/* No. Telp PT */}
@@ -131,15 +147,33 @@ export default function DetailPTPage() {
                       <label className="text-muted-foreground text-sm font-medium">
                         No. Telp PT
                       </label>
-                      <p className="text-base">{pt.phone}</p>
+                      <p className="text-base">{company.phoneNumber || "-"}</p>
                     </div>
 
-                    {/* Jenis PT */}
+                    {/* Alamat */}
                     <div className="space-y-2">
                       <label className="text-muted-foreground text-sm font-medium">
-                        Jenis PT
+                        Alamat
                       </label>
-                      <p className="text-base">{pt.type}</p>
+                      <p className="text-base">{company.address || "-"}</p>
+                    </div>
+
+                    {/* Status */}
+                    <div className="space-y-2">
+                      <label className="text-muted-foreground text-sm font-medium">
+                        Status
+                      </label>
+                      <p className="text-base">
+                        <span
+                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                            company.activeStatus === "active"
+                              ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                              : "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200"
+                          }`}
+                        >
+                          {company.activeStatus === "active" ? "Aktif" : "Tidak Aktif"}
+                        </span>
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -160,7 +194,7 @@ export default function DetailPTPage() {
                       <label className="text-muted-foreground text-sm font-medium">
                         Nama Lengkap
                       </label>
-                      <p className="text-base">{pt.adminName}</p>
+                      <p className="text-base">{company.owner?.fullName || "-"}</p>
                     </div>
 
                     {/* E-mail */}
@@ -168,7 +202,7 @@ export default function DetailPTPage() {
                       <label className="text-muted-foreground text-sm font-medium">
                         E-mail
                       </label>
-                      <p className="text-base">{pt.adminEmail}</p>
+                      <p className="text-base">{company.owner?.email || "-"}</p>
                     </div>
 
                     {/* No. Telp */}
@@ -176,7 +210,7 @@ export default function DetailPTPage() {
                       <label className="text-muted-foreground text-sm font-medium">
                         No. Telp
                       </label>
-                      <p className="text-base">{pt.adminPhone}</p>
+                      <p className="text-base">{company.owner?.phoneNumber || "-"}</p>
                     </div>
                   </div>
                 </div>
@@ -185,6 +219,37 @@ export default function DetailPTPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus PT</AlertDialogTitle>
+            <AlertDialogDescription>
+              Apakah Anda yakin ingin menghapus{" "}
+              <strong>{company.companyName}</strong>? Tindakan ini tidak dapat
+              dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  Menghapus...
+                </>
+              ) : (
+                "Hapus"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }

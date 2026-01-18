@@ -1,8 +1,9 @@
 "use client"
 
-import React from "react"
+import React, { useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { Pencil, Trash2, IdCard, User } from "lucide-react"
+import { Pencil, Trash2, IdCard, User as UserIcon, Loader2 } from "lucide-react"
+import { toast } from "sonner"
 import { Breadcrumbs } from "@/components/breadcrumbs"
 import { Button } from "@workspace/ui/components/button"
 import {
@@ -16,35 +17,63 @@ import {
   AvatarImage,
   AvatarFallback,
 } from "@workspace/ui/components/avatar"
-
-// Sample data - in a real app, this would come from an API
-const sampleSuperAdmin = {
-  id: "SA001",
-  name: "Agung Prasetyo Setiadi",
-  email: "agung.pras@mail.com",
-  phone: "0812345678910",
-  image: "/placeholder-avatar.jpg", // Replace with actual image URL
-}
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@workspace/ui/components/alert-dialog"
+import { useUser, useDeleteSuperAdmin } from "@/lib/react-query/hooks"
 
 export default function DetailSuperAdminPage() {
   const params = useParams()
   const router = useRouter()
   const slug = params.slug as string
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
-  // In a real app, fetch data based on slug
-  const superAdmin = sampleSuperAdmin
+  // Fetch user data
+  const { data: superAdmin, isLoading, isError } = useUser(slug)
+  const deleteMutation = useDeleteSuperAdmin()
 
   const handleEdit = () => {
-    // Navigate to edit page
     router.push(`/super-admin/${slug}/edit`)
   }
 
   const handleDelete = () => {
-    // Handle delete logic
-    if (confirm("Apakah Anda yakin ingin menghapus data ini?")) {
-      // Perform delete action
+    setDeleteDialogOpen(true)
+  }
+
+  const confirmDelete = async () => {
+    try {
+      await deleteMutation.mutateAsync(slug)
+      toast.success("Super Admin berhasil dihapus")
       router.push("/super-admin")
+    } catch (error) {
+      toast.error("Gagal menghapus Super Admin")
     }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <Loader2 className="size-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (isError || !superAdmin) {
+    return (
+      <div className="flex h-64 flex-col items-center justify-center gap-2">
+        <p className="text-muted-foreground">Data Super Admin tidak ditemukan</p>
+        <Button variant="outline" onClick={() => router.push("/super-admin")}>
+          Kembali ke Daftar
+        </Button>
+      </div>
+    )
   }
 
   return (
@@ -53,7 +82,7 @@ export default function DetailSuperAdminPage() {
         {/* Header Section */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex flex-col gap-2">
-            <h1 className="text-2xl font-bold">{superAdmin.name}</h1>
+            <h1 className="text-2xl font-bold">{superAdmin.fullName}</h1>
             <Breadcrumbs
               items={[
                 { label: "Pages", href: "/" },
@@ -85,9 +114,9 @@ export default function DetailSuperAdminPage() {
               {/* Profile Picture */}
               <div className="flex justify-center">
                 <Avatar className="size-48">
-                  <AvatarImage src={superAdmin.image} alt={superAdmin.name} />
+                  <AvatarImage src="" alt={superAdmin.fullName} />
                   <AvatarFallback>
-                    <User className="text-muted-foreground size-24" />
+                    <UserIcon className="text-muted-foreground size-24" />
                   </AvatarFallback>
                 </Avatar>
               </div>
@@ -109,7 +138,7 @@ export default function DetailSuperAdminPage() {
                     <label className="text-muted-foreground text-sm font-medium">
                       Nama Lengkap
                     </label>
-                    <p className="text-base">{superAdmin.name}</p>
+                    <p className="text-base">{superAdmin.fullName}</p>
                   </div>
 
                   {/* Email */}
@@ -125,7 +154,39 @@ export default function DetailSuperAdminPage() {
                     <label className="text-muted-foreground text-sm font-medium">
                       No. Telp
                     </label>
-                    <p className="text-base">{superAdmin.phone}</p>
+                    <p className="text-base">{superAdmin.phoneNumber || "-"}</p>
+                  </div>
+
+                  {/* Status */}
+                  <div className="space-y-2">
+                    <label className="text-muted-foreground text-sm font-medium">
+                      Status
+                    </label>
+                    <p className="text-base">
+                      <span
+                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                          superAdmin.activeStatus === "active"
+                            ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                            : "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200"
+                        }`}
+                      >
+                        {superAdmin.activeStatus === "active" ? "Active" : "Inactive"}
+                      </span>
+                    </p>
+                  </div>
+
+                  {/* Created At */}
+                  <div className="space-y-2">
+                    <label className="text-muted-foreground text-sm font-medium">
+                      Dibuat Pada
+                    </label>
+                    <p className="text-base">
+                      {new Date(superAdmin.createdAt).toLocaleDateString("id-ID", {
+                        day: "2-digit",
+                        month: "long",
+                        year: "numeric",
+                      })}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -133,6 +194,37 @@ export default function DetailSuperAdminPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus Super Admin</AlertDialogTitle>
+            <AlertDialogDescription>
+              Apakah Anda yakin ingin menghapus{" "}
+              <strong>{superAdmin.fullName}</strong>? Tindakan ini tidak
+              dapat dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  Menghapus...
+                </>
+              ) : (
+                "Hapus"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }

@@ -21,6 +21,7 @@ import {
   AvatarImage,
 } from "@workspace/ui/components/avatar"
 import { SearchIcon, SlidersHorizontal, Plus } from "lucide-react"
+import { ConfirmationDialog } from "@/components/confirmation-dialog"
 
 // Type for Customer
 type Customer = {
@@ -196,6 +197,8 @@ const customerColumns: ColumnDef<Customer>[] = [
 export default function MasterCustomerPage() {
   const [pageSize, setPageSize] = useState(100)
   const [searchValue, setSearchValue] = useState("")
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
+  const [itemToDelete, setItemToDelete] = useState<Customer | null>(null)
 
   const handleDetail = (row: Customer) => {
     console.log("Detail:", row)
@@ -208,8 +211,13 @@ export default function MasterCustomerPage() {
   }
 
   const handleDelete = (row: Customer) => {
-    if (confirm("Apakah Anda yakin ingin menghapus data ini?")) {
-      console.log("Delete:", row)
+    setItemToDelete(row)
+    setIsConfirmDialogOpen(true)
+  }
+
+  const handleConfirmDelete = () => {
+    if (itemToDelete) {
+      console.log("Delete:", itemToDelete)
       // Implement delete action
     }
   }
@@ -287,6 +295,14 @@ export default function MasterCustomerPage() {
         onDetail={handleDetail}
         onEdit={handleEdit}
         onDelete={handleDelete}
+      />
+
+      {/* Confirmation Dialog for Delete */}
+      <ConfirmationDialog
+        open={isConfirmDialogOpen}
+        onOpenChange={setIsConfirmDialogOpen}
+        onConfirm={handleConfirmDelete}
+        description="Anda akan menghapus data Customer dari dalam sistem."
       />
     </div>
   )

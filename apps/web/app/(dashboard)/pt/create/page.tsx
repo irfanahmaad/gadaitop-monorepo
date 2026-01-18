@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 import {
   Mail,
   Lock,
@@ -16,6 +17,7 @@ import {
   Building2,
   Phone,
   UserPlus,
+  Loader2,
 } from "lucide-react"
 import { Breadcrumbs } from "@/components/breadcrumbs"
 import { Button } from "@workspace/ui/components/button"
@@ -28,33 +30,26 @@ import {
   FormLabel,
   FormMessage,
 } from "@workspace/ui/components/form"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@workspace/ui/components/card"
+import { Card, CardContent } from "@workspace/ui/components/card"
+import { useCreateCompany } from "@/lib/react-query/hooks"
 
 const ptSchema = z
   .object({
     image: z.union([z.instanceof(File), z.string()]).optional(),
-    code: z.string().min(1, "Kode PT harus diisi"),
-    name: z.string().min(1, "Nama PT harus diisi"),
+    code: z.string().min(1, "Kode PT harus diisi").max(10, "Kode PT maksimal 10 karakter"),
+    name: z.string().min(1, "Nama PT harus diisi").max(255, "Nama PT maksimal 255 karakter"),
     email: z
       .string()
-      .min(1, "Email PT harus diisi")
       .email("Format email tidak valid")
       .optional()
       .or(z.literal("")),
-    phone: z.string().optional(),
-    adminName: z.string().min(1, "Nama Lengkap harus diisi"),
+    phone: z.string().max(20, "No. Telepon maksimal 20 karakter").optional(),
+    adminName: z.string().min(1, "Nama Lengkap harus diisi").max(255, "Nama Lengkap maksimal 255 karakter"),
     adminEmail: z
       .string()
       .min(1, "Email harus diisi")
-      .email("Format email tidak valid")
-      .optional()
-      .or(z.literal("")),
-    adminPhone: z.string().optional(),
+      .email("Format email tidak valid"),
+    adminPhone: z.string().max(20, "No. Telepon maksimal 20 karakter").optional(),
     password: z
       .string()
       .min(1, "Kata Sandi harus diisi")
@@ -73,6 +68,8 @@ export default function PTCreatePage() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [previewImage, setPreviewImage] = useState<string | null>(null)
+
+  const createCompanyMutation = useCreateCompany()
 
   const form = useForm<PTFormValues>({
     resolver: zodResolver(ptSchema),
@@ -112,11 +109,25 @@ export default function PTCreatePage() {
     setPreviewImage(null)
   }
 
-  const onSubmit = (values: PTFormValues) => {
-    console.log("Form values:", values)
-    // Handle form submission logic here
-    // After successful submission, redirect to list page
-    // router.push("/pt")
+  const onSubmit = async (values: PTFormValues) => {
+    try {
+      await createCompanyMutation.mutateAsync({
+        companyCode: values.code,
+        companyName: values.name,
+        phoneNumber: values.phone || undefined,
+        address: undefined,
+        companyEmail: values.email || undefined,
+        adminName: values.adminName,
+        adminEmail: values.adminEmail,
+        adminPhone: values.adminPhone || undefined,
+        password: values.password,
+      })
+      toast.success("PT berhasil ditambahkan")
+      router.push("/pt")
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Gagal menambahkan PT"
+      toast.error(message)
+    }
   }
 
   return (
@@ -340,7 +351,10 @@ export default function PTCreatePage() {
                         name="adminEmail"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Email</FormLabel>
+                            <FormLabel>
+                              Email{" "}
+                              <span className="text-destructive">*</span>
+                            </FormLabel>
                             <FormControl>
                               <Input
                                 type="email"
@@ -391,7 +405,10 @@ export default function PTCreatePage() {
                         name="password"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Kata Sandi</FormLabel>
+                            <FormLabel>
+                              Kata Sandi{" "}
+                              <span className="text-destructive">*</span>
+                            </FormLabel>
                             <FormControl>
                               <div className="relative">
                                 <Input
@@ -429,7 +446,10 @@ export default function PTCreatePage() {
                         name="confirmPassword"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Ulangi Kata Sandi</FormLabel>
+                            <FormLabel>
+                              Ulangi Kata Sandi{" "}
+                              <span className="text-destructive">*</span>
+                            </FormLabel>
                             <FormControl>
                               <div className="relative">
                                 <Input
@@ -473,11 +493,21 @@ export default function PTCreatePage() {
                       type="button"
                       variant="outline"
                       onClick={() => router.back()}
+                      disabled={createCompanyMutation.isPending}
                     >
                       <X className="mr-2 size-4" />
                       Batal
                     </Button>
-                    <Button type="submit">Simpan</Button>
+                    <Button type="submit" disabled={createCompanyMutation.isPending}>
+                      {createCompanyMutation.isPending ? (
+                        <>
+                          <Loader2 className="mr-2 size-4 animate-spin" />
+                          Menyimpan...
+                        </>
+                      ) : (
+                        "Simpan"
+                      )}
+                    </Button>
                   </div>
                 </div>
               </form>

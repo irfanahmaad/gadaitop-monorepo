@@ -27,6 +27,7 @@ import {
   AvatarImage,
 } from "@workspace/ui/components/avatar"
 import { SearchIcon, SlidersHorizontal, Eye } from "lucide-react"
+import { ConfirmationDialog } from "@/components/confirmation-dialog"
 
 // Types for SPK Jatuh Tempo
 type ItemLelang = {
@@ -384,6 +385,8 @@ export default function LelangPage() {
   const [searchValue, setSearchValue] = useState("")
   const [selectedToko, setSelectedToko] = useState("gt-jakarta-satu")
   const [activeTab, setActiveTab] = useState("spk-jatuh-tempo")
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
+  const [itemToDelete, setItemToDelete] = useState<ItemLelang | BatchLelang | null>(null)
 
   const handleDetail = (row: ItemLelang | BatchLelang) => {
     console.log("Detail:", row)
@@ -396,8 +399,13 @@ export default function LelangPage() {
   }
 
   const handleDelete = (row: ItemLelang | BatchLelang) => {
-    if (confirm("Apakah Anda yakin ingin menghapus data ini?")) {
-      console.log("Delete:", row)
+    setItemToDelete(row)
+    setIsConfirmDialogOpen(true)
+  }
+
+  const handleConfirmDelete = () => {
+    if (itemToDelete) {
+      console.log("Delete:", itemToDelete)
       // Implement delete action
     }
   }
@@ -549,6 +557,14 @@ export default function LelangPage() {
           />
         </TabsContent>
       </Tabs>
+
+      {/* Confirmation Dialog for Delete */}
+      <ConfirmationDialog
+        open={isConfirmDialogOpen}
+        onOpenChange={setIsConfirmDialogOpen}
+        onConfirm={handleConfirmDelete}
+        description="Anda akan menghapus data Lelang dari dalam sistem."
+      />
     </div>
   )
 }

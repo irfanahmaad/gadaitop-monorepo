@@ -15,7 +15,9 @@ import {
   X,
   IdCard,
   Phone,
+  Loader2,
 } from "lucide-react"
+import { toast } from "sonner"
 import { Breadcrumbs } from "@/components/breadcrumbs"
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
@@ -33,16 +35,21 @@ import {
   CardHeader,
   CardTitle,
 } from "@workspace/ui/components/card"
+import {
+  useUser,
+  useUpdateSuperAdmin,
+  useResetUserPassword,
+} from "@/lib/react-query/hooks"
 
 const superAdminEditSchema = z
   .object({
     image: z.union([z.instanceof(File), z.string()]).optional(),
-    name: z.string().min(1, "Nama Lengkap harus diisi"),
+    fullName: z.string().min(1, "Nama Lengkap harus diisi"),
     email: z
       .string()
       .min(1, "Email harus diisi")
       .email("Format email tidak valid"),
-    phone: z.string().min(1, "No. Telepon harus diisi"),
+    phoneNumber: z.string().min(1, "No. Telepon harus diisi"),
     password: z
       .string()
       .min(8, "Kata Sandi minimal 8 karakter")
@@ -66,14 +73,6 @@ const superAdminEditSchema = z
 
 type SuperAdminEditFormValues = z.infer<typeof superAdminEditSchema>
 
-// Sample data - in a real app, this would come from an API
-const sampleSuperAdmin = {
-  id: "SA001",
-  name: "Agung Prasetyo Setiadi",
-  email: "agung.pras@mail.com",
-  phone: "0812345678910",
-}
-
 export default function EditSuperAdminPage() {
   const router = useRouter()
   const params = useParams()
@@ -81,38 +80,37 @@ export default function EditSuperAdminPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [previewImage, setPreviewImage] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+
+  // Fetch user data
+  const { data: superAdmin, isLoading: isLoadingUser, isError } = useUser(slug)
+  const updateMutation = useUpdateSuperAdmin()
+  const resetPasswordMutation = useResetUserPassword()
 
   const form = useForm<SuperAdminEditFormValues>({
     resolver: zodResolver(superAdminEditSchema),
     defaultValues: {
       image: undefined,
-      name: "",
+      fullName: "",
       email: "",
-      phone: "",
+      phoneNumber: "",
       password: "",
       confirmPassword: "",
     },
   })
 
-  // Fetch and populate form data
+  // Populate form when data is loaded
   useEffect(() => {
-    // In a real app, fetch data based on slug
-    // For now, using sample data
-    const superAdmin = sampleSuperAdmin
-
     if (superAdmin) {
       form.reset({
         image: undefined,
-        name: superAdmin.name,
+        fullName: superAdmin.fullName,
         email: superAdmin.email,
-        phone: superAdmin.phone,
+        phoneNumber: superAdmin.phoneNumber || "",
         password: "",
         confirmPassword: "",
       })
     }
-    setIsLoading(false)
-  }, [slug, form])
+  }, [superAdmin, form])
 
   const handleImageChange = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -136,20 +134,53 @@ export default function EditSuperAdminPage() {
     setPreviewImage(null)
   }
 
-  const onSubmit = (values: SuperAdminEditFormValues) => {
-    console.log("Form values:", values)
-    // Handle form submission logic here
-    // After successful submission, redirect to list page
-    // router.push("/super-admin")
+  const onSubmit = async (values: SuperAdminEditFormValues) => {
+    try {
+      // Update user info
+      await updateMutation.mutateAsync({
+        id: slug,
+        data: {
+          fullName: values.fullName,
+          email: values.email,
+          phoneNumber: values.phoneNumber,
+        },
+      })
+
+      // Reset password if provided
+      if (values.password && values.password.length >= 8) {
+        await resetPasswordMutation.mutateAsync({
+          id: slug,
+          data: { newPassword: values.password },
+        })
+      }
+
+      toast.success("Super Admin berhasil diperbarui")
+      router.push(`/super-admin/${slug}`)
+    } catch (error: any) {
+      toast.error(error?.errorMessage || "Gagal memperbarui Super Admin")
+    }
   }
 
-  if (isLoading) {
+  if (isLoadingUser) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <p>Memuat data...</p>
+      <div className="flex h-64 items-center justify-center">
+        <Loader2 className="size-8 animate-spin text-muted-foreground" />
       </div>
     )
   }
+
+  if (isError || !superAdmin) {
+    return (
+      <div className="flex h-64 flex-col items-center justify-center gap-2">
+        <p className="text-muted-foreground">Data Super Admin tidak ditemukan</p>
+        <Button variant="outline" onClick={() => router.push("/super-admin")}>
+          Kembali ke Daftar
+        </Button>
+      </div>
+    )
+  }
+
+  const isSubmitting = updateMutation.isPending || resetPasswordMutation.isPending
 
   return (
     <>
@@ -253,7 +284,7 @@ export default function EditSuperAdminPage() {
                       {/* Nama Lengkap Field */}
                       <FormField
                         control={form.control}
-                        name="name"
+                        name="fullName"
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>
@@ -279,7 +310,10 @@ export default function EditSuperAdminPage() {
                         name="email"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Email</FormLabel>
+                            <FormLabel>
+                              Email{" "}
+                              <span className="text-destructive">*</span>
+                            </FormLabel>
                             <FormControl>
                               <Input
                                 type="email"
@@ -296,10 +330,13 @@ export default function EditSuperAdminPage() {
                       {/* No. Telepon Field */}
                       <FormField
                         control={form.control}
-                        name="phone"
+                        name="phoneNumber"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>No. Telepon</FormLabel>
+                            <FormLabel>
+                              No. Telepon{" "}
+                              <span className="text-destructive">*</span>
+                            </FormLabel>
                             <FormControl>
                               <Input
                                 type="tel"
@@ -417,10 +454,20 @@ export default function EditSuperAdminPage() {
                       type="button"
                       variant="outline"
                       onClick={() => router.back()}
+                      disabled={isSubmitting}
                     >
                       Batal
                     </Button>
-                    <Button type="submit">Simpan Perubahan</Button>
+                    <Button type="submit" disabled={isSubmitting}>
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 size-4 animate-spin" />
+                          Menyimpan...
+                        </>
+                      ) : (
+                        "Simpan Perubahan"
+                      )}
+                    </Button>
                   </div>
                 </div>
               </form>

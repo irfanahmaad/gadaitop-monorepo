@@ -1,0 +1,330 @@
+// Pagination types
+export interface PageMeta {
+  page: number
+  pageSize: number
+  count: number
+  pageCount: number
+  hasPreviousPage: boolean
+  hasNextPage: boolean
+}
+
+export interface PageOptions {
+  page?: number
+  pageSize?: number
+  order?: "ASC" | "DESC"
+  sortBy?: string
+  query?: string
+  filter?: Record<string, string | number>
+}
+
+// API Response types
+export interface ApiResponse<T> {
+  data: T
+}
+
+export interface PaginatedResponse<T> {
+  data: T[]
+  meta: PageMeta
+}
+
+// Error types
+export interface ApiError {
+  statusCode: number
+  message: string
+  error?: string
+}
+
+// Auth types
+export interface TokenPayload {
+  accessToken: string
+  tokenType: string
+  expiresIn: number
+}
+
+export interface LoginPayload {
+  user: User
+  token: TokenPayload
+}
+
+export interface LoginCredentials {
+  email: string
+  password: string
+}
+
+export interface RegisterCredentials {
+  email: string
+  password: string
+  firstName: string
+  lastName?: string
+}
+
+// User types
+export type ActiveStatus = "active" | "inactive"
+
+export interface User {
+  id: number
+  uuid: string
+  email: string
+  fullName: string
+  phoneNumber?: string
+  activeStatus: ActiveStatus
+  isEmailVerified: boolean
+  isPhoneVerified: boolean
+  companyId?: string
+  branchId?: string
+  ownedCompanyId?: string
+  roles?: Role[]
+  company?: Company
+  branch?: Branch
+  ownedCompany?: Company
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateUserDto {
+  email: string
+  password: string
+  fullName: string
+  phoneNumber?: string
+  roleIds?: string[]
+  companyId?: string
+  branchId?: string
+}
+
+export interface UpdateUserDto {
+  email?: string
+  fullName?: string
+  phoneNumber?: string
+  activeStatus?: ActiveStatus
+}
+
+export interface AssignRoleDto {
+  roleIds: string[]
+}
+
+export interface ResetPasswordDto {
+  newPassword: string
+}
+
+// Role types
+export interface Role {
+  id: number
+  uuid: string
+  name: string
+  code: string
+  description?: string
+  permissions: IAbility[]
+  isSystemRole: boolean
+  isActive: boolean
+  companyId?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface IAbility {
+  action: string
+  subject: string
+  condition?: unknown
+}
+
+// Company types
+export interface Company {
+  id: number
+  uuid: string
+  companyCode: string
+  companyName: string
+  phoneNumber?: string
+  address?: string
+  ownerId: string
+  owner?: User
+  branches?: Branch[]
+  // Interest & Fee Configuration
+  earlyInterestRate: number
+  normalInterestRate: number
+  adminFeeRate: number
+  insuranceFee: number
+  latePenaltyRate: number
+  minPrincipalPayment: number
+  defaultTenorDays: number
+  earlyPaymentDays: number
+  activeStatus: ActiveStatus
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CompanyConfig {
+  [key: string]: unknown
+}
+
+export interface CreateCompanyWithAdminDto {
+  // Company data
+  companyCode: string
+  companyName: string
+  phoneNumber?: string
+  address?: string
+  companyEmail?: string
+  // Admin Primary (Owner) data
+  adminName: string
+  adminEmail: string
+  adminPhone?: string
+  password: string
+}
+
+export interface UpdateCompanyDto {
+  companyName?: string
+  phoneNumber?: string
+  address?: string
+}
+
+export interface UpdateCompanyConfigDto {
+  earlyInterestRate?: number
+  normalInterestRate?: number
+  adminFeeRate?: number
+  insuranceFee?: number
+  latePenaltyRate?: number
+  minPrincipalPayment?: number
+  defaultTenorDays?: number
+  earlyPaymentDays?: number
+}
+
+export interface CompanyStatistics {
+  totalBranches: number
+  totalUsers: number
+  activeBranches: number
+}
+
+// Branch types
+export interface Branch {
+  id: string
+  uuid: string
+  name: string
+  address?: string
+  phone?: string
+  status: BranchStatus
+  company?: Company
+  owner?: User
+  createdAt: string
+  updatedAt: string
+}
+
+export type BranchStatus = "pending" | "active" | "inactive" | "rejected"
+
+export interface CreateBranchDto {
+  name: string
+  address?: string
+  phone?: string
+  companyId: string
+}
+
+export interface UpdateBranchDto {
+  name?: string
+  address?: string
+  phone?: string
+  status?: BranchStatus
+}
+
+export interface QueryBranchDto extends PageOptions {
+  companyId?: string
+  status?: BranchStatus
+}
+
+// Item Type types
+export interface ItemType {
+  id: string
+  uuid: string
+  typeCode: string // e.g., 'H' for Handphone
+  typeName: string // e.g., 'Handphone'
+  description?: string
+  isActive: boolean
+  sortOrder: number
+  iconUrl?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateItemTypeDto {
+  typeCode: string
+  typeName: string
+  description?: string
+  isActive?: boolean
+  sortOrder?: number
+}
+
+export interface UpdateItemTypeDto {
+  typeName?: string
+  description?: string
+  isActive?: boolean
+  sortOrder?: number
+}
+
+// Borrow Request types
+export interface BorrowRequest {
+  id: string
+  uuid: string
+  status: BorrowRequestStatus
+  rejectionReason?: string
+  requester?: User
+  processor?: User
+  targetCompany?: Company
+  createdAt: string
+  updatedAt: string
+}
+
+export type BorrowRequestStatus = "pending" | "approved" | "rejected"
+
+export interface CreateBorrowRequestDto {
+  targetCompanyId: string
+}
+
+export interface RejectBorrowRequestDto {
+  rejectionReason: string
+}
+
+// Device types
+export interface DeviceRegistration {
+  id: string
+  uuid: string
+  deviceId: string
+  deviceName?: string
+  platform?: string
+  pushToken?: string
+  isActive: boolean
+  user?: User
+  createdAt: string
+  updatedAt: string
+}
+
+export interface RegisterDeviceDto {
+  userId?: string
+  deviceId: string
+  deviceName?: string
+  platform?: string
+  pushToken?: string
+}
+
+export interface UpdateDeviceDto {
+  deviceName?: string
+  pushToken?: string
+  isActive?: boolean
+}
+
+// Audit types
+export interface AuditLog {
+  id: string
+  uuid: string
+  action: string
+  entityType: string
+  entityId: string
+  oldValue?: Record<string, unknown>
+  newValue?: Record<string, unknown>
+  ipAddress?: string
+  user?: User
+  createdAt: string
+}
+
+export interface QueryAuditLogDto extends PageOptions {
+  action?: string
+  entityType?: string
+  entityId?: string
+  userId?: string
+}
