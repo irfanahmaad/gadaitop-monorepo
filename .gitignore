@@ -34,3 +34,6 @@ npm-debug.log*
 # Misc
 .DS_Store
 *.pem
+
+# Deployment Purpose
+ecosystem.config.js
