@@ -12,17 +12,8 @@ import {
   AvatarImage,
   AvatarFallback,
 } from "@workspace/ui/components/avatar"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@workspace/ui/components/alert-dialog"
 import { Building2, Plus, Loader2 } from "lucide-react"
+import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { useCompanies, useDeleteCompany } from "@/lib/react-query/hooks"
 import type { Company } from "@/lib/api/types"
 
@@ -65,7 +56,7 @@ const columns: ColumnDef<Company>[] = [
     id: "phone",
     accessorKey: "phoneNumber",
     header: "No. Telp PT",
-    cell: ({ row }) => row.original.phoneNumber || "-",
+    cell: ({ row }) => row.original?.phoneNumber || "-",
   },
   {
     id: "adminPrimary",
@@ -76,7 +67,7 @@ const columns: ColumnDef<Company>[] = [
 
 export default function PTListPage() {
   const router = useRouter()
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null)
 
   // Fetch companies
@@ -93,19 +84,21 @@ export default function PTListPage() {
 
   const handleDelete = (row: Company) => {
     setSelectedCompany(row)
-    setDeleteDialogOpen(true)
+    setIsConfirmDialogOpen(true)
   }
 
-  const confirmDelete = async () => {
-    if (!selectedCompany) return
-
-    try {
-      await deleteMutation.mutateAsync(selectedCompany.uuid)
-      toast.success("PT berhasil dihapus")
-      setDeleteDialogOpen(false)
-      setSelectedCompany(null)
-    } catch {
-      toast.error("Gagal menghapus PT")
+  const handleConfirmDelete = () => {
+    if (selectedCompany) {
+      deleteMutation.mutate(selectedCompany.uuid, {
+        onSuccess: () => {
+          toast.success("PT berhasil dihapus")
+          setIsConfirmDialogOpen(false)
+          setSelectedCompany(null)
+        },
+        onError: (error) => {
+          toast.error(error.message || "Gagal menghapus PT")
+        },
+      })
     }
   }
 
@@ -166,36 +159,13 @@ export default function PTListPage() {
         />
       </div>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Hapus PT</AlertDialogTitle>
-            <AlertDialogDescription>
-              Apakah Anda yakin ingin menghapus{" "}
-              <strong>{selectedCompany?.companyName}</strong>? Tindakan ini tidak
-              dapat dibatalkan.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              disabled={deleteMutation.isPending}
-            >
-              {deleteMutation.isPending ? (
-                <>
-                  <Loader2 className="mr-2 size-4 animate-spin" />
-                  Menghapus...
-                </>
-              ) : (
-                "Hapus"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Confirmation Dialog for Delete */}
+      <ConfirmationDialog
+        open={isConfirmDialogOpen}
+        onOpenChange={setIsConfirmDialogOpen}
+        onConfirm={handleConfirmDelete}
+        description="Anda akan menghapus data PT dari dalam sistem."
+      />
     </>
   )
 }

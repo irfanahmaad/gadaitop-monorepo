@@ -9,16 +9,7 @@ import { DataTable } from "@/components/data-table"
 import { PlusIcon, Loader2 } from "lucide-react"
 import { useSuperAdmins, useDeleteSuperAdmin } from "@/lib/react-query/hooks"
 import type { User } from "@/lib/api/types"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@workspace/ui/components/alert-dialog"
+import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { toast } from "sonner"
 
 // Column definitions
@@ -75,7 +66,7 @@ const columns: ColumnDef<User>[] = [
 
 export default function SuperAdminPage() {
   const router = useRouter()
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
 
   // Fetch super admins
@@ -92,19 +83,21 @@ export default function SuperAdminPage() {
 
   const handleDelete = (row: User) => {
     setSelectedUser(row)
-    setDeleteDialogOpen(true)
+    setIsConfirmDialogOpen(true)
   }
 
-  const confirmDelete = async () => {
-    if (!selectedUser) return
-
-    try {
-      await deleteMutation.mutateAsync(selectedUser.uuid)
-      toast.success("Super Admin berhasil dihapus")
-      setDeleteDialogOpen(false)
-      setSelectedUser(null)
-    } catch {
-      toast.error("Gagal menghapus Super Admin")
+  const handleConfirmDelete = () => {
+    if (selectedUser) {
+      deleteMutation.mutate(selectedUser.uuid, {
+        onSuccess: () => {
+          toast.success("Super Admin berhasil dihapus")
+          setIsConfirmDialogOpen(false)
+          setSelectedUser(null)
+        },
+        onError: (error) => {
+          toast.error(error.message || "Gagal menghapus Super Admin")
+        },
+      })
     }
   }
 
@@ -161,36 +154,13 @@ export default function SuperAdminPage() {
         />
       </div>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Hapus Super Admin</AlertDialogTitle>
-            <AlertDialogDescription>
-              Apakah Anda yakin ingin menghapus{" "}
-              <strong>{selectedUser?.fullName}</strong>? Tindakan ini tidak
-              dapat dibatalkan.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              disabled={deleteMutation.isPending}
-            >
-              {deleteMutation.isPending ? (
-                <>
-                  <Loader2 className="mr-2 size-4 animate-spin" />
-                  Menghapus...
-                </>
-              ) : (
-                "Hapus"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Confirmation Dialog for Delete */}
+      <ConfirmationDialog
+        open={isConfirmDialogOpen}
+        onOpenChange={setIsConfirmDialogOpen}
+        onConfirm={handleConfirmDelete}
+        description="Anda akan menghapus data Super Admin dari dalam sistem."
+      />
     </>
   )
 }
