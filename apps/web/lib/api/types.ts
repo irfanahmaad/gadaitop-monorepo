@@ -182,20 +182,29 @@ export interface QueryBranchDto extends PageOptions {
 export interface ItemType {
   id: string
   uuid: string
-  name: string
+  typeCode: string // e.g., 'H' for Handphone
+  typeName: string // e.g., 'Handphone'
   description?: string
+  isActive: boolean
+  sortOrder: number
+  iconUrl?: string
   createdAt: string
   updatedAt: string
 }
 
 export interface CreateItemTypeDto {
-  name: string
+  typeCode: string
+  typeName: string
   description?: string
+  isActive?: boolean
+  sortOrder?: number
 }
 
 export interface UpdateItemTypeDto {
-  name?: string
+  typeName?: string
   description?: string
+  isActive?: boolean
+  sortOrder?: number
 }
 
 // Borrow Request types

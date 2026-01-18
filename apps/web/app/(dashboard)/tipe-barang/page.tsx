@@ -1,55 +1,36 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState } from "react"
 import { ColumnDef } from "@tanstack/react-table"
+import { toast } from "sonner"
 import { Breadcrumbs } from "@/components/breadcrumbs"
 import { Button } from "@workspace/ui/components/button"
 import { DataTable } from "@/components/data-table"
+import { Skeleton } from "@workspace/ui/components/skeleton"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+} from "@workspace/ui/components/card"
 import { Plus } from "lucide-react"
 import { TipeBarangFormDialog } from "./_components/TipeBarangFormDialog"
+import { useItemTypes, useDeleteItemType } from "@/lib/react-query/hooks"
+import type { ItemType } from "@/lib/api/types"
 
-// Sample data type
-type TipeBarang = {
-  id: string
-  code: string
-  name: string
-  createdAt: string
-}
-
-// Helper function to generate sample data
-const generateSampleData = (): TipeBarang[] => {
-  return Array.from({ length: 10 }, (_, i) => ({
-    id: `B${String(i + 1).padStart(3, "0")}`,
-    code: `B${String(i + 1).padStart(3, "0")}`,
-    name:
-      [
-        "Handphone",
-        "Sepeda Motor",
-        "Drone",
-        "Komputer",
-        "Kamera",
-        "Aksesoris Motor",
-        "Handphone Apple",
-        "Aksesoris Komputer",
-        "TV",
-        "Speaker",
-      ][i] ?? `Tipe Barang ${i + 1}`,
-    createdAt: new Date(Date.now() - i * 24 * 60 * 60 * 1000).toLocaleString(
-      "id-ID",
-      {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-      }
-    ),
-  }))
+// Format date helper
+const formatDate = (dateString: string): string => {
+  return new Date(dateString).toLocaleString("id-ID", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  })
 }
 
 // Column definitions
-const columns: ColumnDef<TipeBarang>[] = [
+const columns: ColumnDef<ItemType>[] = [
   {
     id: "no",
     header: "No",
@@ -59,39 +40,74 @@ const columns: ColumnDef<TipeBarang>[] = [
     },
   },
   {
-    id: "code",
-    accessorKey: "code",
+    id: "typeCode",
+    accessorKey: "typeCode",
     header: "Kode Tipe Barang",
   },
   {
-    accessorKey: "name",
+    accessorKey: "typeName",
     header: "Nama Tipe Barang",
   },
   {
+    id: "createdAt",
     accessorKey: "createdAt",
     header: "Created At",
+    cell: ({ row }) => formatDate(row.original.createdAt),
   },
 ]
 
+// Loading skeleton component
+function TableSkeleton() {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-6 w-40" />
+          <Skeleton className="h-10 w-64" />
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="flex gap-4">
+              <Skeleton className="h-10 w-12" />
+              <Skeleton className="h-10 w-32" />
+              <Skeleton className="h-10 flex-1" />
+              <Skeleton className="h-10 w-48" />
+              <Skeleton className="h-10 w-10" />
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 export default function TipeBarangListPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [editingItem, setEditingItem] = useState<TipeBarang | null>(null)
-  const [sampleData, setSampleData] = useState<TipeBarang[]>([])
+  const [editingItem, setEditingItem] = useState<ItemType | null>(null)
 
-  // Generate sample data only on client to avoid hydration mismatch
-  useEffect(() => {
-    setSampleData(generateSampleData())
-  }, [])
+  // Fetch item types from API
+  const { data: itemTypesResponse, isLoading, isError } = useItemTypes()
+  const deleteItemType = useDeleteItemType()
 
-  const handleEdit = (row: TipeBarang) => {
+  const itemTypes = itemTypesResponse?.data ?? []
+
+  const handleEdit = (row: ItemType) => {
     setEditingItem(row)
     setIsDialogOpen(true)
   }
 
-  const handleDelete = (row: TipeBarang) => {
+  const handleDelete = (row: ItemType) => {
     if (confirm("Apakah Anda yakin ingin menghapus data ini?")) {
-      console.log("Delete:", row)
-      // Implement delete action
+      deleteItemType.mutate(row.id, {
+        onSuccess: () => {
+          toast.success("Tipe Barang berhasil dihapus")
+        },
+        onError: (error) => {
+          toast.error(error.message || "Gagal menghapus Tipe Barang")
+        },
+      })
     }
   }
 
@@ -128,14 +144,24 @@ export default function TipeBarangListPage() {
           </div>
         </div>
 
-        <DataTable
-          columns={columns}
-          data={sampleData}
-          title="Daftar Tipe Barang"
-          searchPlaceholder="Search"
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-        />
+        {isLoading ? (
+          <TableSkeleton />
+        ) : isError ? (
+          <Card>
+            <CardContent className="py-10 text-center">
+              <p className="text-destructive">Gagal memuat data Tipe Barang</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <DataTable
+            columns={columns}
+            data={itemTypes}
+            title="Daftar Tipe Barang"
+            searchPlaceholder="Search"
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+          />
+        )}
       </div>
 
       {/* Dialog for both Add and Edit */}

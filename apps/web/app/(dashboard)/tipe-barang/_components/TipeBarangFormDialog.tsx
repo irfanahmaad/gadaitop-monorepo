@@ -4,7 +4,8 @@ import React from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { FileText, X, Save } from "lucide-react"
+import { toast } from "sonner"
+import { FileText, X, Save, Loader2 } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -22,26 +23,27 @@ import {
   FormLabel,
   FormMessage,
 } from "@workspace/ui/components/form"
+import { useCreateItemType, useUpdateItemType } from "@/lib/react-query/hooks"
+import type { ItemType } from "@/lib/api/types"
 
 const tipeBarangSchema = z.object({
-  code: z.string().min(1, "Kode Tipe Barang harus diisi"),
-  name: z.string().min(1, "Nama Tipe Barang harus diisi"),
+  typeCode: z
+    .string()
+    .min(1, "Kode Tipe Barang harus diisi")
+    .max(5, "Kode Tipe Barang maksimal 5 karakter"),
+  typeName: z
+    .string()
+    .min(1, "Nama Tipe Barang harus diisi")
+    .max(100, "Nama Tipe Barang maksimal 100 karakter"),
 })
 
 type TipeBarangFormValues = z.infer<typeof tipeBarangSchema>
-
-type TipeBarang = {
-  id: string
-  code: string
-  name: string
-  createdAt: string
-}
 
 interface TipeBarangFormDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onClose: () => void
-  initialData?: TipeBarang | null
+  initialData?: ItemType | null
 }
 
 export function TipeBarangFormDialog({
@@ -53,11 +55,16 @@ export function TipeBarangFormDialog({
   const [mounted, setMounted] = React.useState(false)
   const isEditMode = !!initialData
 
+  const createItemType = useCreateItemType()
+  const updateItemType = useUpdateItemType()
+
+  const isSubmitting = createItemType.isPending || updateItemType.isPending
+
   const form = useForm<TipeBarangFormValues>({
     resolver: zodResolver(tipeBarangSchema),
     defaultValues: {
-      code: initialData?.code || "",
-      name: initialData?.name || "",
+      typeCode: initialData?.typeCode || "",
+      typeName: initialData?.typeName || "",
     },
   })
 
@@ -70,17 +77,50 @@ export function TipeBarangFormDialog({
   React.useEffect(() => {
     if (open) {
       form.reset({
-        code: initialData?.code || "",
-        name: initialData?.name || "",
+        typeCode: initialData?.typeCode || "",
+        typeName: initialData?.typeName || "",
       })
     }
   }, [open, initialData, form])
 
   const onSubmit = (values: TipeBarangFormValues) => {
-    console.log(isEditMode ? "Edit:" : "Add:", values)
-    // Implement save action here
-    // After successful save, close dialog
-    onClose()
+    if (isEditMode && initialData) {
+      // Update existing item type
+      updateItemType.mutate(
+        {
+          id: initialData.id,
+          data: {
+            typeName: values.typeName,
+          },
+        },
+        {
+          onSuccess: () => {
+            toast.success("Tipe Barang berhasil diperbarui")
+            onClose()
+          },
+          onError: (error) => {
+            toast.error(error.message || "Gagal memperbarui Tipe Barang")
+          },
+        }
+      )
+    } else {
+      // Create new item type
+      createItemType.mutate(
+        {
+          typeCode: values.typeCode,
+          typeName: values.typeName,
+        },
+        {
+          onSuccess: () => {
+            toast.success("Tipe Barang berhasil ditambahkan")
+            onClose()
+          },
+          onError: (error) => {
+            toast.error(error.message || "Gagal menambahkan Tipe Barang")
+          },
+        }
+      )
+    }
   }
 
   const handleCancel = () => {
@@ -110,7 +150,7 @@ export function TipeBarangFormDialog({
                 {/* Kode Tipe Barang Field */}
                 <FormField
                   control={form.control}
-                  name="code"
+                  name="typeCode"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>
@@ -120,8 +160,9 @@ export function TipeBarangFormDialog({
                       <FormControl>
                         <Input
                           type="text"
-                          placeholder="B001"
+                          placeholder="H"
                           icon={<FileText className="size-4" />}
+                          disabled={isEditMode}
                           {...field}
                         />
                       </FormControl>
@@ -133,7 +174,7 @@ export function TipeBarangFormDialog({
                 {/* Nama Tipe Barang Field */}
                 <FormField
                   control={form.control}
-                  name="name"
+                  name="typeName"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>
@@ -160,13 +201,18 @@ export function TipeBarangFormDialog({
                 type="button"
                 variant="outline"
                 onClick={handleCancel}
+                disabled={isSubmitting}
                 className="gap-2"
               >
                 <X className="size-4" />
                 Batal
               </Button>
-              <Button type="submit" className="gap-2">
-                <Save className="size-4" />
+              <Button type="submit" disabled={isSubmitting} className="gap-2">
+                {isSubmitting ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Save className="size-4" />
+                )}
                 Simpan
               </Button>
             </DialogFooter>

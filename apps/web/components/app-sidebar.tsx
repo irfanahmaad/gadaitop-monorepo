@@ -8,18 +8,18 @@ import {
   UserCog,
   Building2,
   Package,
-  FileText,
-  Box,
-  Gavel,
-  Wallet,
-  Coins,
-  ArrowRightLeft,
-  FileBarChart,
-  Store,
-  Users,
-  User,
-  BookOpen,
-  Eye,
+  // FileText,
+  // Box,
+  // Gavel,
+  // Wallet,
+  // Coins,
+  // ArrowRightLeft,
+  // FileBarChart,
+  // Store,
+  // Users,
+  // User,
+  // BookOpen,
+  // Eye,
 } from "lucide-react"
 
 // import { SearchForm } from "@/components/search-form"
@@ -38,9 +38,24 @@ import {
 } from "@workspace/ui/components/sidebar"
 import { imgLogoGadaiTopTextOnly } from "@/assets/commons"
 import Image from "next/image"
+import { AclSubject, Can, useAppAbility } from "@/lib/casl"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
+  const ability = useAppAbility()
+
+  // Debug: Log ability checks (remove in production)
+  React.useEffect(() => {
+    if (ability) {
+      console.log("Ability checks:", {
+        canManageUser: ability.can("manage", "User"),
+        canManagePt: ability.can("manage", "Pt"),
+        canManageItemType: ability.can("manage", "ItemType"),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        rules: (ability as any).rules || [],
+      })
+    }
+  }, [ability])
 
   return (
     <Sidebar {...props}>
@@ -230,39 +245,45 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem> */}
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={pathname?.startsWith("/super-admin")}
-                >
-                  <Link href="/super-admin" className="flex items-center gap-2">
-                    <UserCog className="size-4 shrink-0" />
-                    <span>Master Super Admin</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={pathname?.startsWith("/pt")}
-                >
-                  <Link href="/pt" className="flex items-center gap-2">
-                    <Building2 className="size-4 shrink-0" />
-                    <span>Master PT</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={pathname?.startsWith("/tipe-barang")}
-                >
-                  <Link href="/tipe-barang" className="flex items-center gap-2">
-                    <Package className="size-4 shrink-0" />
-                    <span>Master Tipe Barang</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              <Can I="manage" a={AclSubject.USER}>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname?.startsWith("/super-admin")}
+                  >
+                    <Link href="/super-admin" className="flex items-center gap-2">
+                      <UserCog className="size-4 shrink-0" />
+                      <span>Master Super Admin</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </Can>
+              <Can I="manage" a={AclSubject.PT}>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname?.startsWith("/pt")}
+                  >
+                    <Link href="/pt" className="flex items-center gap-2">
+                      <Building2 className="size-4 shrink-0" />
+                      <span>Master PT</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </Can>
+              <Can I="manage" a={AclSubject.ITEM_TYPE}>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname?.startsWith("/tipe-barang")}
+                  >
+                    <Link href="/tipe-barang" className="flex items-center gap-2">
+                      <Package className="size-4 shrink-0" />
+                      <span>Master Tipe Barang</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </Can>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
