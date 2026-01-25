@@ -23,6 +23,8 @@ import {
 import { Input } from "@workspace/ui/components/input"
 import { Plus, SearchIcon, SlidersHorizontal } from "lucide-react"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
+import { StockOpnameFormDialog } from "./_components/StockOpnameFormDialog"
+import { CalendarView } from "./_components/CalendarView"
 
 // Sample data type
 type StockOpname = {
@@ -181,10 +183,14 @@ export default function StockOpnamePage() {
   const [searchValue, setSearchValue] = useState("")
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
   const [itemToDelete, setItemToDelete] = useState<StockOpname | null>(null)
+  const [isFormDialogOpen, setIsFormDialogOpen] = useState(false)
 
   const handleCreate = () => {
-    // Implement create action
-    console.log("Create new stock opname")
+    setIsFormDialogOpen(true)
+  }
+
+  const handleFormDialogClose = () => {
+    setIsFormDialogOpen(false)
   }
 
   const handleDetail = (row: StockOpname) => {
@@ -285,9 +291,22 @@ export default function StockOpnamePage() {
 
         {/* Calendar View */}
         <TabsContent value="calendar" className="mt-0">
-          {/* Keep blank for now */}
+          <CalendarView
+            data={sampleData}
+            isLoading={false}
+            onDetail={(item) => console.log("Detail:", item)}
+            onEdit={(item) => console.log("Edit:", item)}
+            onDelete={(item) => console.log("Delete:", item)}
+          />
         </TabsContent>
       </Tabs>
+
+      {/* Form Dialog for Create */}
+      <StockOpnameFormDialog
+        open={isFormDialogOpen}
+        onOpenChange={setIsFormDialogOpen}
+        onClose={handleFormDialogClose}
+      />
 
       {/* Confirmation Dialog for Delete */}
       <ConfirmationDialog

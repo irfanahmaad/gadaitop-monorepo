@@ -1,0 +1,231 @@
+---
+description: Always use skeleton loaders for loading states in features
+globs: "**/*.tsx, **/*.ts"
+alwaysApply: true
+---
+
+# Skeleton Loader Best Practices
+
+Always implement skeleton loading states for every feature that fetches data asynchronously. This provides better UX by showing users the expected layout while data is loading.
+
+## Requirements
+
+### 1. Always Use Skeleton Loaders
+
+**Every feature that loads data MUST use skeleton loaders instead of spinners:**
+
+- ✅ Use skeleton loaders for table/list pages
+- ✅ Use skeleton loaders for detail pages
+- ✅ Use skeleton loaders for form pages that load initial data
+- ❌ Never use only spinners (`Loader2`) for loading states
+- ❌ Never show blank screens while loading
+
+### 2. Skeleton Component Location
+
+Import skeleton component from the UI package:
+
+```tsx
+import { Skeleton } from "@workspace/ui/components/skeleton";
+import { Card, CardContent, CardHeader } from "@workspace/ui/components/card";
+```
+
+### 3. Standard Pattern for Table/List Pages
+
+**Create a `TableSkeleton` component that matches your table structure:**
+
+```tsx
+// Loading skeleton component
+function TableSkeleton() {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-6 w-40" />
+          <Skeleton className="h-10 w-64" />
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="flex gap-4">
+              <Skeleton className="h-10 w-12" />
+              <Skeleton className="h-10 w-32" />
+              <Skeleton className="h-10 flex-1" />
+              <Skeleton className="h-10 w-48" />
+              <Skeleton className="h-10 w-10" />
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+```
+
+### 4. Conditional Rendering Pattern
+
+**Use conditional rendering with skeleton, error, and data states:**
+
+```tsx
+{
+  isLoading ? (
+    <TableSkeleton />
+  ) : isError ? (
+    <Card>
+      <CardContent className="py-10 text-center">
+        <p className="text-destructive">Gagal memuat data</p>
+      </CardContent>
+    </Card>
+  ) : (
+    <DataTable
+      columns={columns}
+      data={data?.data ?? []}
+      // ... other props
+    />
+  );
+}
+```
+
+### 5. Skeleton Design Guidelines
+
+**Match skeleton shapes to actual content:**
+
+- **Table rows:** Match column widths and heights
+- **Cards:** Use Card component with Skeleton inside
+- **Forms:** Show skeleton inputs matching form fields
+- **Headers:** Show skeleton for title and action buttons
+- **Avatars:** Use circular skeleton (`rounded-full`)
+- **Text:** Use appropriate widths (w-32, w-48, w-64, flex-1)
+
+### 6. Examples
+
+**✅ Correct - Table Page with Skeleton:**
+
+```tsx
+"use client";
+
+import { Skeleton } from "@workspace/ui/components/skeleton";
+import { Card, CardContent, CardHeader } from "@workspace/ui/components/card";
+
+function TableSkeleton() {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-6 w-40" />
+          <Skeleton className="h-10 w-64" />
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="flex gap-4">
+              <Skeleton className="h-10 w-12" />
+              <Skeleton className="h-10 w-32" />
+              <Skeleton className="h-10 flex-1" />
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function MyPage() {
+  const { data, isLoading, isError } = useMyData();
+
+  return (
+    <div className="flex flex-col gap-6">
+      {/* Header always visible */}
+      <div className="flex flex-col gap-4">
+        <h1 className="text-2xl font-bold">My Page</h1>
+      </div>
+
+      {/* Conditional content */}
+      {isLoading ? (
+        <TableSkeleton />
+      ) : isError ? (
+        <Card>
+          <CardContent className="py-10 text-center">
+            <p className="text-destructive">Gagal memuat data</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <DataTable columns={columns} data={data?.data ?? []} />
+      )}
+    </div>
+  );
+}
+```
+
+**❌ Incorrect - Using Only Spinner:**
+
+```tsx
+// ❌ Don't do this
+if (isLoading) {
+  return (
+    <div className="flex h-64 items-center justify-center">
+      <Loader2 className="size-8 animate-spin text-muted-foreground" />
+    </div>
+  );
+}
+```
+
+### 7. When to Create Custom Skeletons
+
+**Create custom skeleton components when:**
+
+- The layout is complex (forms, detail pages, dashboards)
+- Multiple sections load at different times
+- The skeleton needs to match specific component shapes
+
+**Example - Form Skeleton:**
+
+```tsx
+function FormSkeleton() {
+  return (
+    <Card>
+      <CardHeader>
+        <Skeleton className="h-6 w-48" />
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+        <Skeleton className="h-10 w-32" />
+      </CardContent>
+    </Card>
+  );
+}
+```
+
+### 8. Best Practices
+
+1. **Keep header visible:** Don't hide page headers during loading
+2. **Match real layout:** Skeleton should closely match actual content structure
+3. **Appropriate count:** Show 3-5 skeleton rows for tables (not too many)
+4. **Consistent spacing:** Use same gap/spacing as real content
+5. **Error states:** Always provide error state alongside skeleton
+6. **Accessibility:** Skeleton provides visual feedback without requiring screen reader announcements
+
+### 9. Reference Implementation
+
+See these files for reference:
+
+- `apps/web/app/(dashboard)/tipe-barang/page.tsx`
+- `apps/web/app/(dashboard)/pt/page.tsx`
+- `apps/web/app/(dashboard)/super-admin/page.tsx`
+
+## Summary
+
+- ✅ Always use skeleton loaders for async data loading
+- ✅ Match skeleton structure to actual content
+- ✅ Keep headers visible during loading
+- ✅ Provide error states alongside loading states
+- ❌ Never use only spinners for loading states
+- ❌ Never show blank screens while loading

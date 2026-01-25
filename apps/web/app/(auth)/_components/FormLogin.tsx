@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -35,17 +35,27 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>
 
+// Prevent redirecting to auth routes after login
+const authRoutes = [
+  "/login",
+  "/register",
+  "/forgot-password",
+  "/reset-password",
+  "/verify-email",
+]
+
 export default function FormLogin() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const callbackUrl = searchParams.get("callbackUrl") || "/"
+  const rawCallbackUrl = searchParams.get("callbackUrl") || "/"
   const errorParam = searchParams.get("error")
+  const callbackUrl = authRoutes.includes(rawCallbackUrl) ? "/" : rawCallbackUrl
 
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(
-    errorParam === "SessionExpired" ? "Sesi Anda telah berakhir. Silakan login kembali." : null
-  )
+  // Track if we've already initialized the error from URL params
+  const errorInitializedRef = useRef(false)
+  const [error, setError] = useState<string | null>(null)
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -54,6 +64,31 @@ export default function FormLogin() {
       password: "",
     },
   })
+
+  // Initialize error from URL params only once on mount
+  useEffect(() => {
+    if (!errorInitializedRef.current && errorParam === "SessionExpired") {
+      setError("Sesi Anda telah berakhir. Silakan login kembali.")
+      errorInitializedRef.current = true
+
+      // Clear error param from URL to prevent re-reading
+      const newUrl = new URL(window.location.href)
+      newUrl.searchParams.delete("error")
+      // Keep callbackUrl if it's not an auth route
+      const callbackUrlParam = newUrl.searchParams.get("callbackUrl") || ""
+      if (authRoutes.includes(callbackUrlParam)) {
+        newUrl.searchParams.delete("callbackUrl")
+      }
+      router.replace(newUrl.pathname + newUrl.search, { scroll: false })
+    }
+  }, [errorParam, router])
+
+  // Clear error when user starts typing
+  const handleInputChange = () => {
+    if (error) {
+      setError(null)
+    }
+  }
 
   const onSubmit = async (values: LoginFormValues) => {
     setIsLoading(true)
@@ -67,12 +102,26 @@ export default function FormLogin() {
       })
 
       if (result?.error) {
-        setError(result.error)
+        // Don't show SessionExpired error from NextAuth - user is already trying to login
+        // This can happen if NextAuth still sees an expired session
+        if (
+          result.error === "SessionExpired" ||
+          result.error === "RefreshAccessTokenError"
+        ) {
+          // Try to clear the session and retry, or just show a generic error
+          setError("Silakan coba login lagi.")
+        } else {
+          setError(result.error)
+        }
         return
       }
 
       if (result?.ok) {
-        router.push(callbackUrl)
+        // Clear any error state before redirecting
+        setError(null)
+        // Redirect to callbackUrl (which is guaranteed to not be an auth route)
+        // Use replace instead of push to avoid adding to history
+        router.replace(callbackUrl)
         router.refresh()
       }
     } catch {
@@ -118,6 +167,10 @@ export default function FormLogin() {
                     icon={<Mail className="size-4" />}
                     disabled={isLoading}
                     {...field}
+                    onChange={(e) => {
+                      field.onChange(e)
+                      handleInputChange()
+                    }}
                   />
                 </FormControl>
                 <FormMessage />
@@ -139,6 +192,10 @@ export default function FormLogin() {
                       icon={<Lock className="size-4" />}
                       disabled={isLoading}
                       {...field}
+                      onChange={(e) => {
+                        field.onChange(e)
+                        handleInputChange()
+                      }}
                     />
                     <button
                       type="button"
@@ -164,7 +221,12 @@ export default function FormLogin() {
             )}
           />
 
-          <Button type="submit" className="w-full" size="default" disabled={isLoading}>
+          <Button
+            type="submit"
+            className="w-full"
+            size="default"
+            disabled={isLoading}
+          >
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 size-4 animate-spin" />
