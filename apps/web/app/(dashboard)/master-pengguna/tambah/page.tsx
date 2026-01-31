@@ -44,7 +44,7 @@ import {
   SelectValue,
 } from "@workspace/ui/components/select"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
-import { useCreateUser, useRoles } from "@/lib/react-query/hooks"
+import { createUser, dummyRoles } from "../dummy-data"
 
 const userSchema = z
   .object({
@@ -77,9 +77,9 @@ export default function TambahMasterPenggunaPage() {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Fetch roles for dropdown
-  const { data: rolesData, isLoading: isLoadingRoles } = useRoles()
-  const createMutation = useCreateUser()
+  // Get roles from dummy data
+  const rolesData = { data: dummyRoles }
+  const isLoadingRoles = false
 
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userSchema),
@@ -129,7 +129,7 @@ export default function TambahMasterPenggunaPage() {
     setIsSubmitting(true)
 
     try {
-      await createMutation.mutateAsync({
+      createUser({
         fullName: values.fullName,
         email: values.email,
         password: values.password,
@@ -148,13 +148,6 @@ export default function TambahMasterPenggunaPage() {
     }
   }
 
-  if (isLoadingRoles) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <Loader2 className="size-8 animate-spin text-muted-foreground" />
-      </div>
-    )
-  }
 
   return (
     <>

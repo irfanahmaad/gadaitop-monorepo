@@ -130,9 +130,9 @@ export function FilterDialog({
                   {config.label} Dari
                 </Label>
                 <div className="relative">
-                  <span className="text-muted-foreground absolute top-1/2 left-3 z-10 -translate-y-1/2 text-sm">
+                  {/* <span className="text-muted-foreground absolute top-1/2 left-3 z-10 -translate-y-1/2 text-sm">
                     {currency}
-                  </span>
+                  </span> */}
                   <Input
                     id={`${config.key}-from`}
                     type="text"
@@ -159,9 +159,9 @@ export function FilterDialog({
                   Sampai Dengan
                 </Label>
                 <div className="relative">
-                  <span className="text-muted-foreground absolute top-1/2 left-3 z-10 -translate-y-1/2 text-sm">
+                  {/* <span className="text-muted-foreground absolute top-1/2 left-3 z-10 -translate-y-1/2 text-sm">
                     {currency}
-                  </span>
+                  </span> */}
                   <Input
                     id={`${config.key}-to`}
                     type="text"

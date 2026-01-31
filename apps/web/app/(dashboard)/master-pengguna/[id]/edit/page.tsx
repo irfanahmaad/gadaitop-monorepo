@@ -46,12 +46,11 @@ import {
 } from "@workspace/ui/components/select"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import {
-  useUser,
-  useUpdateUser,
-  useAssignRoles,
-  useResetUserPassword,
-  useRoles,
-} from "@/lib/react-query/hooks"
+  getUserById,
+  updateUser as updateUserInStore,
+  assignRolesToUser,
+  dummyRoles,
+} from "../dummy-data"
 
 const userSchema = z
   .object({
@@ -158,12 +157,11 @@ export default function EditMasterPenggunaPage() {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Fetch user data
-  const { data: userData, isLoading: isLoadingUser } = useUser(userId)
-  const { data: rolesData, isLoading: isLoadingRoles } = useRoles()
-  const updateMutation = useUpdateUser()
-  const assignRolesMutation = useAssignRoles()
-  const resetPasswordMutation = useResetUserPassword()
+  // Get user data from dummy store
+  const userData = getUserById(userId)
+  const isLoadingUser = false
+  const isLoadingRoles = false
+  const rolesData = { data: dummyRoles }
 
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userSchema),
@@ -230,34 +228,25 @@ export default function EditMasterPenggunaPage() {
 
     try {
       // Update basic user info
-      await updateMutation.mutateAsync({
-        id: userId,
-        data: {
-          fullName: values.fullName,
-          email: values.email,
-          phoneNumber: values.phoneNumber || undefined,
-        },
+      const updatedUser = updateUserInStore(userId, {
+        fullName: values.fullName,
+        email: values.email,
+        phoneNumber: values.phoneNumber || undefined,
       })
+
+      if (!updatedUser) {
+        toast.error("Pengguna tidak ditemukan")
+        setIsSubmitting(false)
+        return
+      }
 
       // Update role if changed
       if (values.roleId) {
-        await assignRolesMutation.mutateAsync({
-          id: userId,
-          data: {
-            roleIds: [values.roleId],
-          },
-        })
+        assignRolesToUser(userId, [values.roleId])
       }
 
-      // Update password if provided
-      if (values.password && values.password.length > 0) {
-        await resetPasswordMutation.mutateAsync({
-          id: userId,
-          data: {
-            newPassword: values.password,
-          },
-        })
-      }
+      // Note: Password reset is not implemented in dummy data
+      // In a real app, this would call an API to reset the password
 
       toast.success("Pengguna berhasil diperbarui")
       setConfirmOpen(false)

@@ -115,7 +115,10 @@ function getSPKByCustomerId(customerId: string): SPKRow[] {
       sisaSPK: 10,
       tanggalWaktuSPK: "20 November 2025\n18:33:45",
     },
-  ].filter((spk) => spk.namaCustomer === getCustomerById(customerId)?.namaLengkap || true)
+  ].filter(
+    (spk) =>
+      spk.namaCustomer === getCustomerById(customerId)?.namaLengkap || true
+  )
 }
 
 const formatCurrency = (amount: number): string =>
@@ -139,7 +142,8 @@ const spkColumns: ColumnDef<SPKRow>[] = [
   {
     accessorKey: "jumlahSPK",
     header: "Jumlah SPK",
-    cell: ({ row }) => `Rp ${formatCurrency(row.getValue("jumlahSPK") as number)}`,
+    cell: ({ row }) =>
+      `Rp ${formatCurrency(row.getValue("jumlahSPK") as number)}`,
   },
   { accessorKey: "sisaSPK", header: "Sisa SPK" },
   {
@@ -250,14 +254,8 @@ export default function MasterCustomerDetailPage() {
     return () => clearTimeout(t)
   }, [id])
 
-  const customer = useMemo(
-    () => (id ? getCustomerById(id) : null),
-    [id]
-  )
-  const spkList = useMemo(
-    () => (id ? getSPKByCustomerId(id) : []),
-    [id]
-  )
+  const customer = useMemo(() => (id ? getCustomerById(id) : null), [id])
+  const spkList = useMemo(() => (id ? getSPKByCustomerId(id) : []), [id])
 
   const filteredSPK = useMemo(() => {
     if (!searchValue.trim()) return spkList
@@ -315,7 +313,7 @@ export default function MasterCustomerDetailPage() {
             {loading ? (
               <Skeleton className="h-8 w-64" />
             ) : (
-              customer?.namaLengkap ?? "—"
+              (customer?.namaLengkap ?? "—")
             )}
           </h1>
           <Breadcrumbs
@@ -485,49 +483,49 @@ export default function MasterCustomerDetailPage() {
         <DaftarSPKSkeleton />
       ) : customer ? (
         <DataTable<SPKRow, unknown>
-              columns={spkColumns as ColumnDef<SPKRow, unknown>[]}
-              data={filteredSPK}
-              title="Daftar SPK"
-              searchPlaceholder="Email"
-              headerRight={
-                <div className="flex w-full items-center gap-2 sm:w-auto">
-                  <Select
-                    value={pageSize.toString()}
-                    onValueChange={(v) => setPageSize(Number(v))}
-                  >
-                    <SelectTrigger className="w-[100px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="10">10</SelectItem>
-                      <SelectItem value="25">25</SelectItem>
-                      <SelectItem value="50">50</SelectItem>
-                      <SelectItem value="100">100</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <div className="w-full sm:w-auto sm:max-w-sm">
-                    <Input
-                      placeholder="Email"
-                      value={searchValue}
-                      onChange={(e) => setSearchValue(e.target.value)}
-                      icon={<SearchIcon className="size-4" />}
-                      className="w-full"
-                    />
-                  </div>
-                  <Button variant="outline" className="flex items-center gap-2">
-                    <SlidersHorizontal className="h-4 w-4" />
-                    Filter
-                  </Button>
-                </div>
-              }
-              initialPageSize={pageSize}
-              onPageSizeChange={setPageSize}
-              searchValue={searchValue}
-              onSearchChange={setSearchValue}
-              onDetail={handleDetail}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-            />
+          columns={spkColumns as ColumnDef<SPKRow, unknown>[]}
+          data={filteredSPK}
+          title="Daftar SPK"
+          searchPlaceholder="Search"
+          headerRight={
+            <div className="flex w-full items-center gap-2 sm:w-auto">
+              <Select
+                value={pageSize.toString()}
+                onValueChange={(v) => setPageSize(Number(v))}
+              >
+                <SelectTrigger className="w-[100px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="w-full sm:w-auto sm:max-w-sm">
+                <Input
+                  placeholder="Email"
+                  value={searchValue}
+                  onChange={(e) => setSearchValue(e.target.value)}
+                  icon={<SearchIcon className="size-4" />}
+                  className="w-full"
+                />
+              </div>
+              <Button variant="outline" className="flex items-center gap-2">
+                <SlidersHorizontal className="h-4 w-4" />
+                Filter
+              </Button>
+            </div>
+          }
+          initialPageSize={pageSize}
+          onPageSizeChange={setPageSize}
+          searchValue={searchValue}
+          onSearchChange={setSearchValue}
+          onDetail={handleDetail}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+        />
       ) : null}
     </div>
   )

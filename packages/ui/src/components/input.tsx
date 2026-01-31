@@ -1,7 +1,6 @@
 import * as React from "react";
 
 import { cn } from "@workspace/ui/lib/utils";
-import { Mail } from "lucide-react";
 
 function Input({
   className,
@@ -12,7 +11,7 @@ function Input({
   return (
     <div className="relative">
       <div className="absolute left-0 top-1/2 aspect-square -translate-y-1/2 text-muted-foreground/60 h-full border-r border-input flex items-center justify-center">
-        {icon || <Mail className="size-4" />}
+        {icon}
       </div>
 
       <input

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, Suspense } from "react"
+import React, { useState, Suspense, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { ColumnDef } from "@tanstack/react-table"
 import { Breadcrumbs } from "@/components/breadcrumbs"
@@ -25,15 +25,15 @@ import { SearchIcon, SlidersHorizontal, Plus, UserIcon } from "lucide-react"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { toast } from "sonner"
 import { Skeleton } from "@workspace/ui/components/skeleton"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-} from "@workspace/ui/components/card"
-import { useUsers, useDeleteUser, useRoles } from "@/lib/react-query/hooks"
+import { Card, CardContent, CardHeader } from "@workspace/ui/components/card"
 import type { User } from "@/lib/api/types"
 import { useFilterParams } from "@/hooks/use-filter-params"
 import type { FilterConfig } from "@/hooks/use-filter-params"
+import {
+  dummyRoles,
+  getUsers,
+  deleteUser as deleteUserFromStore,
+} from "./dummy-data"
 
 // Filter configuration
 const filterConfig: FilterConfig[] = [
@@ -50,30 +50,36 @@ const getRoleBadgeConfig = (role: { code: string; name: string }) => {
   const configs: Record<string, { label: string; className: string }> = {
     owner: {
       label: "Admin PT",
-      className: "border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-400",
+      className:
+        "border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-400",
     },
     "staf-toko": {
       label: "Staf Toko",
-      className: "border-yellow-500/20 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400",
+      className:
+        "border-yellow-500/20 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400",
     },
     "stock-opname": {
       label: "Stock Opname",
-      className: "border-green-500/20 bg-green-500/10 text-green-700 dark:text-green-400",
+      className:
+        "border-green-500/20 bg-green-500/10 text-green-700 dark:text-green-400",
     },
     lelang: {
       label: "Lelang",
-      className: "border-purple-500/20 bg-purple-500/10 text-purple-700 dark:text-purple-400",
+      className:
+        "border-purple-500/20 bg-purple-500/10 text-purple-700 dark:text-purple-400",
     },
     marketing: {
       label: "Marketing",
-      className: "border-blue-500/20 bg-blue-500/10 text-blue-700 dark:text-blue-400",
+      className:
+        "border-blue-500/20 bg-blue-500/10 text-blue-700 dark:text-blue-400",
     },
   }
 
   return (
     configs[role.code] || {
       label: role.name,
-      className: "border-gray-500/20 bg-gray-500/10 text-gray-700 dark:text-gray-400",
+      className:
+        "border-gray-500/20 bg-gray-500/10 text-gray-700 dark:text-gray-400",
     }
   )
 }
@@ -123,7 +129,11 @@ const columns: ColumnDef<User>[] = [
         <Avatar className="h-10 w-10">
           <AvatarImage src="" alt={user.fullName} />
           <AvatarFallback>
-            {user.fullName ? getInitials(user.fullName) : <UserIcon className="size-5" />}
+            {user.fullName ? (
+              getInitials(user.fullName)
+            ) : (
+              <UserIcon className="size-5" />
+            )}
           </AvatarFallback>
         </Avatar>
       )
@@ -148,7 +158,7 @@ const columns: ColumnDef<User>[] = [
     cell: ({ row }) => {
       const user = row.original
       const roles = user.roles || []
-      
+
       if (roles.length === 0) {
         return <span className="text-muted-foreground text-sm">-</span>
       }
@@ -214,34 +224,36 @@ function MasterPenggunaPageContent() {
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [filterDialogOpen, setFilterDialogOpen] = useState(false)
+  const [users, setUsers] = useState<User[]>(getUsers())
+  const [isLoading] = useState(false)
 
-  // Fetch roles for filter options
-  const { data: rolesData } = useRoles()
+  // Refresh users when component mounts or when navigating back
+  useEffect(() => {
+    setUsers(getUsers())
+  }, [])
+
+  // Role options for filter
   const roleOptions = React.useMemo(() => {
-    if (!rolesData?.data) return []
-    return rolesData.data.map((role) => ({
+    return dummyRoles.map((role) => ({
       label: getRoleBadgeConfig(role).label,
       value: role.code,
     }))
-  }, [rolesData?.data])
+  }, [])
 
   // Update filter config with role options
-  const filterConfigWithOptions: FilterConfig[] = React.useMemo(
-    () => {
-      const baseConfig = filterConfig[0]
-      if (!baseConfig) return []
-      return [
-        {
-          key: baseConfig.key,
-          label: baseConfig.label,
-          type: baseConfig.type,
-          placeholder: baseConfig.placeholder,
-          options: roleOptions,
-        },
-      ]
-    },
-    [roleOptions]
-  )
+  const filterConfigWithOptions: FilterConfig[] = React.useMemo(() => {
+    const baseConfig = filterConfig[0]
+    if (!baseConfig) return []
+    return [
+      {
+        key: baseConfig.key,
+        label: baseConfig.label,
+        type: baseConfig.type,
+        placeholder: baseConfig.placeholder,
+        options: roleOptions,
+      },
+    ]
+  }, [roleOptions])
 
   // Filter state management via URL params
   const { filterValues, setFilters } = useFilterParams(filterConfigWithOptions)
@@ -252,28 +264,30 @@ function MasterPenggunaPageContent() {
     return Array.isArray(roleValue) ? roleValue : []
   }, [filterValues.role])
 
-  // Build filter object for API
-  const apiFilters: Record<string, string | number> = {}
-  // Note: We filter by role on client-side since API might not support multiple roleCodes
-
-  // Fetch users
-  const { data, isLoading, isError } = useUsers({
-    pageSize,
-    query: searchValue || undefined,
-    filter: apiFilters,
-  })
-  const deleteMutation = useDeleteUser()
-
-  // Filter users by role on client side if roles are selected
+  // Filter users by search and role
   const filteredUsers = React.useMemo(() => {
-    if (!data?.data) return []
-    if (selectedRoles.length === 0) return data.data
+    let result = [...users]
 
-    return data.data.filter((user) => {
-      const userRoleCodes = user.roles?.map((r) => r.code) || []
-      return selectedRoles.some((roleCode) => userRoleCodes.includes(roleCode))
-    })
-  }, [data?.data, selectedRoles])
+    // Filter by search (email)
+    if (searchValue) {
+      const searchLower = searchValue.toLowerCase()
+      result = result.filter((user) =>
+        user.email.toLowerCase().includes(searchLower)
+      )
+    }
+
+    // Filter by role
+    if (selectedRoles.length > 0) {
+      result = result.filter((user) => {
+        const userRoleCodes = user.roles?.map((r) => r.code) || []
+        return selectedRoles.some((roleCode) =>
+          userRoleCodes.includes(roleCode)
+        )
+      })
+    }
+
+    return result
+  }, [users, searchValue, selectedRoles])
 
   const handleDetail = (row: User) => {
     router.push(`/master-pengguna/${row.uuid}`)
@@ -290,16 +304,13 @@ function MasterPenggunaPageContent() {
 
   const handleConfirmDelete = () => {
     if (selectedUser) {
-      deleteMutation.mutate(selectedUser.uuid, {
-        onSuccess: () => {
-          toast.success("Pengguna berhasil dihapus")
-          setIsConfirmDialogOpen(false)
-          setSelectedUser(null)
-        },
-        onError: (error) => {
-          toast.error(error.message || "Gagal menghapus pengguna")
-        },
-      })
+      // Remove user from dummy store
+      deleteUserFromStore(selectedUser.uuid)
+      // Update local state
+      setUsers(getUsers())
+      toast.success("Pengguna berhasil dihapus")
+      setIsConfirmDialogOpen(false)
+      setSelectedUser(null)
     }
   }
 
@@ -335,18 +346,12 @@ function MasterPenggunaPageContent() {
         {/* Data Table */}
         {isLoading ? (
           <TableSkeleton />
-        ) : isError ? (
-          <Card>
-            <CardContent className="py-10 text-center">
-              <p className="text-destructive">Gagal memuat data</p>
-            </CardContent>
-          </Card>
         ) : (
           <DataTable
             columns={columns}
             data={filteredUsers}
             title="Daftar Pengguna"
-            searchPlaceholder="Email"
+            searchPlaceholder="Search"
             filterConfig={filterConfigWithOptions}
             filterValues={filterValues}
             onFilterChange={setFilters}

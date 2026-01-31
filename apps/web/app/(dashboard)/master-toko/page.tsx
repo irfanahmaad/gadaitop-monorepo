@@ -358,7 +358,9 @@ export default function MasterTokoPage() {
   const [searchValue, setSearchValue] = useState("")
   const [activeTab, setActiveTab] = useState("toko-utama")
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
-  const [itemToDelete, setItemToDelete] = useState<Toko | RequestToko | null>(null)
+  const [itemToDelete, setItemToDelete] = useState<Toko | RequestToko | null>(
+    null
+  )
   const requestCount = sampleRequest.length
 
   const handleDetail = (row: Toko | RequestToko) => {
@@ -437,7 +439,7 @@ export default function MasterTokoPage() {
             columns={tokoColumns}
             data={sampleTokoUtama}
             title="Daftar Toko Utama"
-            searchPlaceholder="Email"
+            searchPlaceholder="Search"
             headerRight={
               <div className="flex w-full items-center gap-2 sm:w-auto">
                 <Select
@@ -485,7 +487,7 @@ export default function MasterTokoPage() {
             columns={tokoColumns}
             data={sampleTokoPinjaman}
             title="Daftar Toko Pinjaman"
-            searchPlaceholder="Email"
+            searchPlaceholder="Search"
             headerRight={
               <div className="flex w-full items-center gap-2 sm:w-auto">
                 <Select
@@ -533,7 +535,7 @@ export default function MasterTokoPage() {
             columns={requestColumns}
             data={sampleRequest}
             title="Daftar Request"
-            searchPlaceholder="Email"
+            searchPlaceholder="Search"
             headerRight={
               <div className="flex w-full items-center gap-2 sm:w-auto">
                 <Select
