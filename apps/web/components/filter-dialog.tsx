@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { X, RotateCcw, Check, CalendarIcon } from "lucide-react"
+import { X, RotateCcw, Check, CalendarIcon, CurrencyIcon } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -97,7 +97,7 @@ export function FilterDialog({
                 handleFilterChange(config.key, newValue || null)
               }
             >
-              <SelectTrigger id={config.key}>
+              <SelectTrigger id={config.key} className="w-full">
                 <SelectValue placeholder={config.placeholder || "Pilih..."} />
               </SelectTrigger>
               <SelectContent>
@@ -119,7 +119,7 @@ export function FilterDialog({
           from: null,
           to: null,
         }
-        const currency = config.currency || "Rp"
+        const currency = config.currency || ""
 
         return (
           <div key={config.key} className="space-y-4">
@@ -150,6 +150,7 @@ export function FilterDialog({
                       })
                     }}
                     className="pl-12"
+                    icon={<>Rp</>}
                   />
                 </div>
               </div>
@@ -178,6 +179,7 @@ export function FilterDialog({
                       })
                     }}
                     className="pl-12"
+                    icon={<>Rp</>}
                   />
                 </div>
               </div>

@@ -1,0 +1,87 @@
+---
+description: Show a confirmation dialog before saving/submitting data in web app forms
+globs: "apps/web/**/*.tsx"
+alwaysApply: false
+---
+
+# Save Confirmation Dialog (Frontend / Web App)
+
+When the user submits a form that **saves or updates data** (e.g. approve, reject, create, update), show a confirmation dialog **before** performing the action. This reduces accidental submissions and aligns with the product’s “confirm again before saving” behaviour.
+
+## When to Use
+
+- **Use** for actions that persist data: approve, reject, submit, save, create, update.
+- **Optional** for low-risk actions (e.g. opening a detail view).
+- **Do not** replace with a simple alert; use the shared `ConfirmationDialog` component.
+
+## Requirements
+
+### 1. Flow
+
+1. User fills the form and clicks the primary submit button (e.g. “Simpan”, “Ya”).
+2. **Do not** submit immediately. Open a confirmation dialog instead.
+3. Confirmation dialog shows:
+   - Title (e.g. “Confirmation Dialog”).
+   - Main question: “Apakah Anda Yakin?”
+   - Description of what will happen (e.g. “Anda akan menyimpan data … ke dalam sistem.”).
+   - Note: “Pastikan kembali sebelum menyimpan data.”
+   - Buttons: **Batal** (cancel) and **Ya** (confirm).
+4. If user clicks **Batal**: close the confirmation dialog only; keep the form open.
+5. If user clicks **Ya**: run the actual save/submit, then close both the confirmation and the form.
+
+### 2. Component
+
+Use the shared confirmation dialog:
+
+```tsx
+import { ConfirmationDialog } from "@/components/confirmation-dialog"
+```
+
+For **save/update** flows use the **info** variant (blue icon, Batal left / Ya right):
+
+```tsx
+<ConfirmationDialog
+  open={confirmOpen}
+  onOpenChange={setConfirmOpen}
+  onConfirm={handleConfirmSubmit}
+  dialogTitle="Confirmation Dialog"
+  title="Apakah Anda Yakin?"
+  description="Anda akan menyimpan data [context] ke dalam sistem."
+  note="Pastikan kembali sebelum menyimpan data."
+  confirmLabel="Ya"
+  cancelLabel="Batal"
+  variant="info"
+/>
+```
+
+For **destructive** flows (e.g. delete), keep the default variant (red icon, confirm then cancel).
+
+### 3. Implementation Pattern
+
+1. Add state for the confirmation dialog and pending submit:
+   - `confirmOpen` (boolean).
+   - `pendingSubmit` (e.g. `{ row, data }` or form values) set when the user clicks Simpan and validation passes.
+2. On form submit (Simpan):
+   - Validate the form.
+   - If valid: set `pendingSubmit` from current form/row data, then `setConfirmOpen(true)`.
+   - Do **not** call the API or parent `onConfirm` yet.
+3. In the confirmation dialog’s `onConfirm`:
+   - Call the actual submit (e.g. `onConfirm(pendingSubmit.row, pendingSubmit.data)` or API).
+   - Clear `pendingSubmit`, close the confirmation (`setConfirmOpen(false)`), and close the form dialog if applicable.
+
+### 4. Copy Guidelines
+
+- **Title:** “Confirmation Dialog” (or short context title).
+- **Question:** “Apakah Anda Yakin?”
+- **Description:** “Anda akan [action] [context] ke dalam sistem.” (e.g. “Anda akan menyimpan data Tambah Modal baru ke dalam sistem.”)
+- **Note:** “Pastikan kembali sebelum menyimpan data.”
+- **Buttons:** Batal (cancel), Ya (confirm).
+
+Adjust the description to match the feature (Tambah Modal, approval, rejection, etc.).
+
+## Summary
+
+- ✅ Show confirmation **before** save/submit when the user clicks Simpan (or equivalent).
+- ✅ Use `ConfirmationDialog` with `variant="info"` for save flows.
+- ✅ Keep Batal = close confirmation only; Ya = run submit then close confirmation and form.
+- ❌ Do not submit directly from the form button without this confirmation step for save/update actions.
