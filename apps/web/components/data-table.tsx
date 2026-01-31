@@ -65,6 +65,9 @@ interface DataTableProps<TData, TValue> {
   filterConfig?: FilterConfig[]
   filterValues?: Record<string, unknown>
   onFilterChange?: (filters: Record<string, unknown>) => void
+  /** When using custom headerRight with a Filter button, pass these to control the dialog open state */
+  filterDialogOpen?: boolean
+  onFilterDialogOpenChange?: (open: boolean) => void
   onDetail?: (row: TData) => void
   onEdit?: (row: TData) => void
   onDelete?: (row: TData) => void
@@ -85,6 +88,8 @@ export function DataTable<TData, TValue>({
   filterConfig,
   filterValues = {},
   onFilterChange,
+  filterDialogOpen: controlledFilterDialogOpen,
+  onFilterDialogOpenChange,
   onDetail,
   onEdit,
   onDelete,
@@ -101,7 +106,14 @@ export function DataTable<TData, TValue>({
     React.useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = React.useState({})
   const [internalGlobalFilter, setInternalGlobalFilter] = React.useState("")
-  const [filterDialogOpen, setFilterDialogOpen] = React.useState(false)
+  const [internalFilterDialogOpen, setInternalFilterDialogOpen] =
+    React.useState(false)
+  const filterDialogOpen =
+    controlledFilterDialogOpen !== undefined
+      ? controlledFilterDialogOpen
+      : internalFilterDialogOpen
+  const setFilterDialogOpen =
+    onFilterDialogOpenChange ?? setInternalFilterDialogOpen
 
   // Use controlled search value if provided, otherwise use internal state
   const globalFilter =

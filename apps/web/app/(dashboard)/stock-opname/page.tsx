@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
+import { useRouter } from "next/navigation"
 import { ColumnDef } from "@tanstack/react-table"
 import { Breadcrumbs } from "@/components/breadcrumbs"
 import { DataTable } from "@/components/data-table"
@@ -179,6 +180,7 @@ const columns: ColumnDef<StockOpname>[] = [
 ]
 
 export default function StockOpnamePage() {
+  const router = useRouter()
   const [pageSize, setPageSize] = useState(100)
   const [searchValue, setSearchValue] = useState("")
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
@@ -194,8 +196,7 @@ export default function StockOpnamePage() {
   }
 
   const handleDetail = (row: StockOpname) => {
-    console.log("Detail:", row)
-    // Implement detail action
+    router.push(`/stock-opname/${row.id}`)
   }
 
   const handleEdit = (row: StockOpname) => {
@@ -294,7 +295,7 @@ export default function StockOpnamePage() {
           <CalendarView
             data={sampleData}
             isLoading={false}
-            onDetail={(item) => console.log("Detail:", item)}
+            onDetail={(item) => router.push(`/stock-opname/${item.id}`)}
             onEdit={(item) => console.log("Edit:", item)}
             onDelete={(item) => console.log("Delete:", item)}
           />

@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { X, RotateCcw, Check } from "lucide-react"
+import { X, RotateCcw, Check, CalendarIcon } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -21,6 +21,7 @@ import {
 } from "@workspace/ui/components/select"
 import { FilterConfig } from "@/hooks/use-filter-params"
 import { formatCurrencyInput, parseCurrencyInput } from "@/lib/format-currency"
+import { MultiSelectCombobox } from "@/components/multi-select-combobox"
 
 interface FilterDialogProps {
   open: boolean
@@ -64,6 +65,8 @@ export function FilterDialog({
         config.type === "daterange"
       ) {
         resetFilters[config.key] = { from: null, to: null }
+      } else if (config.type === "multiselect") {
+        resetFilters[config.key] = []
       } else {
         resetFilters[config.key] = null
       }
@@ -289,6 +292,8 @@ export function FilterDialog({
           from: null,
           to: null,
         }
+        const labelFrom = config.labelFrom ?? "Dari"
+        const labelTo = config.labelTo ?? "Sampai Dengan"
 
         return (
           <div key={config.key} className="space-y-4">
@@ -296,37 +301,66 @@ export function FilterDialog({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor={`${config.key}-from`} className="text-sm">
-                  Dari
+                  {labelFrom}
                 </Label>
-                <Input
-                  id={`${config.key}-from`}
-                  type="date"
-                  value={dateRangeValue.from ?? ""}
-                  onChange={(e) =>
-                    handleFilterChange(config.key, {
-                      ...dateRangeValue,
-                      from: e.target.value,
-                    })
-                  }
-                />
+                <div className="relative">
+                  <CalendarIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+                  <Input
+                    id={`${config.key}-from`}
+                    type="date"
+                    value={dateRangeValue.from ?? ""}
+                    onChange={(e) =>
+                      handleFilterChange(config.key, {
+                        ...dateRangeValue,
+                        from: e.target.value,
+                      })
+                    }
+                    className="pl-10"
+                  />
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor={`${config.key}-to`} className="text-sm">
-                  Sampai Dengan
+                  {labelTo}
                 </Label>
-                <Input
-                  id={`${config.key}-to`}
-                  type="date"
-                  value={dateRangeValue.to ?? ""}
-                  onChange={(e) =>
-                    handleFilterChange(config.key, {
-                      ...dateRangeValue,
-                      to: e.target.value,
-                    })
-                  }
-                />
+                <div className="relative">
+                  <CalendarIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+                  <Input
+                    id={`${config.key}-to`}
+                    type="date"
+                    value={dateRangeValue.to ?? ""}
+                    onChange={(e) =>
+                      handleFilterChange(config.key, {
+                        ...dateRangeValue,
+                        to: e.target.value,
+                      })
+                    }
+                    className="pl-10"
+                  />
+                </div>
               </div>
             </div>
+          </div>
+        )
+      }
+
+      case "multiselect": {
+        const selected = (value as string[] | undefined) ?? []
+        const options = config.options ?? []
+
+        return (
+          <div key={config.key} className="space-y-2">
+            <Label htmlFor={config.key}>{config.label}</Label>
+            <MultiSelectCombobox
+              options={options}
+              selected={selected}
+              onSelectedChange={(newSelected) =>
+                handleFilterChange(config.key, newSelected)
+              }
+              placeholder={config.placeholder ?? "Pilih..."}
+              searchPlaceholder="Cari..."
+              emptyMessage="Tidak ada hasil."
+            />
           </div>
         )
       }

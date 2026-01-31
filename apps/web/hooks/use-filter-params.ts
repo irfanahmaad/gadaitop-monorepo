@@ -11,6 +11,7 @@ export type FilterType =
   | "number"
   | "numberrange"
   | "currencyrange"
+  | "multiselect"
 
 export interface FilterConfig {
   key: string
@@ -19,6 +20,10 @@ export interface FilterConfig {
   options?: { label: string; value: string }[]
   placeholder?: string
   currency?: string
+  /** For daterange: label for "from" field (e.g. "Mulai Dari") */
+  labelFrom?: string
+  /** For daterange: label for "to" field (e.g. "Sampai Dengan") */
+  labelTo?: string
 }
 
 interface UseFilterParamsReturn {
@@ -66,6 +71,17 @@ export function useFilterParams(
             }
           } catch {
             // Invalid JSON, skip
+          }
+        } else if (config.type === "multiselect") {
+          try {
+            const arr = JSON.parse(paramValue) as string[]
+            if (Array.isArray(arr)) {
+              values[config.key] = arr
+            }
+          } catch {
+            // Fallback: comma-separated
+            const arr = paramValue.split(",").map((s) => s.trim()).filter(Boolean)
+            if (arr.length) values[config.key] = arr
           }
         } else {
           // Handle simple types
@@ -129,6 +145,13 @@ export function useFilterParams(
         } else {
           stringValue = null
         }
+      } else if (config.type === "multiselect") {
+        const arr = value as string[]
+        if (Array.isArray(arr) && arr.length) {
+          stringValue = JSON.stringify(arr)
+        } else {
+          stringValue = null
+        }
       } else if (config.type === "number") {
         stringValue = String(value)
       } else {
@@ -163,6 +186,13 @@ export function useFilterParams(
               to: rangeValue.to ?? null,
             }
             updates[key] = JSON.stringify(serialized)
+          } else {
+            updates[key] = null
+          }
+        } else if (config.type === "multiselect") {
+          const arr = value as string[]
+          if (Array.isArray(arr) && arr.length) {
+            updates[key] = JSON.stringify(arr)
           } else {
             updates[key] = null
           }

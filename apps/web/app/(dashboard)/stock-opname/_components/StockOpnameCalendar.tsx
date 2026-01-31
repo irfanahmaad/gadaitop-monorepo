@@ -156,11 +156,11 @@ export function StockOpnameCalendar({
       {/* Calendar Grid */}
       <div className="overflow-hidden rounded-lg border">
         {/* Days header */}
-        <div className="grid grid-cols-7 border-b bg-muted/30">
+        <div className="bg-muted/30 grid grid-cols-7 border-b">
           {DAYS.map((day) => (
             <div
               key={day}
-              className="border-r p-2 text-center text-xs font-medium text-muted-foreground last:border-r-0"
+              className="text-muted-foreground border-r p-2 text-center text-xs font-medium last:border-r-0"
             >
               {day}
             </div>
@@ -181,7 +181,7 @@ export function StockOpnameCalendar({
                   key={`${weekIndex}-${dayIndex}`}
                   onClick={() => onSelectDate(date)}
                   className={cn(
-                    "group relative flex min-h-[100px] flex-col border-b border-r p-2 text-left transition-colors hover:bg-muted/50",
+                    "group hover:bg-muted/50 relative flex min-h-[100px] flex-col border-r border-b p-2 text-left transition-colors",
                     dayIndex === 6 && "border-r-0",
                     weekIndex === weeks.length - 1 && "border-b-0",
                     !isCurrentMonth && "bg-muted/20",
@@ -193,8 +193,7 @@ export function StockOpnameCalendar({
                     className={cn(
                       "flex size-7 items-center justify-center rounded-full text-sm",
                       !isCurrentMonth && "text-muted-foreground",
-                      isTodayDate &&
-                        "bg-destructive font-semibold text-destructive-foreground",
+                      isTodayDate && "bg-destructive font-semibold text-white",
                       isSelected && !isTodayDate && "font-semibold"
                     )}
                   >
