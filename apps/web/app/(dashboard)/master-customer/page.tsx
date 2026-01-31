@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
+import { useRouter } from "next/navigation"
 import { ColumnDef } from "@tanstack/react-table"
 import { Breadcrumbs } from "@/components/breadcrumbs"
 import { DataTable } from "@/components/data-table"
@@ -195,14 +196,14 @@ const customerColumns: ColumnDef<Customer>[] = [
 ]
 
 export default function MasterCustomerPage() {
+  const router = useRouter()
   const [pageSize, setPageSize] = useState(100)
   const [searchValue, setSearchValue] = useState("")
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
   const [itemToDelete, setItemToDelete] = useState<Customer | null>(null)
 
   const handleDetail = (row: Customer) => {
-    console.log("Detail:", row)
-    // Implement detail action
+    router.push(`/master-customer/${row.id}`)
   }
 
   const handleEdit = (row: Customer) => {

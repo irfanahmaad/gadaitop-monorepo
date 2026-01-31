@@ -1,0 +1,113 @@
+---
+description: Standard layout for detail pages (entity detail views)
+globs: "**/app/(dashboard)/**/[id]/**/*.tsx,**/app/(dashboard)/**/[slug]/**/*.tsx"
+alwaysApply: true
+---
+
+# Detail Page Layout
+
+Detail pages (entity detail views, e.g. Master Customer detail, Super Admin detail) MUST use the same layout structure for consistency across the app.
+
+## Requirements
+
+### 1. Page Structure
+
+**Every detail page MUST have:**
+
+- **Header section:** Page title (entity name) and breadcrumbs in a flex column.
+- **Data card:** A single main `Card` containing the entity’s detail information.
+- Optional: Additional cards below (e.g. "Daftar SPK" table) when the entity has related lists.
+
+### 2. Data Card Layout
+
+**The main data card MUST use this structure:**
+
+```tsx
+<Card>
+  <CardHeader>
+    <CardTitle>Data [Entity Name]</CardTitle>
+  </CardHeader>
+  <CardContent>
+    <div className="grid grid-cols-1 gap-8 lg:grid-cols-[250px_1fr]">
+      {/* Profile / Avatar column (left) */}
+      <div className="flex justify-center">
+        <Avatar className="size-48">
+          <AvatarImage src={...} alt={...} />
+          <AvatarFallback>
+            <UserIcon className="text-muted-foreground size-24" />
+          </AvatarFallback>
+        </Avatar>
+      </div>
+
+      {/* Detail content (right) */}
+      <div className="space-y-8">
+        {/* Section 1, Section 2, ... */}
+      </div>
+    </div>
+  </CardContent>
+</Card>
+```
+
+- **Grid:** `grid grid-cols-1 gap-8 lg:grid-cols-[250px_1fr]` — avatar column 250px, content takes remaining space.
+- **Avatar column:** Centered with `flex justify-center`. Avatar size `size-48`, fallback icon `size-24` with `text-muted-foreground`.
+- **Content column:** Use `space-y-8` between sections.
+
+### 3. Section Structure (Detail blocks)
+
+**Each logical section (e.g. "Detail Customer", "Detail Kontak") MUST follow:**
+
+```tsx
+<div className="space-y-4">
+  {/* Section title: icon + heading */}
+  <div className="flex items-center gap-3">
+    <SectionIcon className="text-destructive size-6" />
+    <h2 className="text-destructive text-lg font-semibold">
+      [Section Title]
+    </h2>
+  </div>
+
+  {/* Fields in two-column grid */}
+  <div className="grid gap-6 md:grid-cols-2">
+    <div className="space-y-2">
+      <label className="text-muted-foreground text-sm font-medium">
+        [Field Label]
+      </label>
+      <p className="text-base">[Field Value]</p>
+    </div>
+    {/* ... more fields */}
+  </div>
+</div>
+```
+
+- **Section title:** Icon (`text-destructive size-6`) + `h2` (`text-destructive text-lg font-semibold`), wrapped in `flex items-center gap-3`.
+- **Fields:** `grid gap-6 md:grid-cols-2`. Each field: `space-y-2`, label with `text-muted-foreground text-sm font-medium`, value with `p className="text-base"`.
+
+### 4. Typography and Colors
+
+- **Card title:** `CardTitle` (e.g. "Data Customer", "Data Super Admin").
+- **Section titles:** Red/destructive: `text-destructive text-lg font-semibold` and icon `text-destructive size-6`.
+- **Labels:** `text-muted-foreground text-sm font-medium`.
+- **Values:** `text-base` (default text color).
+
+### 5. Skeleton for Detail Card
+
+**Loading state MUST mirror this layout** (see skeleton-loader rule):
+
+- Same grid: avatar column (centered circular skeleton `size-48`) and content column.
+- For each section: skeleton for icon + title line, then a two-column grid of label/value skeletons matching field count.
+
+### 6. Reference Implementations
+
+Use these as the source of truth for structure and class names:
+
+- `apps/web/app/(dashboard)/super-admin/[slug]/page.tsx` — Data Super Admin card.
+- `apps/web/app/(dashboard)/master-customer/[id]/page.tsx` — Data Customer card (with multiple sections: Detail Customer, Detail Kontak).
+
+## Summary
+
+- ✅ One main data card with `CardHeader` + `CardContent`.
+- ✅ Layout: `lg:grid-cols-[250px_1fr]` — avatar left (centered, `size-48`), content right.
+- ✅ Sections: icon + `h2` in red (`text-destructive`), then `grid gap-6 md:grid-cols-2` for fields.
+- ✅ Each field: label (`text-muted-foreground text-sm font-medium`) + value (`text-base`).
+- ✅ Detail skeleton matches this layout.
+- ❌ Do not use a different grid, avatar size, or section styling for detail data cards.

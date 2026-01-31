@@ -1,0 +1,124 @@
+---
+description: Standard layout for add/edit form pages (Tambah Data, Create, Edit)
+globs: "**/app/(dashboard)/**/tambah/**/*.tsx,**/app/(dashboard)/**/create/**/*.tsx,**/app/(dashboard)/**/*/edit/**/*.tsx"
+alwaysApply: true
+---
+
+# Add/Edit Form Page Layout
+
+Add and edit form pages (e.g. Tambah Master Toko, Create PT, Edit Super Admin) MUST use the same layout structure for consistency across the app. This rule adapts the detail-page-layout pattern for data entry forms.
+
+## Requirements
+
+### 1. Page Structure
+
+**Every add/edit form page MUST have:**
+
+- **Header section:** Page title (e.g. "Tambah Data") and breadcrumbs in a flex column. Current page in breadcrumbs styled with `className: "text-destructive"`.
+- **Data card:** A single main `Card` with `CardHeader` (e.g. "Data Toko", "Data PT") and `CardContent` containing the form.
+- **Action buttons:** Batal (outline) and Simpan (primary/destructive) at the bottom right of the form.
+
+### 2. Form Card Layout
+
+**The main form card MUST use this structure:**
+
+```tsx
+<Card>
+  <CardHeader>
+    <CardTitle>Data [Entity Name]</CardTitle>
+  </CardHeader>
+  <CardContent>
+    <Form {...form}>
+      <form className="grid grid-cols-1 gap-8 lg:grid-cols-[250px_1fr]">
+        {/* Image upload column (left, 250px) */}
+        <div className="flex justify-center">
+          {/* Avatar / Image upload area */}
+        </div>
+
+        {/* Form fields column (right) */}
+        <div className="space-y-8">
+          {/* Sections with form fields */}
+          {/* Action buttons at bottom */}
+        </div>
+      </form>
+    </Form>
+  </CardContent>
+</Card>
+```
+
+- **Grid:** `grid grid-cols-1 gap-8 lg:grid-cols-[250px_1fr]` — image column 250px, content takes remaining space.
+- **Image column:** Centered with `flex justify-center`. Use circular upload area (`aspect-square w-48 rounded-full border-2 border-dashed`) with "Upload Gambar" placeholder, or `Avatar` when entity has a profile image. When image exists, show edit/remove button (e.g. Pencil or X icon) overlapping bottom-right.
+- **Content column:** Use `space-y-8` between sections.
+
+### 3. Section Structure (Form sections)
+
+**Each logical section (e.g. "Detail Toko", "Detail PT") MUST follow:**
+
+```tsx
+<div className="space-y-4">
+  <div className="flex items-center gap-3">
+    <SectionIcon className="text-destructive size-6" />
+    <h2 className="text-destructive text-lg font-semibold">
+      [Section Title]
+    </h2>
+  </div>
+  <div className="grid gap-6 md:grid-cols-2">
+    <FormField ... />
+    {/* More fields */}
+    {/* Full-width field: add className="md:col-span-2" to FormItem */}
+  </div>
+</div>
+```
+
+- **Section title:** Icon (`text-destructive size-6`) + `h2` (`text-destructive text-lg font-semibold`), wrapped in `flex items-center gap-3`.
+- **Fields:** `grid gap-6 md:grid-cols-2`. Use `FormField` with `FormLabel` and `FormControl`. Required fields: add `<span className="text-destructive">*</span>` after label.
+- **Full-width fields** (e.g. Textarea for Alamat): add `className="md:col-span-2"` to `FormItem`.
+
+### 4. Action Buttons
+
+**At the bottom of the form content column:**
+
+```tsx
+<div className="flex justify-end gap-4 pt-4">
+  <Button type="button" variant="outline" onClick={handleBatal}>
+    <X className="mr-2 size-4" />
+    Batal
+  </Button>
+  <Button
+    type="button"
+    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+    onClick={handleSimpan}
+    disabled={isSubmitting}
+  >
+    {isSubmitting ? <>...</> : "Simpan"}
+  </Button>
+</div>
+```
+
+- **Batal:** Outline variant, navigates back (e.g. `router.push` or `router.back()`).
+- **Simpan:** Red/destructive style, triggers save flow (with confirmation dialog per save-confirmation-dialog rule).
+
+### 5. Save Confirmation
+
+**For save/submit actions:** Use `ConfirmationDialog` with `variant="info"` before persisting (see save-confirmation-dialog rule). Flow: Simpan click → validate → open dialog → user clicks Ya → run API/submit.
+
+### 6. Skeleton for Form with Initial Data
+
+**When the form loads initial data (edit form):** Use a form skeleton that mirrors this layout: circular skeleton for image, section title skeletons, and field skeletons in `md:grid-cols-2` grid.
+
+### 7. Reference Implementations
+
+Use these as the source of truth:
+
+- `apps/web/app/(dashboard)/master-toko/tambah/page.tsx` — Tambah Data Toko.
+- `apps/web/app/(dashboard)/pt/create/page.tsx` — Create PT.
+- `apps/web/app/(dashboard)/super-admin/create/page.tsx` — Create Super Admin.
+
+## Summary
+
+- ✅ One main `Card` with `CardHeader` + `CardContent`.
+- ✅ Layout: `lg:grid-cols-[250px_1fr]` — image/avatar left (centered, `w-48` circular), form content right.
+- ✅ Sections: icon + `h2` in red (`text-destructive`), then `grid gap-6 md:grid-cols-2` for fields.
+- ✅ Batal (outline) + Simpan (red) buttons at bottom right.
+- ✅ Save confirmation dialog before persisting.
+- ❌ Do not use a different grid, avatar/upload size, or section styling for add/edit form pages.

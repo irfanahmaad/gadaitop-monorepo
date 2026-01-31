@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
+import { useRouter } from "next/navigation"
 import { ColumnDef } from "@tanstack/react-table"
 import { Breadcrumbs } from "@/components/breadcrumbs"
 import { DataTable } from "@/components/data-table"
@@ -361,8 +362,7 @@ export default function MasterTokoPage() {
   const requestCount = sampleRequest.length
 
   const handleDetail = (row: Toko | RequestToko) => {
-    console.log("Detail:", row)
-    // Implement detail action
+    router.push(`/master-toko/${row.id}`)
   }
 
   const handleEdit = (row: Toko | RequestToko) => {
@@ -382,9 +382,10 @@ export default function MasterTokoPage() {
     }
   }
 
+  const router = useRouter()
+
   const handleTambahData = () => {
-    console.log("Tambah Data")
-    // Implement add data action
+    router.push("/master-toko/tambah")
   }
 
   return (
