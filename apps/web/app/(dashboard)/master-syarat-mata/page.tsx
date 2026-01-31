@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
+import { useRouter } from "next/navigation"
 import { ColumnDef } from "@tanstack/react-table"
 import { Breadcrumbs } from "@/components/breadcrumbs"
 import { DataTable } from "@/components/data-table"
@@ -17,6 +18,8 @@ import { Input } from "@workspace/ui/components/input"
 import { SearchIcon, SlidersHorizontal, Plus } from "lucide-react"
 import { formatCurrencyDisplay } from "@/lib/format-currency"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
+import { FilterDialog } from "@/components/filter-dialog"
+import { useFilterParams, FilterConfig } from "@/hooks/use-filter-params"
 
 // Type for Syarat Mata
 type SyaratMata = {
@@ -150,6 +153,30 @@ function formatDate(date: Date): string {
   return `${day} ${month} ${year} ${hours}:${minutes}:${seconds}`
 }
 
+// Kondisi Barang options
+const kondisiBarangOptions = [
+  { label: "Ada & Kondisi Sesuai", value: "Ada & Kondisi Sesuai" },
+  { label: "Ada Namun Mismatch", value: "Ada Namun Mismatch" },
+]
+
+// Filter configuration
+const filterConfig: FilterConfig[] = [
+  {
+    key: "lastUpdate",
+    label: "",
+    type: "daterange",
+    labelFrom: "Last Update Mulai Dari",
+    labelTo: "Sampai Dengan",
+  },
+  {
+    key: "kondisiBarang",
+    label: "Kondisi Barang",
+    type: "multiselect",
+    placeholder: "Pilih Kondisi Barang...",
+    options: kondisiBarangOptions,
+  },
+]
+
 // Column definitions for Syarat Mata
 const syaratMataColumns: ColumnDef<SyaratMata>[] = [
   {
@@ -216,14 +243,73 @@ const syaratMataColumns: ColumnDef<SyaratMata>[] = [
 ]
 
 export default function MasterSyaratMataPage() {
+  const router = useRouter()
   const [pageSize, setPageSize] = useState(100)
   const [searchValue, setSearchValue] = useState("")
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
   const [itemToDelete, setItemToDelete] = useState<SyaratMata | null>(null)
+  const [filterDialogOpen, setFilterDialogOpen] = useState(false)
+
+  // Filter state management via URL params
+  const { filterValues, setFilters } = useFilterParams(filterConfig)
+
+  // Filter data based on filter values
+  const filteredSyaratMata = React.useMemo(() => {
+    let result = [...sampleSyaratMata]
+
+    // Get filter values
+    const lastUpdateRange = (filterValues.lastUpdate as {
+      from: string | null
+      to: string | null
+    }) || { from: null, to: null }
+
+    const selectedKondisiBarang =
+      (filterValues.kondisiBarang as string[] | undefined) || []
+
+    // Filter by search (namaAturan or tipeBarang)
+    if (searchValue) {
+      const searchLower = searchValue.toLowerCase()
+      result = result.filter(
+        (item) =>
+          item.namaAturan.toLowerCase().includes(searchLower) ||
+          item.tipeBarang.toLowerCase().includes(searchLower)
+      )
+    }
+
+    // Filter by last update date range
+    if (lastUpdateRange.from || lastUpdateRange.to) {
+      result = result.filter((item) => {
+        const itemDate = new Date(item.lastUpdatedAt)
+        itemDate.setHours(0, 0, 0, 0)
+
+        if (lastUpdateRange.from) {
+          const fromDate = new Date(lastUpdateRange.from)
+          fromDate.setHours(0, 0, 0, 0)
+          if (itemDate < fromDate) return false
+        }
+
+        if (lastUpdateRange.to) {
+          const toDate = new Date(lastUpdateRange.to)
+          toDate.setHours(23, 59, 59, 999)
+          if (itemDate > toDate) return false
+        }
+
+        return true
+      })
+    }
+
+    // Filter by kondisi barang
+    if (selectedKondisiBarang.length > 0) {
+      result = result.filter((item) =>
+        selectedKondisiBarang.includes(item.kondisiBarang)
+      )
+    }
+
+    return result
+  }, [searchValue, filterValues])
 
   const handleDetail = (row: SyaratMata) => {
-    console.log("Detail:", row)
-    // Implement detail action
+    router.push(`/master-syarat-mata/${row.id}`)
   }
 
   const handleEdit = (row: SyaratMata) => {
@@ -244,8 +330,7 @@ export default function MasterSyaratMataPage() {
   }
 
   const handleTambahData = () => {
-    console.log("Tambah Data")
-    // Implement add data action
+    router.push("/master-syarat-mata/tambah")
   }
 
   return (
@@ -275,7 +360,7 @@ export default function MasterSyaratMataPage() {
       {/* Data Table */}
       <DataTable
         columns={syaratMataColumns}
-        data={sampleSyaratMata}
+        data={filteredSyaratMata}
         title="Daftar Katalog"
         searchPlaceholder="Cari..."
         headerRight={
@@ -303,7 +388,11 @@ export default function MasterSyaratMataPage() {
                 className="w-full"
               />
             </div>
-            <Button variant="outline" className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              className="flex items-center gap-2"
+              onClick={() => setFilterDialogOpen(true)}
+            >
               <SlidersHorizontal className="h-4 w-4" />
               Filter
             </Button>
@@ -316,6 +405,15 @@ export default function MasterSyaratMataPage() {
         onDetail={handleDetail}
         onEdit={handleEdit}
         onDelete={handleDelete}
+      />
+
+      {/* Filter Dialog */}
+      <FilterDialog
+        open={filterDialogOpen}
+        onOpenChange={setFilterDialogOpen}
+        filterConfig={filterConfig}
+        filterValues={filterValues}
+        onFilterChange={setFilters}
       />
 
       {/* Confirmation Dialog for Delete */}
