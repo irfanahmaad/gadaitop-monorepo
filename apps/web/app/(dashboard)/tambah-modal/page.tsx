@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useMemo, useState } from "react"
+import React, { useMemo, useState, Suspense } from "react"
 import { Breadcrumbs } from "@/components/breadcrumbs"
 import { Badge } from "@workspace/ui/components/badge"
 import {
@@ -143,7 +143,7 @@ function applyTambahModalFilters(
   return result
 }
 
-export default function TambahModalPage() {
+function TambahModalPageContent() {
   const { filterValues, setFilters } = useFilterParams(TAMBAH_MODAL_FILTER_CONFIG)
   const [activeTab, setActiveTab] = useState("request")
   const [pageSize, setPageSize] = useState(10)
@@ -298,5 +298,13 @@ export default function TambahModalPage() {
         isSubmitting={isTolakSubmitting}
       />
     </div>
+  )
+}
+
+export default function TambahModalPage() {
+  return (
+    <Suspense fallback={<div className="flex flex-col gap-6">Loading...</div>}>
+      <TambahModalPageContent />
+    </Suspense>
   )
 }
