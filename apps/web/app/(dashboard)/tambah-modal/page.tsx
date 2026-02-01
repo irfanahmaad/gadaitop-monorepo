@@ -3,6 +3,8 @@
 import React, { useMemo, useState, Suspense } from "react"
 import { Breadcrumbs } from "@/components/breadcrumbs"
 import { Badge } from "@workspace/ui/components/badge"
+import { Button } from "@workspace/ui/components/button"
+import { Plus } from "lucide-react"
 import {
   Tabs,
   TabsList,
@@ -15,6 +17,8 @@ import { RequestTambahModalTable } from "./_components/request-tambah-modal-tabl
 import { HistoryTambahModalTable } from "./_components/history-tambah-modal-table"
 import { SetujuiRequestDialog } from "./_components/setujui-request-dialog"
 import { TolakRequestDialog } from "./_components/tolak-request-dialog"
+import { TambahDataDialog } from "./_components/tambah-data-dialog"
+import { EditRequestDialog } from "./_components/edit-request-dialog"
 import { TAMBAH_MODAL_FILTER_CONFIG } from "./_components/filter-config"
 import type { RequestTambahModal } from "./_components/types"
 
@@ -159,6 +163,11 @@ function TambahModalPageContent() {
   const [tolakRow, setTolakRow] = useState<RequestTambahModal | null>(null)
   const [isSetujuiSubmitting, setIsSetujuiSubmitting] = useState(false)
   const [isTolakSubmitting, setIsTolakSubmitting] = useState(false)
+  const [tambahDataDialogOpen, setTambahDataDialogOpen] = useState(false)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [editRow, setEditRow] = useState<RequestTambahModal | null>(null)
+  const [isTambahDataSubmitting, setIsTambahDataSubmitting] = useState(false)
+  const [isEditSubmitting, setIsEditSubmitting] = useState(false)
 
   const filteredRequestData = useMemo(
     () => applyTambahModalFilters(sampleRequestTambahModal, filterValues),
@@ -210,7 +219,35 @@ function TambahModalPageContent() {
   }
 
   const handleEdit = (row: RequestTambahModal) => {
-    console.log("Edit:", row)
+    setEditRow(row)
+    setEditDialogOpen(true)
+  }
+
+  const handleTambahData = () => {
+    setTambahDataDialogOpen(true)
+  }
+
+  const handleTambahDataConfirm = async (data: { nominal: number }) => {
+    setIsTambahDataSubmitting(true)
+    try {
+      console.log("Tambah Data:", data)
+      // TODO: wire to API, e.g. await createRequest(data)
+    } finally {
+      setIsTambahDataSubmitting(false)
+    }
+  }
+
+  const handleEditConfirm = async (
+    row: RequestTambahModal,
+    data: { nominal: number }
+  ) => {
+    setIsEditSubmitting(true)
+    try {
+      console.log("Edit:", row, data)
+      // TODO: wire to API, e.g. await updateRequest(row.id, data)
+    } finally {
+      setIsEditSubmitting(false)
+    }
   }
 
   const handleDelete = (row: RequestTambahModal) => {
@@ -219,11 +256,22 @@ function TambahModalPageContent() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-bold">Tambah Modal</h1>
-        <Breadcrumbs
-          items={[{ label: "Pages", href: "/" }, { label: "Tambah Modal" }]}
-        />
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-2xl font-bold">Tambah Modal</h1>
+          <Breadcrumbs
+            items={[{ label: "Pages", href: "/" }, { label: "Tambah Modal" }]}
+          />
+        </div>
+
+        {/* Tambah Data Button */}
+        <Button
+          onClick={handleTambahData}
+          className="bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-2"
+        >
+          <Plus className="h-4 w-4" />
+          Tambah Data
+        </Button>
       </div>
 
       <Tabs
@@ -255,6 +303,7 @@ function TambahModalPageContent() {
             onOpenFilter={() => setFilterDialogOpen(true)}
             onApprove={handleApprove}
             onReject={handleReject}
+            onEdit={handleEdit}
           />
         </TabsContent>
 
@@ -296,6 +345,21 @@ function TambahModalPageContent() {
         row={tolakRow}
         onConfirm={handleTolakConfirm}
         isSubmitting={isTolakSubmitting}
+      />
+
+      <TambahDataDialog
+        open={tambahDataDialogOpen}
+        onOpenChange={setTambahDataDialogOpen}
+        onConfirm={handleTambahDataConfirm}
+        isSubmitting={isTambahDataSubmitting}
+      />
+
+      <EditRequestDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        row={editRow}
+        onConfirm={handleEditConfirm}
+        isSubmitting={isEditSubmitting}
       />
     </div>
   )

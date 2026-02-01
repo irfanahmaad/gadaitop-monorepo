@@ -224,8 +224,7 @@ export default function MasterCustomerPage() {
   }
 
   const handleTambahData = () => {
-    console.log("Tambah Data")
-    // Implement add data action
+    router.push("/master-customer/tambah")
   }
 
   return (

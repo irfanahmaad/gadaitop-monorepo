@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useMemo, Suspense } from "react"
+import { useRouter } from "next/navigation"
 import { ColumnDef } from "@tanstack/react-table"
 import { Breadcrumbs } from "@/components/breadcrumbs"
 import { DataTable } from "@/components/data-table"
@@ -130,6 +131,7 @@ const columns: ColumnDef<SPK>[] = [
 ]
 
 function SPKPageContent() {
+  const router = useRouter()
   // Filter state management via URL params
   const { filterValues, setFilters } = useFilterParams(filterConfig)
   const [selectedBranch, setSelectedBranch] = React.useState<string>("")
@@ -173,8 +175,7 @@ function SPKPageContent() {
   }, [filterValues, selectedBranch])
 
   const handleDetail = (row: SPK) => {
-    console.log("Detail:", row)
-    // Implement detail action
+    router.push(`/spk/${row.id}`)
   }
 
   const handleEdit = (row: SPK) => {

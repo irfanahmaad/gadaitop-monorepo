@@ -19,8 +19,9 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "@workspace/ui/components/avatar"
-import { SearchIcon, SlidersHorizontal, ArrowUpDown } from "lucide-react"
+import { SearchIcon, SlidersHorizontal, ArrowUpDown, Plus } from "lucide-react"
 import { formatCurrencyDisplay } from "@/lib/format-currency"
+import { TambahDataMutasiDialog } from "./_components/tambah-data-mutasi-dialog"
 
 // Type for Mutasi Transaksi
 type MutasiTransaksi = {
@@ -196,6 +197,8 @@ export default function MutasiTransaksiPage() {
   const [pageSize, setPageSize] = useState(100)
   const [searchValue, setSearchValue] = useState("")
   const [selectedToko, setSelectedToko] = useState("all")
+  const [tambahDataDialogOpen, setTambahDataDialogOpen] = useState(false)
+  const [isTambahDataSubmitting, setIsTambahDataSubmitting] = useState(false)
 
   // Filter data based on selected toko
   const filteredData = sampleData.filter((item) => {
@@ -203,35 +206,72 @@ export default function MutasiTransaksiPage() {
     return item.toko.name.toLowerCase().includes(selectedToko.toLowerCase())
   })
 
+  const handleTambahData = () => {
+    setTambahDataDialogOpen(true)
+  }
+
+  const handleTambahDataConfirm = async (data: {
+    nominal: number
+    tipe: "SPK1" | "SPK2" | "Operasional" | "Tambah Modal"
+    keterangan?: string
+  }) => {
+    setIsTambahDataSubmitting(true)
+    try {
+      console.log("Tambah Data Mutasi:", data)
+      // TODO: wire to API, e.g. await createMutasi(data)
+    } finally {
+      setIsTambahDataSubmitting(false)
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6">
       {/* Header Section */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-2xl font-bold">Mutasi / Transaksi</h1>
-          <Breadcrumbs
-            items={[
-              { label: "Pages", href: "/" },
-              { label: "Mutasi/Transaksi" },
-            ]}
-          />
-        </div>
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex flex-col gap-2">
+            <h1 className="text-2xl font-bold">Mutasi / Transaksi</h1>
+            <Breadcrumbs
+              items={[
+                { label: "Pages", href: "/" },
+                { label: "Mutasi/Transaksi" },
+              ]}
+            />
+          </div>
 
-        {/* Toko Select */}
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">Pilih Toko :</span>
-          <Select value={selectedToko} onValueChange={setSelectedToko}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Pilih Toko" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua Toko</SelectItem>
-              <SelectItem value="gt-jakarta-satu">GT Jakarta Satu</SelectItem>
-              <SelectItem value="gt-jakarta-dua">GT Jakarta Dua</SelectItem>
-              <SelectItem value="gt-jakarta-tiga">GT Jakarta Tiga</SelectItem>
-              <SelectItem value="gt-jakarta-empat">GT Jakarta Empat</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-4">
+            {/* Toko Select */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">Pilih Toko :</span>
+              <Select value={selectedToko} onValueChange={setSelectedToko}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Pilih Toko" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Toko</SelectItem>
+                  <SelectItem value="gt-jakarta-satu">
+                    GT Jakarta Satu
+                  </SelectItem>
+                  <SelectItem value="gt-jakarta-dua">GT Jakarta Dua</SelectItem>
+                  <SelectItem value="gt-jakarta-tiga">
+                    GT Jakarta Tiga
+                  </SelectItem>
+                  <SelectItem value="gt-jakarta-empat">
+                    GT Jakarta Empat
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Tambah Data Button */}
+            <Button
+              onClick={handleTambahData}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Tambah Data
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -276,6 +316,13 @@ export default function MutasiTransaksiPage() {
         onPageSizeChange={setPageSize}
         searchValue={searchValue}
         onSearchChange={setSearchValue}
+      />
+
+      <TambahDataMutasiDialog
+        open={tambahDataDialogOpen}
+        onOpenChange={setTambahDataDialogOpen}
+        onConfirm={handleTambahDataConfirm}
+        isSubmitting={isTambahDataSubmitting}
       />
     </div>
   )

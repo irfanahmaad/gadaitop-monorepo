@@ -8,6 +8,7 @@ import {
   UserCog,
   Building2,
   Package,
+  ScanLine,
   // FileText,
   // Box,
   // Gavel,
@@ -84,6 +85,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              {/* <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname === "/scan-ktp"}
+                >
+                  <Link href="/scan-ktp" className="flex items-center gap-2">
+                    <ScanLine className="size-4 shrink-0" />
+                    <span>Scan KTP</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem> */}
               {/* <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
@@ -251,7 +263,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     asChild
                     isActive={pathname?.startsWith("/super-admin")}
                   >
-                    <Link href="/super-admin" className="flex items-center gap-2">
+                    <Link
+                      href="/super-admin"
+                      className="flex items-center gap-2"
+                    >
                       <UserCog className="size-4 shrink-0" />
                       <span>Master Super Admin</span>
                     </Link>
@@ -277,7 +292,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     asChild
                     isActive={pathname?.startsWith("/tipe-barang")}
                   >
-                    <Link href="/tipe-barang" className="flex items-center gap-2">
+                    <Link
+                      href="/tipe-barang"
+                      className="flex items-center gap-2"
+                    >
                       <Package className="size-4 shrink-0" />
                       <span>Master Tipe Barang</span>
                     </Link>

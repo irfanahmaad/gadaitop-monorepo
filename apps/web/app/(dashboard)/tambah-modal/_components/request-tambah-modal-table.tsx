@@ -26,6 +26,7 @@ type RequestTambahModalTableProps = {
   onOpenFilter?: () => void
   onApprove: (row: RequestTambahModal) => void
   onReject: (row: RequestTambahModal) => void
+  onEdit: (row: RequestTambahModal) => void
 }
 
 export function RequestTambahModalTable({
@@ -38,10 +39,11 @@ export function RequestTambahModalTable({
   onOpenFilter,
   onApprove,
   onReject,
+  onEdit,
 }: RequestTambahModalTableProps) {
   const columns = useMemo(
-    () => [...getBaseColumns(), getRequestActionColumn(onApprove, onReject)],
-    [onApprove, onReject]
+    () => [...getBaseColumns(), getRequestActionColumn(onApprove, onReject, onEdit)],
+    [onApprove, onReject, onEdit]
   )
 
   if (isLoading) {

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, Suspense } from "react"
 import { useRouter } from "next/navigation"
 import { ColumnDef } from "@tanstack/react-table"
 import { Breadcrumbs } from "@/components/breadcrumbs"
@@ -277,7 +277,7 @@ function TableSkeleton() {
   )
 }
 
-export default function MasterKatalogPage() {
+function MasterKatalogPageContent() {
   const router = useRouter()
   const [pageSize, setPageSize] = useState(100)
   const [searchValue, setSearchValue] = useState("")
@@ -519,5 +519,13 @@ export default function MasterKatalogPage() {
         onFilterChange={setFilters}
       />
     </div>
+  )
+}
+
+export default function MasterKatalogPage() {
+  return (
+    <Suspense fallback={<TableSkeleton />}>
+      <MasterKatalogPageContent />
+    </Suspense>
   )
 }

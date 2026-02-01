@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, Suspense } from "react"
 import { useRouter } from "next/navigation"
 import { ColumnDef } from "@tanstack/react-table"
 import { Breadcrumbs } from "@/components/breadcrumbs"
@@ -20,6 +20,8 @@ import { formatCurrencyDisplay } from "@/lib/format-currency"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { FilterDialog } from "@/components/filter-dialog"
 import { useFilterParams, FilterConfig } from "@/hooks/use-filter-params"
+import { Skeleton } from "@workspace/ui/components/skeleton"
+import { Card, CardContent, CardHeader } from "@workspace/ui/components/card"
 
 // Type for Syarat Mata
 type SyaratMata = {
@@ -242,7 +244,36 @@ const syaratMataColumns: ColumnDef<SyaratMata>[] = [
   },
 ]
 
-export default function MasterSyaratMataPage() {
+// Loading skeleton component
+function TableSkeleton() {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <Skeleton className="h-6 w-40" />
+          <Skeleton className="h-10 w-32" />
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="flex gap-4">
+              <Skeleton className="h-10 w-12" />
+              <Skeleton className="h-10 flex-1" />
+              <Skeleton className="h-10 w-32" />
+              <Skeleton className="h-10 w-32" />
+              <Skeleton className="h-10 w-48" />
+              <Skeleton className="h-10 w-32" />
+              <Skeleton className="h-10 w-48" />
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function MasterSyaratMataPageContent() {
   const router = useRouter()
   const [pageSize, setPageSize] = useState(100)
   const [searchValue, setSearchValue] = useState("")
@@ -424,5 +455,13 @@ export default function MasterSyaratMataPage() {
         description="Anda akan menghapus data Syarat Mata dari dalam sistem."
       />
     </div>
+  )
+}
+
+export default function MasterSyaratMataPage() {
+  return (
+    <Suspense fallback={<TableSkeleton />}>
+      <MasterSyaratMataPageContent />
+    </Suspense>
   )
 }

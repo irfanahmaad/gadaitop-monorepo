@@ -19,9 +19,25 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "@workspace/ui/components/avatar"
-import { Plus, SearchIcon, SlidersHorizontal } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@workspace/ui/components/dropdown-menu"
+import {
+  Plus,
+  SearchIcon,
+  SlidersHorizontal,
+  Check,
+  Ban,
+  MoreHorizontal,
+} from "lucide-react"
 import { formatCurrencyDisplay } from "@/lib/format-currency"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
+import { TolakSetorUangDialog } from "./_components/tolak-setor-uang-dialog"
 
 // Type for Setor Uang (Capital Addition Request)
 type SetorUang = {
@@ -159,8 +175,8 @@ const StatusBadge = ({ status }: { status: SetorUang["status"] }) => {
   )
 }
 
-// Column definitions
-const columns: ColumnDef<SetorUang>[] = [
+// Base column definitions
+const getBaseColumns = (): ColumnDef<SetorUang>[] => [
   {
     id: "no",
     header: "No",
@@ -216,38 +232,101 @@ const columns: ColumnDef<SetorUang>[] = [
   },
 ]
 
+// Action column definition
+const getActionColumn = (
+  onBayar: (row: SetorUang) => void,
+  onTolak: (row: SetorUang) => void
+): ColumnDef<SetorUang> => ({
+  id: "actions",
+  enableHiding: false,
+  cell: ({ row }) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="h-8 w-8 p-0">
+          <span className="sr-only">Buka menu</span>
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel>Action</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => onBayar(row.original)}>
+          <Check className="mr-2 h-4 w-4" />
+          Bayar
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => onTolak(row.original)}
+          className="text-destructive focus:text-destructive"
+        >
+          <Ban className="mr-2 h-4 w-4" />
+          Tolak
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  ),
+})
+
 export default function SetorUangPage() {
   const [pageSize, setPageSize] = useState(100)
   const [searchValue, setSearchValue] = useState("")
-  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
-  const [itemToDelete, setItemToDelete] = useState<SetorUang | null>(null)
+  const [isTolakDialogOpen, setIsTolakDialogOpen] = useState(false)
+  const [selectedRow, setSelectedRow] = useState<SetorUang | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isBayarConfirmOpen, setIsBayarConfirmOpen] = useState(false)
+  const [rowToBayar, setRowToBayar] = useState<SetorUang | null>(null)
 
   const handleCreate = () => {
     // Implement create action
     console.log("Create new setor uang")
   }
 
-  const handleDetail = (row: SetorUang) => {
-    console.log("Detail:", row)
-    // Implement detail action
+  const handleBayar = (row: SetorUang) => {
+    setRowToBayar(row)
+    setIsBayarConfirmOpen(true)
   }
 
-  const handleEdit = (row: SetorUang) => {
-    console.log("Edit:", row)
-    // Implement edit action
-  }
-
-  const handleDelete = (row: SetorUang) => {
-    setItemToDelete(row)
-    setIsConfirmDialogOpen(true)
-  }
-
-  const handleConfirmDelete = () => {
-    if (itemToDelete) {
-      console.log("Delete:", itemToDelete)
-      // Implement delete action
+  const handleConfirmBayar = async () => {
+    if (rowToBayar) {
+      setIsSubmitting(true)
+      try {
+        // Implement Bayar action
+        console.log("Bayar:", rowToBayar)
+        // await api.bayarSetorUang(rowToBayar.id)
+      } catch (error) {
+        console.error("Error bayar setor uang:", error)
+      } finally {
+        setIsSubmitting(false)
+        setIsBayarConfirmOpen(false)
+        setRowToBayar(null)
+      }
     }
   }
+
+  const handleTolak = (row: SetorUang) => {
+    setSelectedRow(row)
+    setIsTolakDialogOpen(true)
+  }
+
+  const handleConfirmTolak = async (
+    row: SetorUang,
+    data: { alasan: string }
+  ) => {
+    setIsSubmitting(true)
+    try {
+      // Implement Tolak action
+      console.log("Tolak:", row, "Alasan:", data.alasan)
+      // await api.tolakSetorUang(row.id, data.alasan)
+    } catch (error) {
+      console.error("Error tolak setor uang:", error)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const columns = [
+    ...getBaseColumns(),
+    getActionColumn(handleBayar, handleTolak),
+  ]
 
   return (
     <div className="flex flex-col gap-6">
@@ -309,17 +388,28 @@ export default function SetorUangPage() {
         onPageSizeChange={setPageSize}
         searchValue={searchValue}
         onSearchChange={setSearchValue}
-        onDetail={handleDetail}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
       />
 
-      {/* Confirmation Dialog for Delete */}
+      {/* Tolak Setor Uang Dialog */}
+      <TolakSetorUangDialog
+        open={isTolakDialogOpen}
+        onOpenChange={setIsTolakDialogOpen}
+        row={selectedRow}
+        onConfirm={handleConfirmTolak}
+        isSubmitting={isSubmitting}
+      />
+
+      {/* Confirmation Dialog for Bayar */}
       <ConfirmationDialog
-        open={isConfirmDialogOpen}
-        onOpenChange={setIsConfirmDialogOpen}
-        onConfirm={handleConfirmDelete}
-        description="Anda akan menghapus data Setor Uang dari dalam sistem."
+        open={isBayarConfirmOpen}
+        onOpenChange={setIsBayarConfirmOpen}
+        onConfirm={handleConfirmBayar}
+        title="Apakah Anda Yakin?"
+        description="Anda akan melakukan pembayaran untuk Setor Uang ini."
+        note="Pastikan kembali sebelum melakukan pembayaran."
+        confirmLabel="Ya"
+        cancelLabel="Batal"
+        variant="info"
       />
     </div>
   )

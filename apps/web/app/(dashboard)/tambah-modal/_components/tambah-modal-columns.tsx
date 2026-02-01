@@ -17,7 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu"
 import { Button } from "@workspace/ui/components/button"
-import { Check, Ban, MoreHorizontal } from "lucide-react"
+import { Check, Ban, MoreHorizontal, Pencil } from "lucide-react"
 import type { RequestTambahModal } from "./types"
 import { formatTanggalRequest, formatNominal } from "./utils"
 import { StatusBadge } from "./status-badge"
@@ -112,7 +112,8 @@ export function getBaseColumns(): ColumnDef<RequestTambahModal>[] {
 
 export function getRequestActionColumn(
   onApprove: (row: RequestTambahModal) => void,
-  onReject: (row: RequestTambahModal) => void
+  onReject: (row: RequestTambahModal) => void,
+  onEdit: (row: RequestTambahModal) => void
 ): ColumnDef<RequestTambahModal> {
   return {
     id: "actions",
@@ -128,6 +129,10 @@ export function getRequestActionColumn(
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>Action</DropdownMenuLabel>
           <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => onEdit(row.original)}>
+            <Pencil className="mr-2 h-4 w-4" />
+            Edit
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={() => onApprove(row.original)}>
             <Check className="mr-2 h-4 w-4" />
             Setujui

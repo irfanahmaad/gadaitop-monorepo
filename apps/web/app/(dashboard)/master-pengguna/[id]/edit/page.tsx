@@ -50,7 +50,7 @@ import {
   updateUser as updateUserInStore,
   assignRolesToUser,
   dummyRoles,
-} from "../dummy-data"
+} from "../../dummy-data"
 
 const userSchema = z
   .object({
