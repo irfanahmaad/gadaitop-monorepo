@@ -52,7 +52,7 @@ export function DetailSO({ data }: DetailSOProps) {
 
   return (
     <Card>
-      <CardContent className="pt-6">
+      <CardContent>
         {/* Header with ID SO and Status */}
         <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div>

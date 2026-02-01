@@ -4,11 +4,7 @@ import React from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Breadcrumbs } from "@/components/breadcrumbs"
 import { Button } from "@workspace/ui/components/button"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-} from "@workspace/ui/components/card"
+import { Card, CardContent, CardHeader } from "@workspace/ui/components/card"
 import { Skeleton } from "@workspace/ui/components/skeleton"
 import {
   DropdownMenu,
@@ -87,7 +83,8 @@ const getStockOpnameItems = (slug: string): StockOpnameItem[] => {
       tipeBarang: ["Handphone", "IoT", "Laptop"][i % 3]!,
       toko: ["GT Jakarta Satu", "GT Jakarta Dua", "GT Jakarta Tiga"][i % 3]!,
       petugas: "Ben Affleck",
-      statusScan: i % 3 === 0 ? ("Terscan" as const) : ("Belum Terscan" as const),
+      statusScan:
+        i % 3 === 0 ? ("Terscan" as const) : ("Belum Terscan" as const),
     })),
   ]
 }
@@ -96,7 +93,7 @@ const getStockOpnameItems = (slug: string): StockOpnameItem[] => {
 function DetailSOSkeleton() {
   return (
     <Card>
-      <CardContent className="pt-6">
+      <CardContent>
         <div className="mb-6 flex items-start justify-between">
           <div className="space-y-2">
             <Skeleton className="h-8 w-24" />
@@ -246,10 +243,7 @@ export default function StockOpnameDetailPage() {
       {isLoading ? (
         <ItemTableSkeleton />
       ) : (
-        <StockOpnameItemTable
-          data={items}
-          onDetailAction={handleItemDetail}
-        />
+        <StockOpnameItemTable data={items} onDetailAction={handleItemDetail} />
       )}
     </div>
   )
