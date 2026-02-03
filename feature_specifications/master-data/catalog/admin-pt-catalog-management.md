@@ -1,0 +1,90 @@
+FR‑176 View Catalog Master List
+Feature Name: View Catalog List
+
+Description: The system displays a list of catalog items that represent standard products (e.g., iPhone models, laptops, motorcycles) used across branches.
+
+Actor: Admin PT
+
+Priority: High
+
+Acceptance Criteria:
+
+The “Master Katalog” page shows a table with columns such as Catalog Code, Catalog Name, Item Type, Base Price/Value, and Last Updated Date, matching the design.
+
+The list is paginated and supports search by catalog name or code; Admin PT sees only catalog records belonging to their PT or global scope as defined.
+
+A filter panel allows filtering by Last Updated date range, minimum and maximum price, and item type; applying filters refreshes the table while Reset restores defaults.
+​
+
+FR‑177 Create New Catalog Item
+Feature Name: Create Catalog Item
+
+Description: Admin PT can create a new catalog entry that defines a standard item, including price guidance and pawn parameters.
+
+Actor: Admin PT
+
+Priority: High
+
+Acceptance Criteria:
+
+The “Tambah Data” form includes fields such as Catalog Name, Item Type, Base Price, Pawn Value Range (minimum/maximum), Number of Installments, and Description, along with an optional image upload.
+
+Required fields are validated; catalog names or codes that must be unique are checked and rejected with clear error messages when duplicated.
+​
+
+On successful save, a confirmation dialog appears and the new catalog item becomes visible in the catalog list.
+
+FR‑178 View Catalog Item Detail
+Feature Name: View Catalog Detail
+
+Description: Admin PT can open a detail page for a catalog item showing all configuration values.
+
+Actor: Admin PT
+
+Priority: Medium
+
+Acceptance Criteria:
+
+The detail view shows data such as item image, catalog code, catalog name, item type, base price, pawn price range, number of installments, and description, matching the design layout.
+
+Data is read-only until Edit is selected, providing a clear reference for branch users and other modules (e.g., SPK creation).
+​
+
+From this screen Admin PT can navigate back to the catalog list or proceed to edit the item.
+
+FR‑179 Edit Catalog Item
+Feature Name: Edit Catalog Item
+
+Description: Admin PT can update catalog attributes when prices or configurations change.
+
+Actor: Admin PT
+
+Priority: Medium
+
+Acceptance Criteria:
+
+Selecting Edit on a catalog detail page opens a form pre-filled with the current values, including the ability to change item image, prices, and pawn parameters.
+
+Saving updates requires confirmation and then writes changes to the catalog record; Last Updated Date is refreshed and success dialogs are shown.
+​
+
+Changes in catalog price guidance are used by downstream processes (e.g., SPK valuation) from that point forward but do not retroactively alter existing contracts.
+
+FR‑180 Import Catalog Data (Optional)
+Feature Name: Import Catalog Items
+
+Description: Admin PT can bulk-import catalog entries from an external file to speed up setup and maintenance.
+
+Actor: Admin PT
+
+Priority: Low/Optional
+
+Acceptance Criteria:
+
+An “Import Data” button allows uploading a file (e.g., CSV/Excel) that contains catalog attributes; the system validates required columns and shows errors for any invalid rows.
+
+Valid rows are inserted or updated according to defined matching rules (e.g., by catalog code), and a summary of imported/failed records is displayed.
+​
+​
+
+Only users with appropriate permissions can use Import; large imports are processed asynchronously if necessary, with status feedback to the Admin PT.

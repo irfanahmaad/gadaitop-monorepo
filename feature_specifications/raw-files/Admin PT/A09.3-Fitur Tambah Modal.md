@@ -1,0 +1,104 @@
+FR‑134 View Capital Top‑Up Request List
+Feature Name: View Capital Top‑Up Requests
+
+Description: The system displays a list of capital top‑up requests submitted by branches within the Admin PT’s PT.
+
+Actor: Admin PT
+
+Priority: High
+
+Acceptance Criteria:
+
+The “Tambah Modal” main tab shows a table with columns such as Request Number, Request Date, Branch, Requested Amount, Status (e.g., Pending, Approved, Rejected, Completed), and Actions, matching the design.
+
+Only requests belonging to the Admin PT’s PT and authorized branches are visible.
+
+The table supports pagination and basic sorting (for example by date or status).
+
+FR‑135 Create Capital Top‑Up Request
+Feature Name: Create Capital Top‑Up Request
+
+Description: Authorized users (e.g., branch or Admin PT) can submit a new request to add operational capital/cash float.
+
+Actor: Admin PT (or Branch User, depending on final roles)
+
+Priority: High
+
+Acceptance Criteria:
+
+The “Tambah Request” form includes fields such as Branch, Requested Amount, Purpose/Notes, and optional fields like Requested By, Request Type, and Date.
+
+Required fields are validated; missing or invalid values show inline error messages and prevent submission.
+​
+
+Submitting a valid form creates a new record in Pending status and shows a confirmation dialog followed by a success message.
+
+FR‑136 Approve or Reject Capital Top‑Up
+Feature Name: Approve/Reject Capital Top‑Up Request
+
+Description: Admin PT reviews pending top‑up requests and can approve or reject them.
+
+Actor: Admin PT
+
+Priority: High
+
+Acceptance Criteria:
+
+Each Pending request row provides actions such as “Approve” and “Reject”, or an equivalent detail view with those buttons.
+
+Clicking Approve opens a confirmation dialog; confirming sets the status to Approved and records approval metadata (approver name, date/time).
+
+Clicking Reject opens a dialog requiring a rejection reason; confirming sets the status to Rejected and logs the reason.
+​
+
+FR‑137 View Capital Top‑Up Detail & History
+Feature Name: View Capital Top‑Up Detail & History
+
+Description: The module provides a detail screen for each request and a history tab showing all completed top‑up transactions.
+
+Actor: Admin PT
+
+Priority: Medium
+
+Acceptance Criteria:
+
+Opening a request shows details such as branch, requested amount, approved amount (if different), purpose, status timeline (Requested, Approved/Rejected, Completed), and notes.
+
+A “History Tambah Modal” tab lists past approved/completed requests with filters for date range, branch, and status.
+
+History records are read‑only and support pagination and export/print if in scope.
+
+FR‑138 Filter Capital Top‑Up Requests
+Feature Name: Filter Capital Top‑Up Requests
+
+Description: Admin PT can filter both current requests and history by several criteria.
+
+Actor: Admin PT
+
+Priority: Medium
+
+Acceptance Criteria:
+
+The filter panel includes at least: Date From/To, Branch, Status, and possibly Request Type; applying filters refreshes the visible list.
+
+A Reset Filter action clears all criteria and returns to the default view.
+
+Filter settings persist while navigating between list and request detail views during the same session.
+
+FR‑139 Complete Capital Disbursement
+Feature Name: Mark Capital Top‑Up as Disbursed
+
+Description: After approved capital has been physically transferred to the branch, Admin PT marks the request as completed.
+
+Actor: Admin PT
+
+Priority: High
+
+Acceptance Criteria:
+
+Approved requests show a “Mark as Disbursed/Completed” action once payment or transfer is done.
+
+Confirming this action sets the request status to Completed and optionally captures disbursement details (date, method, reference number).
+​
+
+Completed requests become read‑only; any correction must follow the defined adjustment process (not simple edit).

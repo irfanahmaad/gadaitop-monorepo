@@ -1,0 +1,106 @@
+FR‑121 View Stock Opname Detail Header
+Feature Name: View Stock Opname Detail Header
+
+Description: The system displays header information for a selected Stock Opname (SO) session, including schedule and status.
+
+Actor: Admin PT
+
+Priority: High
+
+Acceptance Criteria:
+
+From the Stock Opname list, opening an SO shows header fields such as SO number, title, branch/location, date/time, assigned staff, and overall SO status (e.g., Approved, In Progress, Completed).
+
+Header also shows summary values such as total items to count and last update time, matching the design.
+
+Only SO sessions belonging to the Admin PT’s PT/branches can be opened.
+
+FR‑122 View and Filter Stock Opname Items
+Feature Name: View SO Item List
+
+Description: The SO detail page shows a list of all items included in the stock opname and allows filtering by various criteria.
+
+Actor: Admin PT
+
+Priority: High
+
+Acceptance Criteria:
+
+The “Daftar Item” table lists items with columns such as SPK Number, Item Name, Item Type, Branch, Staff, and SO Item Status (e.g., Not Checked, Counting, Checked).
+
+A filter panel lets the user narrow items by date range, item type, branch/location, staff, and item status; applying filters updates the table accordingly.
+​
+
+Pagination is available when the number of items exceeds the per‑page limit and works together with the applied filters.
+
+FR‑123 QR Code SPK / Item Verification
+Feature Name: QR Code SPK Verification
+
+Description: The SO detail view provides a QR code for SPK or item verification to speed up physical checking.
+
+Actor: Admin PT, Branch Staff
+
+Priority: Medium
+
+Acceptance Criteria:
+
+The “QR Code SPK” panel displays a QR code representing either the SO session or a specific SPK/item identifier, along with actions such as Close and Print QR.
+
+Scanning the QR with the supported device opens the corresponding SO/SPK/item in the system so staff can mark the item as counted or update its status.
+​
+
+Printing the QR produces a scannable code that can be attached to physical documents or shelves for repeated use during stock opname.
+
+FR‑124 Edit Stock Opname Schedule from Detail
+Feature Name: Edit SO Schedule from Detail
+
+Description: Admin PT can edit basic schedule parameters (date, location, staff, rules) for the current SO from the detail screen.
+
+Actor: Admin PT
+
+Priority: Medium
+
+Acceptance Criteria:
+
+The “Edit Jadwal SO” form includes fields such as Date, Branch/Location, Assigned Staff, and counting rules (e.g., which item groups to include, special notes).
+
+Saving changes after confirmation updates the SO header and related schedule information while preserving audit logs of what changed.
+​
+
+Confirmation dialogs appear before saving or deleting a schedule, with success dialogs once the operation completes.
+
+FR‑125 Approve / Complete Stock Opname
+Feature Name: Approve & Complete SO
+
+Description: When all items have been processed, Admin PT can approve and complete the stock opname session.
+
+Actor: Admin PT
+
+Priority: High
+
+Acceptance Criteria:
+
+When all required items are in a “Checked” state, the “Approve / Complete” action becomes available on the SO detail header.
+
+Clicking this action opens a confirmation dialog explaining that the SO will be finalized and inventory differences will be applied; confirming sets the SO status to “Completed” and locks item rows from further editing.
+​
+
+On success, a success dialog is shown and any downstream processes (inventory adjustment postings, reports) are triggered as defined.
+
+FR‑126 View Item Detail from Stock Opname
+Feature Name: View Item Detail from SO
+
+Description: From the SO detail page, Admin PT can open a separate “Detail Item” screen for a specific item.
+
+Actor: Admin PT
+
+Priority: Medium
+
+Acceptance Criteria:
+
+Clicking on an item row or action (e.g., “Detail Item”) opens a detailed item view with fields such as SPK Number, item specs, storage location, condition, marketing validation status, and evidence photos, matching the bottom screen in your design.
+
+The item detail screen includes a “QR Code SPK” button so the QR for that particular item/SPK can be shown or printed for future verification.
+​
+
+Returning from item detail (via Back) brings the user back to the same SO detail view and retains any filters/pagination state.
