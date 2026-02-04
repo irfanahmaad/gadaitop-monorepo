@@ -17,7 +17,10 @@ import { RoleService } from '../role/role.service';
 import { UserDto } from '../user/dtos/user.dto';
 import { UserEntity } from '../user/entities/user.entity';
 import { UserService } from '../user/user.service';
+import { CustomerEntity } from '../customer/entities/customer.entity';
+import { CustomerDto } from '../customer/dto/customer.dto';
 import { TokenPayloadDto } from './dtos/token-payload.dto';
+import { CustomerLoginType } from './dtos/customer-login.dto';
 
 import type { UserLoginDto } from './dtos/user-login.dto';
 
@@ -34,6 +37,8 @@ export class AuthService {
     private deviceService: DeviceService,
     @InjectRepository(UserEntity)
     private userRepository: Repository<UserEntity>,
+    @InjectRepository(CustomerEntity)
+    private customerRepository: Repository<CustomerEntity>,
   ) {}
 
   async createAccessToken(user: UserDto): Promise<TokenPayloadDto> {
@@ -245,5 +250,62 @@ export class AuthService {
     // await this.mailService.sendPasswordResetCode(options.email, token);
 
     return 'Reset token sent to your email!';
+  }
+
+  async validateCustomer(dto: {
+    loginType: CustomerLoginType;
+    nik?: string;
+    pin?: string;
+    email?: string;
+    password?: string;
+  }): Promise<CustomerDto> {
+    let customer: CustomerEntity | null = null;
+    if (dto.loginType === CustomerLoginType.NikPin) {
+      if (!dto.nik || !dto.pin) {
+        throw new BadRequestException('NIK and PIN are required for NIK+PIN login');
+      }
+      customer = await this.customerRepository.findOne({ where: { nik: dto.nik } });
+      if (!customer) {
+        throw new BadRequestException('NIK atau PIN salah');
+      }
+      const pinValid = await validateHash(dto.pin, customer.pinHash);
+      if (!pinValid) {
+        throw new BadRequestException('NIK atau PIN salah');
+      }
+    } else if (dto.loginType === CustomerLoginType.EmailPassword) {
+      if (!dto.email || !dto.password) {
+        throw new BadRequestException('Email and password are required for email+password login');
+      }
+      customer = await this.customerRepository.findOne({ where: { email: dto.email } });
+      if (!customer) {
+        throw new BadRequestException('Email atau password salah');
+      }
+      if (!customer.passwordHash) {
+        throw new BadRequestException('Akun ini belum mengaktifkan login dengan password');
+      }
+      const passwordValid = await validateHash(dto.password, customer.passwordHash);
+      if (!passwordValid) {
+        throw new BadRequestException('Email atau password salah');
+      }
+    } else {
+      throw new BadRequestException('Invalid loginType');
+    }
+
+    if (customer.isBlacklisted) {
+      throw new ForbiddenException('Akun Anda diblokir. Hubungi cabang untuk informasi.');
+    }
+
+    return new CustomerDto(customer);
+  }
+
+  async createCustomerAccessToken(customer: CustomerDto): Promise<TokenPayloadDto> {
+    const token = new TokenPayloadDto({
+      expiresIn: this.configService.authConfig.jwtExpirationTime,
+      accessToken: await this.jwtService.signAsync({
+        customerId: customer.uuid,
+        type: TokenType.CUSTOMER_ACCESS_TOKEN,
+      }),
+    });
+    return token;
   }
 }

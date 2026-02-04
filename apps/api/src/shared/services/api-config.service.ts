@@ -92,6 +92,32 @@ export class ApiConfigService {
     };
   }
 
+  /**
+   * S3 config (optional). When not set, upload service will throw on use.
+   */
+  get s3Config(): {
+    bucket: string;
+    region: string;
+    keyPrefix: string;
+    endpoint?: string;
+  } | null {
+    const bucket = this.configService.get<string>('S3_BUCKET');
+    const region = this.configService.get<string>('S3_REGION');
+    if (!bucket || !region) {
+      return null;
+    }
+    return {
+      bucket,
+      region,
+      keyPrefix: this.configService.get<string>('S3_KEY_PREFIX') ?? '',
+      endpoint: this.configService.get<string>('S3_ENDPOINT'),
+    };
+  }
+
+  getOptional(key: string): string | undefined {
+    return this.configService.get<string>(key);
+  }
+
   private get(key: string): string {
     const value = this.configService.get<string>(key);
 

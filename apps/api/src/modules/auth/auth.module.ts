@@ -7,6 +7,8 @@ import { ApiConfigService } from '../../shared/services/api-config.service';
 import { RoleModule } from '../role/role.module';
 import { UserEntity } from '../user/entities/user.entity';
 import { UserModule } from '../user/user.module';
+import { CustomerEntity } from '../customer/entities/customer.entity';
+import { CustomerModule } from '../customer/customer.module';
 import { DeviceModule } from '../device/device.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
@@ -17,6 +19,7 @@ import { PublicStrategy } from './public.strategy';
   imports: [
     forwardRef(() => UserModule),
     forwardRef(() => RoleModule),
+    forwardRef(() => CustomerModule),
     forwardRef(() => DeviceModule),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
@@ -33,7 +36,7 @@ import { PublicStrategy } from './public.strategy';
       }),
       inject: [ApiConfigService],
     }),
-    TypeOrmModule.forFeature([UserEntity]),
+    TypeOrmModule.forFeature([UserEntity, CustomerEntity]),
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, PublicStrategy],

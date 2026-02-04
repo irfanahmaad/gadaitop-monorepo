@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 
 import { Auth } from '../../decorators';
+import { AclAction, AclSubject } from '../../constants/acl';
 import { UserService } from './user.service';
 import { UserDto } from './dtos/user.dto';
 import { CreateUserDto } from './dtos/create-user.dto';
@@ -25,7 +26,7 @@ export class UserController {
   constructor(private readonly userService: UserService) {}
 
   @Get()
-  @Auth([])
+  @Auth([{ action: AclAction.READ, subject: AclSubject.USER }])
   async findAll(@Query() query: QueryUserDto): Promise<{
     data: UserDto[];
     meta: PageMetaDto;
@@ -34,19 +35,19 @@ export class UserController {
   }
 
   @Get(':id')
-  @Auth([])
+  @Auth([{ action: AclAction.READ, subject: AclSubject.USER }])
   async findOne(@Param('id', ParseUUIDPipe) id: string): Promise<UserDto> {
     return this.userService.findOne({ uuid: id });
   }
 
   @Post()
-  @Auth([])
+  @Auth([{ action: AclAction.CREATE, subject: AclSubject.USER }])
   async create(@Body() createDto: CreateUserDto): Promise<UserDto> {
     return this.userService.create(createDto);
   }
 
   @Patch(':id')
-  @Auth([])
+  @Auth([{ action: AclAction.UPDATE, subject: AclSubject.USER }])
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateDto: UpdateUserDto,
@@ -55,7 +56,7 @@ export class UserController {
   }
 
   @Post(':id/assign-roles')
-  @Auth([])
+  @Auth([{ action: AclAction.UPDATE, subject: AclSubject.USER }])
   async assignRoles(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() assignDto: AssignRoleDto,
@@ -64,7 +65,7 @@ export class UserController {
   }
 
   @Post(':id/reset-password')
-  @Auth([])
+  @Auth([{ action: AclAction.UPDATE, subject: AclSubject.USER }])
   async resetPassword(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() resetDto: ResetPasswordDto,
@@ -74,7 +75,7 @@ export class UserController {
   }
 
   @Delete(':id')
-  @Auth([])
+  @Auth([{ action: AclAction.DELETE, subject: AclSubject.USER }])
   async delete(
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<{ message: string }> {

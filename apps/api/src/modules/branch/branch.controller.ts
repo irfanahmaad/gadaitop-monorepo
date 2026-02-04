@@ -8,9 +8,12 @@ import {
   Delete,
   Query,
   ParseUUIDPipe,
+  Req,
 } from '@nestjs/common';
+import { Request } from 'express';
 
 import { Auth } from '../../decorators';
+import { AclAction, AclSubject } from '../../constants/acl';
 import { BranchService } from './branch.service';
 import { BranchDto } from './dto/branch.dto';
 import { CreateBranchDto } from './dto/create-branch.dto';
@@ -23,33 +26,38 @@ export class BranchController {
   constructor(private readonly branchService: BranchService) {}
 
   @Get()
-  @Auth([])
-  async findAll(@Query() queryDto: QueryBranchDto): Promise<{
+  @Auth([{ action: AclAction.READ, subject: AclSubject.STORE }])
+  async findAll(
+    @Query() queryDto: QueryBranchDto,
+    @Req() req: Request,
+  ): Promise<{
     data: BranchDto[];
     meta: PageMetaDto;
   }> {
-    // TODO: Get userCompanyId from auth user
-    return this.branchService.findAll(queryDto);
+    const user = (req as any).user;
+    const userCompanyId = user?.companyId ?? user?.ownedCompanyId ?? undefined;
+    return this.branchService.findAll(queryDto, userCompanyId);
   }
 
   @Get(':id')
-  @Auth([])
+  @Auth([{ action: AclAction.READ, subject: AclSubject.STORE }])
   async findOne(@Param('id', ParseUUIDPipe) id: string): Promise<BranchDto> {
     return this.branchService.findOne(id);
   }
 
   @Post()
-  @Auth([])
+  @Auth([{ action: AclAction.CREATE, subject: AclSubject.STORE }])
   async create(
     @Body() createDto: CreateBranchDto,
-    // TODO: Get ownerId from auth user
+    @Req() req: Request,
   ): Promise<BranchDto> {
-    // TODO: Get ownerId from auth user
-    return this.branchService.create(createDto, '');
+    const user = (req as any).user;
+    const ownerId = user?.uuid ?? '';
+    return this.branchService.create(createDto, ownerId);
   }
 
   @Patch(':id')
-  @Auth([])
+  @Auth([{ action: AclAction.UPDATE, subject: AclSubject.STORE }])
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateDto: UpdateBranchDto,
@@ -58,29 +66,31 @@ export class BranchController {
   }
 
   @Delete(':id')
-  @Auth([])
+  @Auth([{ action: AclAction.DELETE, subject: AclSubject.STORE }])
   async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     return this.branchService.remove(id);
   }
 
   @Patch(':id/approve')
-  @Auth([])
+  @Auth([{ action: AclAction.UPDATE, subject: AclSubject.STORE }])
   async approveBorrowRequest(
     @Param('id', ParseUUIDPipe) id: string,
-    // TODO: Get approverId from auth user
+    @Req() req: Request,
   ): Promise<BranchDto> {
-    // TODO: Get approverId from auth user
-    return this.branchService.approveBorrowRequest(id, '');
+    const user = (req as any).user;
+    const approverId = user?.uuid ?? '';
+    return this.branchService.approveBorrowRequest(id, approverId);
   }
 
   @Patch(':id/reject')
-  @Auth([])
+  @Auth([{ action: AclAction.UPDATE, subject: AclSubject.STORE }])
   async rejectBorrowRequest(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: { rejectionReason: string },
-    // TODO: Get approverId from auth user
+    @Req() req: Request,
   ): Promise<BranchDto> {
-    // TODO: Get approverId from auth user
-    return this.branchService.rejectBorrowRequest(id, '', body.rejectionReason);
+    const user = (req as any).user;
+    const approverId = user?.uuid ?? '';
+    return this.branchService.rejectBorrowRequest(id, approverId, body.rejectionReason);
   }
 }

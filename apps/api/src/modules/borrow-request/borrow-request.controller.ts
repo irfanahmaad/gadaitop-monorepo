@@ -7,7 +7,9 @@ import {
   Query,
   Patch,
   ParseUUIDPipe,
+  Req,
 } from '@nestjs/common';
+import { Request } from 'express';
 
 import { Auth } from '../../decorators';
 import { BorrowRequestService } from './borrow-request.service';
@@ -23,12 +25,17 @@ export class BorrowRequestController {
 
   @Get()
   @Auth([])
-  async findAll(@Query() query: PageOptionsDto): Promise<{
+  async findAll(
+    @Query() query: PageOptionsDto,
+    @Req() req: Request,
+  ): Promise<{
     data: BorrowRequestDto[];
     meta: PageMetaDto;
   }> {
-    // TODO: Get requesterId/targetCompanyId from auth user
-    return this.borrowRequestService.findAll(query);
+    const user = (req as any).user;
+    const requesterId = user?.uuid ?? undefined;
+    const targetCompanyId = user?.companyId ?? user?.ownedCompanyId ?? undefined;
+    return this.borrowRequestService.findAll(query, requesterId, targetCompanyId);
   }
 
   @Get(':id')
@@ -41,20 +48,22 @@ export class BorrowRequestController {
   @Auth([])
   async create(
     @Body() createDto: CreateBorrowRequestDto,
-    // TODO: Get requesterId from auth user
+    @Req() req: Request,
   ): Promise<BorrowRequestDto> {
-    // TODO: Get requesterId from auth user
-    return this.borrowRequestService.create(createDto, '');
+    const user = (req as any).user;
+    const requesterId = user?.uuid ?? '';
+    return this.borrowRequestService.create(createDto, requesterId);
   }
 
   @Patch(':id/approve')
   @Auth([])
   async approve(
     @Param('id', ParseUUIDPipe) id: string,
-    // TODO: Get processorId from auth user
+    @Req() req: Request,
   ): Promise<BorrowRequestDto> {
-    // TODO: Get processorId from auth user
-    return this.borrowRequestService.approve(id, '');
+    const user = (req as any).user;
+    const processorId = user?.uuid ?? '';
+    return this.borrowRequestService.approve(id, processorId);
   }
 
   @Patch(':id/reject')
@@ -62,9 +71,10 @@ export class BorrowRequestController {
   async reject(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() rejectDto: RejectBorrowRequestDto,
-    // TODO: Get processorId from auth user
+    @Req() req: Request,
   ): Promise<BorrowRequestDto> {
-    // TODO: Get processorId from auth user
-    return this.borrowRequestService.reject(id, '', rejectDto.rejectionReason);
+    const user = (req as any).user;
+    const processorId = user?.uuid ?? '';
+    return this.borrowRequestService.reject(id, processorId, rejectDto.rejectionReason);
   }
 }

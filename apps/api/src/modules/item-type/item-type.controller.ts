@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 
 import { Auth } from '../../decorators';
+import { AclAction, AclSubject } from '../../constants/acl';
 import { ItemTypeService } from './item-type.service';
 import { ItemTypeDto } from './dto/item-type.dto';
 import { CreateItemTypeDto } from './dto/create-item-type.dto';
@@ -23,7 +24,7 @@ export class ItemTypeController {
   constructor(private readonly itemTypeService: ItemTypeService) {}
 
   @Get()
-  @Auth([])
+  @Auth([{ action: AclAction.READ, subject: AclSubject.ITEM_TYPE }])
   async findAll(@Query() query: PageOptionsDto): Promise<{
     data: ItemTypeDto[];
     meta: PageMetaDto;
@@ -32,19 +33,19 @@ export class ItemTypeController {
   }
 
   @Get(':id')
-  @Auth([])
+  @Auth([{ action: AclAction.READ, subject: AclSubject.ITEM_TYPE }])
   async findOne(@Param('id', ParseUUIDPipe) id: string): Promise<ItemTypeDto> {
     return this.itemTypeService.findOne(id);
   }
 
   @Post()
-  @Auth([])
+  @Auth([{ action: AclAction.CREATE, subject: AclSubject.ITEM_TYPE }])
   async create(@Body() createDto: CreateItemTypeDto): Promise<ItemTypeDto> {
     return this.itemTypeService.create(createDto);
   }
 
   @Patch(':id')
-  @Auth([])
+  @Auth([{ action: AclAction.UPDATE, subject: AclSubject.ITEM_TYPE }])
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateDto: UpdateItemTypeDto,
@@ -53,7 +54,7 @@ export class ItemTypeController {
   }
 
   @Delete(':id')
-  @Auth([])
+  @Auth([{ action: AclAction.DELETE, subject: AclSubject.ITEM_TYPE }])
   async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     return this.itemTypeService.remove(id);
   }

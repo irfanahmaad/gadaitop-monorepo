@@ -6,7 +6,12 @@ import { TokenType } from '../../constants/token-type';
 import { ApiConfigService } from '../../shared/services/api-config.service';
 import { RoleService } from '../role/role.service';
 import { UserService } from '../user/user.service';
+import { CustomerService } from '../customer/customer.service';
 import { LogedUserDto } from './dtos/loged-user.dto';
+
+type JwtPayload =
+  | { userId: number; rolesIds: number[]; type: TokenType.ACCESS_TOKEN; iat: number; exp: number }
+  | { customerId: string; type: TokenType.CUSTOMER_ACCESS_TOKEN; iat: number; exp: number };
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -14,6 +19,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     configService: ApiConfigService,
     private userService: UserService,
     private roleService: RoleService,
+    private customerService: CustomerService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -21,14 +27,21 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(args: {
-    userId: number;
-    rolesIds: number[];
-    type: TokenType;
-    iat: number;
-    exp: number;
-  }): Promise<LogedUserDto> {
-    if (args.type !== TokenType.ACCESS_TOKEN) {
+  async validate(args: JwtPayload): Promise<LogedUserDto | { userId: number; roles: never[]; customerId: string; isCustomer: true }> {
+    if (args.type === TokenType.CUSTOMER_ACCESS_TOKEN && 'customerId' in args) {
+      const customer = await this.customerService.findOne(args.customerId);
+      if (!customer || customer.isBlacklisted) {
+        throw new UnauthorizedException();
+      }
+      return {
+        userId: 0,
+        roles: [],
+        customerId: customer.uuid,
+        isCustomer: true,
+      };
+    }
+
+    if (args.type !== TokenType.ACCESS_TOKEN || !('userId' in args)) {
       throw new UnauthorizedException();
     }
 

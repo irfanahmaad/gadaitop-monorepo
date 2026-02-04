@@ -7,7 +7,9 @@ import {
   Param,
   Delete,
   ParseUUIDPipe,
+  Req,
 } from '@nestjs/common';
+import { Request } from 'express';
 
 import { Auth } from '../../decorators';
 import { DeviceService } from './device.service';
@@ -30,11 +32,12 @@ export class DeviceController {
   async register(
     @Param('userId', ParseUUIDPipe) userId: string,
     @Body() registerDto: RegisterDeviceDto,
-    // TODO: Get registeredBy from auth user
+    @Req() req: Request,
   ): Promise<DeviceRegistrationDto> {
+    const user = (req as any).user;
+    const registeredBy = user?.uuid ?? '';
     registerDto.userId = userId;
-    // TODO: Get registeredBy from auth user
-    return this.deviceService.register(registerDto, '');
+    return this.deviceService.register(registerDto, registeredBy);
   }
 
   @Patch(':deviceId')

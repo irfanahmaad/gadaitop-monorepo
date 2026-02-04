@@ -1890,6 +1890,2545 @@
 			]
 		},
 		{
+			"name": "SPK (Pawn Agreements)",
+			"item": [
+				{
+					"name": "List SPK Records",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/spk?page=1&pageSize=10",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"spk"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "pageSize",
+									"value": "10"
+								},
+								{
+									"key": "status",
+									"value": "active",
+									"disabled": true
+								},
+								{
+									"key": "customerId",
+									"value": "",
+									"disabled": true
+								}
+							]
+						},
+						"description": "List all SPK (pawn agreement) records"
+					},
+					"response": []
+				},
+				{
+					"name": "Get SPK Details",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/spk/:id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"spk",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "",
+									"description": "SPK UUID"
+								}
+							]
+						},
+						"description": "Get SPK details by ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Create SPK",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"customerId\": \"customer-uuid\",\n  \"storeId\": \"branch-uuid\",\n  \"principalAmount\": 1000000,\n  \"tenor\": 30,\n  \"items\": [\n    {\n      \"itemTypeId\": \"item-type-uuid\",\n      \"description\": \"Gold ring 24K\",\n      \"weight\": 5.5,\n      \"estimatedValue\": 1500000,\n      \"photoUrl\": \"https://example.com/photo.jpg\"\n    }\n  ]\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/spk",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"spk"
+							]
+						},
+						"description": "Create a new SPK (pawn agreement)"
+					},
+					"response": []
+				},
+				{
+					"name": "Confirm SPK",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"customerPin\": \"123456\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/spk/:id/confirm",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"spk",
+								":id",
+								"confirm"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "",
+									"description": "SPK UUID"
+								}
+							]
+						},
+						"description": "Confirm SPK with customer PIN"
+					},
+					"response": []
+				},
+				{
+					"name": "Extend SPK",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"extensionDays\": 30,\n  \"interestPayment\": 50000\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/spk/:id/extend",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"spk",
+								":id",
+								"extend"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "",
+									"description": "SPK UUID"
+								}
+							]
+						},
+						"description": "Extend SPK period by paying interest"
+					},
+					"response": []
+				},
+				{
+					"name": "Redeem SPK",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"amountPaid\": 1100000\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/spk/:id/redeem",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"spk",
+								":id",
+								"redeem"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "",
+									"description": "SPK UUID"
+								}
+							]
+						},
+						"description": "Redeem pawned items by paying full amount"
+					},
+					"response": []
+				},
+				{
+					"name": "Get SPK History",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/spk/:id/history",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"spk",
+								":id",
+								"history"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "",
+									"description": "SPK UUID"
+								}
+							]
+						},
+						"description": "Get SPK transaction history"
+					},
+					"response": []
+				},
+				{
+					"name": "Get SPK NKB Records",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/spk/:id/nkb",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"spk",
+								":id",
+								"nkb"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "",
+									"description": "SPK UUID"
+								}
+							]
+						},
+						"description": "Get all NKB records for this SPK"
+					},
+					"response": []
+				}
+			],
+			"description": "SPK (Surat Perjanjian Kredit) - Pawn Agreement management"
+		},
+		{
+			"name": "Customers",
+			"item": [
+				{
+					"name": "List Customers",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/customers?page=1&pageSize=10",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"customers"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "pageSize",
+									"value": "10"
+								},
+								{
+									"key": "search",
+									"value": "",
+									"disabled": true
+								}
+							]
+						},
+						"description": "List all customers"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Customer",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/customers/:id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"customers",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "",
+									"description": "Customer UUID"
+								}
+							]
+						},
+						"description": "Get customer details by ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Customer",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nik\": \"1234567890123456\",\n  \"fullName\": \"John Doe\",\n  \"dateOfBirth\": \"1990-01-01\",\n  \"address\": \"Jl. Example No. 123\",\n  \"phoneNumber\": \"+6281234567890\",\n  \"email\": \"customer@example.com\",\n  \"pin\": \"123456\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/customers",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"customers"
+							]
+						},
+						"description": "Create a new customer"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Customer",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"fullName\": \"Updated Name\",\n  \"phoneNumber\": \"+6281234567891\",\n  \"email\": \"updated@example.com\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/customers/:id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"customers",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "",
+									"description": "Customer UUID"
+								}
+							]
+						},
+						"description": "Update customer information"
+					},
+					"response": []
+				},
+				{
+					"name": "Scan KTP",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"imageBase64\": \"base64-encoded-image-data\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/customers/scan-ktp",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"customers",
+								"scan-ktp"
+							]
+						},
+						"description": "Scan KTP (ID card) to extract customer data"
+					},
+					"response": []
+				},
+				{
+					"name": "Change Customer PIN",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"oldPin\": \"123456\",\n  \"newPin\": \"654321\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/customers/:id/pin",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"customers",
+								":id",
+								"pin"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "",
+									"description": "Customer UUID"
+								}
+							]
+						},
+						"description": "Change customer PIN"
+					},
+					"response": []
+				},
+				{
+					"name": "Blacklist Customer",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"reason\": \"Fraud detected\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/customers/:id/blacklist",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"customers",
+								":id",
+								"blacklist"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "",
+									"description": "Customer UUID"
+								}
+							]
+						},
+						"description": "Blacklist a customer"
+					},
+					"response": []
+				},
+				{
+					"name": "Unblacklist Customer",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/customers/:id/blacklist",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"customers",
+								":id",
+								"blacklist"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "",
+									"description": "Customer UUID"
+								}
+							]
+						},
+						"description": "Remove customer from blacklist"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Customer",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/customers/:id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"customers",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "",
+									"description": "Customer UUID"
+								}
+							]
+						},
+						"description": "Delete a customer"
+					},
+					"response": []
+				}
+			],
+			"description": "Customer management endpoints"
+		},
+		{
+			"name": "NKB (Transaction Records)",
+			"item": [
+				{
+					"name": "List NKB Records",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/nkb?page=1&pageSize=10",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"nkb"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "pageSize",
+									"value": "10"
+								},
+								{
+									"key": "spkId",
+									"value": "",
+									"disabled": true
+								}
+							]
+						},
+						"description": "List all NKB (Nota Kredit Barang) records"
+					},
+					"response": []
+				},
+				{
+					"name": "Get NKB Details",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/nkb/:id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"nkb",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "",
+									"description": "NKB UUID"
+								}
+							]
+						},
+						"description": "Get NKB details by ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Create NKB",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"spkId\": \"spk-uuid\",\n  \"transactionType\": \"extension\",\n  \"amount\": 50000,\n  \"description\": \"Interest payment for extension\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/nkb",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"nkb"
+							]
+						},
+						"description": "Create a new NKB record"
+					},
+					"response": []
+				},
+				{
+					"name": "Confirm NKB",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/nkb/:id/confirm",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"nkb",
+								":id",
+								"confirm"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "",
+									"description": "NKB UUID"
+								}
+							]
+						},
+						"description": "Confirm NKB transaction"
+					},
+					"response": []
+				},
+				{
+					"name": "Reject NKB",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"rejectionReason\": \"Invalid transaction\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/nkb/:id/reject",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"nkb",
+								":id",
+								"reject"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "",
+									"description": "NKB UUID"
+								}
+							]
+						},
+						"description": "Reject NKB transaction"
+					},
+					"response": []
+				}
+			],
+			"description": "NKB (Nota Kredit Barang) - Transaction record management"
+		},
+		{
+			"name": "Catalog",
+			"item": [
+				{
+					"name": "List Catalog Items",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/catalogs?page=1&pageSize=10",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"catalogs"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "pageSize",
+									"value": "10"
+								}
+							]
+						},
+						"description": "List all catalog items"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Catalog Item",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/catalogs/:id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"catalogs",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "",
+									"description": "Catalog UUID"
+								}
+							]
+						},
+						"description": "Get catalog item details"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Price History",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/catalogs/:id/price-history",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"catalogs",
+								":id",
+								"price-history"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "",
+									"description": "Catalog UUID"
+								}
+							]
+						},
+						"description": "Get price history for catalog item"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Catalog Item",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"itemName\": \"Gold 24K\",\n  \"itemTypeId\": \"item-type-uuid\",\n  \"basePrice\": 1000000,\n  \"description\": \"24 karat gold\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/catalogs",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"catalogs"
+							]
+						},
+						"description": "Create a new catalog item"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Catalog Item",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"itemName\": \"Updated Name\",\n  \"basePrice\": 1100000\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/catalogs/:id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"catalogs",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "",
+									"description": "Catalog UUID"
+								}
+							]
+						},
+						"description": "Update catalog item"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Catalog Item",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/catalogs/:id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"catalogs",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "",
+									"description": "Catalog UUID"
+								}
+							]
+						},
+						"description": "Delete catalog item"
+					},
+					"response": []
+				},
+				{
+					"name": "Import Catalog",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"ptId\": \"company-uuid\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/catalogs/import",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"catalogs",
+								"import"
+							]
+						},
+						"description": "Import catalog from file"
+					},
+					"response": []
+				}
+			],
+			"description": "Product catalog management"
+		},
+		{
+			"name": "Roles",
+			"item": [
+				{
+					"name": "List Roles",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/roles?page=1&pageSize=10",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"roles"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "pageSize",
+									"value": "10"
+								}
+							]
+						},
+						"description": "List all roles"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Role by Code",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/roles/code/:code",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"roles",
+								"code",
+								":code"
+							],
+							"variable": [
+								{
+									"key": "code",
+									"value": "admin",
+									"description": "Role code"
+								}
+							]
+						},
+						"description": "Get role by code"
+					},
+					"response": []
+				}
+			],
+			"description": "Role management endpoints"
+		},
+		{
+			"name": "Dashboard",
+			"item": [
+				{
+					"name": "Get KPIs",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/dashboard/kpis",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"dashboard",
+								"kpis"
+							]
+						},
+						"description": "Get dashboard KPIs"
+					},
+					"response": []
+				},
+				{
+					"name": "Get SPK by Status Chart",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/dashboard/charts/spk-by-status",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"dashboard",
+								"charts",
+								"spk-by-status"
+							]
+						},
+						"description": "Get SPK distribution by status"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Mutation Trends",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/dashboard/charts/mutation-trends?days=30",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"dashboard",
+								"charts",
+								"mutation-trends"
+							],
+							"query": [
+								{
+									"key": "days",
+									"value": "30"
+								},
+								{
+									"key": "storeId",
+									"value": "",
+									"disabled": true
+								}
+							]
+						},
+						"description": "Get cash mutation trends"
+					},
+					"response": []
+				}
+			],
+			"description": "Dashboard analytics endpoints"
+		},
+		{
+			"name": "Auction Batches",
+			"item": [
+				{
+					"name": "List Auction Batches",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/auction-batches?page=1&pageSize=10",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "auction-batches"],
+							"query": [{ "key": "page", "value": "1" }, { "key": "pageSize", "value": "10" }]
+						},
+						"description": "List all auction batches"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Auction Batch",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/auction-batches/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "auction-batches", ":id"],
+							"variable": [{ "key": "id", "value": "", "description": "Batch UUID" }]
+						},
+						"description": "Get auction batch details"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Auction Batch",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"storeId\": \"branch-uuid\",\n  \"scheduledDate\": \"2026-03-01\",\n  \"spkIds\": [\"spk-uuid-1\", \"spk-uuid-2\"]\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/auction-batches",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "auction-batches"]
+						},
+						"description": "Create new auction batch"
+					},
+					"response": []
+				},
+				{
+					"name": "Assign Auction Batch",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "PUT",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/auction-batches/:id/assign",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "auction-batches", ":id", "assign"],
+							"variable": [{ "key": "id", "value": "", "description": "Batch UUID" }]
+						},
+						"description": "Assign auction batch to user"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Item Pickup",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "PUT",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"pickedUp\": true,\n  \"notes\": \"Item picked up successfully\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/auction-batches/:id/items/:itemId/pickup",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "auction-batches", ":id", "items", ":itemId", "pickup"],
+							"variable": [
+								{ "key": "id", "value": "", "description": "Batch UUID" },
+								{ "key": "itemId", "value": "", "description": "Item UUID" }
+							]
+						},
+						"description": "Update item pickup status"
+					},
+					"response": []
+				},
+				{
+					"name": "Submit Item Validation",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "PUT",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"validated\": true,\n  \"validatedPrice\": 1500000,\n  \"notes\": \"Item validated\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/auction-batches/:id/items/:itemId/validation",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "auction-batches", ":id", "items", ":itemId", "validation"],
+							"variable": [
+								{ "key": "id", "value": "", "description": "Batch UUID" },
+								{ "key": "itemId", "value": "", "description": "Item UUID" }
+							]
+						},
+						"description": "Submit item validation"
+					},
+					"response": []
+				},
+				{
+					"name": "Finalize Auction Batch",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "PUT",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/auction-batches/:id/finalize",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "auction-batches", ":id", "finalize"],
+							"variable": [{ "key": "id", "value": "", "description": "Batch UUID" }]
+						},
+						"description": "Finalize auction batch"
+					},
+					"response": []
+				},
+				{
+					"name": "Cancel Auction Batch",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "PUT",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/auction-batches/:id/cancel",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "auction-batches", ":id", "cancel"],
+							"variable": [{ "key": "id", "value": "", "description": "Batch UUID" }]
+						},
+						"description": "Cancel auction batch"
+					},
+					"response": []
+				}
+			],
+			"description": "Auction batch management for expired pawn items"
+		},
+		{
+			"name": "Stock Opname",
+			"item": [
+				{
+					"name": "List Stock Opname Sessions",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/stock-opname?page=1&pageSize=10",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "stock-opname"],
+							"query": [{ "key": "page", "value": "1" }, { "key": "pageSize", "value": "10" }]
+						},
+						"description": "List all stock opname sessions"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Stock Opname Session",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/stock-opname/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "stock-opname", ":id"],
+							"variable": [{ "key": "id", "value": "", "description": "Session UUID" }]
+						},
+						"description": "Get stock opname session details"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Stock Opname Session",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"storeId\": \"branch-uuid\",\n  \"scheduledDate\": \"2026-03-01\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/stock-opname",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "stock-opname"]
+						},
+						"description": "Create new stock opname session"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Stock Opname Items",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "PUT",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"items\": [\n    { \"itemId\": \"item-uuid\", \"counted\": true, \"condition\": \"good\" }\n  ]\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/stock-opname/:id/items",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "stock-opname", ":id", "items"],
+							"variable": [{ "key": "id", "value": "", "description": "Session UUID" }]
+						},
+						"description": "Update stock opname items"
+					},
+					"response": []
+				},
+				{
+					"name": "Record Item Condition",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"condition\": \"good\",\n  \"notes\": \"Item in good condition\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/stock-opname/:id/items/:itemId/condition",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "stock-opname", ":id", "items", ":itemId", "condition"],
+							"variable": [
+								{ "key": "id", "value": "", "description": "Session UUID" },
+								{ "key": "itemId", "value": "", "description": "Item UUID" }
+							]
+						},
+						"description": "Record item condition"
+					},
+					"response": []
+				},
+				{
+					"name": "Complete Stock Opname",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "PUT",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/stock-opname/:id/complete",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "stock-opname", ":id", "complete"],
+							"variable": [{ "key": "id", "value": "", "description": "Session UUID" }]
+						},
+						"description": "Complete stock opname session"
+					},
+					"response": []
+				},
+				{
+					"name": "Approve Stock Opname",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "PUT",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/stock-opname/:id/approve",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "stock-opname", ":id", "approve"],
+							"variable": [{ "key": "id", "value": "", "description": "Session UUID" }]
+						},
+						"description": "Approve stock opname session"
+					},
+					"response": []
+				}
+			],
+			"description": "Stock opname (inventory count) management"
+		},
+		{
+			"name": "Cash Deposits",
+			"item": [
+				{
+					"name": "List Cash Deposits",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/cash-deposits?page=1&pageSize=10",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "cash-deposits"],
+							"query": [{ "key": "page", "value": "1" }, { "key": "pageSize", "value": "10" }]
+						},
+						"description": "List all cash deposits"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Cash Deposit",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/cash-deposits/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "cash-deposits", ":id"],
+							"variable": [{ "key": "id", "value": "", "description": "Deposit UUID" }]
+						},
+						"description": "Get cash deposit details"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Cash Deposit",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"storeId\": \"branch-uuid\",\n  \"amount\": 5000000,\n  \"bankAccountId\": \"account-uuid\",\n  \"proofUrl\": \"https://example.com/proof.jpg\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/cash-deposits",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "cash-deposits"]
+						},
+						"description": "Create new cash deposit request"
+					},
+					"response": []
+				},
+				{
+					"name": "Approve Cash Deposit",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "PUT",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/cash-deposits/:id/approve",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "cash-deposits", ":id", "approve"],
+							"variable": [{ "key": "id", "value": "", "description": "Deposit UUID" }]
+						},
+						"description": "Approve cash deposit"
+					},
+					"response": []
+				},
+				{
+					"name": "Reject Cash Deposit",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "PUT",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"reason\": \"Invalid proof document\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/cash-deposits/:id/reject",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "cash-deposits", ":id", "reject"],
+							"variable": [{ "key": "id", "value": "", "description": "Deposit UUID" }]
+						},
+						"description": "Reject cash deposit"
+					},
+					"response": []
+				}
+			],
+			"description": "Cash deposit management"
+		},
+		{
+			"name": "Cash Mutations",
+			"item": [
+				{
+					"name": "Get Cash Balance",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/cash-mutations/balance?storeId=branch-uuid",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "cash-mutations", "balance"],
+							"query": [{ "key": "storeId", "value": "branch-uuid" }]
+						},
+						"description": "Get current cash balance for a branch"
+					},
+					"response": []
+				},
+				{
+					"name": "List Cash Mutations",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/cash-mutations?page=1&pageSize=10",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "cash-mutations"],
+							"query": [{ "key": "page", "value": "1" }, { "key": "pageSize", "value": "10" }]
+						},
+						"description": "List all cash mutations"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Cash Mutation",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"storeId\": \"branch-uuid\",\n  \"type\": \"in\",\n  \"amount\": 1000000,\n  \"description\": \"Cash received\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/cash-mutations",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "cash-mutations"]
+						},
+						"description": "Create new cash mutation record"
+					},
+					"response": []
+				}
+			],
+			"description": "Cash mutation tracking"
+		},
+		{
+			"name": "Capital Topups",
+			"item": [
+				{
+					"name": "List Capital Topups",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/capital-topups?page=1&pageSize=10",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "capital-topups"],
+							"query": [{ "key": "page", "value": "1" }, { "key": "pageSize", "value": "10" }]
+						},
+						"description": "List all capital topup requests"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Capital Topup",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/capital-topups/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "capital-topups", ":id"],
+							"variable": [{ "key": "id", "value": "", "description": "Topup UUID" }]
+						},
+						"description": "Get capital topup details"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Capital Topup",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"storeId\": \"branch-uuid\",\n  \"amount\": 10000000,\n  \"reason\": \"Additional operating capital\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/capital-topups",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "capital-topups"]
+						},
+						"description": "Create new capital topup request"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Capital Topup",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "PUT",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"amount\": 15000000,\n  \"reason\": \"Updated reason\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/capital-topups/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "capital-topups", ":id"],
+							"variable": [{ "key": "id", "value": "", "description": "Topup UUID" }]
+						},
+						"description": "Update capital topup request"
+					},
+					"response": []
+				},
+				{
+					"name": "Approve Capital Topup",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "PUT",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/capital-topups/:id/approve",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "capital-topups", ":id", "approve"],
+							"variable": [{ "key": "id", "value": "", "description": "Topup UUID" }]
+						},
+						"description": "Approve capital topup"
+					},
+					"response": []
+				},
+				{
+					"name": "Reject Capital Topup",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "PUT",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"reason\": \"Insufficient justification\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/capital-topups/:id/reject",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "capital-topups", ":id", "reject"],
+							"variable": [{ "key": "id", "value": "", "description": "Topup UUID" }]
+						},
+						"description": "Reject capital topup"
+					},
+					"response": []
+				},
+				{
+					"name": "Disburse Capital Topup",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "PUT",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"disbursedAmount\": 10000000,\n  \"proofUrl\": \"https://example.com/transfer-proof.jpg\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/capital-topups/:id/disburse",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "capital-topups", ":id", "disburse"],
+							"variable": [{ "key": "id", "value": "", "description": "Topup UUID" }]
+						},
+						"description": "Disburse capital topup"
+					},
+					"response": []
+				}
+			],
+			"description": "Capital topup request management"
+		},
+		{
+			"name": "Notifications",
+			"item": [
+				{
+					"name": "List Notifications",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/notifications?page=1&pageSize=10",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "notifications"],
+							"query": [{ "key": "page", "value": "1" }, { "key": "pageSize", "value": "10" }]
+						},
+						"description": "List user notifications"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Unread Count",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/notifications/unread-count",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "notifications", "unread-count"]
+						},
+						"description": "Get unread notification count"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Notification",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/notifications/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "notifications", ":id"],
+							"variable": [{ "key": "id", "value": "", "description": "Notification UUID" }]
+						},
+						"description": "Get notification details"
+					},
+					"response": []
+				},
+				{
+					"name": "Mark as Read",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "PATCH",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/notifications/:id/read",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "notifications", ":id", "read"],
+							"variable": [{ "key": "id", "value": "", "description": "Notification UUID" }]
+						},
+						"description": "Mark notification as read"
+					},
+					"response": []
+				},
+				{
+					"name": "Mark All as Read",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/notifications/read-all",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "notifications", "read-all"]
+						},
+						"description": "Mark all notifications as read"
+					},
+					"response": []
+				}
+			],
+			"description": "User notification management"
+		},
+		{
+			"name": "Reports",
+			"item": [
+				{
+					"name": "Mutation by Branch Report",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/reports/mutation-by-branch?dateFrom=2026-01-01&dateTo=2026-01-31",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "reports", "mutation-by-branch"],
+							"query": [
+								{ "key": "dateFrom", "value": "2026-01-01" },
+								{ "key": "dateTo", "value": "2026-01-31" },
+								{ "key": "format", "value": "json", "disabled": true }
+							]
+						},
+						"description": "Get mutation report by branch (supports CSV export)"
+					},
+					"response": []
+				},
+				{
+					"name": "Mutation by PT Report",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/reports/mutation-by-pt?dateFrom=2026-01-01&dateTo=2026-01-31",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "reports", "mutation-by-pt"],
+							"query": [
+								{ "key": "dateFrom", "value": "2026-01-01" },
+								{ "key": "dateTo", "value": "2026-01-31" }
+							]
+						},
+						"description": "Get mutation report by company"
+					},
+					"response": []
+				},
+				{
+					"name": "SPK Report",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/reports/spk?dateFrom=2026-01-01&dateTo=2026-01-31",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "reports", "spk"],
+							"query": [
+								{ "key": "dateFrom", "value": "2026-01-01" },
+								{ "key": "dateTo", "value": "2026-01-31" }
+							]
+						},
+						"description": "Get SPK (pawn agreements) report"
+					},
+					"response": []
+				},
+				{
+					"name": "NKB Payments Report",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/reports/nkb-payments?dateFrom=2026-01-01&dateTo=2026-01-31",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "reports", "nkb-payments"],
+							"query": [
+								{ "key": "dateFrom", "value": "2026-01-01" },
+								{ "key": "dateTo", "value": "2026-01-31" }
+							]
+						},
+						"description": "Get NKB payments report"
+					},
+					"response": []
+				},
+				{
+					"name": "Stock Opname Report",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/reports/stock-opname?dateFrom=2026-01-01&dateTo=2026-01-31",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "reports", "stock-opname"],
+							"query": [
+								{ "key": "dateFrom", "value": "2026-01-01" },
+								{ "key": "dateTo", "value": "2026-01-31" }
+							]
+						},
+						"description": "Get stock opname report"
+					},
+					"response": []
+				}
+			],
+			"description": "Business reports (supports JSON and CSV export)"
+		},
+		{
+			"name": "Pawn Terms",
+			"item": [
+				{
+					"name": "List Pawn Terms",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/pawn-terms?page=1&pageSize=10",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "pawn-terms"],
+							"query": [{ "key": "page", "value": "1" }, { "key": "pageSize", "value": "10" }]
+						},
+						"description": "List all pawn terms configurations"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Pawn Term",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/pawn-terms/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "pawn-terms", ":id"],
+							"variable": [{ "key": "id", "value": "", "description": "Term UUID" }]
+						},
+						"description": "Get pawn term details"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Pawn Term",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"ptId\": \"company-uuid\",\n  \"tenor\": 30,\n  \"interestRate\": 2.5,\n  \"adminFee\": 10000,\n  \"storageFee\": 5000\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/pawn-terms",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "pawn-terms"]
+						},
+						"description": "Create new pawn term configuration"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Pawn Term",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "PUT",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"interestRate\": 3.0,\n  \"adminFee\": 15000\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/pawn-terms/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "pawn-terms", ":id"],
+							"variable": [{ "key": "id", "value": "", "description": "Term UUID" }]
+						},
+						"description": "Update pawn term configuration"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Pawn Term",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/pawn-terms/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "pawn-terms", ":id"],
+							"variable": [{ "key": "id", "value": "", "description": "Term UUID" }]
+						},
+						"description": "Delete pawn term"
+					},
+					"response": []
+				}
+			],
+			"description": "Pawn term configuration management"
+		},
+		{
+			"name": "Upload",
+			"item": [
+				{
+					"name": "Get Presigned Upload URL",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"key\": \"uploads/customers/ktp-123.jpg\",\n  \"contentType\": \"image/jpeg\",\n  \"expiresIn\": 3600\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{baseUrl}}/upload/presigned",
+							"host": ["{{baseUrl}}"],
+							"path": ["upload", "presigned"]
+						},
+						"description": "Get presigned URL for file upload"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Public URL",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/upload/public-url?key=uploads/customers/ktp-123.jpg",
+							"host": ["{{baseUrl}}"],
+							"path": ["upload", "public-url"],
+							"query": [{ "key": "key", "value": "uploads/customers/ktp-123.jpg" }]
+						},
+						"description": "Get public URL for uploaded file"
+					},
+					"response": []
+				},
+				{
+					"name": "Upload Status",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/upload/status",
+							"host": ["{{baseUrl}}"],
+							"path": ["upload", "status"]
+						},
+						"description": "Check if S3 upload is configured"
+					},
+					"response": []
+				}
+			],
+			"description": "File upload management (S3 presigned URLs)"
+		},
+		{
 			"name": "Links",
 			"item": [
 				{

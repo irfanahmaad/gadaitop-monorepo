@@ -44,92 +44,111 @@ export class RoleSeed extends Seeder {
       { action: AclAction.MANAGE, subject: AclSubject.ALL },
     ];
 
-    // ADMIN_PT permissions
+    // ADMIN_PT permissions (per roles-and-permissions.md spec)
     const adminPtPermissions = [
-      // READ for Pt, Store, ItemType
+      // PT - Read own PT
       { action: AclAction.READ, subject: AclSubject.PT },
+      // Store - CRUD for branches
+      { action: AclAction.CREATE, subject: AclSubject.STORE },
       { action: AclAction.READ, subject: AclSubject.STORE },
+      { action: AclAction.UPDATE, subject: AclSubject.STORE },
+      { action: AclAction.DELETE, subject: AclSubject.STORE },
+      // ItemType - Read only
       { action: AclAction.READ, subject: AclSubject.ITEM_TYPE },
-      // CRUD for User (scoped to PT)
+      // User - CRUD for PT users
       { action: AclAction.CREATE, subject: AclSubject.USER },
       { action: AclAction.READ, subject: AclSubject.USER },
       { action: AclAction.UPDATE, subject: AclSubject.USER },
       { action: AclAction.DELETE, subject: AclSubject.USER },
-      // CRUD for Catalog
+      // Catalog - CRUD
       { action: AclAction.CREATE, subject: AclSubject.CATALOG },
       { action: AclAction.READ, subject: AclSubject.CATALOG },
       { action: AclAction.UPDATE, subject: AclSubject.CATALOG },
       { action: AclAction.DELETE, subject: AclSubject.CATALOG },
-      // CRUD for PriceDeduction
+      // PriceDeduction - CRUD
       { action: AclAction.CREATE, subject: AclSubject.PRICE_DEDUCTION },
       { action: AclAction.READ, subject: AclSubject.PRICE_DEDUCTION },
       { action: AclAction.UPDATE, subject: AclSubject.PRICE_DEDUCTION },
       { action: AclAction.DELETE, subject: AclSubject.PRICE_DEDUCTION },
-      // CRUD for Customer
-      { action: AclAction.CREATE, subject: AclSubject.CUSTOMER },
+      // Customer - READ + UPDATE only (view, change PIN)
       { action: AclAction.READ, subject: AclSubject.CUSTOMER },
       { action: AclAction.UPDATE, subject: AclSubject.CUSTOMER },
-      { action: AclAction.DELETE, subject: AclSubject.CUSTOMER },
-      // CRUD for SPK
-      { action: AclAction.CREATE, subject: AclSubject.SPK },
+      // SPK - READ only (view for oversight)
       { action: AclAction.READ, subject: AclSubject.SPK },
-      { action: AclAction.UPDATE, subject: AclSubject.SPK },
-      { action: AclAction.DELETE, subject: AclSubject.SPK },
-      // CRUD for NKB
-      { action: AclAction.CREATE, subject: AclSubject.NKB },
+      // NKB - READ only (view for oversight)
       { action: AclAction.READ, subject: AclSubject.NKB },
-      { action: AclAction.UPDATE, subject: AclSubject.NKB },
-      { action: AclAction.DELETE, subject: AclSubject.NKB },
-      // CRUD for AddCapital
+      // AddCapital - CRUD (approve/reject requests)
       { action: AclAction.CREATE, subject: AclSubject.ADD_CAPITAL },
       { action: AclAction.READ, subject: AclSubject.ADD_CAPITAL },
       { action: AclAction.UPDATE, subject: AclSubject.ADD_CAPITAL },
       { action: AclAction.DELETE, subject: AclSubject.ADD_CAPITAL },
-      // CRUD for DepositMoney
+      // DepositMoney - CRUD (approve/reject deposits)
       { action: AclAction.CREATE, subject: AclSubject.DEPOSIT_MONEY },
       { action: AclAction.READ, subject: AclSubject.DEPOSIT_MONEY },
       { action: AclAction.UPDATE, subject: AclSubject.DEPOSIT_MONEY },
       { action: AclAction.DELETE, subject: AclSubject.DEPOSIT_MONEY },
-      // READ for Mutation, StockOpnameSchedule, StockOpnameExecution, AuctionBatch, AuctionPickup, AuctionValidation, Report
+      // Mutation - Read only
       { action: AclAction.READ, subject: AclSubject.MUTATION },
+      // StockOpname Schedule - CRUD
+      { action: AclAction.CREATE, subject: AclSubject.STOCK_OPNAME_SCHEDULE },
       { action: AclAction.READ, subject: AclSubject.STOCK_OPNAME_SCHEDULE },
+      { action: AclAction.UPDATE, subject: AclSubject.STOCK_OPNAME_SCHEDULE },
+      { action: AclAction.DELETE, subject: AclSubject.STOCK_OPNAME_SCHEDULE },
+      // StockOpname Execution - Read only
       { action: AclAction.READ, subject: AclSubject.STOCK_OPNAME_EXECUTION },
-      { action: AclAction.READ, subject: AclSubject.AUCTION_BATCH },
-      { action: AclAction.READ, subject: AclSubject.AUCTION_PICKUP },
-      { action: AclAction.READ, subject: AclSubject.AUCTION_VALIDATION },
-      { action: AclAction.READ, subject: AclSubject.REPORT },
-      // CRUD for PriorityRules
+      // PriorityRules - CRUD
       { action: AclAction.CREATE, subject: AclSubject.PRIORITY_RULES },
       { action: AclAction.READ, subject: AclSubject.PRIORITY_RULES },
       { action: AclAction.UPDATE, subject: AclSubject.PRIORITY_RULES },
       { action: AclAction.DELETE, subject: AclSubject.PRIORITY_RULES },
+      // AuctionBatch - CRUD
+      { action: AclAction.CREATE, subject: AclSubject.AUCTION_BATCH },
+      { action: AclAction.READ, subject: AclSubject.AUCTION_BATCH },
+      { action: AclAction.UPDATE, subject: AclSubject.AUCTION_BATCH },
+      { action: AclAction.DELETE, subject: AclSubject.AUCTION_BATCH },
+      // AuctionPickup/Validation - Read only
+      { action: AclAction.READ, subject: AclSubject.AUCTION_PICKUP },
+      { action: AclAction.READ, subject: AclSubject.AUCTION_VALIDATION },
+      // Report - Read only
+      { action: AclAction.READ, subject: AclSubject.REPORT },
+      // LockUnlockData - CRUD
+      { action: AclAction.CREATE, subject: AclSubject.LOCK_UNLOCK_DATA },
+      { action: AclAction.READ, subject: AclSubject.LOCK_UNLOCK_DATA },
+      { action: AclAction.UPDATE, subject: AclSubject.LOCK_UNLOCK_DATA },
+      { action: AclAction.DELETE, subject: AclSubject.LOCK_UNLOCK_DATA },
     ];
 
-    // STAFF_TOKO permissions
+    // STORE_STAFF permissions (per roles-and-permissions.md spec)
     const staffTokoPermissions = [
-      // READ for ItemType, Catalog, PriceDeduction, DepositMoney, Mutation
+      // ItemType, Catalog, PriceDeduction - Read only
       { action: AclAction.READ, subject: AclSubject.ITEM_TYPE },
       { action: AclAction.READ, subject: AclSubject.CATALOG },
       { action: AclAction.READ, subject: AclSubject.PRICE_DEDUCTION },
-      { action: AclAction.READ, subject: AclSubject.DEPOSIT_MONEY },
-      { action: AclAction.READ, subject: AclSubject.MUTATION },
-      // CRUD for Customer
+      // Customer - CRUD
       { action: AclAction.CREATE, subject: AclSubject.CUSTOMER },
       { action: AclAction.READ, subject: AclSubject.CUSTOMER },
       { action: AclAction.UPDATE, subject: AclSubject.CUSTOMER },
       { action: AclAction.DELETE, subject: AclSubject.CUSTOMER },
-      // CRUD for SPK
+      // SPK - CRUD
       { action: AclAction.CREATE, subject: AclSubject.SPK },
       { action: AclAction.READ, subject: AclSubject.SPK },
       { action: AclAction.UPDATE, subject: AclSubject.SPK },
       { action: AclAction.DELETE, subject: AclSubject.SPK },
-      // CRUD for NKB
+      // NKB - CRUD
       { action: AclAction.CREATE, subject: AclSubject.NKB },
       { action: AclAction.READ, subject: AclSubject.NKB },
       { action: AclAction.UPDATE, subject: AclSubject.NKB },
       { action: AclAction.DELETE, subject: AclSubject.NKB },
-      // READ (request) for AddCapital
+      // AddCapital - CRU (create, read, update pending requests)
+      { action: AclAction.CREATE, subject: AclSubject.ADD_CAPITAL },
       { action: AclAction.READ, subject: AclSubject.ADD_CAPITAL },
+      { action: AclAction.UPDATE, subject: AclSubject.ADD_CAPITAL },
+      // DepositMoney - CRU (create, read, update pending requests)
+      { action: AclAction.CREATE, subject: AclSubject.DEPOSIT_MONEY },
+      { action: AclAction.READ, subject: AclSubject.DEPOSIT_MONEY },
+      { action: AclAction.UPDATE, subject: AclSubject.DEPOSIT_MONEY },
+      // Mutation - Read only
+      { action: AclAction.READ, subject: AclSubject.MUTATION },
     ];
 
     // STOCK_OPNAME permissions
@@ -144,28 +163,33 @@ export class RoleSeed extends Seeder {
       { action: AclAction.DELETE, subject: AclSubject.STOCK_OPNAME_EXECUTION },
     ];
 
-    // STAFF_LELANG permissions
+    // AUCTION_STAFF permissions (per roles-and-permissions.md spec)
     const staffLelangPermissions = [
-      // READ for AuctionBatch, AuctionValidation
+      // AuctionBatch - Read only
       { action: AclAction.READ, subject: AclSubject.AUCTION_BATCH },
-      { action: AclAction.READ, subject: AclSubject.AUCTION_VALIDATION },
-      // CRUD for AuctionPickup
+      // AuctionPickup - CRUD (manage pickup process)
       { action: AclAction.CREATE, subject: AclSubject.AUCTION_PICKUP },
       { action: AclAction.READ, subject: AclSubject.AUCTION_PICKUP },
       { action: AclAction.UPDATE, subject: AclSubject.AUCTION_PICKUP },
       { action: AclAction.DELETE, subject: AclSubject.AUCTION_PICKUP },
-    ];
-
-    // STAFF_MARKETING permissions
-    const staffMarketingPermissions = [
-      // READ for AuctionBatch, AuctionPickup
-      { action: AclAction.READ, subject: AclSubject.AUCTION_BATCH },
-      { action: AclAction.READ, subject: AclSubject.AUCTION_PICKUP },
-      // CRUD for AuctionValidation
+      // AuctionValidation - CRUD (validate items, approve/reject)
       { action: AclAction.CREATE, subject: AclSubject.AUCTION_VALIDATION },
       { action: AclAction.READ, subject: AclSubject.AUCTION_VALIDATION },
       { action: AclAction.UPDATE, subject: AclSubject.AUCTION_VALIDATION },
       { action: AclAction.DELETE, subject: AclSubject.AUCTION_VALIDATION },
+    ];
+
+    // MARKETING_STAFF permissions (per roles-and-permissions.md spec)
+    const staffMarketingPermissions = [
+      // Auction - READ ONLY (view batches, pickups, validations)
+      { action: AclAction.READ, subject: AclSubject.AUCTION_BATCH },
+      { action: AclAction.READ, subject: AclSubject.AUCTION_PICKUP },
+      { action: AclAction.READ, subject: AclSubject.AUCTION_VALIDATION },
+      // MarketingNote - CRUD (marketing-specific content only)
+      { action: AclAction.CREATE, subject: AclSubject.MARKETING_NOTE },
+      { action: AclAction.READ, subject: AclSubject.MARKETING_NOTE },
+      { action: AclAction.UPDATE, subject: AclSubject.MARKETING_NOTE },
+      { action: AclAction.DELETE, subject: AclSubject.MARKETING_NOTE },
     ];
 
     const roles: IRole[] = [

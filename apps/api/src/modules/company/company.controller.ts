@@ -12,6 +12,7 @@ import { ParseUUIDPipe } from '@nestjs/common/pipes';
 
 import { PageOptionsDto } from '../../common/dtos/page-options.dto';
 import { Auth } from '../../decorators';
+import { AclAction, AclSubject } from '../../constants/acl';
 import { CompanyService } from './company.service';
 import { CompanyDto } from './dto/company.dto';
 import { CreateCompanyWithAdminDto } from './dto/create-company-with-admin.dto';
@@ -23,25 +24,25 @@ export class CompanyController {
   constructor(private readonly companyService: CompanyService) {}
 
   @Get()
-  @Auth([])
+  @Auth([{ action: AclAction.READ, subject: AclSubject.PT }])
   async findAll(@Query() options: PageOptionsDto) {
     return this.companyService.findAll(options);
   }
 
   @Post()
-  @Auth([])
+  @Auth([{ action: AclAction.CREATE, subject: AclSubject.PT }])
   async create(@Body() createDto: CreateCompanyWithAdminDto): Promise<CompanyDto> {
     return this.companyService.create(createDto);
   }
 
   @Get(':id')
-  @Auth([])
+  @Auth([{ action: AclAction.READ, subject: AclSubject.PT }])
   async findOne(@Param('id', ParseUUIDPipe) id: string): Promise<CompanyDto> {
     return this.companyService.findOne(id);
   }
 
   @Patch(':id')
-  @Auth([])
+  @Auth([{ action: AclAction.UPDATE, subject: AclSubject.PT }])
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateDto: UpdateCompanyDto,
@@ -50,7 +51,7 @@ export class CompanyController {
   }
 
   @Patch(':id/config')
-  @Auth([])
+  @Auth([{ action: AclAction.UPDATE, subject: AclSubject.PT }])
   async updateConfig(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() configDto: UpdateCompanyConfigDto,
@@ -59,13 +60,13 @@ export class CompanyController {
   }
 
   @Get(':id/statistics')
-  @Auth([])
+  @Auth([{ action: AclAction.READ, subject: AclSubject.PT }])
   async getStatistics(@Param('id', ParseUUIDPipe) id: string) {
     return this.companyService.getStatistics(id);
   }
 
   @Delete(':id')
-  @Auth([])
+  @Auth([{ action: AclAction.DELETE, subject: AclSubject.PT }])
   async delete(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     return this.companyService.delete(id);
   }

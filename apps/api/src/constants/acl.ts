@@ -8,7 +8,7 @@ export enum AclAction {
 }
 
 export enum AclSubject {
-  ALL = 'All',
+  ALL = 'all',
   USER = 'User',
   PT = 'Pt',
   STORE = 'Store',
@@ -27,6 +27,7 @@ export enum AclSubject {
   AUCTION_BATCH = 'AuctionBatch',
   AUCTION_PICKUP = 'AuctionPickup',
   AUCTION_VALIDATION = 'AuctionValidation',
+  MARKETING_NOTE = 'MarketingNote',
   REPORT = 'Report',
   LOCK_UNLOCK_DATA = 'LockUnlockData',
 }

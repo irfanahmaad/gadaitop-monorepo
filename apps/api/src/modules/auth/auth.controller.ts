@@ -5,6 +5,8 @@ import { UserService } from '../user/user.service';
 import { AuthService } from './auth.service';
 import { LogedUserDto } from './dtos/loged-user.dto';
 import { LoginPayloadDto } from './dtos/login-payload.dto';
+import { CustomerLoginPayloadDto } from './dtos/customer-login-payload.dto';
+import { CustomerLoginDto } from './dtos/customer-login.dto';
 import { UserLoginDto } from './dtos/user-login.dto';
 import { UserRegisterDto } from './dtos/user-register.dto';
 
@@ -17,6 +19,23 @@ export class AuthController {
     private userService: UserService,
     private authService: AuthService,
   ) {}
+
+  @Post('customer/login')
+  @HttpCode(HttpStatus.OK)
+  @PublicRoute()
+  async customerLogin(
+    @Body() dto: CustomerLoginDto,
+  ): Promise<{ data: CustomerLoginPayloadDto }> {
+    const customer = await this.authService.validateCustomer({
+      loginType: dto.loginType,
+      nik: dto.nik,
+      pin: dto.pin,
+      email: dto.email,
+      password: dto.password,
+    });
+    const token = await this.authService.createCustomerAccessToken(customer);
+    return { data: new CustomerLoginPayloadDto(customer, token) };
+  }
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
