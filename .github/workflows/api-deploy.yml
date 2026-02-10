@@ -28,6 +28,9 @@ jobs:
             set -e
             cd ${{ secrets.EC2_APP_PATH }}
 
+            # Mark repo as safe for this user
+            git config --global --add safe.directory ${{ secrets.EC2_APP_PATH }}
+
             echo "Pulling latest code..."
             git pull origin main
 
