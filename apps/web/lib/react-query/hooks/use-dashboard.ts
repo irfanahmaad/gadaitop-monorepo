@@ -10,39 +10,72 @@ import type {
   SpkByStatusChart,
 } from "@/lib/api/types"
 
+// Helper to build query string from filter params
+function buildFilterQueryString(
+  filter?: Record<string, string>,
+  extraParams?: Record<string, string | number>
+): string {
+  const params = new URLSearchParams()
+
+  if (extraParams) {
+    Object.entries(extraParams).forEach(([key, value]) => {
+      params.set(key, String(value))
+    })
+  }
+
+  if (filter) {
+    Object.entries(filter).forEach(([key, value]) => {
+      params.set(key, value)
+    })
+  }
+
+  const queryString = params.toString()
+  return queryString ? `?${queryString}` : ""
+}
+
 // Query keys
 export const dashboardKeys = {
   all: ["dashboard"] as const,
-  kpis: () => [...dashboardKeys.all, "kpis"] as const,
-  spkByStatus: () => [...dashboardKeys.all, "spk-by-status"] as const,
-  mutationTrends: (days?: number) =>
-    [...dashboardKeys.all, "mutation-trends", days] as const,
+  kpis: (filter?: Record<string, string>) =>
+    [...dashboardKeys.all, "kpis", filter] as const,
+  spkByStatus: (filter?: Record<string, string>) =>
+    [...dashboardKeys.all, "spk-by-status", filter] as const,
+  mutationTrends: (days?: number, filter?: Record<string, string>) =>
+    [...dashboardKeys.all, "mutation-trends", days, filter] as const,
 }
 
 // Get dashboard KPIs
-export function useDashboardKpis() {
+export function useDashboardKpis(filter?: Record<string, string>) {
   return useQuery({
-    queryKey: dashboardKeys.kpis(),
-    queryFn: () => apiClient.get<DashboardKpis>(endpoints.dashboard.kpis),
+    queryKey: dashboardKeys.kpis(filter),
+    queryFn: () =>
+      apiClient.get<DashboardKpis>(
+        `${endpoints.dashboard.kpis}${buildFilterQueryString(filter)}`
+      ),
   })
 }
 
-// Get SPK by status chart data
-export function useSpkByStatusChart() {
+// Get SPK by status chart data (returns array of { status, count })
+export function useSpkByStatusChart(filter?: Record<string, string>) {
   return useQuery({
-    queryKey: dashboardKeys.spkByStatus(),
+    queryKey: dashboardKeys.spkByStatus(filter),
     queryFn: () =>
-      apiClient.get<SpkByStatusChart>(endpoints.dashboard.spkByStatusChart),
+      apiClient.get<SpkByStatusChart[]>(
+        `${endpoints.dashboard.spkByStatusChart}${buildFilterQueryString(filter)}`
+      ),
   })
 }
 
-// Get mutation trends chart data
-export function useMutationTrends(days: number = 30) {
+// Get mutation trends chart data (returns array of { date, creditTotal, debitTotal, net })
+export function useMutationTrends(
+  days: number = 30,
+  filter?: Record<string, string>
+) {
   return useQuery({
-    queryKey: dashboardKeys.mutationTrends(days),
+    queryKey: dashboardKeys.mutationTrends(days, filter),
     queryFn: () =>
-      apiClient.get<MutationTrend>(
-        `${endpoints.dashboard.mutationTrends}?days=${days}`
+      apiClient.get<MutationTrend[]>(
+        `${endpoints.dashboard.mutationTrends}${buildFilterQueryString(filter, { days })}`
       ),
   })
 }

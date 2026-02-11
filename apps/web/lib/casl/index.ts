@@ -4,7 +4,7 @@
  */
 
 // Types and constants
-export { AclAction, AclSubject } from "./types"
+export { AclAction, AclSubject, MenuSubject } from "./types"
 export type {
   AclActionValues,
   AclSubjectValues,

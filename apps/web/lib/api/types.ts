@@ -195,37 +195,60 @@ export interface CompanyStatistics {
 
 // Branch types
 export interface Branch {
-  id: string
+  id: number
   uuid: string
-  name: string
-  address?: string
-  phone?: string
-  status: BranchStatus
-  company?: Company
-  owner?: User
   createdAt: string
   updatedAt: string
+  deletedAt: string | null
+  version: number
+  createdBy: string | null
+  updatedBy: string | null
+  deletedBy: string | null
+  branchCode: string
+  shortName: string
+  fullName: string
+  address: string
+  phone: string
+  city: string
+  companyId: string
+  isBorrowed: boolean
+  actualOwnerId: string | null
+  status: BranchStatus
+  approvedBy: string | null
+  approvedAt: string | null
+  rejectionReason: string | null
+  transactionSequence: number
+  company?: Company
+  owner?: User
 }
 
 export type BranchStatus = "pending" | "active" | "inactive" | "rejected"
 
+
 export interface CreateBranchDto {
-  name: string
-  address?: string
-  phone?: string
+  branchCode: string
+  shortName: string
+  fullName: string
+  address: string
+  phone: string
+  city: string
   companyId: string
 }
 
 export interface UpdateBranchDto {
-  name?: string
+  shortName?: string
+  fullName?: string
   address?: string
   phone?: string
+  city?: string
   status?: BranchStatus
 }
 
 export interface QueryBranchDto extends PageOptions {
   companyId?: string
   status?: BranchStatus
+  city?: string
+  branchCode?: string
 }
 
 // Item Type types
@@ -335,13 +358,12 @@ export interface QueryAuditLogDto extends PageOptions {
 
 export type SpkStatus =
   | "draft"
-  | "pending_confirmation"
   | "active"
   | "extended"
   | "redeemed"
-  | "defaulted"
+  | "overdue"
   | "auctioned"
-  | "cancelled"
+  | "closed"
 
 export interface SpkItem {
   id: string
@@ -576,29 +598,25 @@ export interface ImportCatalogDto {
 // ==========================================
 
 export interface DashboardKpis {
-  totalSpk: number
-  activeSpk: number
-  totalCustomers: number
-  totalRevenue: number
-  overdueSpk: number
-  totalBranches: number
-  [key: string]: unknown
+  activeSpkCount: number
+  overdueSpkCount: number
+  nkbCountThisMonth: number
+  /** Balance per store (store uuid -> balance) */
+  balanceByStore: Record<string, number>
+  /** Total balance across stores */
+  totalBalance: number
 }
 
 export interface SpkByStatusChart {
-  labels: string[]
-  datasets: {
-    label: string
-    data: number[]
-  }[]
+  status: string
+  count: number
 }
 
 export interface MutationTrend {
-  labels: string[]
-  datasets: {
-    label: string
-    data: number[]
-  }[]
+  date: string
+  creditTotal: number
+  debitTotal: number
+  net: number
 }
 
 // ==========================================

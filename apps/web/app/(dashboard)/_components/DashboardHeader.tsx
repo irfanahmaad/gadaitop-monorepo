@@ -18,6 +18,16 @@ import { Button } from "@workspace/ui/components/button"
 import { Calendar } from "@workspace/ui/components/calendar"
 import { cn } from "@workspace/ui/lib/utils"
 
+export interface PTOption {
+  value: string
+  label: string
+}
+
+export interface TokoOption {
+  value: string
+  label: string
+}
+
 interface DashboardHeaderProps {
   selectedPT: string
   selectedToko: string
@@ -25,6 +35,16 @@ interface DashboardHeaderProps {
   onPTChange: (value: string) => void
   onTokoChange: (value: string) => void
   onDateChange: (date: Date) => void
+  /** Whether the PT and Toko selects should be shown (Super Admin only) */
+  showFilters: boolean
+  /** List of PT options fetched from API */
+  ptOptions: PTOption[]
+  /** List of Toko options fetched from API */
+  tokoOptions: TokoOption[]
+  /** Loading state for PT dropdown */
+  isLoadingPT?: boolean
+  /** Loading state for Toko dropdown */
+  isLoadingToko?: boolean
 }
 
 export function DashboardHeader({
@@ -34,6 +54,11 @@ export function DashboardHeader({
   onPTChange,
   onTokoChange,
   onDateChange,
+  showFilters,
+  ptOptions,
+  tokoOptions,
+  isLoadingPT,
+  isLoadingToko,
 }: DashboardHeaderProps) {
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -46,23 +71,47 @@ export function DashboardHeader({
 
       {/* Filter Controls */}
       <div className="flex flex-wrap items-center gap-3">
-        <Select value={selectedPT} onValueChange={onPTChange}>
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Pilih PT" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="pt-gadai-top">PT Gadai Top Indonesia</SelectItem>
-          </SelectContent>
-        </Select>
+        {showFilters && (
+          <>
+            <Select
+              value={selectedPT}
+              onValueChange={onPTChange}
+              disabled={isLoadingPT}
+            >
+              <SelectTrigger className="w-[200px]">
+                <SelectValue
+                  placeholder={isLoadingPT ? "Memuat..." : "Pilih PT"}
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {ptOptions.map((pt) => (
+                  <SelectItem key={pt.value} value={pt.value}>
+                    {pt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-        <Select value={selectedToko} onValueChange={onTokoChange}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Pilih Toko" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="gt-jakarta-satu">GT Jakarta Satu</SelectItem>
-          </SelectContent>
-        </Select>
+            <Select
+              value={selectedToko}
+              onValueChange={onTokoChange}
+              disabled={isLoadingToko}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue
+                  placeholder={isLoadingToko ? "Memuat..." : "Pilih Toko"}
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {tokoOptions.map((toko) => (
+                  <SelectItem key={toko.value} value={toko.value}>
+                    {toko.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </>
+        )}
 
         <Popover>
           <PopoverTrigger asChild>

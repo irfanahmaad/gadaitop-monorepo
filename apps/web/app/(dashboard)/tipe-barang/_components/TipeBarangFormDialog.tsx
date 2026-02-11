@@ -88,7 +88,7 @@ export function TipeBarangFormDialog({
       // Update existing item type
       updateItemType.mutate(
         {
-          id: initialData.id,
+          id: initialData.uuid,
           data: {
             typeName: values.typeName,
           },

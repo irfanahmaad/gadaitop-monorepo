@@ -34,7 +34,8 @@ export function useAppAbility() {
 
 /**
  * AbilityProvider component
- * Builds ability from authenticated user's permissions and provides it via context
+ * Builds ability from authenticated user's permissions and role codes,
+ * then provides it via context.
  */
 export function AbilityProvider({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession()
@@ -48,18 +49,22 @@ export function AbilityProvider({ children }: { children: React.ReactNode }) {
     // Flatten permissions from all user roles
     const permissions = flattenRolesPermissions(session.user.roles)
 
+    // Collect role codes (e.g. ["owner", "company_admin"])
+    const roleCodes = session.user.roles.map((r) => r.code)
+
     // Debug: Log permissions (remove in production)
     if (process.env.NODE_ENV === "development") {
       console.log("CASL Debug - Session:", {
         roles: session.user.roles,
+        roleCodes,
         permissions,
         rolesCount: session.user.roles.length,
         permissionsCount: permissions.length,
       })
     }
 
-    // Create ability from permissions
-    return createAbilityFromPermissions(permissions)
+    // Create ability from permissions + role codes
+    return createAbilityFromPermissions(permissions, roleCodes)
   }, [session, status])
 
   return (

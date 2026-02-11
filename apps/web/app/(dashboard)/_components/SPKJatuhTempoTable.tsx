@@ -17,23 +17,18 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "@workspace/ui/components/avatar"
-
-interface SPKJatuhTempo {
-  id: string
-  no: number
-  foto: string
-  spkNumber: string
-  customerName: string
-  jumlahSPK: number
-  sisaSPK: number
-  tanggalWaktuSPK: string
-}
+import { Skeleton } from "@workspace/ui/components/skeleton"
+import type { Spk } from "@/lib/api/types"
 
 interface SPKJatuhTempoTableProps {
-  data: SPKJatuhTempo[]
+  data?: Spk[]
+  isLoading?: boolean
 }
 
-export function SPKJatuhTempoTable({ data }: SPKJatuhTempoTableProps) {
+export function SPKJatuhTempoTable({
+  data,
+  isLoading,
+}: SPKJatuhTempoTableProps) {
   return (
     <Card>
       <CardHeader>
@@ -44,59 +39,76 @@ export function SPKJatuhTempoTable({ data }: SPKJatuhTempoTableProps) {
         </div>
       </CardHeader>
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[60px]">No</TableHead>
-              <TableHead className="w-[80px]">Foto</TableHead>
-              <TableHead>Nomor SPK</TableHead>
-              <TableHead>Nama Customer</TableHead>
-              <TableHead>Jumlah SPK</TableHead>
-              <TableHead>Sisa SPK</TableHead>
-              <TableHead>Tanggal & Waktu SPK</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.map((spk) => (
-              <TableRow key={spk.id}>
-                <TableCell>{spk.no}</TableCell>
-                <TableCell>
-                  <Avatar>
-                    <AvatarImage src={spk.foto} alt={spk.customerName} />
-                    <AvatarFallback>
-                      {spk.customerName
-                        .split(" ")
-                        .map((n) => n[0])
-                        .join("")
-                        .toUpperCase()
-                        .slice(0, 2)}
-                    </AvatarFallback>
-                  </Avatar>
-                </TableCell>
-                <TableCell>{spk.spkNumber}</TableCell>
-                <TableCell>{spk.customerName}</TableCell>
-                <TableCell>
-                  {new Intl.NumberFormat("id-ID", {
-                    style: "currency",
-                    currency: "IDR",
-                    minimumFractionDigits: 0,
-                  }).format(spk.jumlahSPK)}
-                </TableCell>
-                <TableCell>{spk.sisaSPK}</TableCell>
-                <TableCell>
-                  {new Date(spk.tanggalWaktuSPK).toLocaleString("id-ID", {
-                    day: "numeric",
-                    month: "long",
-                    year: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    second: "2-digit",
-                  })}
-                </TableCell>
-              </TableRow>
+        {isLoading ? (
+          <div className="space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-12 w-full" />
             ))}
-          </TableBody>
-        </Table>
+          </div>
+        ) : !data?.length ? (
+          <div className="flex h-24 items-center justify-center">
+            <p className="text-muted-foreground text-sm">
+              Tidak ada SPK jatuh tempo hari ini
+            </p>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[60px]">No</TableHead>
+                <TableHead className="w-[80px]">Foto</TableHead>
+                <TableHead>Nomor SPK</TableHead>
+                <TableHead>Nama Customer</TableHead>
+                <TableHead>Jumlah SPK</TableHead>
+                <TableHead>Tenor (Hari)</TableHead>
+                <TableHead>Jatuh Tempo</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.map((spk, index) => {
+                const customerName = spk.customer?.fullName ?? "-"
+                return (
+                  <TableRow key={spk.id}>
+                    <TableCell>{index + 1}</TableCell>
+                    <TableCell>
+                      <Avatar>
+                        <AvatarImage
+                          src={spk.customer?.ktpPhotoUrl}
+                          alt={customerName}
+                        />
+                        <AvatarFallback>
+                          {customerName
+                            .split(" ")
+                            .map((n) => n[0])
+                            .join("")
+                            .toUpperCase()
+                            .slice(0, 2)}
+                        </AvatarFallback>
+                      </Avatar>
+                    </TableCell>
+                    <TableCell>{spk.spkNumber}</TableCell>
+                    <TableCell>{customerName}</TableCell>
+                    <TableCell>
+                      {new Intl.NumberFormat("id-ID", {
+                        style: "currency",
+                        currency: "IDR",
+                        minimumFractionDigits: 0,
+                      }).format(spk.totalAmount)}
+                    </TableCell>
+                    <TableCell>{spk.tenor}</TableCell>
+                    <TableCell>
+                      {new Date(spk.dueDate).toLocaleString("id-ID", {
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                      })}
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
+        )}
       </CardContent>
     </Card>
   )

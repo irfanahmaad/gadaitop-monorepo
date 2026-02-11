@@ -21,7 +21,7 @@ export function MetricCard({ title, value, icon }: MetricCardProps) {
         </div>
         <div className="flex min-w-0 flex-col gap-1">
           <p className="text-foreground leading-none font-bold">{value}</p>
-          <p className="text-muted-foreground line-clamp-2 h-8 text-xs leading-tight">
+          <p className="text-muted-foreground line-clamp-2 text-xs leading-tight">
             {title}
           </p>
         </div>
