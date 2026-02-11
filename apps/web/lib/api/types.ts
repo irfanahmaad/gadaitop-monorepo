@@ -328,3 +328,652 @@ export interface QueryAuditLogDto extends PageOptions {
   entityId?: string
   userId?: string
 }
+
+// ==========================================
+// SPK (Pawn Agreement) types
+// ==========================================
+
+export type SpkStatus =
+  | "draft"
+  | "pending_confirmation"
+  | "active"
+  | "extended"
+  | "redeemed"
+  | "defaulted"
+  | "auctioned"
+  | "cancelled"
+
+export interface SpkItem {
+  id: string
+  uuid: string
+  itemTypeId: string
+  description: string
+  weight?: number
+  estimatedValue: number
+  photoUrl?: string
+  itemType?: ItemType
+  createdAt: string
+  updatedAt: string
+}
+
+export interface Spk {
+  id: string
+  uuid: string
+  spkNumber: string
+  customerId: string
+  storeId: string
+  principalAmount: number
+  tenor: number
+  interestRate: number
+  adminFee: number
+  insuranceFee: number
+  totalAmount: number
+  dueDate: string
+  status: SpkStatus
+  customer?: Customer
+  store?: Branch
+  items: SpkItem[]
+  nkbRecords?: Nkb[]
+  createdBy?: User
+  createdAt: string
+  updatedAt: string
+}
+
+export interface SpkHistory {
+  id: string
+  action: string
+  description: string
+  amount?: number
+  performedBy?: User
+  createdAt: string
+}
+
+export interface CreateSpkDto {
+  customerId: string
+  storeId: string
+  principalAmount: number
+  tenor: number
+  items: {
+    itemTypeId: string
+    description: string
+    weight?: number
+    estimatedValue: number
+    photoUrl?: string
+  }[]
+}
+
+export interface ConfirmSpkDto {
+  customerPin: string
+}
+
+export interface ExtendSpkDto {
+  extensionDays: number
+  interestPayment: number
+}
+
+export interface RedeemSpkDto {
+  amountPaid: number
+}
+
+export interface QuerySpkDto extends PageOptions {
+  status?: SpkStatus
+  customerId?: string
+}
+
+// ==========================================
+// Customer types
+// ==========================================
+
+export type CustomerStatus = "active" | "blacklisted" | "inactive"
+
+export interface Customer {
+  id: string
+  uuid: string
+  nik: string
+  fullName: string
+  dateOfBirth?: string
+  address?: string
+  phoneNumber?: string
+  email?: string
+  status: CustomerStatus
+  blacklistReason?: string
+  ktpPhotoUrl?: string
+  companyId?: string
+  company?: Company
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateCustomerDto {
+  nik: string
+  fullName: string
+  dateOfBirth?: string
+  address?: string
+  phoneNumber?: string
+  email?: string
+  pin: string
+}
+
+export interface UpdateCustomerDto {
+  fullName?: string
+  phoneNumber?: string
+  email?: string
+  address?: string
+}
+
+export interface ScanKtpDto {
+  imageBase64: string
+}
+
+export interface KtpScanResult {
+  nik: string
+  fullName: string
+  dateOfBirth?: string
+  address?: string
+}
+
+export interface ChangePinDto {
+  oldPin: string
+  newPin: string
+}
+
+export interface BlacklistCustomerDto {
+  reason: string
+}
+
+// ==========================================
+// NKB (Transaction Record) types
+// ==========================================
+
+export type NkbStatus = "pending" | "confirmed" | "rejected" | "cancelled"
+export type NkbType = "extension" | "redemption" | "partial_payment"
+
+export interface Nkb {
+  id: string
+  uuid: string
+  nkbNumber: string
+  spkId: string
+  type: NkbType
+  amount: number
+  status: NkbStatus
+  notes?: string
+  rejectionReason?: string
+  spk?: Spk
+  customer?: Customer
+  confirmedBy?: User
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateNkbDto {
+  spkId: string
+  type: NkbType
+  amount: number
+  paymentMethod?: string
+}
+
+export interface ConfirmNkbDto {
+  notes?: string
+}
+
+export interface RejectNkbDto {
+  reason: string
+}
+
+export interface QueryNkbDto extends PageOptions {
+  spkId?: string
+  status?: NkbStatus
+  type?: NkbType
+}
+
+// ==========================================
+// Catalog types
+// ==========================================
+
+export interface CatalogItem {
+  id: string
+  uuid: string
+  itemName: string
+  itemTypeId: string
+  basePrice: number
+  description?: string
+  isActive: boolean
+  itemType?: ItemType
+  company?: Company
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CatalogPriceHistory {
+  id: string
+  catalogId: string
+  oldPrice: number
+  newPrice: number
+  changedBy?: User
+  createdAt: string
+}
+
+export interface CreateCatalogDto {
+  itemName: string
+  itemTypeId: string
+  basePrice: number
+  description?: string
+}
+
+export interface UpdateCatalogDto {
+  itemName?: string
+  basePrice?: number
+  description?: string
+  isActive?: boolean
+}
+
+export interface ImportCatalogDto {
+  ptId: string
+}
+
+// ==========================================
+// Dashboard types
+// ==========================================
+
+export interface DashboardKpis {
+  totalSpk: number
+  activeSpk: number
+  totalCustomers: number
+  totalRevenue: number
+  overdueSpk: number
+  totalBranches: number
+  [key: string]: unknown
+}
+
+export interface SpkByStatusChart {
+  labels: string[]
+  datasets: {
+    label: string
+    data: number[]
+  }[]
+}
+
+export interface MutationTrend {
+  labels: string[]
+  datasets: {
+    label: string
+    data: number[]
+  }[]
+}
+
+// ==========================================
+// Auction Batch types
+// ==========================================
+
+export type AuctionBatchStatus =
+  | "draft"
+  | "assigned"
+  | "in_progress"
+  | "finalized"
+  | "cancelled"
+
+export interface AuctionItemDetail {
+  id: string
+  uuid: string
+  spkId: string
+  spk?: Spk
+  pickedUp: boolean
+  pickupNotes?: string
+  validated: boolean
+  validatedPrice?: number
+  validationNotes?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface AuctionBatch {
+  id: string
+  uuid: string
+  batchCode: string
+  storeId: string
+  scheduledDate: string
+  status: AuctionBatchStatus
+  store?: Branch
+  assignedTo?: User
+  items: AuctionItemDetail[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateAuctionBatchDto {
+  storeId: string
+  scheduledDate: string
+  spkIds: string[]
+}
+
+export interface ItemPickupDto {
+  pickedUp: boolean
+  notes?: string
+}
+
+export interface ItemValidationDto {
+  validated: boolean
+  validatedPrice?: number
+  notes?: string
+}
+
+// ==========================================
+// Stock Opname types
+// ==========================================
+
+export type StockOpnameStatus =
+  | "scheduled"
+  | "in_progress"
+  | "completed"
+  | "approved"
+
+export interface StockOpnameItem {
+  id: string
+  itemId: string
+  counted: boolean
+  condition?: string
+  notes?: string
+  photos?: string[]
+}
+
+export interface StockOpnameSession {
+  id: string
+  uuid: string
+  sessionCode: string
+  storeId: string
+  scheduledDate: string
+  status: StockOpnameStatus
+  store?: Branch
+  assignedTo?: User
+  items: StockOpnameItem[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateStockOpnameDto {
+  storeId: string
+  scheduledDate: string
+}
+
+export interface UpdateStockOpnameItemsDto {
+  items: {
+    itemId: string
+    counted: boolean
+    condition?: string
+    notes?: string
+  }[]
+}
+
+export interface ItemConditionDto {
+  condition: string
+  notes?: string
+  photos?: string[]
+}
+
+// ==========================================
+// Cash Deposit types
+// ==========================================
+
+export type CashDepositStatus = "pending" | "approved" | "rejected"
+
+export interface CashDeposit {
+  id: string
+  uuid: string
+  storeId: string
+  amount: number
+  bankAccountId?: string
+  proofUrl?: string
+  status: CashDepositStatus
+  rejectionReason?: string
+  store?: Branch
+  createdBy?: User
+  approvedBy?: User
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateCashDepositDto {
+  storeId: string
+  amount: number
+  bankAccountId?: string
+  proofUrl?: string
+}
+
+export interface RejectCashDepositDto {
+  reason: string
+}
+
+// ==========================================
+// Cash Mutation types
+// ==========================================
+
+export type CashMutationType = "in" | "out"
+
+export interface CashMutation {
+  id: string
+  uuid: string
+  storeId: string
+  type: CashMutationType
+  amount: number
+  description?: string
+  referenceType?: string
+  referenceId?: string
+  store?: Branch
+  createdBy?: User
+  createdAt: string
+}
+
+export interface CashBalance {
+  balance: number
+  lastUpdated: string
+}
+
+export interface CreateCashMutationDto {
+  storeId: string
+  type: CashMutationType
+  amount: number
+  description?: string
+}
+
+export interface QueryCashMutationDto extends PageOptions {
+  storeId?: string
+  type?: CashMutationType
+  dateFrom?: string
+  dateTo?: string
+}
+
+// ==========================================
+// Capital Topup types
+// ==========================================
+
+export type CapitalTopupStatus =
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "disbursed"
+
+export interface CapitalTopup {
+  id: string
+  uuid: string
+  storeId: string
+  amount: number
+  reason?: string
+  status: CapitalTopupStatus
+  rejectionReason?: string
+  disbursedAmount?: number
+  proofUrl?: string
+  store?: Branch
+  createdBy?: User
+  approvedBy?: User
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateCapitalTopupDto {
+  storeId: string
+  amount: number
+  reason?: string
+}
+
+export interface UpdateCapitalTopupDto {
+  amount?: number
+  reason?: string
+}
+
+export interface RejectCapitalTopupDto {
+  reason: string
+}
+
+export interface DisburseCapitalTopupDto {
+  disbursedAmount: number
+  proofUrl?: string
+}
+
+// ==========================================
+// Notification types
+// ==========================================
+
+export type NotificationType =
+  | "spk_due"
+  | "spk_overdue"
+  | "nkb_confirmed"
+  | "nkb_rejected"
+  | "cash_deposit"
+  | "capital_topup"
+  | "stock_opname"
+  | "auction"
+  | "system"
+
+export interface Notification {
+  id: string
+  uuid: string
+  title: string
+  description: string
+  type: NotificationType
+  isRead: boolean
+  relatedEntityType?: string
+  relatedEntityId?: string
+  userId: string
+  user?: User
+  createdAt: string
+}
+
+export interface UnreadCount {
+  count: number
+}
+
+// ==========================================
+// Report types
+// ==========================================
+
+export interface ReportFilters {
+  dateFrom?: string
+  dateTo?: string
+  companyId?: string
+  branchId?: string
+}
+
+export interface MutationReport {
+  data: Record<string, unknown>[]
+  summary: Record<string, unknown>
+}
+
+export interface SpkReport {
+  data: Record<string, unknown>[]
+  summary: Record<string, unknown>
+}
+
+export interface NkbPaymentsReport {
+  data: Record<string, unknown>[]
+  summary: Record<string, unknown>
+}
+
+export interface StockOpnameReport {
+  data: Record<string, unknown>[]
+  summary: Record<string, unknown>
+}
+
+// ==========================================
+// Pawn Term types
+// ==========================================
+
+export interface PawnTerm {
+  id: string
+  uuid: string
+  ptId: string
+  tenor: number
+  interestRate: number
+  adminFee: number
+  insuranceFee?: number
+  maxLoanPercentage?: number
+  isActive: boolean
+  company?: Company
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreatePawnTermDto {
+  ptId: string
+  tenor: number
+  interestRate: number
+  adminFee: number
+  insuranceFee?: number
+  maxLoanPercentage?: number
+}
+
+export interface UpdatePawnTermDto {
+  interestRate?: number
+  adminFee?: number
+  insuranceFee?: number
+  maxLoanPercentage?: number
+  isActive?: boolean
+}
+
+// ==========================================
+// Upload types
+// ==========================================
+
+export interface PresignedUrlRequest {
+  key: string
+  contentType: string
+  expiresIn?: number
+}
+
+export interface PresignedUrlResponse {
+  url: string
+  key: string
+  expiresAt: string
+}
+
+export interface PublicUrlResponse {
+  url: string
+}
+
+// ==========================================
+// Link types
+// ==========================================
+
+export interface Link {
+  id: string
+  uuid: string
+  title: string
+  url: string
+  description?: string
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateLinkDto {
+  title: string
+  url: string
+  description?: string
+}
+
+export interface UpdateLinkDto {
+  title?: string
+  url?: string
+  description?: string
+  isActive?: boolean
+}
+
