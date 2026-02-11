@@ -55,6 +55,13 @@ import {
 import { FilterDialog } from "./filter-dialog"
 import { FilterConfig } from "@/hooks/use-filter-params"
 
+interface CustomAction<TData> {
+  label: string
+  icon?: React.ReactNode
+  onClick: (row: TData) => void
+  variant?: "default" | "destructive"
+}
+
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
@@ -71,6 +78,7 @@ interface DataTableProps<TData, TValue> {
   onDetail?: (row: TData) => void
   onEdit?: (row: TData) => void
   onDelete?: (row: TData) => void
+  customActions?: CustomAction<TData>[]
   initialPageSize?: number
   onPageSizeChange?: (pageSize: number) => void
   searchValue?: string
@@ -93,6 +101,7 @@ export function DataTable<TData, TValue>({
   onDetail,
   onEdit,
   onDelete,
+  customActions,
   initialPageSize = 10,
   onPageSizeChange,
   searchValue: controlledSearchValue,
@@ -137,8 +146,9 @@ export function DataTable<TData, TValue>({
   })
 
   // Add actions column if any action handlers are provided
+  const hasCustomActions = customActions && customActions.length > 0
   const columnsWithActions = React.useMemo(() => {
-    if (!onDetail && !onEdit && !onDelete) {
+    if (!onDetail && !onEdit && !onDelete && !hasCustomActions) {
       return columns
     }
 
@@ -176,6 +186,16 @@ export function DataTable<TData, TValue>({
                   Hapus
                 </DropdownMenuItem>
               )}
+              {customActions?.map((action, index) => (
+                <DropdownMenuItem
+                  key={index}
+                  onClick={() => action.onClick(row.original)}
+                  variant={action.variant}
+                >
+                  {action.icon}
+                  {action.label}
+                </DropdownMenuItem>
+              ))}
             </DropdownMenuContent>
           </DropdownMenu>
         )
@@ -183,7 +203,7 @@ export function DataTable<TData, TValue>({
     }
 
     return [...columns, actionsColumn]
-  }, [columns, onDetail, onEdit, onDelete])
+  }, [columns, onDetail, onEdit, onDelete, customActions, hasCustomActions])
 
   const table = useReactTable({
     data,

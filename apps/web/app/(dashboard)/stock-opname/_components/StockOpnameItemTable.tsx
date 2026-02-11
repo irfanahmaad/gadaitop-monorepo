@@ -27,7 +27,7 @@ import {
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu"
 import { SearchIcon, SlidersHorizontal, Package, QrCode, Info, MoreHorizontal } from "lucide-react"
-import { QRCodeDialog } from "./QRCodeDialog"
+import { QRCodeDialog } from "../../_components/QRCodeDialog"
 import type { FilterConfig } from "@/hooks/use-filter-params"
 
 const STOCK_OPNAME_ITEM_FILTER_CONFIG: FilterConfig[] = [
