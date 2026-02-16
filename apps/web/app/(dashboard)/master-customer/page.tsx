@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useMemo, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { ColumnDef } from "@tanstack/react-table"
 import { Breadcrumbs } from "@/components/breadcrumbs"
@@ -21,11 +21,16 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "@workspace/ui/components/avatar"
+import { Card, CardContent, CardHeader } from "@workspace/ui/components/card"
+import { Skeleton } from "@workspace/ui/components/skeleton"
 import { SearchIcon, SlidersHorizontal, Plus } from "lucide-react"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
+import { useAuth } from "@/lib/react-query/hooks/use-auth"
+import { useCustomers, useDeleteCustomer } from "@/lib/react-query/hooks/use-customers"
+import { useCompanies } from "@/lib/react-query/hooks/use-companies"
+import type { Customer as ApiCustomer } from "@/lib/api/types"
 
-// Type for Customer
-type Customer = {
+type CustomerRow = {
   id: string
   foto: string
   namaLengkap: string
@@ -35,93 +40,51 @@ type Customer = {
   status: "Aktif" | "Tidak Aktif"
 }
 
-// Sample data for Customer
-const sampleCustomers: Customer[] = [
-  {
-    id: "1",
-    foto: "/placeholder-avatar.jpg",
-    namaLengkap: "Andi Pratama Nugroho",
-    email: "andi.pratama@mail.com",
-    noTelp: "081234567891012",
-    alamat: "Jl. Sudirman No. 123, Jakarta Pusat",
-    status: "Aktif",
-  },
-  {
-    id: "2",
-    foto: "/placeholder-avatar.jpg",
-    namaLengkap: "Siti Rahmawati Putri",
-    email: "siti.rahmawati@mail.com",
-    noTelp: "081234567891013",
-    alamat: "Jl. Thamrin No. 456, Jakarta Selatan",
-    status: "Aktif",
-  },
-  {
-    id: "3",
-    foto: "/placeholder-avatar.jpg",
-    namaLengkap: "Budi Santoso",
-    email: "budi.santoso@mail.com",
-    noTelp: "081234567891014",
-    alamat: "Jl. Gatot Subroto No. 789, Jakarta Selatan",
-    status: "Aktif",
-  },
-  {
-    id: "4",
-    foto: "/placeholder-avatar.jpg",
-    namaLengkap: "Dewi Lestari",
-    email: "dewi.lestari@mail.com",
-    noTelp: "081234567891015",
-    alamat: "Jl. Kebon Jeruk No. 321, Jakarta Barat",
-    status: "Tidak Aktif",
-  },
-  {
-    id: "5",
-    foto: "/placeholder-avatar.jpg",
-    namaLengkap: "Eko Wijaya",
-    email: "eko.wijaya@mail.com",
-    noTelp: "081234567891016",
-    alamat: "Jl. Cikini Raya No. 654, Jakarta Pusat",
-    status: "Aktif",
-  },
-  {
-    id: "6",
-    foto: "/placeholder-avatar.jpg",
-    namaLengkap: "Fitri Handayani",
-    email: "fitri.handayani@mail.com",
-    noTelp: "081234567891017",
-    alamat: "Jl. Kemang Raya No. 987, Jakarta Selatan",
-    status: "Aktif",
-  },
-  {
-    id: "7",
-    foto: "/placeholder-avatar.jpg",
-    namaLengkap: "Gunawan Setiawan",
-    email: "gunawan.setiawan@mail.com",
-    noTelp: "081234567891018",
-    alamat: "Jl. Senopati No. 147, Jakarta Selatan",
-    status: "Aktif",
-  },
-  {
-    id: "8",
-    foto: "/placeholder-avatar.jpg",
-    namaLengkap: "Hani Permata",
-    email: "hani.permata@mail.com",
-    noTelp: "081234567891019",
-    alamat: "Jl. Kuningan No. 258, Jakarta Selatan",
-    status: "Tidak Aktif",
-  },
-  {
-    id: "9",
-    foto: "/placeholder-avatar.jpg",
-    namaLengkap: "Indra Kurniawan",
-    email: "indra.kurniawan@mail.com",
-    noTelp: "081234567891020",
-    alamat: "Jl. Rasuna Said No. 369, Jakarta Selatan",
-    status: "Aktif",
-  },
-]
+const STATUS_MAP: Record<string, CustomerRow["status"]> = {
+  active: "Aktif",
+  inactive: "Tidak Aktif",
+  blacklisted: "Tidak Aktif",
+}
+
+function mapApiCustomerToRow(c: ApiCustomer): CustomerRow {
+  return {
+    id: c.uuid,
+    foto: c.ktpPhotoUrl ?? "",
+    namaLengkap: c.fullName,
+    email: c.email ?? "",
+    noTelp: c.phoneNumber ?? "",
+    alamat: c.address ?? "",
+    status: STATUS_MAP[c.status] ?? "Aktif",
+  }
+}
+
+function TableSkeleton() {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-6 w-40" />
+          <Skeleton className="h-10 w-64" />
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="flex gap-4">
+              <Skeleton className="h-10 w-12" />
+              <Skeleton className="h-10 w-32" />
+              <Skeleton className="h-10 flex-1" />
+              <Skeleton className="h-10 w-48" />
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
 
 // Column definitions for Customer
-const customerColumns: ColumnDef<Customer>[] = [
+const customerColumns: ColumnDef<CustomerRow>[] = [
   {
     id: "select",
     header: ({ table }) => (
@@ -177,7 +140,7 @@ const customerColumns: ColumnDef<Customer>[] = [
     accessorKey: "status",
     header: "Status",
     cell: ({ row }) => {
-      const status = row.getValue("status") as Customer["status"]
+      const status = row.getValue("status") as CustomerRow["status"]
       const isAktif = status === "Aktif"
       return (
         <Badge
@@ -197,29 +160,72 @@ const customerColumns: ColumnDef<Customer>[] = [
 
 export default function MasterCustomerPage() {
   const router = useRouter()
+  const { user } = useAuth()
+  const isCompanyAdmin = user?.roles?.some((r) => r.code === "company_admin") ?? false
+  const isSuperAdmin = user?.roles?.some((r) => r.code === "owner") ?? false
+
+  const effectiveCompanyId = isCompanyAdmin ? (user?.companyId ?? null) : null
+
+  const { data: companiesData } = useCompanies(
+    isSuperAdmin ? { pageSize: 100 } : undefined
+  )
+
+  const [selectedPT, setSelectedPT] = useState<string>("")
+  const ptOptions = useMemo(() => {
+    const list = companiesData?.data ?? []
+    return list.map((c) => ({ value: c.uuid, label: c.companyName }))
+  }, [companiesData])
+
+  useEffect(() => {
+    if (isSuperAdmin && ptOptions.length > 0 && !selectedPT) {
+      setSelectedPT(ptOptions[0]!.value)
+    }
+  }, [isSuperAdmin, ptOptions, selectedPT])
+
+  const branchQueryCompanyId = isSuperAdmin ? selectedPT : effectiveCompanyId
+
   const [pageSize, setPageSize] = useState(100)
   const [searchValue, setSearchValue] = useState("")
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
-  const [itemToDelete, setItemToDelete] = useState<Customer | null>(null)
+  const [itemToDelete, setItemToDelete] = useState<CustomerRow | null>(null)
 
-  const handleDetail = (row: Customer) => {
+  const listOptions = useMemo(() => {
+    const filter: Record<string, string> = {}
+    if (branchQueryCompanyId) filter.ptId = branchQueryCompanyId
+    if (searchValue?.trim()) filter.search = searchValue.trim()
+    return { page: 1, pageSize: 200, filter }
+  }, [branchQueryCompanyId, searchValue])
+
+  const { data, isLoading, isError } = useCustomers(listOptions)
+  const deleteCustomerMutation = useDeleteCustomer()
+
+  const rows = useMemo(
+    () => (data?.data ?? []).map(mapApiCustomerToRow),
+    [data]
+  )
+
+  const handleDetail = (row: CustomerRow) => {
     router.push(`/master-customer/${row.id}`)
   }
 
-  const handleEdit = (row: Customer) => {
-    console.log("Edit:", row)
-    // Implement edit action
+  const handleEdit = (row: CustomerRow) => {
+    router.push(`/master-customer/${row.id}/edit`)
   }
 
-  const handleDelete = (row: Customer) => {
+  const handleDelete = (row: CustomerRow) => {
     setItemToDelete(row)
     setIsConfirmDialogOpen(true)
   }
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (itemToDelete) {
-      console.log("Delete:", itemToDelete)
-      // Implement delete action
+      try {
+        await deleteCustomerMutation.mutateAsync(itemToDelete.id)
+        setIsConfirmDialogOpen(false)
+        setItemToDelete(null)
+      } catch {
+        // Error handled by mutation
+      }
     }
   }
 
@@ -241,20 +247,44 @@ export default function MasterCustomerPage() {
           />
         </div>
 
-        {/* Tambah Data Button */}
-        <Button
-          onClick={handleTambahData}
-          className="bg-red-600 text-white hover:bg-red-700"
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Tambah Data
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {isSuperAdmin && ptOptions.length > 0 && (
+            <Select value={selectedPT} onValueChange={setSelectedPT}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Pilih PT" />
+              </SelectTrigger>
+              <SelectContent>
+                {ptOptions.map((pt) => (
+                  <SelectItem key={pt.value} value={pt.value}>
+                    {pt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
+          <Button
+            onClick={handleTambahData}
+            className="bg-red-600 text-white hover:bg-red-700"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Tambah Data
+          </Button>
+        </div>
       </div>
 
-      {/* Data Table */}
+      {isLoading ? (
+        <TableSkeleton />
+      ) : isError ? (
+        <Card>
+          <CardContent className="py-10 text-center">
+            <p className="text-destructive">Gagal memuat data Customer</p>
+          </CardContent>
+        </Card>
+      ) : (
       <DataTable
         columns={customerColumns}
-        data={sampleCustomers}
+        data={rows}
         title="Daftar Customer"
         searchPlaceholder="Email"
         headerRight={
@@ -296,6 +326,7 @@ export default function MasterCustomerPage() {
         onEdit={handleEdit}
         onDelete={handleDelete}
       />
+      )}
 
       {/* Confirmation Dialog for Delete */}
       <ConfirmationDialog

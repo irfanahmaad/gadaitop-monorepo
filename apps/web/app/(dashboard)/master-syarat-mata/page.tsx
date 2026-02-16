@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, Suspense } from "react"
+import React, { useState, Suspense, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { ColumnDef } from "@tanstack/react-table"
 import { Breadcrumbs } from "@/components/breadcrumbs"
@@ -17,149 +17,47 @@ import {
 import { Input } from "@workspace/ui/components/input"
 import { SearchIcon, SlidersHorizontal, Plus } from "lucide-react"
 import { formatCurrencyDisplay } from "@/lib/format-currency"
+import { format } from "date-fns"
+import { id } from "date-fns/locale"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { FilterDialog } from "@/components/filter-dialog"
 import { useFilterParams, FilterConfig } from "@/hooks/use-filter-params"
 import { Skeleton } from "@workspace/ui/components/skeleton"
 import { Card, CardContent, CardHeader } from "@workspace/ui/components/card"
+import type { PawnTerm } from "@/lib/api/types"
+import { useAuth } from "@/lib/react-query/hooks/use-auth"
+import { usePawnTerms, useDeletePawnTerm } from "@/lib/react-query/hooks/use-pawn-terms"
+import { useCompanies } from "@/lib/react-query/hooks/use-companies"
+import { useItemTypes } from "@/lib/react-query/hooks/use-item-types"
+import { toast } from "sonner"
 
-// Type for Syarat Mata
-type SyaratMata = {
+// Map PawnTerm to table row
+type SyaratMataRow = {
   id: string
   namaAturan: string
   tipeBarang: string
   hargaDari: number
   hargaSampai: number
   kondisiBarang: string
-  lastUpdatedAt: Date
+  lastUpdatedAt: string
 }
 
-// Sample data for Syarat Mata
-const sampleSyaratMata: SyaratMata[] = [
-  {
-    id: "1",
-    namaAturan: "Barang Mahal",
-    tipeBarang: "Handphone",
-    hargaDari: 10000000,
-    hargaSampai: 30000000,
-    kondisiBarang: "Ada & Kondisi Sesuai",
-    lastUpdatedAt: new Date("2025-11-20T18:33:45"),
-  },
-  {
-    id: "2",
-    namaAturan: "Barang Penting",
-    tipeBarang: "Sepeda Motor",
-    hargaDari: 20000000,
-    hargaSampai: 200000000,
-    kondisiBarang: "Ada & Kondisi Sesuai",
-    lastUpdatedAt: new Date("2025-11-20T18:33:45"),
-  },
-  {
-    id: "3",
-    namaAturan: "Barang Mahal",
-    tipeBarang: "Handphone",
-    hargaDari: 10000000,
-    hargaSampai: 30000000,
-    kondisiBarang: "Ada & Kondisi Sesuai",
-    lastUpdatedAt: new Date("2025-11-20T18:33:45"),
-  },
-  {
-    id: "4",
-    namaAturan: "Barang Standar",
-    tipeBarang: "Laptop",
-    hargaDari: 5000000,
-    hargaSampai: 15000000,
-    kondisiBarang: "Ada & Kondisi Sesuai",
-    lastUpdatedAt: new Date("2025-11-19T14:20:30"),
-  },
-  {
-    id: "5",
-    namaAturan: "Barang Mewah",
-    tipeBarang: "Mobil",
-    hargaDari: 50000000,
-    hargaSampai: 500000000,
-    kondisiBarang: "Ada & Kondisi Sesuai",
-    lastUpdatedAt: new Date("2025-11-18T10:15:20"),
-  },
-  {
-    id: "6",
-    namaAturan: "Barang Elektronik",
-    tipeBarang: "TV",
-    hargaDari: 2000000,
-    hargaSampai: 10000000,
-    kondisiBarang: "Ada & Kondisi Sesuai",
-    lastUpdatedAt: new Date("2025-11-17T16:45:10"),
-  },
-  {
-    id: "7",
-    namaAturan: "Barang Antik",
-    tipeBarang: "Perhiasan",
-    hargaDari: 1000000,
-    hargaSampai: 50000000,
-    kondisiBarang: "Ada & Kondisi Sesuai",
-    lastUpdatedAt: new Date("2025-11-16T09:30:00"),
-  },
-  {
-    id: "8",
-    namaAturan: "Barang Koleksi",
-    tipeBarang: "Jam Tangan",
-    hargaDari: 5000000,
-    hargaSampai: 100000000,
-    kondisiBarang: "Ada & Kondisi Sesuai",
-    lastUpdatedAt: new Date("2025-11-15T12:00:00"),
-  },
-  {
-    id: "9",
-    namaAturan: "Barang Umum",
-    tipeBarang: "Sepeda",
-    hargaDari: 1000000,
-    hargaSampai: 5000000,
-    kondisiBarang: "Ada & Kondisi Sesuai",
-    lastUpdatedAt: new Date("2025-11-14T08:15:45"),
-  },
-  {
-    id: "10",
-    namaAturan: "Barang Berharga",
-    tipeBarang: "Emas",
-    hargaDari: 500000,
-    hargaSampai: 50000000,
-    kondisiBarang: "Ada & Kondisi Sesuai",
-    lastUpdatedAt: new Date("2025-11-13T15:22:30"),
-  },
-]
-
-// Format date to Indonesian format
-function formatDate(date: Date): string {
-  const months = [
-    "Januari",
-    "Februari",
-    "Maret",
-    "April",
-    "Mei",
-    "Juni",
-    "Juli",
-    "Agustus",
-    "September",
-    "Oktober",
-    "November",
-    "Desember",
-  ]
-
-  const day = date.getDate()
-  const month = months[date.getMonth()]
-  const year = date.getFullYear()
-  const hours = date.getHours().toString().padStart(2, "0")
-  const minutes = date.getMinutes().toString().padStart(2, "0")
-  const seconds = date.getSeconds().toString().padStart(2, "0")
-
-  return `${day} ${month} ${year} ${hours}:${minutes}:${seconds}`
+function mapPawnTermToRow(term: PawnTerm): SyaratMataRow {
+  const typeName = term.itemType?.typeName ?? "-"
+  return {
+    id: term.uuid,
+    namaAturan: `${typeName} (Tenor ${term.tenorDefault} bln)`,
+    tipeBarang: typeName,
+    hargaDari: Number(term.loanLimitMin),
+    hargaSampai: Number(term.loanLimitMax),
+    kondisiBarang: "-",
+    lastUpdatedAt: term.updatedAt
+      ? format(new Date(term.updatedAt), "d MMMM yyyy HH:mm:ss", {
+          locale: id,
+        })
+      : "-",
+  }
 }
-
-// Kondisi Barang options
-const kondisiBarangOptions = [
-  { label: "Ada & Kondisi Sesuai", value: "Ada & Kondisi Sesuai" },
-  { label: "Ada Namun Mismatch", value: "Ada Namun Mismatch" },
-]
 
 // Filter configuration
 const filterConfig: FilterConfig[] = [
@@ -171,16 +69,15 @@ const filterConfig: FilterConfig[] = [
     labelTo: "Sampai Dengan",
   },
   {
-    key: "kondisiBarang",
-    label: "Kondisi Barang",
+    key: "itemTypeId",
+    label: "Tipe Barang",
     type: "multiselect",
-    placeholder: "Pilih Kondisi Barang...",
-    options: kondisiBarangOptions,
+    placeholder: "Pilih Tipe Barang...",
   },
 ]
 
 // Column definitions for Syarat Mata
-const syaratMataColumns: ColumnDef<SyaratMata>[] = [
+const syaratMataColumns: ColumnDef<SyaratMataRow>[] = [
   {
     id: "select",
     header: ({ table }) => (
@@ -237,10 +134,6 @@ const syaratMataColumns: ColumnDef<SyaratMata>[] = [
   {
     accessorKey: "lastUpdatedAt",
     header: "Last Updated At",
-    cell: ({ row }) => {
-      const date = row.getValue("lastUpdatedAt") as Date
-      return <span>{formatDate(date)}</span>
-    },
   },
 ]
 
@@ -275,29 +168,93 @@ function TableSkeleton() {
 
 function MasterSyaratMataPageContent() {
   const router = useRouter()
+  const { user } = useAuth()
+  const isCompanyAdmin =
+    user?.roles?.some((r) => r.code === "company_admin") ?? false
+  const isSuperAdmin = user?.roles?.some((r) => r.code === "owner") ?? false
+
+  const effectiveCompanyId = isCompanyAdmin ? user?.companyId ?? null : null
+
+  const { data: companiesData } = useCompanies(
+    isSuperAdmin ? { pageSize: 100 } : undefined
+  )
+
+  const [selectedPT, setSelectedPT] = useState<string>("")
+  const ptOptions = React.useMemo(() => {
+    const list = companiesData?.data ?? []
+    return list.map((c) => ({ value: c.uuid, label: c.companyName }))
+  }, [companiesData])
+
+  useEffect(() => {
+    if (isSuperAdmin && ptOptions.length > 0 && !selectedPT) {
+      setSelectedPT(ptOptions[0]!.value)
+    }
+  }, [isSuperAdmin, ptOptions, selectedPT])
+
+  const companyFilterId = isSuperAdmin ? selectedPT : effectiveCompanyId
+
   const [pageSize, setPageSize] = useState(100)
   const [searchValue, setSearchValue] = useState("")
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
-  const [itemToDelete, setItemToDelete] = useState<SyaratMata | null>(null)
+  const [itemToDelete, setItemToDelete] = useState<SyaratMataRow | null>(null)
   const [filterDialogOpen, setFilterDialogOpen] = useState(false)
 
-  // Filter state management via URL params
-  const { filterValues, setFilters } = useFilterParams(filterConfig)
+  const { data: itemTypesData } = useItemTypes({ pageSize: 100 })
+  const itemTypeOptions = React.useMemo(() => {
+    const list = itemTypesData?.data ?? []
+    return list.map((t) => ({
+      label: t.typeName,
+      value: t.uuid,
+    }))
+  }, [itemTypesData])
 
-  // Filter data based on filter values
+  const filterConfigWithOptions: FilterConfig[] = React.useMemo(
+    () => [
+      {
+        key: "lastUpdate",
+        label: "",
+        type: "daterange",
+        labelFrom: "Last Update Mulai Dari",
+        labelTo: "Sampai Dengan",
+      },
+      {
+        key: "itemTypeId",
+        label: "Tipe Barang",
+        type: "multiselect",
+        placeholder: "Pilih Tipe Barang...",
+        options: itemTypeOptions,
+      },
+    ],
+    [itemTypeOptions]
+  )
+
+  const { filterValues, setFilters } = useFilterParams(filterConfigWithOptions)
+
+  const listOptions = React.useMemo(() => {
+    const filter: Record<string, string> = {}
+    if (companyFilterId) filter.ptId = companyFilterId
+    const itemTypeIds = (filterValues.itemTypeId as string[] | undefined) ?? []
+    if (itemTypeIds.length > 0) filter.itemTypeId = itemTypeIds[0] as string
+    return { page: 1, pageSize: 200, filter }
+  }, [companyFilterId, filterValues.itemTypeId])
+
+  const { data, isLoading, isError } = usePawnTerms(listOptions)
+  const deletePawnTermMutation = useDeletePawnTerm()
+
+  const termsFromApi = data?.data ?? []
+  const rows = React.useMemo(
+    () => termsFromApi.map(mapPawnTermToRow),
+    [termsFromApi]
+  )
+
   const filteredSyaratMata = React.useMemo(() => {
-    let result = [...sampleSyaratMata]
+    let result = [...rows]
 
-    // Get filter values
     const lastUpdateRange = (filterValues.lastUpdate as {
       from: string | null
       to: string | null
     }) || { from: null, to: null }
 
-    const selectedKondisiBarang =
-      (filterValues.kondisiBarang as string[] | undefined) || []
-
-    // Filter by search (namaAturan or tipeBarang)
     if (searchValue) {
       const searchLower = searchValue.toLowerCase()
       result = result.filter(
@@ -307,56 +264,52 @@ function MasterSyaratMataPageContent() {
       )
     }
 
-    // Filter by last update date range
     if (lastUpdateRange.from || lastUpdateRange.to) {
       result = result.filter((item) => {
         const itemDate = new Date(item.lastUpdatedAt)
-        itemDate.setHours(0, 0, 0, 0)
-
-        if (lastUpdateRange.from) {
-          const fromDate = new Date(lastUpdateRange.from)
-          fromDate.setHours(0, 0, 0, 0)
-          if (itemDate < fromDate) return false
+        if (!Number.isNaN(itemDate.getTime())) {
+          itemDate.setHours(0, 0, 0, 0)
+          if (lastUpdateRange.from) {
+            const fromDate = new Date(lastUpdateRange.from)
+            fromDate.setHours(0, 0, 0, 0)
+            if (itemDate < fromDate) return false
+          }
+          if (lastUpdateRange.to) {
+            const toDate = new Date(lastUpdateRange.to)
+            toDate.setHours(23, 59, 59, 999)
+            if (itemDate > toDate) return false
+          }
         }
-
-        if (lastUpdateRange.to) {
-          const toDate = new Date(lastUpdateRange.to)
-          toDate.setHours(23, 59, 59, 999)
-          if (itemDate > toDate) return false
-        }
-
         return true
       })
     }
 
-    // Filter by kondisi barang
-    if (selectedKondisiBarang.length > 0) {
-      result = result.filter((item) =>
-        selectedKondisiBarang.includes(item.kondisiBarang)
-      )
-    }
-
     return result
-  }, [searchValue, filterValues])
+  }, [rows, searchValue, filterValues.lastUpdate])
 
-  const handleDetail = (row: SyaratMata) => {
+  const handleDetail = (row: SyaratMataRow) => {
     router.push(`/master-syarat-mata/${row.id}`)
   }
 
-  const handleEdit = (row: SyaratMata) => {
-    console.log("Edit:", row)
-    // Implement edit action
+  const handleEdit = (row: SyaratMataRow) => {
+    router.push(`/master-syarat-mata/${row.id}/edit`)
   }
 
-  const handleDelete = (row: SyaratMata) => {
+  const handleDelete = (row: SyaratMataRow) => {
     setItemToDelete(row)
     setIsConfirmDialogOpen(true)
   }
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (itemToDelete) {
-      console.log("Delete:", itemToDelete)
-      // Implement delete action
+      try {
+        await deletePawnTermMutation.mutateAsync(itemToDelete.id)
+        toast.success("Syarat Mata berhasil dihapus")
+        setIsConfirmDialogOpen(false)
+        setItemToDelete(null)
+      } catch {
+        toast.error("Gagal menghapus Syarat Mata")
+      }
     }
   }
 
@@ -365,96 +318,125 @@ function MasterSyaratMataPageContent() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* Header Section */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-2xl font-bold">Master Syarat &quot;Mata&quot;</h1>
-          <Breadcrumbs
-            items={[
-              { label: "Pages", href: "/" },
-              { label: 'Master Syarat "Mata"' },
-            ]}
-          />
-        </div>
+    <>
+      <div className="flex flex-col gap-6">
+        {/* Header Section */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex flex-col gap-2">
+            <h1 className="text-2xl font-bold">Master Syarat &quot;Mata&quot;</h1>
+            <Breadcrumbs
+              items={[
+                { label: "Pages", href: "/" },
+                { label: 'Master Syarat "Mata"' },
+              ]}
+            />
+          </div>
 
-        {/* Tambah Data Button */}
-        <Button
-          onClick={handleTambahData}
-          className="bg-red-600 text-white hover:bg-red-700"
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Tambah Data
-        </Button>
-      </div>
+          <div className="flex items-center gap-2">
+            {isSuperAdmin && ptOptions.length > 0 && (
+              <Select value={selectedPT} onValueChange={setSelectedPT}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Pilih PT" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ptOptions.map((pt) => (
+                    <SelectItem key={pt.value} value={pt.value}>
+                      {pt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
 
-      {/* Data Table */}
-      <DataTable
-        columns={syaratMataColumns}
-        data={filteredSyaratMata}
-        title="Daftar Katalog"
-        searchPlaceholder="Cari..."
-        headerRight={
-          <div className="flex w-full items-center gap-2 sm:w-auto">
-            <Select
-              value={pageSize.toString()}
-              onValueChange={(value) => setPageSize(Number(value))}
-            >
-              <SelectTrigger className="w-[100px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="10">10</SelectItem>
-                <SelectItem value="25">25</SelectItem>
-                <SelectItem value="50">50</SelectItem>
-                <SelectItem value="100">100</SelectItem>
-              </SelectContent>
-            </Select>
-            <div className="w-full sm:w-auto sm:max-w-sm">
-              <Input
-                placeholder="Cari..."
-                value={searchValue}
-                onChange={(e) => setSearchValue(e.target.value)}
-                icon={<SearchIcon className="size-4" />}
-                className="w-full"
-              />
-            </div>
             <Button
-              variant="outline"
-              className="flex items-center gap-2"
-              onClick={() => setFilterDialogOpen(true)}
+              onClick={handleTambahData}
+              className="bg-red-600 text-white hover:bg-red-700"
             >
-              <SlidersHorizontal className="h-4 w-4" />
-              Filter
+              <Plus className="mr-2 h-4 w-4" />
+              Tambah Data
             </Button>
           </div>
-        }
-        initialPageSize={pageSize}
-        onPageSizeChange={setPageSize}
-        searchValue={searchValue}
-        onSearchChange={setSearchValue}
-        onDetail={handleDetail}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-      />
+        </div>
 
-      {/* Filter Dialog */}
+        {/* Data Table */}
+        {isLoading ? (
+          <TableSkeleton />
+        ) : isError ? (
+          <Card>
+            <CardContent className="py-10 text-center">
+              <p className="text-destructive">Gagal memuat data Syarat Mata</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <DataTable
+            columns={syaratMataColumns}
+            data={filteredSyaratMata}
+            title="Daftar Katalog"
+            searchPlaceholder="Cari..."
+            headerRight={
+              <div className="flex w-full items-center gap-2 sm:w-auto">
+                <Select
+                  value={pageSize.toString()}
+                  onValueChange={(value) => setPageSize(Number(value))}
+                >
+                  <SelectTrigger className="w-[100px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="25">25</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                  </SelectContent>
+                </Select>
+                <div className="w-full sm:w-auto sm:max-w-sm">
+                  <Input
+                    placeholder="Cari..."
+                    value={searchValue}
+                    onChange={(e) => setSearchValue(e.target.value)}
+                    icon={<SearchIcon className="size-4" />}
+                    className="w-full"
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  className="flex items-center gap-2"
+                  onClick={() => setFilterDialogOpen(true)}
+                >
+                  <SlidersHorizontal className="size-4" />
+                  Filter
+                </Button>
+              </div>
+            }
+            initialPageSize={pageSize}
+            onPageSizeChange={setPageSize}
+            searchValue={searchValue}
+            onSearchChange={setSearchValue}
+            onDetail={handleDetail}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+          />
+        )}
+      </div>
+
       <FilterDialog
         open={filterDialogOpen}
         onOpenChange={setFilterDialogOpen}
-        filterConfig={filterConfig}
+        filterConfig={filterConfigWithOptions}
         filterValues={filterValues}
         onFilterChange={setFilters}
       />
 
-      {/* Confirmation Dialog for Delete */}
       <ConfirmationDialog
         open={isConfirmDialogOpen}
         onOpenChange={setIsConfirmDialogOpen}
         onConfirm={handleConfirmDelete}
+        title="Hapus Syarat Mata"
         description="Anda akan menghapus data Syarat Mata dari dalam sistem."
+        confirmLabel="Hapus"
+        variant="destructive"
       />
-    </div>
+    </>
   )
 }
 

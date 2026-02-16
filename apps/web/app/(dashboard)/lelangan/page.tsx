@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, Suspense, useEffect } from "react"
 import { ColumnDef } from "@tanstack/react-table"
 import { Breadcrumbs } from "@/components/breadcrumbs"
 import { DataTable } from "@/components/data-table"
@@ -27,9 +27,19 @@ import {
   AvatarImage,
 } from "@workspace/ui/components/avatar"
 import { SearchIcon, SlidersHorizontal, Eye } from "lucide-react"
+import { format } from "date-fns"
+import { id } from "date-fns/locale"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
+import { Skeleton } from "@workspace/ui/components/skeleton"
+import { Card, CardContent, CardHeader } from "@workspace/ui/components/card"
+import type { AuctionBatch } from "@/lib/api/types"
+import { useAuth } from "@/lib/react-query/hooks/use-auth"
+import { useAuctionBatches } from "@/lib/react-query/hooks/use-auction-batches"
+import { useCompanies } from "@/lib/react-query/hooks/use-companies"
+import { useBranches } from "@/lib/react-query/hooks/use-branches"
+import { useRouter } from "next/navigation"
 
-// Types for SPK Jatuh Tempo
+// Types for SPK Jatuh Tempo (items - from batch detail, list doesn't include items)
 type ItemLelang = {
   id: string
   foto: string
@@ -48,200 +58,53 @@ type BatchLelang = {
   namaBatch: string
   jumlahItem: number
   lastUpdatedAt: string
-  status: "Menunggu" | "Diambil" | "Tervalidasi" | "Berjalan"
+  status: BatchStatus
 }
 
-// Sample data for SPK Jatuh Tempo
-const sampleItemLelang: ItemLelang[] = [
-  {
-    id: "1",
-    foto: "/placeholder-avatar.jpg",
-    noSPK: "SPK/002/20112025",
-    namaBarang: "iPhone 15 Pro",
-    tipeBarang: "Handphone",
-    toko: "GT Jakarta Satu",
-    petugas: "Ben Affleck",
-    lastUpdatedAt: "Belum Terscan",
-  },
-  {
-    id: "2",
-    foto: "/placeholder-avatar.jpg",
-    noSPK: "SPK/003/20112025",
-    namaBarang: "Google Smarthome",
-    tipeBarang: "IoT",
-    toko: "GT Jakarta Satu",
-    petugas: "Ben Affleck",
-    lastUpdatedAt: "Belum Terscan",
-  },
-  {
-    id: "3",
-    foto: "/placeholder-avatar.jpg",
-    noSPK: "SPK/004/20112025",
-    namaBarang: "iPhone 13",
-    tipeBarang: "Handphone",
-    toko: "GT Jakarta Satu",
-    petugas: "Ben Affleck",
-    lastUpdatedAt: "Belum Terscan",
-  },
-  {
-    id: "4",
-    foto: "/placeholder-avatar.jpg",
-    noSPK: "SPK/005/20112025",
-    namaBarang: "MacBook Pro M1",
-    tipeBarang: "Laptop",
-    toko: "GT Jakarta Satu",
-    petugas: "Ben Affleck",
-    lastUpdatedAt: "Terscan",
-  },
-  {
-    id: "5",
-    foto: "/placeholder-avatar.jpg",
-    noSPK: "SPK/006/20112025",
-    namaBarang: "MacBook Pro M2",
-    tipeBarang: "Laptop",
-    toko: "GT Jakarta Satu",
-    petugas: "Ben Affleck",
-    lastUpdatedAt: "Terscan",
-  },
-  {
-    id: "6",
-    foto: "/placeholder-avatar.jpg",
-    noSPK: "SPK/007/20112025",
-    namaBarang: "DJI Drone",
-    tipeBarang: "Drone",
-    toko: "GT Jakarta Empat",
-    petugas: "Ben Affleck",
-    lastUpdatedAt: "Terscan",
-  },
-  {
-    id: "7",
-    foto: "/placeholder-avatar.jpg",
-    noSPK: "SPK/008/20112025",
-    namaBarang: "Apple Watch Ultra",
-    tipeBarang: "Smartwatch",
-    toko: "GT Jakarta Dua",
-    petugas: "Ben Affleck",
-    lastUpdatedAt: "Terscan",
-  },
-  {
-    id: "8",
-    foto: "/placeholder-avatar.jpg",
-    noSPK: "SPK/009/20112025",
-    namaBarang: "MacBook Pro 2017",
-    tipeBarang: "Laptop",
-    toko: "GT Jakarta Satu",
-    petugas: "Ben Affleck",
-    lastUpdatedAt: "Terscan",
-  },
-  {
-    id: "9",
-    foto: "/placeholder-avatar.jpg",
-    noSPK: "SPK/010/20112025",
-    namaBarang: "Samsung Galaxy J2 Prime",
-    tipeBarang: "Handphone",
-    toko: "GT Jakarta Satu",
-    petugas: "Ben Affleck",
-    lastUpdatedAt: "Terscan",
-  },
-  {
-    id: "10",
-    foto: "/placeholder-avatar.jpg",
-    noSPK: "SPK/011/20112025",
-    namaBarang: "iPad Pro M3",
-    tipeBarang: "Tablet",
-    toko: "GT Jakarta Satu",
-    petugas: "Ben Affleck",
-    lastUpdatedAt: "Terscan",
-  },
-]
+type BatchStatus =
+  | "Menunggu"
+  | "Diambil"
+  | "Tervalidasi"
+  | "Berjalan"
+  | "Dibatalkan"
 
-// Sample data for Batch Lelang SPK
-const sampleBatchLelang: BatchLelang[] = [
-  {
-    id: "1",
-    idBatch: "BTC/001",
-    namaBatch: "Batch Handphone",
-    jumlahItem: 10,
-    lastUpdatedAt: "20 November 2025 18:33:45",
-    status: "Menunggu",
-  },
-  {
-    id: "2",
-    idBatch: "BTC/002",
-    namaBatch: "Batch Otomotif",
-    jumlahItem: 7,
-    lastUpdatedAt: "20 November 2025 18:33:45",
-    status: "Diambil",
-  },
-  {
-    id: "3",
-    idBatch: "BTC/001",
-    namaBatch: "Batch Handphone",
-    jumlahItem: 10,
-    lastUpdatedAt: "20 November 2025 18:33:45",
-    status: "Tervalidasi",
-  },
-  {
-    id: "4",
-    idBatch: "BTC/002",
-    namaBatch: "Batch Otomotif",
-    jumlahItem: 7,
-    lastUpdatedAt: "20 November 2025 18:33:45",
-    status: "Berjalan",
-  },
-  {
-    id: "5",
-    idBatch: "BTC/001",
-    namaBatch: "Batch Handphone",
-    jumlahItem: 10,
-    lastUpdatedAt: "20 November 2025 18:33:45",
-    status: "Menunggu",
-  },
-  {
-    id: "6",
-    idBatch: "BTC/002",
-    namaBatch: "Batch Otomotif",
-    jumlahItem: 7,
-    lastUpdatedAt: "20 November 2025 18:33:45",
-    status: "Diambil",
-  },
-  {
-    id: "7",
-    idBatch: "BTC/001",
-    namaBatch: "Batch Handphone",
-    jumlahItem: 10,
-    lastUpdatedAt: "20 November 2025 18:33:45",
-    status: "Tervalidasi",
-  },
-  {
-    id: "8",
-    idBatch: "BTC/002",
-    namaBatch: "Batch Otomotif",
-    jumlahItem: 7,
-    lastUpdatedAt: "20 November 2025 18:33:45",
-    status: "Berjalan",
-  },
-  {
-    id: "9",
-    idBatch: "BTC/001",
-    namaBatch: "Batch Handphone",
-    jumlahItem: 10,
-    lastUpdatedAt: "20 November 2025 18:33:45",
-    status: "Menunggu",
-  },
-  {
-    id: "10",
-    idBatch: "BTC/002",
-    namaBatch: "Batch Otomotif",
-    jumlahItem: 7,
-    lastUpdatedAt: "20 November 2025 18:33:45",
-    status: "Diambil",
-  },
-]
+function mapBatchStatus(status: string): BatchStatus {
+  const map: Record<string, BatchStatus> = {
+    draft: "Menunggu",
+    pickup_in_progress: "Diambil",
+    validation_pending: "Tervalidasi",
+    ready_for_auction: "Berjalan",
+    cancelled: "Dibatalkan",
+  }
+  return map[status] ?? "Menunggu"
+}
+
+function mapAuctionBatchToBatchLelang(batch: AuctionBatch): BatchLelang {
+  const itemCount = batch.items?.length ?? 0
+  return {
+    id: batch.uuid,
+    idBatch: batch.batchCode,
+    namaBatch: batch.batchCode,
+    jumlahItem: itemCount,
+    lastUpdatedAt: batch.updatedAt
+      ? format(new Date(batch.updatedAt), "d MMMM yyyy HH:mm:ss", {
+          locale: id,
+        })
+      : batch.createdAt
+        ? format(new Date(batch.createdAt), "d MMMM yyyy HH:mm:ss", {
+            locale: id,
+          })
+        : "-",
+    status: mapBatchStatus(batch.status),
+  }
+}
 
 // Status badge component for Batch Lelang
-const BatchStatusBadge = ({ status }: { status: BatchLelang["status"] }) => {
-  const statusConfig = {
+const BatchStatusBadge = ({ status }: { status: BatchStatus }) => {
+  const statusConfig: Record<
+    BatchStatus,
+    { label: string; className: string }
+  > = {
     Menunggu: {
       label: "Menunggu",
       className:
@@ -262,9 +125,14 @@ const BatchStatusBadge = ({ status }: { status: BatchLelang["status"] }) => {
       className:
         "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20",
     },
+    Dibatalkan: {
+      label: "Dibatalkan",
+      className:
+        "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20",
+    },
   }
 
-  const config = statusConfig[status]
+  const config = statusConfig[status] ?? statusConfig.Menunggu
 
   return (
     <Badge variant="outline" className={config.className}>
@@ -318,7 +186,7 @@ const itemLelangColumns: ColumnDef<ItemLelang>[] = [
         <span className="cursor-pointer text-blue-600 hover:underline">
           {row.getValue("noSPK")}
         </span>
-        <Eye className="h-3 w-3 text-gray-400" />
+        <Eye className="size-3 text-gray-400" />
       </div>
     ),
   },
@@ -410,22 +278,132 @@ const batchLelangColumns: ColumnDef<BatchLelang>[] = [
   },
 ]
 
-export default function LelangPage() {
+// Placeholder for SPK Jatuh Tempo (list API doesn't include items)
+const placeholderItemLelang: ItemLelang[] = []
+
+function TableSkeleton() {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <Skeleton className="h-6 w-40" />
+          <div className="flex gap-2">
+            <Skeleton className="h-10 w-32" />
+            <Skeleton className="h-10 w-48" />
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="flex gap-4">
+              <Skeleton className="h-10 w-12" />
+              <Skeleton className="h-10 w-10 rounded-full" />
+              <Skeleton className="h-10 w-32" />
+              <Skeleton className="h-10 flex-1" />
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function LelangPageContent() {
+  const router = useRouter()
+  const { user } = useAuth()
+  const isCompanyAdmin =
+    user?.roles?.some((r) => r.code === "company_admin") ?? false
+  const isSuperAdmin = user?.roles?.some((r) => r.code === "owner") ?? false
+
+  const effectiveCompanyId = isCompanyAdmin ? (user?.companyId ?? null) : null
+
+  const { data: companiesData } = useCompanies(
+    isSuperAdmin ? { pageSize: 100 } : undefined
+  )
+
+  const [selectedPT, setSelectedPT] = useState<string>("")
+  const ptOptions = React.useMemo(() => {
+    const list = companiesData?.data ?? []
+    return list.map((c) => ({ value: c.uuid, label: c.companyName }))
+  }, [companiesData])
+
+  useEffect(() => {
+    if (isSuperAdmin && ptOptions.length > 0 && !selectedPT) {
+      setSelectedPT(ptOptions[0]!.value)
+    }
+  }, [isSuperAdmin, ptOptions, selectedPT])
+
+  const companyFilterId = isSuperAdmin ? selectedPT : effectiveCompanyId
+
+  const { data: branchesData } = useBranches(
+    companyFilterId ? { pageSize: 200 } : undefined
+  )
+
+  const [selectedBranch, setSelectedBranch] = useState<string>("all")
+  const branchOptions = React.useMemo(() => {
+    const list = branchesData?.data ?? []
+    const filtered = companyFilterId
+      ? list.filter((b) => b.companyId === companyFilterId)
+      : list
+    return [
+      { value: "all", label: "Semua Toko" },
+      ...filtered.map((b) => ({ value: b.uuid, label: b.shortName })),
+    ]
+  }, [branchesData, companyFilterId])
+
+  useEffect(() => {
+    if (branchOptions.length > 1 && selectedBranch === "all") {
+      setSelectedBranch(branchOptions[1]?.value ?? "all")
+    }
+  }, [branchOptions, selectedBranch])
+
   const [pageSize, setPageSize] = useState(100)
   const [searchValue, setSearchValue] = useState("")
-  const [selectedToko, setSelectedToko] = useState("gt-jakarta-satu")
   const [activeTab, setActiveTab] = useState("spk-jatuh-tempo")
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
-  const [itemToDelete, setItemToDelete] = useState<ItemLelang | BatchLelang | null>(null)
+  const [itemToDelete, setItemToDelete] = useState<
+    ItemLelang | BatchLelang | null
+  >(null)
+
+  const listOptions = React.useMemo(() => {
+    const filter: Record<string, string> = {}
+    if (companyFilterId) filter.ptId = companyFilterId
+    if (selectedBranch && selectedBranch !== "all")
+      filter.storeId = selectedBranch
+    return { page: 1, pageSize: 200, filter }
+  }, [companyFilterId, selectedBranch])
+
+  const { data, isLoading, isError } = useAuctionBatches(listOptions)
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const batchesFromApi = data?.data ?? []
+  const batchRows = React.useMemo(
+    () => batchesFromApi.map(mapAuctionBatchToBatchLelang),
+    [batchesFromApi]
+  )
+
+  const filteredBatchLelang = React.useMemo(() => {
+    let result = [...batchRows]
+    if (searchValue) {
+      const s = searchValue.toLowerCase()
+      result = result.filter(
+        (b) =>
+          b.idBatch.toLowerCase().includes(s) ||
+          b.namaBatch.toLowerCase().includes(s)
+      )
+    }
+    return result
+  }, [batchRows, searchValue])
 
   const handleDetail = (row: ItemLelang | BatchLelang) => {
-    console.log("Detail:", row)
-    // Implement detail action
+    if ("idBatch" in row) {
+      router.push(`/lelangan/${row.id}`)
+    }
   }
 
-  const handleEdit = (row: ItemLelang | BatchLelang) => {
-    console.log("Edit:", row)
-    // Implement edit action
+  const handleEdit = (_row: ItemLelang | BatchLelang) => {
+    // Implement edit if needed
   }
 
   const handleDelete = (row: ItemLelang | BatchLelang) => {
@@ -435,16 +413,11 @@ export default function LelangPage() {
 
   const handleConfirmDelete = () => {
     if (itemToDelete) {
-      console.log("Delete:", itemToDelete)
-      // Implement delete action
+      // TODO: wire to useCancelAuctionBatch or delete API when available
+      setIsConfirmDialogOpen(false)
+      setItemToDelete(null)
     }
   }
-
-  // Filter data based on selected toko
-  const filteredItemLelang = sampleItemLelang.filter(
-    (item) =>
-      selectedToko === "all" || item.toko.toLowerCase().includes(selectedToko)
-  )
 
   return (
     <div className="flex flex-col gap-6">
@@ -457,21 +430,37 @@ export default function LelangPage() {
           />
         </div>
 
-        {/* Toko Select */}
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">Toko :</span>
-          <Select value={selectedToko} onValueChange={setSelectedToko}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Pilih Toko" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua Toko</SelectItem>
-              <SelectItem value="gt-jakarta-satu">GT Jakarta Satu</SelectItem>
-              <SelectItem value="gt-jakarta-dua">GT Jakarta Dua</SelectItem>
-              <SelectItem value="gt-jakarta-tiga">GT Jakarta Tiga</SelectItem>
-              <SelectItem value="gt-jakarta-empat">GT Jakarta Empat</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="flex flex-wrap items-center gap-2">
+          {isSuperAdmin && ptOptions.length > 0 && (
+            <Select value={selectedPT} onValueChange={setSelectedPT}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Pilih PT" />
+              </SelectTrigger>
+              <SelectContent>
+                {ptOptions.map((pt) => (
+                  <SelectItem key={pt.value} value={pt.value}>
+                    {pt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium">Toko :</span>
+            <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Pilih Toko" />
+              </SelectTrigger>
+              <SelectContent>
+                {branchOptions.map((b) => (
+                  <SelectItem key={b.value} value={b.value}>
+                    {b.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
@@ -486,11 +475,11 @@ export default function LelangPage() {
           <TabsTrigger value="batch-lelang-spk">Batch Lelang SPK</TabsTrigger>
         </TabsList>
 
-        {/* SPK Jatuh Tempo Tab */}
+        {/* SPK Jatuh Tempo Tab - Items from batches (list API doesn't include items) */}
         <TabsContent value="spk-jatuh-tempo" className="mt-0">
           <DataTable
             columns={itemLelangColumns}
-            data={filteredItemLelang}
+            data={placeholderItemLelang}
             title="Item Lelang"
             searchPlaceholder="Cari..."
             headerRight={
@@ -519,7 +508,7 @@ export default function LelangPage() {
                   />
                 </div>
                 <Button variant="outline" className="flex items-center gap-2">
-                  <SlidersHorizontal className="h-4 w-4" />
+                  <SlidersHorizontal className="size-4" />
                   Filter
                 </Button>
               </div>
@@ -531,70 +520,94 @@ export default function LelangPage() {
             onDetail={handleDetail}
             onEdit={handleEdit}
             onDelete={handleDelete}
-            getRowClassName={(row) =>
-              row.lastUpdatedAt === "Belum Terscan"
-                ? "bg-red-50 dark:bg-red-950/20 border-b border-red-200 dark:border-red-800"
-                : ""
-            }
           />
+          {placeholderItemLelang.length === 0 && (
+            <p className="text-muted-foreground py-4 text-center text-sm">
+              Buka tab Batch Lelang SPK dan pilih batch untuk melihat item.
+            </p>
+          )}
         </TabsContent>
 
         {/* Batch Lelang SPK Tab */}
         <TabsContent value="batch-lelang-spk" className="mt-0">
-          <DataTable
-            columns={batchLelangColumns}
-            data={sampleBatchLelang}
-            title="Daftar Batch Lelang"
-            searchPlaceholder="Cari..."
-            headerRight={
-              <div className="flex w-full items-center gap-2 sm:w-auto">
-                <Select
-                  value={pageSize.toString()}
-                  onValueChange={(value) => setPageSize(Number(value))}
-                >
-                  <SelectTrigger className="w-[100px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="10">10</SelectItem>
-                    <SelectItem value="25">25</SelectItem>
-                    <SelectItem value="50">50</SelectItem>
-                    <SelectItem value="100">100</SelectItem>
-                  </SelectContent>
-                </Select>
-                <div className="w-full sm:w-auto sm:max-w-sm">
-                  <Input
-                    placeholder="Cari..."
-                    value={searchValue}
-                    onChange={(e) => setSearchValue(e.target.value)}
-                    icon={<SearchIcon className="size-4" />}
-                    className="w-full"
-                  />
+          {isLoading ? (
+            <TableSkeleton />
+          ) : isError ? (
+            <Card>
+              <CardContent className="py-10 text-center">
+                <p className="text-destructive">
+                  Gagal memuat data Batch Lelang
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <DataTable
+              columns={batchLelangColumns}
+              data={filteredBatchLelang}
+              title="Daftar Batch Lelang"
+              searchPlaceholder="Cari..."
+              headerRight={
+                <div className="flex w-full items-center gap-2 sm:w-auto">
+                  <Select
+                    value={pageSize.toString()}
+                    onValueChange={(value) => setPageSize(Number(value))}
+                  >
+                    <SelectTrigger className="w-[100px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="25">25</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <div className="w-full sm:w-auto sm:max-w-sm">
+                    <Input
+                      placeholder="Cari..."
+                      value={searchValue}
+                      onChange={(e) => setSearchValue(e.target.value)}
+                      icon={<SearchIcon className="size-4" />}
+                      className="w-full"
+                    />
+                  </div>
+                  <Button variant="outline" className="flex items-center gap-2">
+                    <SlidersHorizontal className="size-4" />
+                    Filter
+                  </Button>
                 </div>
-                <Button variant="outline" className="flex items-center gap-2">
-                  <SlidersHorizontal className="h-4 w-4" />
-                  Filter
-                </Button>
-              </div>
-            }
-            initialPageSize={pageSize}
-            onPageSizeChange={setPageSize}
-            searchValue={searchValue}
-            onSearchChange={setSearchValue}
-            onDetail={handleDetail}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-          />
+              }
+              initialPageSize={pageSize}
+              onPageSizeChange={setPageSize}
+              searchValue={searchValue}
+              onSearchChange={setSearchValue}
+              onDetail={handleDetail}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+            />
+          )}
         </TabsContent>
       </Tabs>
 
-      {/* Confirmation Dialog for Delete */}
       <ConfirmationDialog
         open={isConfirmDialogOpen}
         onOpenChange={setIsConfirmDialogOpen}
         onConfirm={handleConfirmDelete}
+        title="Hapus Batch Lelang"
         description="Anda akan menghapus data Lelang dari dalam sistem."
+        confirmLabel="Hapus"
+        variant="destructive"
       />
     </div>
+  )
+}
+
+export default function LelangPage() {
+  return (
+    <Suspense
+      fallback={<div className="bg-muted h-64 animate-pulse rounded-lg" />}
+    >
+      <LelangPageContent />
+    </Suspense>
   )
 }

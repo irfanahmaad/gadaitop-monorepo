@@ -26,9 +26,7 @@ import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import type { RequestTambahModal } from "./types"
 
 const setujuiSchema = z.object({
-  buktiTransfer: z
-    .any()
-    .refine((v) => v?.length > 0, "Bukti Transfer wajib diisi"),
+  buktiTransfer: z.any().optional(),
   catatan: z.string().optional(),
 })
 
@@ -83,7 +81,6 @@ export function SetujuiRequestDialog({
   const onSubmit = (values: SetujuiFormValues) => {
     if (!row) return
     const file = values.buktiTransfer?.[0]
-    if (!file) return
     setPendingSubmit({
       row,
       data: {

@@ -35,8 +35,10 @@ interface DashboardHeaderProps {
   onPTChange: (value: string) => void
   onTokoChange: (value: string) => void
   onDateChange: (date: Date) => void
-  /** Whether the PT and Toko selects should be shown (Super Admin only) */
-  showFilters: boolean
+  /** Whether the PT (company) select should be shown (Super Admin only) */
+  showPTFilter?: boolean
+  /** Whether the Toko (branch) select should be shown (Super Admin or Admin PT) */
+  showTokoFilter?: boolean
   /** List of PT options fetched from API */
   ptOptions: PTOption[]
   /** List of Toko options fetched from API */
@@ -54,7 +56,8 @@ export function DashboardHeader({
   onPTChange,
   onTokoChange,
   onDateChange,
-  showFilters,
+  showPTFilter = false,
+  showTokoFilter = false,
   ptOptions,
   tokoOptions,
   isLoadingPT,
@@ -71,46 +74,46 @@ export function DashboardHeader({
 
       {/* Filter Controls */}
       <div className="flex flex-wrap items-center gap-3">
-        {showFilters && (
-          <>
-            <Select
-              value={selectedPT}
-              onValueChange={onPTChange}
-              disabled={isLoadingPT}
-            >
-              <SelectTrigger className="w-[200px]">
-                <SelectValue
-                  placeholder={isLoadingPT ? "Memuat..." : "Pilih PT"}
-                />
-              </SelectTrigger>
-              <SelectContent>
-                {ptOptions.map((pt) => (
-                  <SelectItem key={pt.value} value={pt.value}>
-                    {pt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        {showPTFilter && (
+          <Select
+            value={selectedPT}
+            onValueChange={onPTChange}
+            disabled={isLoadingPT}
+          >
+            <SelectTrigger className="w-[200px]">
+              <SelectValue
+                placeholder={isLoadingPT ? "Memuat..." : "Pilih PT"}
+              />
+            </SelectTrigger>
+            <SelectContent>
+              {ptOptions.map((pt) => (
+                <SelectItem key={pt.value} value={pt.value}>
+                  {pt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
 
-            <Select
-              value={selectedToko}
-              onValueChange={onTokoChange}
-              disabled={isLoadingToko}
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue
-                  placeholder={isLoadingToko ? "Memuat..." : "Pilih Toko"}
-                />
-              </SelectTrigger>
-              <SelectContent>
-                {tokoOptions.map((toko) => (
-                  <SelectItem key={toko.value} value={toko.value}>
-                    {toko.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </>
+        {showTokoFilter && (
+          <Select
+            value={selectedToko}
+            onValueChange={onTokoChange}
+            disabled={isLoadingToko}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue
+                placeholder={isLoadingToko ? "Memuat..." : "Pilih Toko"}
+              />
+            </SelectTrigger>
+            <SelectContent>
+              {tokoOptions.map((toko) => (
+                <SelectItem key={toko.value} value={toko.value}>
+                  {toko.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         )}
 
         <Popover>

@@ -1,9 +1,16 @@
 "use client"
 
-import React, { useMemo, useState, Suspense } from "react"
+import React, { useMemo, useState, Suspense, useEffect } from "react"
 import { Breadcrumbs } from "@/components/breadcrumbs"
 import { Badge } from "@workspace/ui/components/badge"
 import { Button } from "@workspace/ui/components/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@workspace/ui/components/select"
 import { Plus } from "lucide-react"
 import {
   Tabs,
@@ -21,83 +28,38 @@ import { TambahDataDialog } from "./_components/tambah-data-dialog"
 import { EditRequestDialog } from "./_components/edit-request-dialog"
 import { TAMBAH_MODAL_FILTER_CONFIG } from "./_components/filter-config"
 import type { RequestTambahModal } from "./_components/types"
+import { useAuth } from "@/lib/react-query/hooks/use-auth"
+import { useCapitalTopups, useApproveCapitalTopup, useRejectCapitalTopup, useCreateCapitalTopup, useUpdateCapitalTopup } from "@/lib/react-query/hooks/use-capital-topups"
+import { useBranches } from "@/lib/react-query/hooks/use-branches"
+import { useCompanies } from "@/lib/react-query/hooks/use-companies"
+import type { CapitalTopup } from "@/lib/api/types"
+import { toast } from "sonner"
 
-const PENDING_COUNT = 5
+const STATUS_MAP: Record<CapitalTopup["status"], RequestTambahModal["status"]> = {
+  pending: "Pending",
+  approved: "Disetujui",
+  rejected: "Ditolak",
+  disbursed: "Disetujui",
+}
 
-const sampleRequestTambahModal: RequestTambahModal[] = [
-  {
-    id: "1",
-    tanggalRequest: "2025-11-20T18:33:45",
-    dilakukanOleh: { name: "Ben Affleck", avatar: "/placeholder-avatar.jpg" },
-    namaToko: "GT Jakarta Satu",
-    alias: "GT Satu",
-    nominal: 50_000_000,
-    status: "Pending",
-  },
-  {
-    id: "2",
-    tanggalRequest: "2025-11-20T18:33:45",
-    dilakukanOleh: { name: "Ben Affleck", avatar: "/placeholder-avatar.jpg" },
-    namaToko: "GT Jakarta Satu",
-    alias: "GT Satu",
-    nominal: 50_000_000,
-    status: "Pending",
-  },
-  {
-    id: "3",
-    tanggalRequest: "2025-11-20T18:33:45",
-    dilakukanOleh: { name: "Ben Affleck", avatar: "/placeholder-avatar.jpg" },
-    namaToko: "GT Jakarta Satu",
-    alias: "GT Satu",
-    nominal: 50_000_000,
-    status: "Pending",
-  },
-  {
-    id: "4",
-    tanggalRequest: "2025-11-20T18:33:45",
-    dilakukanOleh: { name: "Ben Affleck", avatar: "/placeholder-avatar.jpg" },
-    namaToko: "GT Jakarta Satu",
-    alias: "GT Satu",
-    nominal: 50_000_000,
-    status: "Pending",
-  },
-  {
-    id: "5",
-    tanggalRequest: "2025-11-20T18:33:45",
-    dilakukanOleh: { name: "Ben Affleck", avatar: "/placeholder-avatar.jpg" },
-    namaToko: "GT Jakarta Satu",
-    alias: "GT Satu",
-    nominal: 50_000_000,
-    status: "Pending",
-  },
-]
-
-const sampleHistoryTambahModal: RequestTambahModal[] = [
-  ...Array.from({ length: 8 }, (_, i) => ({
-    id: `h-${i + 1}`,
-    tanggalRequest: "2025-11-20T18:33:45",
+function mapCapitalTopupToRequest(c: CapitalTopup): RequestTambahModal {
+  const createdBy = c.createdBy as { fullName?: string } | undefined
+  const store = c.store as { shortName?: string; branchCode?: string; fullName?: string } | undefined
+  return {
+    id: c.uuid,
+    uuid: c.uuid,
+    tanggalRequest: c.createdAt,
     dilakukanOleh: {
-      name: "Ben Affleck",
-      avatar: "/placeholder-avatar.jpg",
+      name: createdBy?.fullName ?? "-",
+      avatar: undefined,
     },
-    namaToko: "GT Jakarta Satu",
-    alias: "GT Satu",
-    nominal: 50_000_000,
-    status: "Disetujui" as const,
-  })),
-  ...Array.from({ length: 2 }, (_, i) => ({
-    id: `h-${9 + i}`,
-    tanggalRequest: "2025-11-20T18:33:45",
-    dilakukanOleh: {
-      name: "Ben Affleck",
-      avatar: "/placeholder-avatar.jpg",
-    },
-    namaToko: "GT Jakarta Satu",
-    alias: "GT Satu",
-    nominal: 50_000_000,
-    status: "Ditolak" as const,
-  })),
-]
+    namaToko: store?.fullName ?? store?.shortName ?? store?.branchCode ?? c.storeId,
+    alias: store?.shortName ?? store?.branchCode ?? "",
+    nominal: c.amount,
+    status: STATUS_MAP[c.status],
+    storeId: c.storeId,
+  }
+}
 
 function applyTambahModalFilters(
   data: RequestTambahModal[],
@@ -132,11 +94,7 @@ function applyTambahModalFilters(
 
   const toko = filterValues.toko as string | undefined
   if (toko && toko !== "__all__") {
-    const normalized = toko.toLowerCase().replace(/\s+/g, "-")
-    result = result.filter((row) => {
-      const rowNorm = row.namaToko.toLowerCase().replace(/\s+/g, "-")
-      return rowNorm === normalized || row.alias?.toLowerCase() === normalized
-    })
+    result = result.filter((row) => row.storeId === toko)
   }
 
   const status = filterValues.status as string | undefined
@@ -148,35 +106,113 @@ function applyTambahModalFilters(
 }
 
 function TambahModalPageContent() {
+  const { user } = useAuth()
+  const isCompanyAdmin = user?.roles?.some((r) => r.code === "company_admin") ?? false
+  const isSuperAdmin = user?.roles?.some((r) => r.code === "owner") ?? false
+
+  const effectiveCompanyId = isCompanyAdmin
+    ? (user?.companyId ?? null)
+    : null
+
+  const { data: companiesData } = useCompanies(
+    isSuperAdmin ? { pageSize: 100 } : undefined
+  )
+
+  const [selectedPT, setSelectedPT] = useState<string>("")
+  const ptOptions = useMemo(() => {
+    const list = companiesData?.data ?? []
+    return list.map((c) => ({ value: c.uuid, label: c.companyName }))
+  }, [companiesData])
+
+  useEffect(() => {
+    if (isSuperAdmin && ptOptions.length > 0 && !selectedPT) {
+      setSelectedPT(ptOptions[0]!.value)
+    }
+  }, [isSuperAdmin, ptOptions, selectedPT])
+
+  const branchQueryCompanyId = isSuperAdmin ? selectedPT : effectiveCompanyId
+  const { data: branchesData } = useBranches(
+    branchQueryCompanyId ? { companyId: branchQueryCompanyId, pageSize: 100 } : undefined
+  )
+
+  const branchOptions = useMemo(() => {
+    const list = branchesData?.data ?? []
+    return list.map((b) => ({
+      value: b.uuid,
+      label: b.shortName ?? b.branchCode ?? b.uuid,
+    }))
+  }, [branchesData])
+
+  const [selectedBranch, setSelectedBranch] = useState<string>("")
+  useEffect(() => {
+    if (branchOptions.length > 0) {
+      setSelectedBranch((prev) => {
+        const first = branchOptions[0]!.value
+        if (!prev || !branchOptions.some((b) => b.value === prev)) return first
+        return prev
+      })
+    }
+  }, [branchOptions])
+
   const { filterValues, setFilters } = useFilterParams(TAMBAH_MODAL_FILTER_CONFIG)
   const [activeTab, setActiveTab] = useState("request")
   const [pageSize, setPageSize] = useState(10)
   const [searchValue, setSearchValue] = useState("")
   const [historyPageSize, setHistoryPageSize] = useState(100)
   const [historySearchValue, setHistorySearchValue] = useState("")
-  const [isLoading] = useState(false)
-  const [isHistoryLoading] = useState(false)
   const [filterDialogOpen, setFilterDialogOpen] = useState(false)
   const [setujuiDialogOpen, setSetujuiDialogOpen] = useState(false)
   const [setujuiRow, setSetujuiRow] = useState<RequestTambahModal | null>(null)
   const [tolakDialogOpen, setTolakDialogOpen] = useState(false)
   const [tolakRow, setTolakRow] = useState<RequestTambahModal | null>(null)
-  const [isSetujuiSubmitting, setIsSetujuiSubmitting] = useState(false)
-  const [isTolakSubmitting, setIsTolakSubmitting] = useState(false)
   const [tambahDataDialogOpen, setTambahDataDialogOpen] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [editRow, setEditRow] = useState<RequestTambahModal | null>(null)
-  const [isTambahDataSubmitting, setIsTambahDataSubmitting] = useState(false)
-  const [isEditSubmitting, setIsEditSubmitting] = useState(false)
+
+  const requestListOptions = useMemo(() => {
+    const filter: Record<string, string> = { status: "pending" }
+    if (selectedBranch) filter.storeId = selectedBranch
+    return { page: 1, pageSize: 200, filter }
+  }, [selectedBranch])
+
+  const historyListOptions = useMemo(() => {
+    const filter: Record<string, string> = {}
+    if (selectedBranch) filter.storeId = selectedBranch
+    return { page: 1, pageSize: 200, filter }
+  }, [selectedBranch])
+
+  const { data: requestData, isLoading: isLoadingRequest } = useCapitalTopups(requestListOptions)
+  const { data: historyData, isLoading: isLoadingHistory } = useCapitalTopups(historyListOptions)
+
+  const approveMutation = useApproveCapitalTopup()
+  const rejectMutation = useRejectCapitalTopup()
+  const createMutation = useCreateCapitalTopup()
+  const updateMutation = useUpdateCapitalTopup()
+
+  const requestRows = useMemo(() => {
+    const list = requestData?.data ?? []
+    return list
+      .filter((c) => c.status === "pending")
+      .map(mapCapitalTopupToRequest)
+  }, [requestData])
+
+  const historyRows = useMemo(() => {
+    const list = historyData?.data ?? []
+    return list
+      .filter((c) => c.status !== "pending")
+      .map(mapCapitalTopupToRequest)
+  }, [historyData])
 
   const filteredRequestData = useMemo(
-    () => applyTambahModalFilters(sampleRequestTambahModal, filterValues),
-    [filterValues]
+    () => applyTambahModalFilters(requestRows, filterValues),
+    [requestRows, filterValues]
   )
   const filteredHistoryData = useMemo(
-    () => applyTambahModalFilters(sampleHistoryTambahModal, filterValues),
-    [filterValues]
+    () => applyTambahModalFilters(historyRows, filterValues),
+    [historyRows, filterValues]
   )
+
+  const pendingCount = requestRows.length
 
   const handleApprove = (row: RequestTambahModal) => {
     setSetujuiRow(row)
@@ -190,14 +226,16 @@ function TambahModalPageContent() {
 
   const handleSetujuiConfirm = async (
     row: RequestTambahModal,
-    data: { buktiTransfer: File; catatan: string }
+    _data: { buktiTransfer?: File; catatan: string }
   ) => {
-    setIsSetujuiSubmitting(true)
     try {
-      console.log("Setujui:", row, data)
-      // TODO: wire to API, e.g. await approveRequest(row.id, data)
-    } finally {
-      setIsSetujuiSubmitting(false)
+      await approveMutation.mutateAsync(row.uuid)
+      toast.success("Request berhasil disetujui")
+      setSetujuiDialogOpen(false)
+      setSetujuiRow(null)
+    } catch {
+      toast.error("Gagal menyetujui request")
+      throw new Error("Approve failed")
     }
   }
 
@@ -205,12 +243,17 @@ function TambahModalPageContent() {
     row: RequestTambahModal,
     data: { catatan: string }
   ) => {
-    setIsTolakSubmitting(true)
     try {
-      console.log("Tolak:", row, data)
-      // TODO: wire to API, e.g. await rejectRequest(row.id, data)
-    } finally {
-      setIsTolakSubmitting(false)
+      await rejectMutation.mutateAsync({
+        id: row.uuid,
+        data: { reason: data.catatan || "Ditolak" },
+      })
+      toast.success("Request berhasil ditolak")
+      setTolakDialogOpen(false)
+      setTolakRow(null)
+    } catch {
+      toast.error("Gagal menolak request")
+      throw new Error("Reject failed")
     }
   }
 
@@ -227,13 +270,22 @@ function TambahModalPageContent() {
     setTambahDataDialogOpen(true)
   }
 
-  const handleTambahDataConfirm = async (data: { nominal: number }) => {
-    setIsTambahDataSubmitting(true)
+  const handleTambahDataConfirm = async (data: { nominal: number; storeId?: string }) => {
+    const storeId = data.storeId ?? selectedBranch ?? branchOptions[0]?.value
+    if (!storeId) {
+      toast.error("Pilih toko terlebih dahulu")
+      return
+    }
     try {
-      console.log("Tambah Data:", data)
-      // TODO: wire to API, e.g. await createRequest(data)
-    } finally {
-      setIsTambahDataSubmitting(false)
+      await createMutation.mutateAsync({
+        storeId,
+        amount: data.nominal,
+      })
+      toast.success("Request tambah modal berhasil dibuat")
+      setTambahDataDialogOpen(false)
+    } catch {
+      toast.error("Gagal membuat request")
+      throw new Error("Create failed")
     }
   }
 
@@ -241,18 +293,38 @@ function TambahModalPageContent() {
     row: RequestTambahModal,
     data: { nominal: number }
   ) => {
-    setIsEditSubmitting(true)
     try {
-      console.log("Edit:", row, data)
-      // TODO: wire to API, e.g. await updateRequest(row.id, data)
-    } finally {
-      setIsEditSubmitting(false)
+      await updateMutation.mutateAsync({
+        id: row.uuid,
+        data: { amount: data.nominal },
+      })
+      toast.success("Request berhasil diubah")
+      setEditDialogOpen(false)
+      setEditRow(null)
+    } catch {
+      toast.error("Gagal mengubah request")
+      throw new Error("Update failed")
     }
   }
 
   const handleDelete = (row: RequestTambahModal) => {
     console.log("Delete:", row)
   }
+
+  const filterConfigWithBranches = useMemo(() => {
+    const base = [...TAMBAH_MODAL_FILTER_CONFIG]
+    const tokoIdx = base.findIndex((f) => f.key === "toko")
+    if (tokoIdx >= 0 && branchOptions.length > 0) {
+      base[tokoIdx] = {
+        ...base[tokoIdx]!,
+        options: [
+          { value: "__all__", label: "Semua" },
+          ...branchOptions.map((b) => ({ value: b.value, label: b.label })),
+        ],
+      }
+    }
+    return base
+  }, [branchOptions])
 
   return (
     <div className="flex flex-col gap-6">
@@ -264,14 +336,47 @@ function TambahModalPageContent() {
           />
         </div>
 
-        {/* Tambah Data Button */}
-        <Button
-          onClick={handleTambahData}
-          className="bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-2"
-        >
-          <Plus className="h-4 w-4" />
-          Tambah Data
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {isSuperAdmin && ptOptions.length > 0 && (
+            <Select value={selectedPT} onValueChange={setSelectedPT}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Pilih PT" />
+              </SelectTrigger>
+              <SelectContent>
+                {ptOptions.map((pt) => (
+                  <SelectItem key={pt.value} value={pt.value}>
+                    {pt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          {(isSuperAdmin || isCompanyAdmin) && branchOptions.length > 0 && (
+            <Select
+              value={selectedBranch}
+              onValueChange={setSelectedBranch}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Pilih Toko" />
+              </SelectTrigger>
+              <SelectContent>
+                {branchOptions.map((b) => (
+                  <SelectItem key={b.value} value={b.value}>
+                    {b.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
+          <Button
+            onClick={handleTambahData}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Tambah Data
+          </Button>
+        </div>
       </div>
 
       <Tabs
@@ -286,7 +391,7 @@ function TambahModalPageContent() {
               variant="secondary"
               className="ml-2 rounded-full bg-destructive/10 px-2 py-0 text-destructive hover:bg-destructive/20"
             >
-              {PENDING_COUNT}
+              {pendingCount}
             </Badge>
           </TabsTrigger>
           <TabsTrigger value="history">History Tambah Modal</TabsTrigger>
@@ -295,7 +400,7 @@ function TambahModalPageContent() {
         <TabsContent value="request" className="mt-0">
           <RequestTambahModalTable
             data={filteredRequestData}
-            isLoading={isLoading}
+            isLoading={isLoadingRequest}
             pageSize={pageSize}
             onPageSizeChange={setPageSize}
             searchValue={searchValue}
@@ -310,7 +415,7 @@ function TambahModalPageContent() {
         <TabsContent value="history" className="mt-0">
           <HistoryTambahModalTable
             data={filteredHistoryData}
-            isLoading={isHistoryLoading}
+            isLoading={isLoadingHistory}
             pageSize={historyPageSize}
             onPageSizeChange={setHistoryPageSize}
             searchValue={historySearchValue}
@@ -326,7 +431,7 @@ function TambahModalPageContent() {
       <FilterDialog
         open={filterDialogOpen}
         onOpenChange={setFilterDialogOpen}
-        filterConfig={TAMBAH_MODAL_FILTER_CONFIG}
+        filterConfig={filterConfigWithBranches}
         filterValues={filterValues}
         onFilterChange={setFilters}
       />
@@ -336,7 +441,7 @@ function TambahModalPageContent() {
         onOpenChange={setSetujuiDialogOpen}
         row={setujuiRow}
         onConfirm={handleSetujuiConfirm}
-        isSubmitting={isSetujuiSubmitting}
+        isSubmitting={approveMutation.isPending}
       />
 
       <TolakRequestDialog
@@ -344,14 +449,16 @@ function TambahModalPageContent() {
         onOpenChange={setTolakDialogOpen}
         row={tolakRow}
         onConfirm={handleTolakConfirm}
-        isSubmitting={isTolakSubmitting}
+        isSubmitting={rejectMutation.isPending}
       />
 
       <TambahDataDialog
         open={tambahDataDialogOpen}
         onOpenChange={setTambahDataDialogOpen}
         onConfirm={handleTambahDataConfirm}
-        isSubmitting={isTambahDataSubmitting}
+        isSubmitting={createMutation.isPending}
+        branchOptions={branchOptions}
+        selectedBranch={selectedBranch}
       />
 
       <EditRequestDialog
@@ -359,7 +466,7 @@ function TambahModalPageContent() {
         onOpenChange={setEditDialogOpen}
         row={editRow}
         onConfirm={handleEditConfirm}
-        isSubmitting={isEditSubmitting}
+        isSubmitting={updateMutation.isPending}
       />
     </div>
   )

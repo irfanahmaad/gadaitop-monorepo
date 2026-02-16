@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useMemo } from "react"
+import React, { useMemo, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { ColumnDef } from "@tanstack/react-table"
 import { Breadcrumbs } from "@/components/breadcrumbs"
@@ -27,7 +27,6 @@ import {
 } from "@workspace/ui/components/select"
 import { Input } from "@workspace/ui/components/input"
 import {
-  SearchIcon,
   SlidersHorizontal,
   User,
   ClipboardList,
@@ -35,82 +34,8 @@ import {
   ExternalLink,
 } from "lucide-react"
 import { Badge } from "@workspace/ui/components/badge"
-
-// SPK detail type
-type SPKDetail = {
-  id: string
-  nomorSPK: string
-  fotoCustomer: string
-  namaCustomer: string
-  nik: string
-  tanggalLahir: string
-  jumlahSPK: number
-  sisaSPK: number
-  sisaPokokBulanIni: number
-  tanggalWaktuSPK: string
-}
-
-// NKB row type for Daftar NKB table
-type NKBRow = {
-  id: string
-  nomorNKB: string
-  nomorSPK: string
-  nominalDibayar: number
-  jenis: string
-  tanggalWaktuPengajuan: string
-  status: "Lunas" | "Berjalan" | "Terlambat"
-}
-
-// Mock: fetch SPK by id (replace with API later)
-function getSPKById(id: string): SPKDetail | null {
-  const mock: SPKDetail = {
-    id: "1",
-    nomorSPK: "SPK/001/20112025",
-    fotoCustomer: "/placeholder-avatar.jpg",
-    namaCustomer: "Firman Suryo Pranoto",
-    nik: "12345678910",
-    tanggalLahir: "20 November 1990",
-    jumlahSPK: 17_500_000,
-    sisaSPK: 10,
-    sisaPokokBulanIni: 9_000_000,
-    tanggalWaktuSPK: "20 November 2025 18:33:45",
-  }
-  if (id === "1") return mock
-  return mock
-}
-
-// Mock: NKB list for SPK (replace with API later)
-function getNKBBySPKId(spkId: string): NKBRow[] {
-  return [
-    {
-      id: "1",
-      nomorNKB: "NKB/001/20112025",
-      nomorSPK: "SPK/001/20112025",
-      nominalDibayar: 10_000_000,
-      jenis: "Perpanjangan",
-      tanggalWaktuPengajuan: "20 November 2025 18:33:45",
-      status: "Lunas",
-    },
-    {
-      id: "2",
-      nomorNKB: "NKB/002/20112025",
-      nomorSPK: "SPK/001/20112025",
-      nominalDibayar: 17_500_000,
-      jenis: "Pelunasan",
-      tanggalWaktuPengajuan: "20 November 2025 18:33:45",
-      status: "Berjalan",
-    },
-    {
-      id: "3",
-      nomorNKB: "NKB/003/20112025",
-      nomorSPK: "SPK/001/20112025",
-      nominalDibayar: 10_000_000,
-      jenis: "Perpanjangan",
-      tanggalWaktuPengajuan: "20 November 2025 18:33:45",
-      status: "Terlambat",
-    },
-  ]
-}
+import { useSpk, useSpkNkb } from "@/lib/react-query/hooks/use-spk"
+import type { Nkb } from "@/lib/api/types"
 
 const formatCurrency = (amount: number): string =>
   new Intl.NumberFormat("id-ID", {
@@ -118,7 +43,76 @@ const formatCurrency = (amount: number): string =>
     maximumFractionDigits: 0,
   }).format(amount)
 
-// Columns for Daftar NKB table
+const formatDate = (dateStr: string): string => {
+  try {
+    return new Date(dateStr).toLocaleString("id-ID", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    })
+  } catch {
+    return dateStr
+  }
+}
+
+// NKB type label for display (backend: renewal, partial, full_redemption)
+const NKB_TYPE_LABEL: Record<string, string> = {
+  extension: "Perpanjangan",
+  redemption: "Pelunasan",
+  partial_payment: "Angsuran",
+  renewal: "Perpanjangan",
+  partial: "Angsuran",
+  full_redemption: "Pelunasan",
+}
+
+// NKB status to display label (backend: pending, confirmed, rejected, failed)
+const NKB_STATUS_LABEL: Record<string, string> = {
+  pending: "Menunggu",
+  confirmed: "Lunas",
+  rejected: "Ditolak",
+  cancelled: "Dibatalkan",
+  failed: "Gagal",
+}
+
+type NKBRow = {
+  id: string
+  nomorNKB: string
+  nomorSPK: string
+  nominalDibayar: number
+  jenis: string
+  tanggalWaktuPengajuan: string
+  status: string
+}
+
+function mapNkbToRow(
+  nkb: Nkb | Record<string, unknown>,
+  spkNumber: string
+): NKBRow {
+  const type =
+    (nkb as { type?: string }).type ??
+    (nkb as { paymentType?: string }).paymentType ??
+    ""
+  const amount =
+    (nkb as { amount?: number }).amount ??
+    Number((nkb as { amountPaid?: string }).amountPaid ?? 0)
+  const status = (nkb as { status?: string }).status ?? "pending"
+  return {
+    id: (nkb as { uuid?: string }).uuid ?? (nkb as { id?: string }).id ?? "",
+    nomorNKB: (nkb as { nkbNumber?: string }).nkbNumber ?? "",
+    nomorSPK:
+      (nkb as { spk?: { spkNumber?: string } }).spk?.spkNumber ?? spkNumber,
+    nominalDibayar: amount,
+    jenis: NKB_TYPE_LABEL[type] ?? type,
+    tanggalWaktuPengajuan: formatDate(
+      ((nkb as { createdAt?: string }).createdAt ?? "") as string
+    ),
+    status: NKB_STATUS_LABEL[status] ?? status,
+  }
+}
+
 const nkbColumns: ColumnDef<NKBRow>[] = [
   {
     id: "no",
@@ -145,25 +139,18 @@ const nkbColumns: ColumnDef<NKBRow>[] = [
     accessorKey: "status",
     header: "Status",
     cell: ({ row }) => {
-      const status = row.getValue("status") as NKBRow["status"]
-      return (
-        <Badge
-          variant={
-            status === "Lunas"
-              ? "secondary"
-              : status === "Berjalan"
-                ? "default"
-                : "destructive"
-          }
-        >
-          {status}
-        </Badge>
-      )
+      const status = row.getValue("status") as string
+      const variant =
+        status === "Lunas" || status === "confirmed"
+          ? "secondary"
+          : status === "Menunggu" || status === "pending"
+            ? "default"
+            : "destructive"
+      return <Badge variant={variant}>{status}</Badge>
     },
   },
 ]
 
-// Loading skeleton for Detail SPK card
 function DetailSPKSkeleton() {
   return (
     <Card>
@@ -211,7 +198,6 @@ function DetailSPKSkeleton() {
   )
 }
 
-// Loading skeleton for Daftar NKB table
 function DaftarNKBSkeleton() {
   return (
     <Card>
@@ -252,43 +238,55 @@ export default function SPKDetailPage() {
   const [pageSize, setPageSize] = useState(100)
   const [searchValue, setSearchValue] = useState("")
 
-  // Simulate async fetch (replace with useQuery + API)
-  const [loading, setLoading] = useState(true)
-  React.useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 400)
-    return () => clearTimeout(t)
-  }, [id])
+  const { data: spkData, isLoading: spkLoading, isError: spkError } = useSpk(id)
+  const { data: nkbData } = useSpkNkb(id)
 
-  const spk = useMemo(() => (id ? getSPKById(id) : null), [id])
-  const nkbList = useMemo(() => (id ? getNKBBySPKId(id) : []), [id])
+  const spk = spkData
+  const nkbRows = useMemo(() => {
+    const raw = nkbData
+    const list: Nkb[] = Array.isArray(raw) ? raw : (raw as unknown as { data?: Nkb[] })?.data ?? []
+    return list.map((n) => mapNkbToRow(n, spk?.spkNumber ?? ""))
+  }, [nkbData, spk?.spkNumber])
 
   const filteredNKB = useMemo(() => {
-    if (!searchValue.trim()) return nkbList
+    if (!searchValue.trim()) return nkbRows
     const q = searchValue.toLowerCase()
-    return nkbList.filter(
+    return nkbRows.filter(
       (row) =>
         row.nomorNKB.toLowerCase().includes(q) ||
         row.nomorSPK.toLowerCase().includes(q)
     )
-  }, [nkbList, searchValue])
+  }, [nkbRows, searchValue])
 
-  const handleDetail = (row: NKBRow) => {
-    console.log("NKB Detail:", row)
-    // Navigate to NKB detail if needed
+  const handleDetail = () => {
+    // Navigate to NKB detail if route exists
   }
 
-  const handleEdit = (row: NKBRow) => {
-    console.log("NKB Edit:", row)
-  }
+  const handleEdit = () => {}
 
-  const handleDelete = (row: NKBRow) => {
-    console.log("NKB Delete:", row)
-  }
+  const handleDelete = () => {}
 
   const handlePrintQR = () => {
-    // TODO: Implement print QR functionality
-    console.log("Print QR for SPK:", spk?.nomorSPK)
+    // TODO: Implement print QR
   }
+
+  const customerName = spk?.customer
+    ? ((spk.customer as { fullName?: string; name?: string }).fullName ??
+      (spk.customer as { name?: string }).name) ?? "-"
+    : "-"
+  const customerPhoto = spk?.customer
+    ? (spk.customer as { ktpPhotoUrl?: string }).ktpPhotoUrl
+    : undefined
+  const customerNik = spk?.customer
+    ? (spk.customer as { nik?: string }).nik ?? "-"
+    : "-"
+  const customerDob = spk?.customer
+    ? (spk.customer as { dateOfBirth?: string }).dateOfBirth ?? "-"
+    : "-"
+  const totalAmount = Number(spk?.totalAmount ?? spk?.principalAmount ?? 0)
+  const remainingBalance = (spk as { remainingBalance?: string | number })?.remainingBalance
+  const remainingBalanceNum =
+    remainingBalance != null ? Number(remainingBalance) : totalAmount
 
   if (!id) {
     return (
@@ -304,16 +302,18 @@ export default function SPKDetailPage() {
     )
   }
 
+  const loading = spkLoading
+  const notFound = !spkLoading && (spkError || !spk)
+
   return (
     <div className="flex flex-col gap-6">
-      {/* Header: title + breadcrumbs + Print QR */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex flex-col gap-2">
           <h1 className="text-2xl font-bold">
             {loading ? (
               <Skeleton className="h-8 w-96" />
             ) : spk ? (
-              `${spk.nomorSPK} - ${spk.namaCustomer}`
+              `${spk.spkNumber} - ${customerName}`
             ) : (
               "—"
             )}
@@ -337,111 +337,9 @@ export default function SPKDetailPage() {
         )}
       </div>
 
-      {/* Detail SPK card */}
       {loading ? (
         <DetailSPKSkeleton />
-      ) : spk ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Detail SPK</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 gap-8 lg:grid-cols-[250px_1fr]">
-              {/* Profile Picture */}
-              <div className="flex justify-center">
-                <Avatar className="size-48">
-                  <AvatarImage src={spk.fotoCustomer} alt={spk.namaCustomer} />
-                  <AvatarFallback>
-                    <User className="text-muted-foreground size-24" />
-                  </AvatarFallback>
-                </Avatar>
-              </div>
-
-              {/* Detail Information */}
-              <div className="space-y-8">
-                {/* Detail Customer */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <User className="text-destructive size-6" />
-                    <h2 className="text-destructive text-lg font-semibold">
-                      Detail Customer
-                    </h2>
-                  </div>
-                  <div className="grid gap-6 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <label className="text-muted-foreground text-sm font-medium">
-                        NIK
-                      </label>
-                      <p className="text-base">{spk.nik}</p>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-muted-foreground text-sm font-medium">
-                        Nama Customer
-                      </label>
-                      <p className="text-base">{spk.namaCustomer}</p>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-muted-foreground text-sm font-medium">
-                        Tanggal Lahir
-                      </label>
-                      <p className="text-base">{spk.tanggalLahir}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Detail SPK */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <ClipboardList className="text-destructive size-6" />
-                    <h2 className="text-destructive text-lg font-semibold">
-                      Detail SPK
-                    </h2>
-                  </div>
-                  <div className="grid gap-6 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <label className="text-muted-foreground text-sm font-medium">
-                        No. SPK
-                      </label>
-                      <p className="text-base">{spk.nomorSPK}</p>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-muted-foreground text-sm font-medium">
-                        Sisa SPK
-                      </label>
-                      <p className="text-base">{spk.sisaSPK}</p>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-muted-foreground text-sm font-medium">
-                        Jumlah SPK
-                      </label>
-                      <div className="flex items-center gap-2">
-                        <p className="text-base">
-                          Rp {formatCurrency(spk.jumlahSPK)}
-                        </p>
-                        <ExternalLink className="text-muted-foreground size-4" />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-muted-foreground text-sm font-medium">
-                        Sisa Pokok Bulan Ini
-                      </label>
-                      <p className="text-base">
-                        Rp {formatCurrency(spk.sisaPokokBulanIni)}
-                      </p>
-                    </div>
-                    <div className="space-y-2 md:col-span-2">
-                      <label className="text-muted-foreground text-sm font-medium">
-                        Tanggal & Waktu SPK
-                      </label>
-                      <p className="text-base">{spk.tanggalWaktuSPK}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      ) : (
+      ) : notFound ? (
         <Card>
           <CardContent className="py-10 text-center">
             <p className="text-destructive">SPK tidak ditemukan.</p>
@@ -454,17 +352,113 @@ export default function SPKDetailPage() {
             </Button>
           </CardContent>
         </Card>
-      )}
+      ) : spk ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Detail SPK</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 gap-8 lg:grid-cols-[250px_1fr]">
+              <div className="flex justify-center">
+                <Avatar className="size-48">
+                  <AvatarImage src={customerPhoto} alt={customerName} />
+                  <AvatarFallback>
+                    <User className="text-muted-foreground size-24" />
+                  </AvatarFallback>
+                </Avatar>
+              </div>
 
-      {/* Daftar NKB card */}
+              <div className="space-y-8">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <User className="text-destructive size-6" />
+                    <h2 className="text-destructive text-lg font-semibold">
+                      Detail Customer
+                    </h2>
+                  </div>
+                  <div className="grid gap-6 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <label className="text-muted-foreground text-sm font-medium">
+                        NIK
+                      </label>
+                      <p className="text-base">{customerNik}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-muted-foreground text-sm font-medium">
+                        Nama Customer
+                      </label>
+                      <p className="text-base">{customerName}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-muted-foreground text-sm font-medium">
+                        Tanggal Lahir
+                      </label>
+                      <p className="text-base">{customerDob}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <ClipboardList className="text-destructive size-6" />
+                    <h2 className="text-destructive text-lg font-semibold">
+                      Detail SPK
+                    </h2>
+                  </div>
+                  <div className="grid gap-6 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <label className="text-muted-foreground text-sm font-medium">
+                        No. SPK
+                      </label>
+                      <p className="text-base">{spk.spkNumber}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-muted-foreground text-sm font-medium">
+                        Sisa SPK (Tenor)
+                      </label>
+                      <p className="text-base">{spk.tenor}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-muted-foreground text-sm font-medium">
+                        Jumlah SPK
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <p className="text-base">
+                          Rp {formatCurrency(totalAmount)}
+                        </p>
+                        <ExternalLink className="text-muted-foreground size-4" />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-muted-foreground text-sm font-medium">
+                        Sisa Pokok
+                      </label>
+                      <p className="text-base">
+                        Rp {formatCurrency(remainingBalanceNum)}
+                      </p>
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <label className="text-muted-foreground text-sm font-medium">
+                        Tanggal & Waktu SPK
+                      </label>
+                      <p className="text-base">{formatDate(spk.createdAt)}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
       {loading ? (
         <DaftarNKBSkeleton />
-      ) : spk ? (
+      ) : spk && (
         <DataTable<NKBRow, unknown>
           columns={nkbColumns as ColumnDef<NKBRow, unknown>[]}
           data={filteredNKB}
           title="Daftar NKB"
-          searchPlaceholder="Email"
+          searchPlaceholder="Cari Nomor NKB / SPK"
           headerRight={
             <div className="flex w-full items-center gap-2 sm:w-auto">
               <Select
@@ -483,10 +477,9 @@ export default function SPKDetailPage() {
               </Select>
               <div className="w-full sm:w-auto sm:max-w-sm">
                 <Input
-                  placeholder="Email"
+                  placeholder="Cari Nomor NKB / SPK"
                   value={searchValue}
                   onChange={(e) => setSearchValue(e.target.value)}
-                  icon={<SearchIcon className="size-4" />}
                   className="w-full"
                 />
               </div>
@@ -504,7 +497,7 @@ export default function SPKDetailPage() {
           onEdit={handleEdit}
           onDelete={handleDelete}
         />
-      ) : null}
+      )}
     </div>
   )
 }

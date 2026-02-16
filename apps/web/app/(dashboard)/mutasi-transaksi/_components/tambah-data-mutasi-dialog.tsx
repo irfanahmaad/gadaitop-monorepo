@@ -34,6 +34,7 @@ import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { formatCurrencyInput, parseCurrencyInput } from "@/lib/format-currency"
 
 const tambahDataMutasiSchema = z.object({
+  storeId: z.string().optional(),
   nominal: z.string().min(1, "Nominal wajib diisi"),
   tipe: z.enum(["SPK1", "SPK2", "Operasional", "Tambah Modal"], {
     required_error: "Tipe wajib dipilih",
@@ -50,8 +51,11 @@ type TambahDataMutasiDialogProps = {
     nominal: number
     tipe: "SPK1" | "SPK2" | "Operasional" | "Tambah Modal"
     keterangan?: string
+    storeId?: string
   }) => void | Promise<void>
   isSubmitting?: boolean
+  branchOptions?: { value: string; label: string }[]
+  selectedBranch?: string
 }
 
 type PendingSubmit = {
@@ -59,6 +63,7 @@ type PendingSubmit = {
     nominal: number
     tipe: "SPK1" | "SPK2" | "Operasional" | "Tambah Modal"
     keterangan?: string
+    storeId?: string
   }
 }
 
@@ -67,6 +72,8 @@ export function TambahDataMutasiDialog({
   onOpenChange,
   onConfirm,
   isSubmitting = false,
+  branchOptions = [],
+  selectedBranch = "",
 }: TambahDataMutasiDialogProps) {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [pendingSubmit, setPendingSubmit] = useState<PendingSubmit | null>(null)
@@ -74,6 +81,7 @@ export function TambahDataMutasiDialog({
   const form = useForm<TambahDataMutasiFormValues>({
     resolver: zodResolver(tambahDataMutasiSchema),
     defaultValues: {
+      storeId: "",
       nominal: "",
       tipe: undefined,
       keterangan: "",
@@ -83,12 +91,13 @@ export function TambahDataMutasiDialog({
   useEffect(() => {
     if (open) {
       form.reset({
+        storeId: selectedBranch || branchOptions[0]?.value || "",
         nominal: "",
         tipe: undefined,
         keterangan: "",
       })
     }
-  }, [open, form])
+  }, [open, form, selectedBranch, branchOptions])
 
   const onSubmit = (values: TambahDataMutasiFormValues) => {
     const parsed = parseCurrencyInput(values.nominal)
@@ -101,6 +110,7 @@ export function TambahDataMutasiDialog({
         nominal: parsed,
         tipe: values.tipe,
         keterangan: values.keterangan || undefined,
+        storeId: values.storeId,
       },
     })
     setConfirmOpen(true)
@@ -138,6 +148,36 @@ export function TambahDataMutasiDialog({
                 <h2 className="text-destructive text-lg font-semibold">
                   Tambah Mutasi
                 </h2>
+
+                {branchOptions.length > 0 && (
+                  <FormField
+                    control={form.control}
+                    name="storeId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Toko</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Pilih toko" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {branchOptions.map((b) => (
+                              <SelectItem key={b.value} value={b.value}>
+                                {b.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
 
                 <div className="grid gap-6 md:grid-cols-2">
                   <FormField

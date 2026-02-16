@@ -9,6 +9,7 @@ import type {
   ItemConditionDto,
   PageOptions,
   StockOpnameSession,
+  StockOpnameSessionListItem,
   UpdateStockOpnameItemsDto,
 } from "@/lib/api/types"
 
@@ -27,7 +28,7 @@ export function useStockOpnameSessions(options?: PageOptions) {
   return useQuery({
     queryKey: stockOpnameKeys.list(options),
     queryFn: () =>
-      apiClient.getList<StockOpnameSession>(
+      apiClient.getList<StockOpnameSessionListItem>(
         endpoints.stockOpname.list,
         options
       ),

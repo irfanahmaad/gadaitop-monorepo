@@ -1,7 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
-import { ColumnDef } from "@tanstack/react-table"
+import React, { useMemo, useState, useEffect } from "react"
 import { Breadcrumbs } from "@/components/breadcrumbs"
 import { DataTable } from "@/components/data-table"
 import { Button } from "@workspace/ui/components/button"
@@ -37,11 +36,20 @@ import {
 } from "lucide-react"
 import { formatCurrencyDisplay } from "@/lib/format-currency"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
+import { Card, CardContent, CardHeader } from "@workspace/ui/components/card"
+import { Skeleton } from "@workspace/ui/components/skeleton"
 import { TolakSetorUangDialog } from "./_components/tolak-setor-uang-dialog"
+import { CreateSetorUangDialog } from "./_components/create-setor-uang-dialog"
+import { useAuth } from "@/lib/react-query/hooks/use-auth"
+import { useCashDeposits, useApproveCashDeposit, useRejectCashDeposit, useCreateCashDeposit } from "@/lib/react-query/hooks/use-cash-deposits"
+import { useBranches } from "@/lib/react-query/hooks/use-branches"
+import { useCompanies } from "@/lib/react-query/hooks/use-companies"
+import type { CashDeposit } from "@/lib/api/types"
+import { toast } from "sonner"
 
-// Type for Setor Uang (Capital Addition Request)
 type SetorUang = {
   id: string
+  uuid: string
   tanggalRequest: string
   dilakukanOleh: {
     name: string
@@ -53,95 +61,30 @@ type SetorUang = {
   status: "Pending" | "Transaksi Berhasil" | "Failed" | "Disetujui"
 }
 
-// Sample data
-const sampleData: SetorUang[] = [
-  {
-    id: "1",
-    tanggalRequest: "20 November 2025 18:33:45",
-    dilakukanOleh: {
-      name: "Ben Affleck",
-      avatar: "/placeholder-avatar.jpg",
-    },
-    namaToko: "GT Jakarta Satu",
-    alias: "GT Satu",
-    nominal: 2000000,
-    status: "Pending",
-  },
-  {
-    id: "2",
-    tanggalRequest: "19 November 2025 18:33:45",
-    dilakukanOleh: {
-      name: "Ben Affleck",
-      avatar: "/placeholder-avatar.jpg",
-    },
-    namaToko: "GT Jakarta Satu",
-    alias: "GT Satu",
-    nominal: 2000000,
-    status: "Transaksi Berhasil",
-  },
-  {
-    id: "3",
-    tanggalRequest: "18 November 2025 18:33:45",
-    dilakukanOleh: {
-      name: "Ben Affleck",
-      avatar: "/placeholder-avatar.jpg",
-    },
-    namaToko: "GT Jakarta Satu",
-    alias: "GT Satu",
-    nominal: 2000000,
-    status: "Failed",
-  },
-  {
-    id: "4",
-    tanggalRequest: "17 November 2025 18:33:45",
-    dilakukanOleh: {
-      name: "Ben Affleck",
-      avatar: "/placeholder-avatar.jpg",
-    },
-    namaToko: "GT Jakarta Satu",
-    alias: "GT Satu",
-    nominal: 2000000,
-    status: "Disetujui",
-  },
-  {
-    id: "5",
-    tanggalRequest: "16 November 2025 18:33:45",
-    dilakukanOleh: {
-      name: "Ben Affleck",
-      avatar: "/placeholder-avatar.jpg",
-    },
-    namaToko: "GT Jakarta Satu",
-    alias: "GT Satu",
-    nominal: 2000000,
-    status: "Disetujui",
-  },
-  {
-    id: "6",
-    tanggalRequest: "15 November 2025 18:33:45",
-    dilakukanOleh: {
-      name: "Ben Affleck",
-      avatar: "/placeholder-avatar.jpg",
-    },
-    namaToko: "GT Jakarta Satu",
-    alias: "GT Satu",
-    nominal: 2000000,
-    status: "Disetujui",
-  },
-  {
-    id: "7",
-    tanggalRequest: "14 November 2025 18:33:45",
-    dilakukanOleh: {
-      name: "Ben Affleck",
-      avatar: "/placeholder-avatar.jpg",
-    },
-    namaToko: "GT Jakarta Satu",
-    alias: "GT Satu",
-    nominal: 2000000,
-    status: "Disetujui",
-  },
-]
+const STATUS_MAP: Record<CashDeposit["status"], SetorUang["status"]> = {
+  pending: "Pending",
+  approved: "Disetujui",
+  rejected: "Failed",
+}
 
-// Status badge component
+function mapCashDepositToSetorUang(c: CashDeposit): SetorUang {
+  const createdBy = c.createdBy as { fullName?: string } | undefined
+  const store = c.store as { shortName?: string; branchCode?: string; fullName?: string } | undefined
+  return {
+    id: c.uuid,
+    uuid: c.uuid,
+    tanggalRequest: c.createdAt,
+    dilakukanOleh: {
+      name: createdBy?.fullName ?? "-",
+      avatar: undefined,
+    },
+    namaToko: store?.fullName ?? store?.shortName ?? store?.branchCode ?? c.storeId,
+    alias: store?.shortName ?? store?.branchCode ?? "",
+    nominal: c.amount,
+    status: STATUS_MAP[c.status],
+  }
+}
+
 const StatusBadge = ({ status }: { status: SetorUang["status"] }) => {
   const statusConfig = {
     Pending: {
@@ -175,8 +118,7 @@ const StatusBadge = ({ status }: { status: SetorUang["status"] }) => {
   )
 }
 
-// Base column definitions
-const getBaseColumns = (): ColumnDef<SetorUang>[] => [
+const getBaseColumns = (): { id: string; header: string; accessorKey?: string; cell?: (props: { row: { getValue: (key: string) => unknown; index: number; original: SetorUang } }) => React.ReactNode; enableSorting?: boolean }[] => [
   {
     id: "no",
     header: "No",
@@ -228,18 +170,17 @@ const getBaseColumns = (): ColumnDef<SetorUang>[] => [
   {
     accessorKey: "status",
     header: "Status",
-    cell: ({ row }) => <StatusBadge status={row.getValue("status")} />,
+    cell: ({ row }) => <StatusBadge status={row.getValue("status") as SetorUang["status"]} />,
   },
 ]
 
-// Action column definition
 const getActionColumn = (
   onBayar: (row: SetorUang) => void,
   onTolak: (row: SetorUang) => void
-): ColumnDef<SetorUang> => ({
+) => ({
   id: "actions",
-  enableHiding: false,
-  cell: ({ row }) => (
+  enableHiding: false as const,
+  cell: ({ row }: { row: { original: SetorUang } }) => (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="h-8 w-8 p-0">
@@ -250,13 +191,17 @@ const getActionColumn = (
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>Action</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => onBayar(row.original)}>
+        <DropdownMenuItem
+          onClick={() => onBayar(row.original)}
+          disabled={row.original.status !== "Pending"}
+        >
           <Check className="mr-2 h-4 w-4" />
           Bayar
         </DropdownMenuItem>
         <DropdownMenuItem
           onClick={() => onTolak(row.original)}
           className="text-destructive focus:text-destructive"
+          disabled={row.original.status !== "Pending"}
         >
           <Ban className="mr-2 h-4 w-4" />
           Tolak
@@ -267,17 +212,92 @@ const getActionColumn = (
 })
 
 export default function SetorUangPage() {
+  const { user } = useAuth()
+  const isCompanyAdmin = user?.roles?.some((r) => r.code === "company_admin") ?? false
+  const isSuperAdmin = user?.roles?.some((r) => r.code === "owner") ?? false
+
+  const effectiveCompanyId = isCompanyAdmin ? (user?.companyId ?? null) : null
+
+  const { data: companiesData } = useCompanies(
+    isSuperAdmin ? { pageSize: 100 } : undefined
+  )
+
+  const [selectedPT, setSelectedPT] = useState<string>("")
+  const ptOptions = useMemo(() => {
+    const list = companiesData?.data ?? []
+    return list.map((c) => ({ value: c.uuid, label: c.companyName }))
+  }, [companiesData])
+
+  useEffect(() => {
+    if (isSuperAdmin && ptOptions.length > 0 && !selectedPT) {
+      setSelectedPT(ptOptions[0]!.value)
+    }
+  }, [isSuperAdmin, ptOptions, selectedPT])
+
+  const branchQueryCompanyId = isSuperAdmin ? selectedPT : effectiveCompanyId
+  const { data: branchesData } = useBranches(
+    branchQueryCompanyId ? { companyId: branchQueryCompanyId, pageSize: 100 } : undefined
+  )
+
+  const branchOptions = useMemo(() => {
+    const list = branchesData?.data ?? []
+    return list.map((b) => ({
+      value: b.uuid,
+      label: b.shortName ?? b.branchCode ?? b.uuid,
+    }))
+  }, [branchesData])
+
+  const [selectedBranch, setSelectedBranch] = useState<string>("")
+  useEffect(() => {
+    if (branchOptions.length > 0) {
+      setSelectedBranch((prev) => {
+        const first = branchOptions[0]!.value
+        if (!prev || !branchOptions.some((b) => b.value === prev)) return first
+        return prev
+      })
+    }
+  }, [branchOptions])
+
   const [pageSize, setPageSize] = useState(100)
   const [searchValue, setSearchValue] = useState("")
   const [isTolakDialogOpen, setIsTolakDialogOpen] = useState(false)
   const [selectedRow, setSelectedRow] = useState<SetorUang | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const [isBayarConfirmOpen, setIsBayarConfirmOpen] = useState(false)
   const [rowToBayar, setRowToBayar] = useState<SetorUang | null>(null)
+  const [createDialogOpen, setCreateDialogOpen] = useState(false)
+
+  const listOptions = useMemo(() => {
+    const filter: Record<string, string> = {}
+    if (selectedBranch) filter.storeId = selectedBranch
+    return { page: 1, pageSize: 200, filter }
+  }, [selectedBranch])
+
+  const { data, isLoading, isError } = useCashDeposits(listOptions)
+  const approveMutation = useApproveCashDeposit()
+  const rejectMutation = useRejectCashDeposit()
+  const createMutation = useCreateCashDeposit()
+
+  const rows = useMemo(
+    () => (data?.data ?? []).map(mapCashDepositToSetorUang),
+    [data]
+  )
 
   const handleCreate = () => {
-    // Implement create action
-    console.log("Create new setor uang")
+    setCreateDialogOpen(true)
+  }
+
+  const handleCreateConfirm = async (data: { storeId: string; amount: number }) => {
+    try {
+      await createMutation.mutateAsync({
+        storeId: data.storeId,
+        amount: data.amount,
+      })
+      toast.success("Request setor uang berhasil dibuat")
+      setCreateDialogOpen(false)
+    } catch {
+      toast.error("Gagal membuat request")
+      throw new Error("Create failed")
+    }
   }
 
   const handleBayar = (row: SetorUang) => {
@@ -287,17 +307,14 @@ export default function SetorUangPage() {
 
   const handleConfirmBayar = async () => {
     if (rowToBayar) {
-      setIsSubmitting(true)
       try {
-        // Implement Bayar action
-        console.log("Bayar:", rowToBayar)
-        // await api.bayarSetorUang(rowToBayar.id)
-      } catch (error) {
-        console.error("Error bayar setor uang:", error)
-      } finally {
-        setIsSubmitting(false)
+        await approveMutation.mutateAsync(rowToBayar.uuid)
+        toast.success("Setor uang berhasil disetujui")
         setIsBayarConfirmOpen(false)
         setRowToBayar(null)
+      } catch {
+        toast.error("Gagal menyetujui setor uang")
+        throw new Error("Approve failed")
       }
     }
   }
@@ -311,15 +328,17 @@ export default function SetorUangPage() {
     row: SetorUang,
     data: { alasan: string }
   ) => {
-    setIsSubmitting(true)
     try {
-      // Implement Tolak action
-      console.log("Tolak:", row, "Alasan:", data.alasan)
-      // await api.tolakSetorUang(row.id, data.alasan)
-    } catch (error) {
-      console.error("Error tolak setor uang:", error)
-    } finally {
-      setIsSubmitting(false)
+      await rejectMutation.mutateAsync({
+        id: row.uuid,
+        data: { reason: data.alasan || "Ditolak" },
+      })
+      toast.success("Setor uang berhasil ditolak")
+      setIsTolakDialogOpen(false)
+      setSelectedRow(null)
+    } catch {
+      toast.error("Gagal menolak setor uang")
+      throw new Error("Reject failed")
     }
   }
 
@@ -330,16 +349,44 @@ export default function SetorUangPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Header Section */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex flex-col gap-2">
           <h1 className="text-2xl font-bold">Setor Uang</h1>
           <Breadcrumbs
-            items={[{ label: "Pages", href: "/" }, { label: "Tambah Modal" }]}
+            items={[{ label: "Pages", href: "/" }, { label: "Setor Uang" }]}
           />
         </div>
 
-        <div>
+        <div className="flex flex-wrap items-center gap-2">
+          {isSuperAdmin && ptOptions.length > 0 && (
+            <Select value={selectedPT} onValueChange={setSelectedPT}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Pilih PT" />
+              </SelectTrigger>
+              <SelectContent>
+                {ptOptions.map((pt) => (
+                  <SelectItem key={pt.value} value={pt.value}>
+                    {pt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          {(isSuperAdmin || isCompanyAdmin) && branchOptions.length > 0 && (
+            <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Pilih Toko" />
+              </SelectTrigger>
+              <SelectContent>
+                {branchOptions.map((b) => (
+                  <SelectItem key={b.value} value={b.value}>
+                    {b.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
           <Button onClick={handleCreate} variant="destructive">
             <Plus className="size-5" />
             Tambah Data
@@ -347,11 +394,38 @@ export default function SetorUangPage() {
         </div>
       </div>
 
-      {/* Data Table */}
+      {isLoading ? (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-6 w-40" />
+              <Skeleton className="h-10 w-64" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex gap-4">
+                  <Skeleton className="h-10 w-12" />
+                  <Skeleton className="h-10 w-32" />
+                  <Skeleton className="h-10 flex-1" />
+                  <Skeleton className="h-10 w-48" />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      ) : isError ? (
+        <Card>
+          <CardContent className="py-10 text-center">
+            <p className="text-destructive">Gagal memuat data Setor Uang</p>
+          </CardContent>
+        </Card>
+      ) : (
       <DataTable
         columns={columns}
-        data={sampleData}
-        title="Daftar Request Tambah Modal"
+        data={rows}
+        title="Daftar Request Setor Uang"
         searchPlaceholder="Cari..."
         headerRight={
           <div className="flex w-full items-center gap-2 sm:w-auto">
@@ -389,17 +463,16 @@ export default function SetorUangPage() {
         searchValue={searchValue}
         onSearchChange={setSearchValue}
       />
+      )}
 
-      {/* Tolak Setor Uang Dialog */}
       <TolakSetorUangDialog
         open={isTolakDialogOpen}
         onOpenChange={setIsTolakDialogOpen}
         row={selectedRow}
         onConfirm={handleConfirmTolak}
-        isSubmitting={isSubmitting}
+        isSubmitting={rejectMutation.isPending}
       />
 
-      {/* Confirmation Dialog for Bayar */}
       <ConfirmationDialog
         open={isBayarConfirmOpen}
         onOpenChange={setIsBayarConfirmOpen}
@@ -410,6 +483,15 @@ export default function SetorUangPage() {
         confirmLabel="Ya"
         cancelLabel="Batal"
         variant="info"
+      />
+
+      <CreateSetorUangDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        onConfirm={handleCreateConfirm}
+        isSubmitting={createMutation.isPending}
+        branchOptions={branchOptions}
+        selectedBranch={selectedBranch}
       />
     </div>
   )

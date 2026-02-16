@@ -29,11 +29,10 @@ import { Card, CardContent, CardHeader } from "@workspace/ui/components/card"
 import type { User } from "@/lib/api/types"
 import { useFilterParams } from "@/hooks/use-filter-params"
 import type { FilterConfig } from "@/hooks/use-filter-params"
-import {
-  dummyRoles,
-  getUsers,
-  deleteUser as deleteUserFromStore,
-} from "./dummy-data"
+import { useAuth } from "@/lib/react-query/hooks/use-auth"
+import { useUsers, useDeleteUser } from "@/lib/react-query/hooks/use-users"
+import { useCompanies } from "@/lib/react-query/hooks/use-companies"
+import { useRoles } from "@/lib/react-query/hooks/use-roles"
 
 // Filter configuration
 const filterConfig: FilterConfig[] = [
@@ -49,6 +48,11 @@ const filterConfig: FilterConfig[] = [
 const getRoleBadgeConfig = (role: { code: string; name: string }) => {
   const configs: Record<string, { label: string; className: string }> = {
     owner: {
+      label: "Super Admin",
+      className:
+        "border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-400",
+    },
+    company_admin: {
       label: "Admin PT",
       className:
         "border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-400",
@@ -219,28 +223,45 @@ function TableSkeleton() {
 
 function MasterPenggunaPageContent() {
   const router = useRouter()
+  const { user } = useAuth()
+  const isCompanyAdmin = user?.roles?.some((r) => r.code === "company_admin") ?? false
+  const isSuperAdmin = user?.roles?.some((r) => r.code === "owner") ?? false
+
+  const effectiveCompanyId = isCompanyAdmin ? (user?.companyId ?? null) : null
+
+  const { data: companiesData } = useCompanies(
+    isSuperAdmin ? { pageSize: 100 } : undefined
+  )
+
+  const [selectedPT, setSelectedPT] = useState<string>("")
+  const ptOptions = React.useMemo(() => {
+    const list = companiesData?.data ?? []
+    return list.map((c) => ({ value: c.uuid, label: c.companyName }))
+  }, [companiesData])
+
+  useEffect(() => {
+    if (isSuperAdmin && ptOptions.length > 0 && !selectedPT) {
+      setSelectedPT(ptOptions[0]!.value)
+    }
+  }, [isSuperAdmin, ptOptions, selectedPT])
+
+  const companyFilterId = isSuperAdmin ? selectedPT : effectiveCompanyId
+
   const [pageSize, setPageSize] = useState(100)
   const [searchValue, setSearchValue] = useState("")
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [filterDialogOpen, setFilterDialogOpen] = useState(false)
-  const [users, setUsers] = useState<User[]>(getUsers())
-  const [isLoading] = useState(false)
 
-  // Refresh users when component mounts or when navigating back
-  useEffect(() => {
-    setUsers(getUsers())
-  }, [])
-
-  // Role options for filter
+  const { data: rolesData } = useRoles({ pageSize: 100 })
   const roleOptions = React.useMemo(() => {
-    return dummyRoles.map((role) => ({
+    const list = rolesData?.data ?? []
+    return list.map((role) => ({
       label: getRoleBadgeConfig(role).label,
       value: role.code,
     }))
-  }, [])
+  }, [rolesData])
 
-  // Update filter config with role options
   const filterConfigWithOptions: FilterConfig[] = React.useMemo(() => {
     const baseConfig = filterConfig[0]
     if (!baseConfig) return []
@@ -255,20 +276,31 @@ function MasterPenggunaPageContent() {
     ]
   }, [roleOptions])
 
-  // Filter state management via URL params
   const { filterValues, setFilters } = useFilterParams(filterConfigWithOptions)
 
-  // Get selected roles from filter values
   const selectedRoles = React.useMemo(() => {
     const roleValue = filterValues.role
     return Array.isArray(roleValue) ? roleValue : []
   }, [filterValues.role])
 
-  // Filter users by search and role
-  const filteredUsers = React.useMemo(() => {
-    let result = [...users]
+  const listOptions = React.useMemo(() => {
+    const filter: Record<string, string> = {}
+    if (selectedRoles.length > 0) filter.roleCode = selectedRoles[0] as string
+    return { page: 1, pageSize: 200, filter }
+  }, [selectedRoles])
 
-    // Filter by search (email)
+  const { data, isLoading, isError } = useUsers(listOptions)
+  const deleteUserMutation = useDeleteUser()
+
+  const usersFromApi = data?.data ?? []
+
+  const filteredUsers = React.useMemo(() => {
+    let result = [...usersFromApi]
+
+    if (companyFilterId) {
+      result = result.filter((u) => u.companyId === companyFilterId)
+    }
+
     if (searchValue) {
       const searchLower = searchValue.toLowerCase()
       result = result.filter((user) =>
@@ -276,7 +308,6 @@ function MasterPenggunaPageContent() {
       )
     }
 
-    // Filter by role
     if (selectedRoles.length > 0) {
       result = result.filter((user) => {
         const userRoleCodes = user.roles?.map((r) => r.code) || []
@@ -287,7 +318,7 @@ function MasterPenggunaPageContent() {
     }
 
     return result
-  }, [users, searchValue, selectedRoles])
+  }, [usersFromApi, companyFilterId, searchValue, selectedRoles])
 
   const handleDetail = (row: User) => {
     router.push(`/master-pengguna/${row.uuid}`)
@@ -302,15 +333,16 @@ function MasterPenggunaPageContent() {
     setIsConfirmDialogOpen(true)
   }
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (selectedUser) {
-      // Remove user from dummy store
-      deleteUserFromStore(selectedUser.uuid)
-      // Update local state
-      setUsers(getUsers())
-      toast.success("Pengguna berhasil dihapus")
-      setIsConfirmDialogOpen(false)
-      setSelectedUser(null)
+      try {
+        await deleteUserMutation.mutateAsync(selectedUser.uuid)
+        toast.success("Pengguna berhasil dihapus")
+        setIsConfirmDialogOpen(false)
+        setSelectedUser(null)
+      } catch {
+        toast.error("Gagal menghapus pengguna")
+      }
     }
   }
 
@@ -333,19 +365,41 @@ function MasterPenggunaPageContent() {
             />
           </div>
 
-          {/* Tambah Data Button */}
-          <Button
-            onClick={handleTambahData}
-            className="bg-red-600 text-white hover:bg-red-700"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Tambah Data
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            {isSuperAdmin && ptOptions.length > 0 && (
+              <Select value={selectedPT} onValueChange={setSelectedPT}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Pilih PT" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ptOptions.map((pt) => (
+                    <SelectItem key={pt.value} value={pt.value}>
+                      {pt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            <Button
+              onClick={handleTambahData}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Tambah Data
+            </Button>
+          </div>
         </div>
 
         {/* Data Table */}
         {isLoading ? (
           <TableSkeleton />
+        ) : isError ? (
+          <Card>
+            <CardContent className="py-10 text-center">
+              <p className="text-destructive">Gagal memuat data Pengguna</p>
+            </CardContent>
+          </Card>
         ) : (
           <DataTable
             columns={columns}

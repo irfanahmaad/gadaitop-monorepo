@@ -20,6 +20,8 @@ import {
   useSpkByStatusChart,
   useMutationTrends,
 } from "@/lib/react-query/hooks/use-dashboard"
+import { useSpkList } from "@/lib/react-query/hooks/use-spk"
+import { useNkbList } from "@/lib/react-query/hooks/use-nkb"
 
 import { useCompanies } from "@/lib/react-query/hooks/use-companies"
 import { useBranches } from "@/lib/react-query/hooks/use-branches"
@@ -28,15 +30,19 @@ import { useAuth } from "@/lib/react-query/hooks/use-auth"
 export default function Page() {
   const { user } = useAuth()
 
-  // ── Determine if user is Super Admin (owner) ──────────────
+  // ── Determine if user is Super Admin (owner) or Admin PT (company_admin) ──
   const isSuperAdmin = useMemo(() => {
     return user?.roles?.some((role) => role.code === "owner") ?? false
+  }, [user])
+
+  const isCompanyAdmin = useMemo(() => {
+    return user?.roles?.some((role) => role.code === "company_admin") ?? false
   }, [user])
 
   // ── Date state ────────────────────────────────────────────
   const [date, setDate] = useState<Date>(new Date())
 
-  // ── Fetch companies (PT) for Super Admin ──────────────────
+  // ── Fetch companies (PT) for Super Admin only ──────────────
   const { data: companiesData, isLoading: companiesLoading } = useCompanies(
     isSuperAdmin ? { pageSize: 100 } : undefined
   )
@@ -49,19 +55,28 @@ export default function Page() {
     }))
   }, [companiesData])
 
-  // ── PT selection state (defaults to first PT) ─────────────
+  // ── PT selection: Super Admin picks from list; company_admin uses their company ──
+  const effectiveCompanyId = isSuperAdmin ? null : user?.companyId ?? null
   const [selectedPT, setSelectedPT] = useState("")
 
   useEffect(() => {
-    if (ptOptions.length > 0 && !selectedPT) {
+    if (isSuperAdmin && ptOptions.length > 0 && !selectedPT) {
       setSelectedPT(ptOptions[0]!.value)
     }
-  }, [ptOptions, selectedPT])
+    if (isCompanyAdmin && effectiveCompanyId && !selectedPT) {
+      setSelectedPT(effectiveCompanyId)
+    }
+  }, [isSuperAdmin, isCompanyAdmin, ptOptions, effectiveCompanyId, selectedPT])
 
-  // ── Fetch branches (Toko) filtered by selected PT ─────────
+  // ── Fetch branches (Toko) for Super Admin (by selected PT) or company_admin (by user's company) ──
+  const branchQueryCompanyId = isSuperAdmin ? selectedPT : effectiveCompanyId
   const { data: branchesData, isLoading: branchesLoading } = useBranches(
-    isSuperAdmin && selectedPT
-      ? { companyId: selectedPT, pageSize: 100, status: "active" }
+    (isSuperAdmin && selectedPT) || (isCompanyAdmin && branchQueryCompanyId)
+      ? {
+          companyId: branchQueryCompanyId!,
+          pageSize: 100,
+          status: "active",
+        }
       : undefined
   )
 
@@ -94,17 +109,17 @@ export default function Page() {
   // ── Build filter for dashboard data queries ───────────────
   const dashboardFilter = useMemo(() => {
     const filter: Record<string, string> = {}
-    if (isSuperAdmin && selectedPT) {
+    if (selectedPT) {
       filter.companyId = selectedPT
     }
-    if (isSuperAdmin && selectedToko) {
+    if ((isSuperAdmin || isCompanyAdmin) && selectedToko) {
       filter.branchId = selectedToko
     }
     if (date) {
       filter.date = date.toISOString().split("T")[0]! // YYYY-MM-DD
     }
     return filter
-  }, [isSuperAdmin, selectedPT, selectedToko, date])
+  }, [isSuperAdmin, isCompanyAdmin, selectedPT, selectedToko, date])
 
   // ── API Hooks ──────────────────────────────────────────────
   const { data: kpis, isLoading: kpisLoading } = useDashboardKpis(dashboardFilter)
@@ -113,90 +128,60 @@ export default function Page() {
   const { data: mutationTrends, isLoading: mutationTrendsLoading } =
     useMutationTrends(30, dashboardFilter)
 
-  // ── Dummy Data ──────────────────────────────────────────────
-  const DUMMY_NEW_SPK: any[] = [
-    {
-      id: "1",
-      spkNumber: "SPK-2024001",
-      principalAmount: 5000000,
-      customer: { fullName: "Budi Santoso" },
-      status: "active",
-      createdAt: new Date().toISOString(),
-    },
-    {
-      id: "2",
-      spkNumber: "SPK-2024002",
-      principalAmount: 3500000,
-      customer: { fullName: "Siti Aminah" },
-      status: "active",
-      createdAt: new Date().toISOString(),
-    },
-    {
-      id: "3",
-      spkNumber: "SPK-2024003",
-      principalAmount: 15000000,
-      customer: { fullName: "Ahmad Rizki" },
-      status: "draft",
-      createdAt: new Date().toISOString(),
-    },
-  ]
+  // ── SPK List (recent: active + draft, limited) ───────────────
+  const spkListOptions = useMemo(
+    () => ({
+      page: 1,
+      pageSize: 10,
+      filter: {
+        ...(selectedPT && { ptId: selectedPT }),
+        ...(selectedToko && { branchId: selectedToko }),
+      },
+      sortBy: "createdAt",
+      order: "DESC" as const,
+    }),
+    [selectedPT, selectedToko]
+  )
+  const { data: spkListData, isLoading: spkListLoading } = useSpkList(
+    (selectedPT || selectedToko) ? spkListOptions : undefined
+  )
 
-  const DUMMY_OVERDUE_SPK: any[] = [
-    {
-      id: "4",
-      spkNumber: "SPK-2023098",
-      totalAmount: 5500000,
-      tenor: 30,
-      dueDate: new Date(new Date().setDate(new Date().getDate() - 2)).toISOString(),
-      customer: { fullName: "Dewi Lestari", ktpPhotoUrl: "" },
-      status: "overdue",
-    },
-    {
-      id: "5",
-      spkNumber: "SPK-2023095",
-      totalAmount: 2750000,
-      tenor: 30,
-      dueDate: new Date(new Date().setDate(new Date().getDate() - 5)).toISOString(),
-      customer: { fullName: "Eko Prasetyo", ktpPhotoUrl: "" },
-      status: "overdue",
-    },
-  ]
+  // ── SPK Overdue (jatuh tempo) ─────────────────────────────────
+  const spkOverdueOptions = useMemo(
+    () => ({
+      page: 1,
+      pageSize: 10,
+      filter: {
+        status: "overdue" as const,
+        ...(selectedPT && { ptId: selectedPT }),
+        ...(selectedToko && { branchId: selectedToko }),
+      },
+      sortBy: "dueDate",
+      order: "ASC" as const,
+    }),
+    [selectedPT, selectedToko]
+  )
+  const { data: spkOverdueData, isLoading: spkOverdueLoading } = useSpkList(
+    (selectedPT || selectedToko) ? spkOverdueOptions : undefined
+  )
 
-  const DUMMY_NEW_NKB: any[] = [
-    {
-      id: "1",
-      nkbNumber: "NKB-2024001",
-      amount: 500000,
-      type: "partial_payment",
-      status: "confirmed",
-    },
-    {
-      id: "2",
-      nkbNumber: "NKB-2024002",
-      amount: 200000,
-      type: "extension",
-      status: "pending",
-    },
-    {
-      id: "3",
-      nkbNumber: "NKB-2024003",
-      amount: 1500000,
-      type: "redemption",
-      status: "confirmed",
-    },
-  ]
-
-  // Recent SPK (sorted newest first, limited for dashboard)
-  const spkListData = { data: DUMMY_NEW_SPK }
-  const spkListLoading = false
-
-  // SPK with overdue status (jatuh tempo)
-  const spkOverdueData = { data: DUMMY_OVERDUE_SPK }
-  const spkOverdueLoading = false
-
-  // Recent NKB (sorted newest first, limited for dashboard)
-  const nkbListData = { data: DUMMY_NEW_NKB }
-  const nkbListLoading = false
+  // ── NKB List (recent, limited) ────────────────────────────────
+  const nkbListOptions = useMemo(
+    () => ({
+      page: 1,
+      pageSize: 10,
+      filter: {
+        ...(selectedPT && { ptId: selectedPT }),
+        ...(selectedToko && { branchId: selectedToko }),
+      },
+      sortBy: "createdAt",
+      order: "DESC" as const,
+    }),
+    [selectedPT, selectedToko]
+  )
+  const { data: nkbListData, isLoading: nkbListLoading } = useNkbList(
+    (selectedPT || selectedToko) ? nkbListOptions : undefined
+  )
 
   // ── Metrics derived from KPI API ──────────────────────────
   const metrics = [
@@ -238,7 +223,8 @@ export default function Page() {
         onPTChange={handlePTChange}
         onTokoChange={setSelectedToko}
         onDateChange={setDate}
-        showFilters={isSuperAdmin}
+        showPTFilter={isSuperAdmin}
+        showTokoFilter={isSuperAdmin || isCompanyAdmin}
         ptOptions={ptOptions}
         tokoOptions={tokoOptions}
         isLoadingPT={companiesLoading}

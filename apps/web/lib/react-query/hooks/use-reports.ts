@@ -1,6 +1,7 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
+import { getSession } from "next-auth/react"
 
 import { apiClient } from "@/lib/api/client"
 import { endpoints } from "@/lib/api/endpoints"
@@ -28,15 +29,56 @@ export const reportKeys = {
 }
 
 // Helper to build query string from filters
-function buildFilterParams(filters?: ReportFilters): string {
-  if (!filters) return ""
+function buildFilterParams(filters?: ReportFilters, options?: { format?: "json" | "csv" }): string {
+  if (!filters && !options?.format) return ""
   const params = new URLSearchParams()
-  if (filters.dateFrom) params.set("dateFrom", filters.dateFrom)
-  if (filters.dateTo) params.set("dateTo", filters.dateTo)
-  if (filters.companyId) params.set("companyId", filters.companyId)
-  if (filters.branchId) params.set("branchId", filters.branchId)
+  if (filters?.dateFrom) params.set("dateFrom", filters.dateFrom)
+  if (filters?.dateTo) params.set("dateTo", filters.dateTo)
+  if (filters?.ptId ?? filters?.companyId) params.set("ptId", (filters?.ptId ?? filters?.companyId)!)
+  if (filters?.storeId ?? filters?.branchId) params.set("storeId", (filters?.storeId ?? filters?.branchId)!)
+  if (options?.format) params.set("format", options.format)
   const str = params.toString()
   return str ? `?${str}` : ""
+}
+
+export { buildFilterParams as buildReportFilterParams }
+
+const reportEndpoints: Record<string, string> = {
+  "mutation-by-branch": endpoints.reports.mutationByBranch,
+  "mutation-by-pt": endpoints.reports.mutationByPt,
+  spk: endpoints.reports.spk,
+  "nkb-payments": endpoints.reports.nkbPayments,
+  "stock-opname": endpoints.reports.stockOpname,
+}
+
+/** Download report as CSV. Report type must match reportEndpoints keys. */
+export async function downloadReportCsv(
+  reportType: string,
+  filters?: ReportFilters
+): Promise<void> {
+  const baseUrl = reportEndpoints[reportType]
+  if (!baseUrl) throw new Error(`Unknown report type: ${reportType}`)
+
+  const session = await getSession()
+  const token = session?.accessToken
+  const url = `${baseUrl}${buildFilterParams(filters, { format: "csv" })}`
+
+  const res = await fetch(url, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+  if (!res.ok) throw new Error("Failed to download report")
+
+  const blob = await res.blob()
+  const disposition = res.headers.get("Content-Disposition")
+  const filenameMatch = disposition?.match(/filename="?([^";\n]+)"?/)
+  const filename =
+    filenameMatch?.[1] ?? `${reportType}-${new Date().toISOString().slice(0, 10)}.csv`
+
+  const a = document.createElement("a")
+  a.href = URL.createObjectURL(blob)
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(a.href)
 }
 
 // Get mutation report by branch

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useMemo, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { ColumnDef } from "@tanstack/react-table"
 import { Breadcrumbs } from "@/components/breadcrumbs"
@@ -29,6 +29,13 @@ import {
 } from "@workspace/ui/components/avatar"
 import { SearchIcon, SlidersHorizontal, Plus } from "lucide-react"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
+import { useAuth } from "@/lib/react-query/hooks/use-auth"
+import { useBranches, useDeleteBranch } from "@/lib/react-query/hooks/use-branches"
+import { useBorrowRequests } from "@/lib/react-query/hooks/use-borrow-requests"
+import { useCompanies } from "@/lib/react-query/hooks/use-companies"
+import type { Branch, BorrowRequest } from "@/lib/api/types"
+import { Card, CardContent, CardHeader } from "@workspace/ui/components/card"
+import { Skeleton } from "@workspace/ui/components/skeleton"
 
 // Types for Toko Utama and Toko Pinjaman
 type Toko = {
@@ -56,161 +63,61 @@ type RequestToko = {
   tipe: "Pindah Kepemilikan" | "Pinjam PT"
 }
 
-// Sample data for Toko Utama
-const sampleTokoUtama: Toko[] = [
-  {
-    id: "1",
-    foto: "/placeholder-avatar.jpg",
-    kodeLokasi: "JK01",
-    namaPT: "PT Gadai Top Indonesia",
-    namaToko: "GT Jakarta Satu",
-    alias: "GT Satu",
-    noTelpToko: "081234567891012",
-    kota: "Jakarta Timur",
-  },
-  {
-    id: "2",
-    foto: "/placeholder-avatar.jpg",
-    kodeLokasi: "JK02",
-    namaPT: "PT Gadai Top Premium",
-    namaToko: "GT Jakarta Dua",
-    alias: "GT Dua",
-    noTelpToko: "081234567891012",
-    kota: "Jakarta Selatan",
-  },
-  {
-    id: "3",
-    foto: "/placeholder-avatar.jpg",
-    kodeLokasi: "JK03",
-    namaPT: "PT Gadai Top Sukses Jaya",
-    namaToko: "GT Jakarta Satu",
-    alias: "GT Satu",
-    noTelpToko: "081234567891012",
-    kota: "Jakarta Timur",
-  },
-  {
-    id: "4",
-    foto: "/placeholder-avatar.jpg",
-    kodeLokasi: "JK04",
-    namaPT: "PT Gadai Top Makmur",
-    namaToko: "GT Jakarta Dua",
-    alias: "GT Dua",
-    noTelpToko: "081234567891012",
-    kota: "Jakarta Selatan",
-  },
-  {
-    id: "5",
-    foto: "/placeholder-avatar.jpg",
-    kodeLokasi: "JK05",
-    namaPT: "PT Gadai Top Nusantara",
-    namaToko: "GT Jakarta Satu",
-    alias: "GT Satu",
-    noTelpToko: "081234567891012",
-    kota: "Jakarta Timur",
-  },
-  {
-    id: "6",
-    foto: "/placeholder-avatar.jpg",
-    kodeLokasi: "JK06",
-    namaPT: "PT Gadai Top Finansia",
-    namaToko: "GT Jakarta Dua",
-    alias: "GT Dua",
-    noTelpToko: "081234567891012",
-    kota: "Jakarta Selatan",
-  },
-]
+function mapBranchToToko(b: Branch): Toko {
+  const company = b.company as { companyName?: string } | undefined
+  return {
+    id: b.uuid,
+    foto: "",
+    kodeLokasi: b.branchCode,
+    namaPT: company?.companyName ?? "",
+    namaToko: b.fullName,
+    alias: b.shortName,
+    noTelpToko: b.phone ?? "",
+    kota: b.city ?? "",
+  }
+}
 
-// Sample data for Toko Pinjaman
-const sampleTokoPinjaman: Toko[] = [
-  {
-    id: "1",
-    foto: "/placeholder-avatar.jpg",
-    kodeLokasi: "JK01",
-    namaPT: "PT Gadai Top Indonesia",
-    namaToko: "GT Jakarta Satu",
-    alias: "GT Satu",
-    noTelpToko: "081234567891012",
-    kota: "Jakarta Timur",
-  },
-  {
-    id: "2",
-    foto: "/placeholder-avatar.jpg",
-    kodeLokasi: "JK02",
-    namaPT: "PT Gadai Top Premium",
-    namaToko: "GT Jakarta Dua",
-    alias: "GT Dua",
-    noTelpToko: "081234567891012",
-    kota: "Jakarta Selatan",
-  },
-  {
-    id: "3",
-    foto: "/placeholder-avatar.jpg",
-    kodeLokasi: "JK03",
-    namaPT: "PT Gadai Top Sukses Jaya",
-    namaToko: "GT Jakarta Satu",
-    alias: "GT Satu",
-    noTelpToko: "081234567891012",
-    kota: "Jakarta Timur",
-  },
-  {
-    id: "4",
-    foto: "/placeholder-avatar.jpg",
-    kodeLokasi: "JK04",
-    namaPT: "PT Gadai Top Makmur",
-    namaToko: "GT Jakarta Dua",
-    alias: "GT Dua",
-    noTelpToko: "081234567891012",
-    kota: "Jakarta Selatan",
-  },
-  {
-    id: "5",
-    foto: "/placeholder-avatar.jpg",
-    kodeLokasi: "JK05",
-    namaPT: "PT Gadai Top Nusantara",
-    namaToko: "GT Jakarta Satu",
-    alias: "GT Satu",
-    noTelpToko: "081234567891012",
-    kota: "Jakarta Timur",
-  },
-  {
-    id: "6",
-    foto: "/placeholder-avatar.jpg",
-    kodeLokasi: "JK06",
-    namaPT: "PT Gadai Top Finansia",
-    namaToko: "GT Jakarta Dua",
-    alias: "GT Dua",
-    noTelpToko: "081234567891012",
-    kota: "Jakarta Selatan",
-  },
-]
-
-// Sample data for Request
-const sampleRequest: RequestToko[] = [
-  {
-    id: "1",
-    foto: "/placeholder-avatar.jpg",
-    kodeLokasi: "JK01",
-    namaPT: "PT Gadai Top Indonesia",
-    adminPrimary: "Ben Affleck",
-    namaToko: "GT Jakarta Satu",
-    alias: "GT Satu",
-    noTelpToko: "081234567891012",
-    kota: "Jakarta Timur",
-    tipe: "Pindah Kepemilikan",
-  },
-  {
-    id: "2",
-    foto: "/placeholder-avatar.jpg",
-    kodeLokasi: "JK02",
-    namaPT: "PT Gadai Top Premium",
-    adminPrimary: "Agung Prasetyo",
-    namaToko: "GT Jakarta Dua",
-    alias: "GT Dua",
-    noTelpToko: "081234567891012",
-    kota: "Jakarta Selatan",
+function mapBorrowRequestToRequestToko(r: BorrowRequest): RequestToko {
+  const company = r.targetCompany as { companyName?: string } | undefined
+  const requester = r.requester as { fullName?: string } | undefined
+  return {
+    id: r.uuid,
+    foto: "",
+    kodeLokasi: "-",
+    namaPT: company?.companyName ?? "-",
+    adminPrimary: requester?.fullName ?? "-",
+    namaToko: company?.companyName ?? "-",
+    alias: "-",
+    noTelpToko: "",
+    kota: "",
     tipe: "Pinjam PT",
-  },
-]
+  }
+}
+
+function TableSkeleton() {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-6 w-40" />
+          <Skeleton className="h-10 w-64" />
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="flex gap-4">
+              <Skeleton className="h-10 w-12" />
+              <Skeleton className="h-10 w-32" />
+              <Skeleton className="h-10 flex-1" />
+              <Skeleton className="h-10 w-48" />
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
 
 // Column definitions for Toko Utama and Toko Pinjaman
 const tokoColumns: ColumnDef<Toko>[] = [
@@ -354,6 +261,65 @@ const requestColumns: ColumnDef<RequestToko>[] = [
 ]
 
 export default function MasterTokoPage() {
+  const router = useRouter()
+  const { user } = useAuth()
+  const isCompanyAdmin = user?.roles?.some((r) => r.code === "company_admin") ?? false
+  const isSuperAdmin = user?.roles?.some((r) => r.code === "owner") ?? false
+
+  const effectiveCompanyId = isCompanyAdmin ? (user?.companyId ?? null) : null
+
+  const { data: companiesData } = useCompanies(
+    isSuperAdmin ? { pageSize: 100 } : undefined
+  )
+
+  const [selectedPT, setSelectedPT] = useState<string>("")
+  const ptOptions = useMemo(() => {
+    const list = companiesData?.data ?? []
+    return list.map((c) => ({ value: c.uuid, label: c.companyName }))
+  }, [companiesData])
+
+  useEffect(() => {
+    if (isSuperAdmin && ptOptions.length > 0 && !selectedPT) {
+      setSelectedPT(ptOptions[0]!.value)
+    }
+  }, [isSuperAdmin, ptOptions, selectedPT])
+
+  const branchQueryCompanyId = isSuperAdmin ? selectedPT : effectiveCompanyId
+  const { data: branchesData, isLoading: branchesLoading } = useBranches(
+    branchQueryCompanyId
+      ? { companyId: branchQueryCompanyId, pageSize: 200, status: "active" }
+      : undefined
+  )
+
+  const { data: borrowRequestsData } = useBorrowRequests({
+    pageSize: 100,
+  })
+
+  const deleteBranchMutation = useDeleteBranch()
+
+  const tokoUtamaRows = useMemo(() => {
+    const list = branchesData?.data ?? []
+    return list
+      .filter((b) => !b.isBorrowed)
+      .map(mapBranchToToko)
+  }, [branchesData])
+
+  const tokoPinjamanRows = useMemo(() => {
+    const list = branchesData?.data ?? []
+    return list
+      .filter((b) => b.isBorrowed)
+      .map(mapBranchToToko)
+  }, [branchesData])
+
+  const requestRows = useMemo(() => {
+    const list = borrowRequestsData?.data ?? []
+    return list
+      .filter((r) => r.status === "pending")
+      .map(mapBorrowRequestToRequestToko)
+  }, [borrowRequestsData])
+
+  const requestCount = requestRows.length
+
   const [pageSize, setPageSize] = useState(100)
   const [searchValue, setSearchValue] = useState("")
   const [activeTab, setActiveTab] = useState("toko-utama")
@@ -361,15 +327,13 @@ export default function MasterTokoPage() {
   const [itemToDelete, setItemToDelete] = useState<Toko | RequestToko | null>(
     null
   )
-  const requestCount = sampleRequest.length
 
   const handleDetail = (row: Toko | RequestToko) => {
     router.push(`/master-toko/${row.id}`)
   }
 
   const handleEdit = (row: Toko | RequestToko) => {
-    console.log("Edit:", row)
-    // Implement edit action
+    router.push(`/master-toko/${row.id}/edit`)
   }
 
   const handleDelete = (row: Toko | RequestToko) => {
@@ -377,14 +341,17 @@ export default function MasterTokoPage() {
     setIsConfirmDialogOpen(true)
   }
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (itemToDelete) {
-      console.log("Delete:", itemToDelete)
-      // Implement delete action
+      try {
+        await deleteBranchMutation.mutateAsync(itemToDelete.id)
+        setIsConfirmDialogOpen(false)
+        setItemToDelete(null)
+      } catch {
+        // Error handled by mutation
+      }
     }
   }
-
-  const router = useRouter()
 
   const handleTambahData = () => {
     router.push("/master-toko/tambah")
@@ -401,14 +368,31 @@ export default function MasterTokoPage() {
           />
         </div>
 
-        {/* Tambah Data Button */}
-        <Button
-          onClick={handleTambahData}
-          className="bg-red-600 text-white hover:bg-red-700"
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Tambah Data
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {isSuperAdmin && ptOptions.length > 0 && (
+            <Select value={selectedPT} onValueChange={setSelectedPT}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Pilih PT" />
+              </SelectTrigger>
+              <SelectContent>
+                {ptOptions.map((pt) => (
+                  <SelectItem key={pt.value} value={pt.value}>
+                    {pt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
+          {/* Tambah Data Button */}
+          <Button
+            onClick={handleTambahData}
+            className="bg-red-600 text-white hover:bg-red-700"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Tambah Data
+          </Button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -435,9 +419,12 @@ export default function MasterTokoPage() {
 
         {/* Toko Utama Tab */}
         <TabsContent value="toko-utama" className="mt-0">
+          {branchesLoading ? (
+            <TableSkeleton />
+          ) : (
           <DataTable
             columns={tokoColumns}
-            data={sampleTokoUtama}
+            data={tokoUtamaRows}
             title="Daftar Toko Utama"
             searchPlaceholder="Search"
             headerRight={
@@ -479,13 +466,17 @@ export default function MasterTokoPage() {
             onEdit={handleEdit}
             onDelete={handleDelete}
           />
+          )}
         </TabsContent>
 
         {/* Toko Pinjaman Tab */}
         <TabsContent value="toko-pinjaman" className="mt-0">
+          {branchesLoading ? (
+            <TableSkeleton />
+          ) : (
           <DataTable
             columns={tokoColumns}
-            data={sampleTokoPinjaman}
+            data={tokoPinjamanRows}
             title="Daftar Toko Pinjaman"
             searchPlaceholder="Search"
             headerRight={
@@ -527,13 +518,14 @@ export default function MasterTokoPage() {
             onEdit={handleEdit}
             onDelete={handleDelete}
           />
+          )}
         </TabsContent>
 
         {/* Request Tab */}
         <TabsContent value="request" className="mt-0">
           <DataTable
             columns={requestColumns}
-            data={sampleRequest}
+            data={requestRows}
             title="Daftar Request"
             searchPlaceholder="Search"
             headerRight={

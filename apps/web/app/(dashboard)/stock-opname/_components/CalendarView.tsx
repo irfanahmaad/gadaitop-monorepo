@@ -12,19 +12,19 @@ import {
   type ScheduleItem,
 } from "./StockOpnameScheduleList"
 
-// Types
-type StockOpname = {
+// Types - accept any row with id, idSO, tanggal, toko, petugas (e.g. StockOpnameRow from page)
+type StockOpnameCalendarItem = {
   id: string
   idSO: string
   tanggal: string
   toko: string
   petugas: string
-  lastUpdatedAt: string
-  status: "Dijadwalkan" | "Berjalan" | "Selesai"
+  lastUpdatedAt?: string
+  status?: string
 }
 
 type CalendarViewProps = {
-  data: StockOpname[]
+  data: StockOpnameCalendarItem[]
   isLoading?: boolean
   onDetail?: (item: ScheduleItem) => void
   onEdit?: (item: ScheduleItem) => void

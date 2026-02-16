@@ -155,9 +155,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   <SidebarMenuItem>
                     <SidebarMenuButton
                       asChild
-                      isActive={pathname?.startsWith("/lelang")}
+                      isActive={pathname?.startsWith("/lelangan")}
                     >
-                      <Link href="/lelang" className="flex items-center gap-2">
+                      <Link href="/lelangan" className="flex items-center gap-2">
                         <Gavel className="size-4 shrink-0" />
                         <span>Lelangan</span>
                       </Link>

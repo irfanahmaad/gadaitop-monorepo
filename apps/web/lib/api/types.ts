@@ -440,6 +440,10 @@ export interface RedeemSpkDto {
 export interface QuerySpkDto extends PageOptions {
   status?: SpkStatus
   customerId?: string
+  ptId?: string
+  branchId?: string
+  dateFrom?: string
+  dateTo?: string
 }
 
 // ==========================================
@@ -546,6 +550,8 @@ export interface QueryNkbDto extends PageOptions {
   spkId?: string
   status?: NkbStatus
   type?: NkbType
+  ptId?: string
+  branchId?: string
 }
 
 // ==========================================
@@ -553,13 +559,17 @@ export interface QueryNkbDto extends PageOptions {
 // ==========================================
 
 export interface CatalogItem {
-  id: string
+  id?: string
   uuid: string
-  itemName: string
+  /** Backend uses `name`; frontend may use itemName */
+  name?: string
+  itemName?: string
+  code?: string
   itemTypeId: string
   basePrice: number
+  ptId?: string
   description?: string
-  isActive: boolean
+  isActive?: boolean
   itemType?: ItemType
   company?: Company
   createdAt: string
@@ -629,6 +639,9 @@ export type AuctionBatchStatus =
   | "in_progress"
   | "finalized"
   | "cancelled"
+  | "pickup_in_progress"
+  | "validation_pending"
+  | "ready_for_auction"
 
 export interface AuctionItemDetail {
   id: string
@@ -645,17 +658,17 @@ export interface AuctionItemDetail {
 }
 
 export interface AuctionBatch {
-  id: string
+  id?: string
   uuid: string
   batchCode: string
   storeId: string
-  scheduledDate: string
+  scheduledDate?: string
   status: AuctionBatchStatus
   store?: Branch
-  assignedTo?: User
-  items: AuctionItemDetail[]
+  assignedTo?: string | User
+  items?: AuctionItemDetail[]
   createdAt: string
-  updatedAt: string
+  updatedAt?: string
 }
 
 export interface CreateAuctionBatchDto {
@@ -678,6 +691,28 @@ export interface ItemValidationDto {
 // ==========================================
 // Stock Opname types
 // ==========================================
+
+/** Backend session status enum */
+export type StockOpnameSessionStatus =
+  | "draft"
+  | "in_progress"
+  | "completed"
+  | "approved"
+
+/** Backend list response item (matches StockOpnameSessionDto) */
+export interface StockOpnameSessionListItem {
+  uuid: string
+  sessionCode: string
+  ptId: string
+  storeId: string
+  startDate: string
+  endDate: string | null
+  status: StockOpnameSessionStatus
+  totalItemsSystem: number
+  totalItemsCounted: number
+  variancesCount: number
+  createdAt: string
+}
 
 export type StockOpnameStatus =
   | "scheduled"
@@ -766,13 +801,25 @@ export interface RejectCashDepositDto {
 // ==========================================
 
 export type CashMutationType = "in" | "out"
+export type CashMutationTypeBackend = "debit" | "credit" | "adjustment"
+export type CashMutationCategory =
+  | "spk_disbursement"
+  | "nkb_payment"
+  | "deposit"
+  | "topup"
+  | "expense"
+  | "other"
 
 export interface CashMutation {
   id: string
   uuid: string
   storeId: string
-  type: CashMutationType
+  type?: CashMutationType
+  mutationType?: CashMutationTypeBackend
+  category?: CashMutationCategory
   amount: number
+  balanceBefore?: number
+  balanceAfter?: number
   description?: string
   referenceType?: string
   referenceId?: string
@@ -783,19 +830,21 @@ export interface CashMutation {
 
 export interface CashBalance {
   balance: number
-  lastUpdated: string
+  lastUpdated?: string
 }
 
 export interface CreateCashMutationDto {
   storeId: string
-  type: CashMutationType
+  mutationType: CashMutationTypeBackend
+  category: CashMutationCategory
   amount: number
   description?: string
 }
 
 export interface QueryCashMutationDto extends PageOptions {
   storeId?: string
-  type?: CashMutationType
+  mutationType?: CashMutationTypeBackend
+  category?: CashMutationCategory
   dateFrom?: string
   dateTo?: string
 }
@@ -889,6 +938,10 @@ export interface ReportFilters {
   dateTo?: string
   companyId?: string
   branchId?: string
+  /** Backend uses ptId (company) */
+  ptId?: string
+  /** Backend uses storeId (branch) */
+  storeId?: string
 }
 
 export interface MutationReport {
@@ -916,35 +969,37 @@ export interface StockOpnameReport {
 // ==========================================
 
 export interface PawnTerm {
-  id: string
+  id?: string
   uuid: string
   ptId: string
-  tenor: number
+  itemTypeId: string
+  itemType?: ItemType
+  loanLimitMin: number
+  loanLimitMax: number
+  tenorDefault: number
   interestRate: number
   adminFee: number
-  insuranceFee?: number
-  maxLoanPercentage?: number
-  isActive: boolean
-  company?: Company
+  pt?: Company
   createdAt: string
   updatedAt: string
 }
 
 export interface CreatePawnTermDto {
   ptId: string
-  tenor: number
+  itemTypeId: string
+  loanLimitMin: number
+  loanLimitMax: number
+  tenorDefault: number
   interestRate: number
-  adminFee: number
-  insuranceFee?: number
-  maxLoanPercentage?: number
+  adminFee?: number
 }
 
 export interface UpdatePawnTermDto {
+  loanLimitMin?: number
+  loanLimitMax?: number
+  tenorDefault?: number
   interestRate?: number
   adminFee?: number
-  insuranceFee?: number
-  maxLoanPercentage?: number
-  isActive?: boolean
 }
 
 // ==========================================

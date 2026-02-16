@@ -60,12 +60,15 @@ interface StockOpnameFormDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onClose: () => void
+  /** Called after successful create (e.g. to invalidate list queries) */
+  onSuccess?: () => void
 }
 
 export function StockOpnameFormDialog({
   open,
   onOpenChange,
   onClose,
+  onSuccess,
 }: StockOpnameFormDialogProps) {
   const [mounted, setMounted] = React.useState(false)
 
@@ -126,8 +129,8 @@ export function StockOpnameFormDialog({
 
   const onSubmit = (values: StockOpnameFormValues) => {
     console.log("Form values:", values)
-    // TODO: Implement API call to create stock opname schedule
-    // For now, just close the dialog
+    // TODO: Implement API call to create stock opname schedule (useCreateStockOpname with ptId, storeId, startDate)
+    onSuccess?.()
     onClose()
   }
 

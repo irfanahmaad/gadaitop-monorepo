@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useMemo, Suspense } from "react"
+import React, { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { ColumnDef } from "@tanstack/react-table"
 import { Breadcrumbs } from "@/components/breadcrumbs"
@@ -19,49 +19,50 @@ import {
 } from "@workspace/ui/components/select"
 import { User } from "lucide-react"
 import { useFilterParams, FilterConfig } from "@/hooks/use-filter-params"
-import { ConfirmationDialog } from "@/components/confirmation-dialog"
+import { useSpkList } from "@/lib/react-query/hooks/use-spk"
+import { useBranches } from "@/lib/react-query/hooks/use-branches"
+import type { Spk } from "@/lib/api/types"
+import { Skeleton } from "@workspace/ui/components/skeleton"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+} from "@workspace/ui/components/card"
+import { Button } from "@workspace/ui/components/button"
+import { Plus } from "lucide-react"
 
-// Sample data type
-type SPK = {
-  id: string
-  nomorSPK: string
-  namaCustomer: string
-  fotoCustomer?: string
-  jumlahSPK: number
-  sisaSPK: number
-  tanggalWaktuSPK: string
-}
+const formatCurrency = (amount: number): string =>
+  new Intl.NumberFormat("id-ID", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount)
 
-// Sample data
-const sampleData: SPK[] = Array.from({ length: 100 }, (_, i) => ({
-  id: `SPK${String(i + 1).padStart(3, "0")}`,
-  nomorSPK: `SPK/001/${String(i + 1).padStart(2, "0")}112025`,
-  namaCustomer: `Customer ${i + 1}`,
-  fotoCustomer: undefined,
-  jumlahSPK: 10000000 + i * 1000000,
-  sisaSPK: 10 - (i % 10),
-  tanggalWaktuSPK: new Date(2025, 10, 20 - (i % 30), 18, 33, 45).toLocaleString(
-    "id-ID",
-    {
+const formatDate = (dateStr: string): string => {
+  try {
+    return new Date(dateStr).toLocaleString("id-ID", {
       day: "numeric",
       month: "long",
       year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit",
-    }
-  ),
-}))
-
-// Format currency helper
-const formatCurrency = (amount: number): string => {
-  return new Intl.NumberFormat("id-ID", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount)
+    })
+  } catch {
+    return dateStr
+  }
 }
 
-// Filter configuration for SPK
+// Customer name: API may return customer.name (backend Dto) or customer.fullName
+function getCustomerName(spk: Spk): string {
+  const c = spk.customer as { fullName?: string; name?: string } | undefined
+  return c?.fullName ?? c?.name ?? "-"
+}
+
+function getCustomerPhotoUrl(spk: Spk): string | undefined {
+  const c = spk.customer as { ktpPhotoUrl?: string } | undefined
+  return c?.ktpPhotoUrl
+}
+
 const filterConfig: FilterConfig[] = [
   {
     key: "spkRange",
@@ -71,16 +72,7 @@ const filterConfig: FilterConfig[] = [
   },
 ]
 
-// Branch options for Select
-const branchOptions = [
-  { value: "gt-jakarta-satu", label: "GT Jakarta Satu" },
-  { value: "gt-jakarta-dua", label: "GT Jakarta Dua" },
-  { value: "gt-bandung", label: "GT Bandung" },
-  { value: "gt-surabaya", label: "GT Surabaya" },
-]
-
-// Column definitions
-const columns: ColumnDef<SPK>[] = [
+const columns: ColumnDef<Spk>[] = [
   {
     id: "no",
     header: "No",
@@ -91,13 +83,14 @@ const columns: ColumnDef<SPK>[] = [
   },
   {
     id: "foto",
-    accessorKey: "fotoCustomer",
     header: "Foto",
     cell: ({ row }) => {
       const spk = row.original
+      const photoUrl = getCustomerPhotoUrl(spk)
+      const name = getCustomerName(spk)
       return (
         <Avatar className="size-10">
-          <AvatarImage src={spk.fotoCustomer} alt={spk.namaCustomer} />
+          <AvatarImage src={photoUrl} alt={name} />
           <AvatarFallback>
             <User className="size-5" />
           </AvatarFallback>
@@ -106,151 +99,174 @@ const columns: ColumnDef<SPK>[] = [
     },
   },
   {
-    accessorKey: "nomorSPK",
+    accessorKey: "spkNumber",
     header: "Nomor SPK",
   },
   {
-    accessorKey: "namaCustomer",
+    id: "namaCustomer",
     header: "Nama Customer",
+    cell: ({ row }) => getCustomerName(row.original),
   },
   {
-    accessorKey: "jumlahSPK",
+    accessorKey: "totalAmount",
     header: "Jumlah SPK",
     cell: ({ row }) => {
-      return `Rp ${formatCurrency(row.getValue("jumlahSPK"))}`
+      const amount = row.original.totalAmount ?? row.original.principalAmount
+      return `Rp ${formatCurrency(Number(amount))}`
     },
   },
   {
-    accessorKey: "sisaSPK",
+    accessorKey: "tenor",
     header: "Sisa SPK",
+    cell: ({ row }) => String(row.original.tenor ?? "-"),
   },
   {
-    accessorKey: "tanggalWaktuSPK",
+    id: "tanggalWaktuSPK",
     header: "Tanggal & Waktu SPK",
+    cell: ({ row }) => formatDate(row.original.createdAt),
   },
 ]
 
-function SPKPageContent() {
-  const router = useRouter()
-  // Filter state management via URL params
-  const { filterValues, setFilters } = useFilterParams(filterConfig)
-  const [selectedBranch, setSelectedBranch] = React.useState<string>("")
-  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = React.useState(false)
-  const [itemToDelete, setItemToDelete] = React.useState<SPK | null>(null)
-
-  // Apply filters to data
-  const filteredData = useMemo(() => {
-    let filtered = [...sampleData]
-
-    // Apply branch filter (if selected)
-    if (selectedBranch) {
-      // In a real app, this would filter by branch
-      // For now, we'll just use the sample data
-    }
-
-    // Apply SPK range filter
-    const spkRange = filterValues.spkRange as
-      | { from?: number | string | null; to?: number | string | null }
-      | undefined
-    if (spkRange) {
-      if (spkRange.from !== null && spkRange.from !== undefined) {
-        const fromValue =
-          typeof spkRange.from === "string"
-            ? Number(spkRange.from)
-            : spkRange.from
-        if (!isNaN(fromValue)) {
-          filtered = filtered.filter((item) => item.jumlahSPK >= fromValue)
-        }
-      }
-      if (spkRange.to !== null && spkRange.to !== undefined) {
-        const toValue =
-          typeof spkRange.to === "string" ? Number(spkRange.to) : spkRange.to
-        if (!isNaN(toValue)) {
-          filtered = filtered.filter((item) => item.jumlahSPK <= toValue)
-        }
-      }
-    }
-
-    return filtered
-  }, [filterValues, selectedBranch])
-
-  const handleDetail = (row: SPK) => {
-    router.push(`/spk/${row.id}`)
-  }
-
-  const handleEdit = (row: SPK) => {
-    console.log("Edit:", row)
-    // Implement edit action
-  }
-
-  const handleDelete = (row: SPK) => {
-    setItemToDelete(row)
-    setIsConfirmDialogOpen(true)
-  }
-
-  const handleConfirmDelete = () => {
-    if (itemToDelete) {
-      console.log("Delete:", itemToDelete)
-      // Implement delete action
-    }
-  }
-
-  const handleBranchChange = (value: string) => {
-    setSelectedBranch(value)
-    // In a real app, you might want to add branch to URL params too
-  }
-
+function TableSkeleton() {
   return (
-    <div className="flex flex-col gap-6">
-      {/* Header Section */}
-      <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-bold">SPK</h1>
-        <Breadcrumbs
-          items={[{ label: "Pages", href: "/" }, { label: "SPK" }]}
-        />
-      </div>
-
-      {/* Data Table */}
-      <DataTable
-        columns={columns}
-        data={filteredData}
-        onDetail={handleDetail}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        headerLeft={
-          <Select value={selectedBranch} onValueChange={handleBranchChange}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Pilih Cabang" />
-            </SelectTrigger>
-            <SelectContent>
-              {branchOptions.map((branch) => (
-                <SelectItem key={branch.value} value={branch.value}>
-                  {branch.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        }
-        filterConfig={filterConfig}
-        filterValues={filterValues}
-        onFilterChange={setFilters}
-      />
-
-      {/* Confirmation Dialog for Delete */}
-      <ConfirmationDialog
-        open={isConfirmDialogOpen}
-        onOpenChange={setIsConfirmDialogOpen}
-        onConfirm={handleConfirmDelete}
-        description="Anda akan menghapus data SPK dari dalam sistem."
-      />
-    </div>
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-6 w-40" />
+          <Skeleton className="h-10 w-64" />
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="flex gap-4">
+              <Skeleton className="h-10 w-12" />
+              <Skeleton className="h-10 w-12" />
+              <Skeleton className="h-10 w-32" />
+              <Skeleton className="h-10 flex-1" />
+              <Skeleton className="h-10 w-32" />
+              <Skeleton className="h-10 w-32" />
+              <Skeleton className="h-10 w-10" />
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 
 export default function SPKPage() {
+  const router = useRouter()
+  const { filterValues, setFilters } = useFilterParams(filterConfig)
+  const [selectedBranch, setSelectedBranch] = useState<string>("")
+  const [page, setPage] = useState(1)
+  const pageSize = 10
+
+  const listOptions = useMemo(() => {
+    const filter: Record<string, string | number> = {}
+    if (selectedBranch) filter.branchId = selectedBranch
+    const spkRange = filterValues.spkRange as
+      | { from?: number | string | null; to?: number | string | null }
+      | undefined
+    if (spkRange?.from != null && spkRange.from !== "") {
+      filter.principalAmountFrom = Number(spkRange.from)
+    }
+    if (spkRange?.to != null && spkRange.to !== "") {
+      filter.principalAmountTo = Number(spkRange.to)
+    }
+    return {
+      page,
+      pageSize,
+      filter: Object.keys(filter).length ? filter : undefined,
+    }
+  }, [page, pageSize, selectedBranch, filterValues])
+
+  const { data, isLoading, isError } = useSpkList(listOptions)
+  const { data: branchesData } = useBranches()
+
+  const branchOptions = useMemo(() => {
+    const list = branchesData?.data ?? []
+    return list.map((b) => ({ value: b.uuid, label: b.shortName ?? b.branchCode ?? b.uuid }))
+  }, [branchesData])
+
+  const filteredByAmount = useMemo(() => {
+    const list = data?.data ?? []
+    const spkRange = filterValues.spkRange as
+      | { from?: number | string | null; to?: number | string | null }
+      | undefined
+    if (!spkRange?.from && !spkRange?.to) return list
+    let result = list
+    if (spkRange.from != null && spkRange.from !== "") {
+      const fromVal = Number(spkRange.from)
+      if (!isNaN(fromVal)) {
+        result = result.filter((s) => Number(s.principalAmount ?? s.totalAmount) >= fromVal)
+      }
+    }
+    if (spkRange.to != null && spkRange.to !== "") {
+      const toVal = Number(spkRange.to)
+      if (!isNaN(toVal)) {
+        result = result.filter((s) => Number(s.principalAmount ?? s.totalAmount) <= toVal)
+      }
+    }
+    return result
+  }, [data?.data, filterValues])
+
+  const handleDetail = (row: Spk) => {
+    router.push(`/spk/${row.uuid}`)
+  }
+
+  const handleBranchChange = (value: string) => {
+    setSelectedBranch(value)
+    setPage(1)
+  }
+
   return (
-    <Suspense fallback={<div className="flex flex-col gap-6">Loading...</div>}>
-      <SPKPageContent />
-    </Suspense>
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-2xl font-bold">SPK</h1>
+          <Breadcrumbs
+            items={[{ label: "Pages", href: "/" }, { label: "SPK" }]}
+          />
+        </div>
+        <Button onClick={() => router.push("/spk/tambah")}>
+          <Plus className="size-5" />
+          Tambah SPK
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <TableSkeleton />
+      ) : isError ? (
+        <Card>
+          <CardContent className="py-10 text-center">
+            <p className="text-destructive">Gagal memuat data SPK</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <DataTable<Spk, unknown>
+          columns={columns}
+          data={filteredByAmount}
+          onDetail={handleDetail}
+          headerLeft={
+            <Select value={selectedBranch} onValueChange={handleBranchChange}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Pilih Cabang" />
+              </SelectTrigger>
+              <SelectContent>
+                {branchOptions.map((branch) => (
+                  <SelectItem key={branch.value} value={branch.value}>
+                    {branch.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          }
+          filterConfig={filterConfig}
+          filterValues={filterValues}
+          onFilterChange={setFilters}
+        />
+      )}
+    </div>
   )
 }

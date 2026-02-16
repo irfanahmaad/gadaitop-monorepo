@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useMemo, useState, useEffect } from "react"
 import { ColumnDef } from "@tanstack/react-table"
 import { Breadcrumbs } from "@/components/breadcrumbs"
 import { DataTable } from "@/components/data-table"
@@ -19,11 +19,18 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "@workspace/ui/components/avatar"
+import { Card, CardContent, CardHeader } from "@workspace/ui/components/card"
+import { Skeleton } from "@workspace/ui/components/skeleton"
 import { SearchIcon, SlidersHorizontal, ArrowUpDown, Plus } from "lucide-react"
 import { formatCurrencyDisplay } from "@/lib/format-currency"
 import { TambahDataMutasiDialog } from "./_components/tambah-data-mutasi-dialog"
+import { useAuth } from "@/lib/react-query/hooks/use-auth"
+import { useCashMutations, useCreateCashMutation } from "@/lib/react-query/hooks/use-cash-mutations"
+import { useBranches } from "@/lib/react-query/hooks/use-branches"
+import { useCompanies } from "@/lib/react-query/hooks/use-companies"
+import type { CashMutation } from "@/lib/api/types"
+import { toast } from "sonner"
 
-// Type for Mutasi Transaksi
 type MutasiTransaksi = {
   id: string
   tanggal: string
@@ -37,59 +44,39 @@ type MutasiTransaksi = {
   sisaSaldo: number
 }
 
-// Sample data
-const sampleData: MutasiTransaksi[] = [
-  {
-    id: "1",
-    tanggal: "20 November 2025 18:33:45",
-    toko: {
-      name: "GT Jakarta Satu",
-      avatar: "/placeholder-avatar.jpg",
-    },
-    tipeMutasi: "SPK2",
-    debit: null,
-    kredit: 1000000,
-    sisaSaldo: 13800000,
-  },
-  {
-    id: "2",
-    tanggal: "20 November 2025 18:33:45",
-    toko: {
-      name: "GT Jakarta 2",
-      avatar: "/placeholder-avatar.jpg",
-    },
-    tipeMutasi: "Operasional",
-    debit: null,
-    kredit: 200000,
-    sisaSaldo: 14800000,
-  },
-  {
-    id: "3",
-    tanggal: "20 November 2025 18:33:45",
-    toko: {
-      name: "GT Jakarta Satu",
-      avatar: "/placeholder-avatar.jpg",
-    },
-    tipeMutasi: "SPK1",
-    debit: null,
-    kredit: 5000000,
-    sisaSaldo: 15000000,
-  },
-  {
-    id: "4",
-    tanggal: "20 November 2025 18:33:45",
-    toko: {
-      name: "GT Jakarta 2",
-      avatar: "/placeholder-avatar.jpg",
-    },
-    tipeMutasi: "Tambah Modal",
-    debit: 20000000,
-    kredit: null,
-    sisaSaldo: 20000000,
-  },
-]
+const CATEGORY_DISPLAY: Record<string, MutasiTransaksi["tipeMutasi"]> = {
+  spk_disbursement: "SPK1",
+  nkb_payment: "SPK2",
+  deposit: "Operasional",
+  topup: "Tambah Modal",
+  expense: "Operasional",
+  other: "Operasional",
+}
 
-// Column definitions
+function mapCashMutationToMutasi(
+  m: CashMutation,
+  storeName: string
+): MutasiTransaksi {
+  const mutationType = m.mutationType ?? (m.type === "out" ? "debit" : "credit")
+  const amount = typeof m.amount === "string" ? parseFloat(m.amount) : m.amount
+  const balanceAfter = m.balanceAfter ?? (typeof m.balanceAfter === "string" ? parseFloat(m.balanceAfter) : 0)
+  const category = m.category ?? "other"
+
+  const isDebit = mutationType === "debit"
+  return {
+    id: m.uuid,
+    tanggal: m.createdAt,
+    toko: {
+      name: storeName,
+      avatar: undefined,
+    },
+    tipeMutasi: CATEGORY_DISPLAY[category] ?? "Operasional",
+    debit: isDebit ? amount : null,
+    kredit: !isDebit ? amount : null,
+    sisaSaldo: balanceAfter,
+  }
+}
+
 const columns: ColumnDef<MutasiTransaksi>[] = [
   {
     id: "select",
@@ -144,18 +131,16 @@ const columns: ColumnDef<MutasiTransaksi>[] = [
   },
   {
     accessorKey: "tipeMutasi",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="h-8 px-2 hover:bg-transparent"
-        >
-          Tipe Mutasi
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      )
-    },
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="h-8 px-2 hover:bg-transparent"
+      >
+        Tipe Mutasi
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
   },
   {
     accessorKey: "debit",
@@ -193,18 +178,103 @@ const columns: ColumnDef<MutasiTransaksi>[] = [
   },
 ]
 
+function TableSkeleton() {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-6 w-40" />
+          <Skeleton className="h-10 w-64" />
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="flex gap-4">
+              <Skeleton className="h-10 w-12" />
+              <Skeleton className="h-10 w-32" />
+              <Skeleton className="h-10 flex-1" />
+              <Skeleton className="h-10 w-48" />
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 export default function MutasiTransaksiPage() {
+  const { user } = useAuth()
+  const isCompanyAdmin = user?.roles?.some((r) => r.code === "company_admin") ?? false
+  const isSuperAdmin = user?.roles?.some((r) => r.code === "owner") ?? false
+
+  const effectiveCompanyId = isCompanyAdmin ? (user?.companyId ?? null) : null
+
+  const { data: companiesData } = useCompanies(
+    isSuperAdmin ? { pageSize: 100 } : undefined
+  )
+
+  const [selectedPT, setSelectedPT] = useState<string>("")
+  const ptOptions = useMemo(() => {
+    const list = companiesData?.data ?? []
+    return list.map((c) => ({ value: c.uuid, label: c.companyName }))
+  }, [companiesData])
+
+  useEffect(() => {
+    if (isSuperAdmin && ptOptions.length > 0 && !selectedPT) {
+      setSelectedPT(ptOptions[0]!.value)
+    }
+  }, [isSuperAdmin, ptOptions, selectedPT])
+
+  const branchQueryCompanyId = isSuperAdmin ? selectedPT : effectiveCompanyId
+  const { data: branchesData } = useBranches(
+    branchQueryCompanyId ? { companyId: branchQueryCompanyId, pageSize: 100 } : undefined
+  )
+
+  const branchOptions = useMemo(() => {
+    const list = branchesData?.data ?? []
+    return list.map((b) => ({
+      value: b.uuid,
+      label: b.shortName ?? b.branchCode ?? b.uuid,
+    }))
+  }, [branchesData])
+
+  const [selectedToko, setSelectedToko] = useState<string>("")
+  useEffect(() => {
+    if (branchOptions.length > 0) {
+      setSelectedToko((prev) => {
+        const first = branchOptions[0]!.value
+        if (!prev || !branchOptions.some((b) => b.value === prev)) return first
+        return prev
+      })
+    }
+  }, [branchOptions])
+
   const [pageSize, setPageSize] = useState(100)
   const [searchValue, setSearchValue] = useState("")
-  const [selectedToko, setSelectedToko] = useState("all")
   const [tambahDataDialogOpen, setTambahDataDialogOpen] = useState(false)
-  const [isTambahDataSubmitting, setIsTambahDataSubmitting] = useState(false)
 
-  // Filter data based on selected toko
-  const filteredData = sampleData.filter((item) => {
-    if (selectedToko === "all") return true
-    return item.toko.name.toLowerCase().includes(selectedToko.toLowerCase())
-  })
+  const listOptions = useMemo(() => {
+    const filter: Record<string, string> = {}
+    if (selectedToko) filter.storeId = selectedToko
+    return { page: 1, pageSize: 200, filter }
+  }, [selectedToko])
+
+  const { data, isLoading, isError } = useCashMutations(listOptions)
+  const createMutation = useCreateCashMutation()
+
+  const storeNameById = useMemo(() => {
+    const map = new Map<string, string>()
+    branchOptions.forEach((b) => map.set(b.value, b.label))
+    return map
+  }, [branchOptions])
+
+  const rows = useMemo(() => {
+    const list = data?.data ?? []
+    return list.map((m) =>
+      mapCashMutationToMutasi(m, storeNameById.get(m.storeId) ?? m.storeId)
+    )
+  }, [data, storeNameById])
 
   const handleTambahData = () => {
     setTambahDataDialogOpen(true)
@@ -214,19 +284,47 @@ export default function MutasiTransaksiPage() {
     nominal: number
     tipe: "SPK1" | "SPK2" | "Operasional" | "Tambah Modal"
     keterangan?: string
+    storeId?: string
   }) => {
-    setIsTambahDataSubmitting(true)
+    const storeId = data.storeId ?? selectedToko ?? branchOptions[0]?.value
+    if (!storeId) {
+      toast.error("Pilih toko terlebih dahulu")
+      return
+    }
+
+    const mapping: Record<
+      string,
+      { mutationType: "debit" | "credit"; category: "spk_disbursement" | "nkb_payment" | "expense" | "topup" | "deposit" | "other" }
+    > = {
+      SPK1: { mutationType: "debit", category: "spk_disbursement" },
+      SPK2: { mutationType: "debit", category: "nkb_payment" },
+      Operasional: { mutationType: "debit", category: "expense" },
+      "Tambah Modal": { mutationType: "credit", category: "topup" },
+    }
+
+    const { mutationType, category } = mapping[data.tipe] ?? {
+      mutationType: "debit" as const,
+      category: "other" as const,
+    }
+
     try {
-      console.log("Tambah Data Mutasi:", data)
-      // TODO: wire to API, e.g. await createMutasi(data)
-    } finally {
-      setIsTambahDataSubmitting(false)
+      await createMutation.mutateAsync({
+        storeId,
+        mutationType,
+        category,
+        amount: data.nominal,
+        description: data.keterangan,
+      })
+      toast.success("Mutasi berhasil ditambahkan")
+      setTambahDataDialogOpen(false)
+    } catch {
+      toast.error("Gagal menambahkan mutasi")
+      throw new Error("Create failed")
     }
   }
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Header Section */}
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex flex-col gap-2">
@@ -239,31 +337,40 @@ export default function MutasiTransaksiPage() {
             />
           </div>
 
-          <div className="flex items-center gap-4">
-            {/* Toko Select */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">Pilih Toko :</span>
-              <Select value={selectedToko} onValueChange={setSelectedToko}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Pilih Toko" />
+          <div className="flex flex-wrap items-center gap-4">
+            {isSuperAdmin && ptOptions.length > 0 && (
+              <Select value={selectedPT} onValueChange={setSelectedPT}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Pilih PT" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Semua Toko</SelectItem>
-                  <SelectItem value="gt-jakarta-satu">
-                    GT Jakarta Satu
-                  </SelectItem>
-                  <SelectItem value="gt-jakarta-dua">GT Jakarta Dua</SelectItem>
-                  <SelectItem value="gt-jakarta-tiga">
-                    GT Jakarta Tiga
-                  </SelectItem>
-                  <SelectItem value="gt-jakarta-empat">
-                    GT Jakarta Empat
-                  </SelectItem>
+                  {ptOptions.map((pt) => (
+                    <SelectItem key={pt.value} value={pt.value}>
+                      {pt.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
-            </div>
+            )}
 
-            {/* Tambah Data Button */}
+            {(isSuperAdmin || isCompanyAdmin) && branchOptions.length > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">Pilih Toko :</span>
+                <Select value={selectedToko} onValueChange={setSelectedToko}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Pilih Toko" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {branchOptions.map((b) => (
+                      <SelectItem key={b.value} value={b.value}>
+                        {b.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             <Button
               onClick={handleTambahData}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-2"
@@ -275,54 +382,65 @@ export default function MutasiTransaksiPage() {
         </div>
       </div>
 
-      {/* Data Table */}
-      <DataTable
-        columns={columns}
-        data={filteredData}
-        title="Daftar Mutasi"
-        searchPlaceholder="Cari..."
-        headerRight={
-          <div className="flex w-full items-center gap-2 sm:w-auto">
-            <Select
-              value={pageSize.toString()}
-              onValueChange={(value) => setPageSize(Number(value))}
-            >
-              <SelectTrigger className="w-[100px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="10">10</SelectItem>
-                <SelectItem value="25">25</SelectItem>
-                <SelectItem value="50">50</SelectItem>
-                <SelectItem value="100">100</SelectItem>
-              </SelectContent>
-            </Select>
-            <div className="w-full sm:w-auto sm:max-w-sm">
-              <Input
-                placeholder="Cari..."
-                value={searchValue}
-                onChange={(e) => setSearchValue(e.target.value)}
-                icon={<SearchIcon className="size-4" />}
-                className="w-full"
-              />
+      {isLoading ? (
+        <TableSkeleton />
+      ) : isError ? (
+        <Card>
+          <CardContent className="py-10 text-center">
+            <p className="text-destructive">Gagal memuat data Mutasi</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <DataTable
+          columns={columns}
+          data={rows}
+          title="Daftar Mutasi"
+          searchPlaceholder="Cari..."
+          headerRight={
+            <div className="flex w-full items-center gap-2 sm:w-auto">
+              <Select
+                value={pageSize.toString()}
+                onValueChange={(value) => setPageSize(Number(value))}
+              >
+                <SelectTrigger className="w-[100px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="w-full sm:w-auto sm:max-w-sm">
+                <Input
+                  placeholder="Cari..."
+                  value={searchValue}
+                  onChange={(e) => setSearchValue(e.target.value)}
+                  icon={<SearchIcon className="size-4" />}
+                  className="w-full"
+                />
+              </div>
+              <Button variant="outline" className="flex items-center gap-2">
+                <SlidersHorizontal className="h-4 w-4" />
+                Filter
+              </Button>
             </div>
-            <Button variant="outline" className="flex items-center gap-2">
-              <SlidersHorizontal className="h-4 w-4" />
-              Filter
-            </Button>
-          </div>
-        }
-        initialPageSize={pageSize}
-        onPageSizeChange={setPageSize}
-        searchValue={searchValue}
-        onSearchChange={setSearchValue}
-      />
+          }
+          initialPageSize={pageSize}
+          onPageSizeChange={setPageSize}
+          searchValue={searchValue}
+          onSearchChange={setSearchValue}
+        />
+      )}
 
       <TambahDataMutasiDialog
         open={tambahDataDialogOpen}
         onOpenChange={setTambahDataDialogOpen}
         onConfirm={handleTambahDataConfirm}
-        isSubmitting={isTambahDataSubmitting}
+        isSubmitting={createMutation.isPending}
+        branchOptions={branchOptions}
+        selectedBranch={selectedToko}
       />
     </div>
   )

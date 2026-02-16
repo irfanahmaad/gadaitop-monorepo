@@ -29,10 +29,9 @@ const ROLE_MENU_MAP: Record<string, MenuSubject[]> = {
     MenuSubject.MASTER_TIPE_BARANG,
   ],
 
-  // Admin PT — sees most menus except Super Admin & Tipe Barang management
+  // Admin PT — Dashboard, Menu Utama (no Scan KTP), and Master Data per design
   company_admin: [
     MenuSubject.DASHBOARD,
-    MenuSubject.SCAN_KTP,
     MenuSubject.SPK,
     MenuSubject.STOCK_OPNAME,
     MenuSubject.LELANGAN,

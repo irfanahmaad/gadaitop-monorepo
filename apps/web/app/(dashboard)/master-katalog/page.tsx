@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, Suspense } from "react"
+import React, { useState, Suspense, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { ColumnDef } from "@tanstack/react-table"
 import { Breadcrumbs } from "@/components/breadcrumbs"
@@ -41,9 +41,16 @@ import { Card, CardContent, CardHeader } from "@workspace/ui/components/card"
 import { FilterDialog } from "@/components/filter-dialog"
 import { useFilterParams } from "@/hooks/use-filter-params"
 import type { FilterConfig } from "@/hooks/use-filter-params"
+import type { CatalogItem } from "@/lib/api/types"
+import { useAuth } from "@/lib/react-query/hooks/use-auth"
+import { useCatalogs, useDeleteCatalog } from "@/lib/react-query/hooks/use-catalogs"
+import { useCompanies } from "@/lib/react-query/hooks/use-companies"
+import { useItemTypes } from "@/lib/react-query/hooks/use-item-types"
+import { ConfirmationDialog } from "@/components/confirmation-dialog"
+import { toast } from "sonner"
 
-// Type for Katalog
-type Katalog = {
+// Map CatalogItem to table row
+type KatalogRow = {
   id: string
   foto: string
   idKatalog: string
@@ -53,102 +60,26 @@ type Katalog = {
   lastUpdatedAt: string
 }
 
-// Sample data for Katalog
-const sampleKatalog: Katalog[] = [
-  {
-    id: "1",
+function mapCatalogToRow(catalog: CatalogItem): KatalogRow {
+  const name = catalog.name ?? catalog.itemName ?? "-"
+  const typeName = catalog.itemType?.typeName ?? "-"
+  return {
+    id: catalog.uuid,
     foto: "/placeholder-avatar.jpg",
-    idKatalog: "KT01",
-    namaKatalog: "iPhone 15 Pro",
-    tipeBarang: "Handphone",
-    harga: 17500000,
-    lastUpdatedAt: "20 November 2025 18:33:45",
-  },
-  {
-    id: "2",
-    foto: "/placeholder-avatar.jpg",
-    idKatalog: "KT02",
-    namaKatalog: "Yamaha XSR 155",
-    tipeBarang: "Sepeda Motor",
-    harga: 30000000,
-    lastUpdatedAt: "20 November 2025 18:33:45",
-  },
-  {
-    id: "3",
-    foto: "/placeholder-avatar.jpg",
-    idKatalog: "KT03",
-    namaKatalog: "Logitech Controller",
-    tipeBarang: "Aksesoris Komputer",
-    harga: 500000,
-    lastUpdatedAt: "20 November 2025 18:33:45",
-  },
-  {
-    id: "4",
-    foto: "/placeholder-avatar.jpg",
-    idKatalog: "KT04",
-    namaKatalog: "MacBook Pro M1",
-    tipeBarang: "Laptop",
-    harga: 14000000,
-    lastUpdatedAt: "20 November 2025 18:33:45",
-  },
-  {
-    id: "5",
-    foto: "/placeholder-avatar.jpg",
-    idKatalog: "KT05",
-    namaKatalog: "DJI Drone",
-    tipeBarang: "Drone",
-    harga: 8500000,
-    lastUpdatedAt: "20 November 2025 18:33:45",
-  },
-  {
-    id: "6",
-    foto: "/placeholder-avatar.jpg",
-    idKatalog: "KT06",
-    namaKatalog: "iPhone 6",
-    tipeBarang: "Handphone",
-    harga: 2000000,
-    lastUpdatedAt: "20 November 2025 18:33:45",
-  },
-  {
-    id: "7",
-    foto: "/placeholder-avatar.jpg",
-    idKatalog: "KT07",
-    namaKatalog: "Google Smarthome",
-    tipeBarang: "Handphone",
-    harga: 1500000,
-    lastUpdatedAt: "20 November 2025 18:33:45",
-  },
-  {
-    id: "8",
-    foto: "/placeholder-avatar.jpg",
-    idKatalog: "KT08",
-    namaKatalog: "iPhone XR",
-    tipeBarang: "Sepeda Motor",
-    harga: 4000000,
-    lastUpdatedAt: "20 November 2025 18:33:45",
-  },
-  {
-    id: "9",
-    foto: "/placeholder-avatar.jpg",
-    idKatalog: "KT09",
-    namaKatalog: "GoPro Hero 6",
-    tipeBarang: "Handphone",
-    harga: 3500000,
-    lastUpdatedAt: "20 November 2025 18:33:45",
-  },
-  {
-    id: "10",
-    foto: "/placeholder-avatar.jpg",
-    idKatalog: "KT10",
-    namaKatalog: "Kulkas Antik",
-    tipeBarang: "Elektronik",
-    harga: 10000000,
-    lastUpdatedAt: "20 November 2025 18:33:45",
-  },
-]
+    idKatalog: catalog.code ?? catalog.uuid.slice(0, 8),
+    namaKatalog: name,
+    tipeBarang: typeName,
+    harga: catalog.basePrice,
+    lastUpdatedAt: catalog.updatedAt
+      ? format(new Date(catalog.updatedAt), "d MMMM yyyy HH:mm:ss", {
+          locale: id,
+        })
+      : "-",
+  }
+}
 
 // Column definitions
-const columns: ColumnDef<Katalog>[] = [
+const columns: ColumnDef<KatalogRow>[] = [
   {
     id: "select",
     header: ({ table }) => (
@@ -210,16 +141,6 @@ const columns: ColumnDef<Katalog>[] = [
   },
 ]
 
-// Tipe Barang options
-const tipeBarangOptions = [
-  { label: "Handphone", value: "Handphone" },
-  { label: "Sepeda Motor", value: "Sepeda Motor" },
-  { label: "Aksesoris Komputer", value: "Aksesoris Komputer" },
-  { label: "Laptop", value: "Laptop" },
-  { label: "Drone", value: "Drone" },
-  { label: "Elektronik", value: "Elektronik" },
-]
-
 // Filter configuration
 const filterConfig: FilterConfig[] = [
   {
@@ -236,11 +157,10 @@ const filterConfig: FilterConfig[] = [
     currency: "Rp",
   },
   {
-    key: "tipeBarang",
+    key: "itemTypeId",
     label: "Tipe Barang",
     type: "multiselect",
     placeholder: "Pilih Tipe Barang...",
-    options: tipeBarangOptions,
   },
 ]
 
@@ -279,22 +199,96 @@ function TableSkeleton() {
 
 function MasterKatalogPageContent() {
   const router = useRouter()
+  const { user } = useAuth()
+  const isCompanyAdmin =
+    user?.roles?.some((r) => r.code === "company_admin") ?? false
+  const isSuperAdmin = user?.roles?.some((r) => r.code === "owner") ?? false
+
+  const effectiveCompanyId = isCompanyAdmin ? user?.companyId ?? null : null
+
+  const { data: companiesData } = useCompanies(
+    isSuperAdmin ? { pageSize: 100 } : undefined
+  )
+
+  const [selectedPT, setSelectedPT] = useState<string>("")
+  const ptOptions = React.useMemo(() => {
+    const list = companiesData?.data ?? []
+    return list.map((c) => ({ value: c.uuid, label: c.companyName }))
+  }, [companiesData])
+
+  useEffect(() => {
+    if (isSuperAdmin && ptOptions.length > 0 && !selectedPT) {
+      setSelectedPT(ptOptions[0]!.value)
+    }
+  }, [isSuperAdmin, ptOptions, selectedPT])
+
+  const companyFilterId = isSuperAdmin ? selectedPT : effectiveCompanyId
+
   const [pageSize, setPageSize] = useState(100)
   const [searchValue, setSearchValue] = useState("")
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(
-    new Date(2025, 10, 20) // November 20, 2025
-  )
-  const [isLoading] = useState(false) // Set to true when fetching data
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
   const [filterDialogOpen, setFilterDialogOpen] = useState(false)
+  const [selectedRow, setSelectedRow] = useState<KatalogRow | null>(null)
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
 
-  // Filter state management via URL params
-  const { filterValues, setFilters } = useFilterParams(filterConfig)
+  const { data: itemTypesData } = useItemTypes({ pageSize: 100 })
+  const itemTypeOptions = React.useMemo(() => {
+    const list = itemTypesData?.data ?? []
+    return list.map((t) => ({
+      label: t.typeName,
+      value: t.uuid,
+    }))
+  }, [itemTypesData])
 
-  // Filter data based on filter values
+  const filterConfigWithOptions: FilterConfig[] = React.useMemo(
+    () => [
+      {
+        key: "lastUpdate",
+        label: "",
+        type: "daterange",
+        labelFrom: "Mulai Dari",
+        labelTo: "Sampai Dengan",
+      },
+      {
+        key: "harga",
+        label: "Harga",
+        type: "currencyrange",
+        currency: "Rp",
+      },
+      {
+        key: "itemTypeId",
+        label: "Tipe Barang",
+        type: "multiselect",
+        placeholder: "Pilih Tipe Barang...",
+        options: itemTypeOptions,
+      },
+    ],
+    [itemTypeOptions]
+  )
+
+  const { filterValues, setFilters } = useFilterParams(filterConfigWithOptions)
+
+  const listOptions = React.useMemo(() => {
+    const filter: Record<string, string> = {}
+    if (companyFilterId) filter.ptId = companyFilterId
+    if (searchValue) filter.search = searchValue
+    const itemTypeIds = (filterValues.itemTypeId as string[] | undefined) ?? []
+    if (itemTypeIds.length > 0) filter.itemTypeId = itemTypeIds[0] as string
+    return { page: 1, pageSize: 500, filter }
+  }, [companyFilterId, searchValue, filterValues.itemTypeId])
+
+  const { data, isLoading, isError } = useCatalogs(listOptions)
+  const deleteCatalogMutation = useDeleteCatalog()
+
+  const catalogsFromApi = data?.data ?? []
+  const rows = React.useMemo(
+    () => catalogsFromApi.map(mapCatalogToRow),
+    [catalogsFromApi]
+  )
+
   const filteredKatalog = React.useMemo(() => {
-    let result = [...sampleKatalog]
+    let result = [...rows]
 
-    // Get filter values
     const lastUpdateRange = (filterValues.lastUpdate as {
       from: string | null
       to: string | null
@@ -305,27 +299,13 @@ function MasterKatalogPageContent() {
       to: number | null
     }) || { from: null, to: null }
 
-    const selectedTipeBarang =
-      (filterValues.tipeBarang as string[] | undefined) || []
-
-    // Filter by search (namaKatalog or idKatalog)
-    if (searchValue) {
-      const searchLower = searchValue.toLowerCase()
-      result = result.filter(
-        (item) =>
-          item.namaKatalog.toLowerCase().includes(searchLower) ||
-          item.idKatalog.toLowerCase().includes(searchLower)
-      )
-    }
-
-    // Filter by last update date range
     if (lastUpdateRange.from || lastUpdateRange.to) {
       result = result.filter((item) => {
-        // Parse the lastUpdatedAt string (format: "20 November 2025 18:33:45")
-        const dateStr = item.lastUpdatedAt.split(" ").slice(0, 3).join(" ")
-        const itemDate = new Date(dateStr)
-
-        if (lastUpdateRange.from && itemDate < new Date(lastUpdateRange.from)) {
+        const itemDate = new Date(item.lastUpdatedAt)
+        if (
+          lastUpdateRange.from &&
+          itemDate < new Date(lastUpdateRange.from)
+        ) {
           return false
         }
         if (lastUpdateRange.to && itemDate > new Date(lastUpdateRange.to)) {
@@ -335,7 +315,6 @@ function MasterKatalogPageContent() {
       })
     }
 
-    // Filter by price range
     if (hargaRange.from !== null || hargaRange.to !== null) {
       result = result.filter((item) => {
         if (hargaRange.from !== null && item.harga < hargaRange.from) {
@@ -348,27 +327,33 @@ function MasterKatalogPageContent() {
       })
     }
 
-    // Filter by tipe barang
-    if (selectedTipeBarang.length > 0) {
-      result = result.filter((item) =>
-        selectedTipeBarang.includes(item.tipeBarang)
-      )
-    }
-
     return result
-  }, [searchValue, filterValues])
+  }, [rows, filterValues.lastUpdate, filterValues.harga])
 
-  const handleDetail = (row: Katalog) => {
+  const handleDetail = (row: KatalogRow) => {
     router.push(`/master-katalog/${row.id}`)
   }
 
-  const handleEdit = (row: Katalog) => {
+  const handleEdit = (row: KatalogRow) => {
     router.push(`/master-katalog/${row.id}/edit`)
   }
 
-  const handleDelete = (row: Katalog) => {
-    console.log("Delete:", row)
-    // Implement delete action
+  const handleDelete = (row: KatalogRow) => {
+    setSelectedRow(row)
+    setIsConfirmDialogOpen(true)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (selectedRow) {
+      try {
+        await deleteCatalogMutation.mutateAsync(selectedRow.id)
+        toast.success("Katalog berhasil dihapus")
+        setIsConfirmDialogOpen(false)
+        setSelectedRow(null)
+      } catch {
+        toast.error("Gagal menghapus katalog")
+      }
+    }
   }
 
   const handleTambahData = () => {
@@ -376,8 +361,7 @@ function MasterKatalogPageContent() {
   }
 
   const handleImportData = () => {
-    console.log("Import data")
-    // Implement import action
+    toast.info("Fitur import katalog akan segera tersedia")
   }
 
   const formatDateDisplay = (date: Date | undefined): string => {
@@ -385,140 +369,182 @@ function MasterKatalogPageContent() {
     return format(date, "d MMMM yyyy", { locale: id })
   }
 
+  const lastUpdatedDisplay = React.useMemo(() => {
+    if (filteredKatalog.length === 0) return "-"
+    const dates = filteredKatalog
+      .map((r) => new Date(r.lastUpdatedAt).getTime())
+      .filter((t) => !Number.isNaN(t))
+    if (dates.length === 0) return "-"
+    const latest = new Date(Math.max(...dates))
+    return format(latest, "d MMMM yyyy HH:mm:ss", { locale: id })
+  }, [filteredKatalog])
+
   return (
-    <div className="flex flex-col gap-6">
-      {/* Header Section */}
-      <div className="flex flex-row justify-between gap-4">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-2xl font-bold">Master Katalog</h1>
-          <Breadcrumbs
-            items={[{ label: "Pages", href: "/" }, { label: "Master Katalog" }]}
-          />
-        </div>
-
-        {/* Action Buttons and Date Filter */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-end">
-          {/* Date Filter */}
-          <div className="flex items-center gap-2">
-            <label className="text-sm font-medium whitespace-nowrap">
-              Tanggal Katalog :
-            </label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start text-left font-normal sm:w-[250px]"
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {selectedDate ? (
-                    formatDateDisplay(selectedDate)
-                  ) : (
-                    <span>Tanggal Katalog</span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={setSelectedDate}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
+    <>
+      <div className="flex flex-col gap-6">
+        {/* Header Section */}
+        <div className="flex flex-row flex-wrap justify-between gap-4">
+          <div className="flex flex-col gap-2">
+            <h1 className="text-2xl font-bold">Master Katalog</h1>
+            <Breadcrumbs
+              items={[
+                { label: "Pages", href: "/" },
+                { label: "Master Katalog" },
+              ]}
+            />
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex gap-2">
-            <Button
-              onClick={handleImportData}
-              className="border border-green-600 bg-white text-green-600 hover:bg-green-700 hover:text-white"
-            >
-              <Upload className="mr-2 h-4 w-4" />
-              Import Data
-            </Button>
-            <Button
-              onClick={handleTambahData}
-              className="bg-red-600 text-white hover:bg-red-700"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Tambah Data
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Data Table */}
-      {isLoading ? (
-        <TableSkeleton />
-      ) : (
-        <DataTable
-          columns={columns}
-          data={filteredKatalog}
-          headerLeft={
-            <div className="flex items-center gap-2">
-              <span className="text-xl font-semibold">Daftar Katalog</span>
-              <span className="text-muted-foreground flex items-center gap-1 text-sm font-normal">
-                <span className="h-2 w-2 rounded-full bg-red-500" />
-                Last Updated At: 24 November 2025 22:46:22
-              </span>
-            </div>
-          }
-          searchPlaceholder="Cari..."
-          headerRight={
-            <div className="flex w-full items-center gap-2 sm:w-auto">
-              <Select
-                value={pageSize.toString()}
-                onValueChange={(value) => setPageSize(Number(value))}
-              >
-                <SelectTrigger className="w-[100px]">
-                  <SelectValue />
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-end">
+            {isSuperAdmin && ptOptions.length > 0 && (
+              <Select value={selectedPT} onValueChange={setSelectedPT}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Pilih PT" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="10">10</SelectItem>
-                  <SelectItem value="25">25</SelectItem>
-                  <SelectItem value="50">50</SelectItem>
-                  <SelectItem value="100">100</SelectItem>
+                  {ptOptions.map((pt) => (
+                    <SelectItem key={pt.value} value={pt.value}>
+                      {pt.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
-              <div className="w-full sm:w-auto sm:max-w-sm">
-                <Input
-                  placeholder="Cari..."
-                  value={searchValue}
-                  onChange={(e) => setSearchValue(e.target.value)}
-                  icon={<SearchIcon className="size-4" />}
-                  className="w-full"
-                />
-              </div>
+            )}
+
+            <div className="flex items-center gap-2">
+              <label className="whitespace-nowrap text-sm font-medium">
+                Tanggal Katalog :
+              </label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal sm:w-[250px]"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {selectedDate ? (
+                      formatDateDisplay(selectedDate)
+                    ) : (
+                      <span>Tanggal Katalog</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={setSelectedDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="flex gap-2">
               <Button
-                variant="outline"
-                className="flex items-center gap-2"
-                onClick={() => setFilterDialogOpen(true)}
+                onClick={handleImportData}
+                className="border border-green-600 bg-white text-green-600 hover:bg-green-700 hover:text-white"
               >
-                <SlidersHorizontal className="h-4 w-4" />
-                Filter
+                <Upload className="mr-2 h-4 w-4" />
+                Import Data
+              </Button>
+              <Button
+                onClick={handleTambahData}
+                className="bg-red-600 text-white hover:bg-red-700"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Tambah Data
               </Button>
             </div>
-          }
-          initialPageSize={pageSize}
-          onPageSizeChange={setPageSize}
-          searchValue={searchValue}
-          onSearchChange={setSearchValue}
-          onDetail={handleDetail}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-        />
-      )}
+          </div>
+        </div>
 
-      {/* Filter Dialog */}
+        {/* Data Table */}
+        {isLoading ? (
+          <TableSkeleton />
+        ) : isError ? (
+          <Card>
+            <CardContent className="py-10 text-center">
+              <p className="text-destructive">Gagal memuat data Katalog</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <DataTable
+            columns={columns}
+            data={filteredKatalog}
+            headerLeft={
+              <div className="flex items-center gap-2">
+                <span className="text-xl font-semibold">Daftar Katalog</span>
+                <span className="text-muted-foreground flex items-center gap-1 text-sm font-normal">
+                  <span className="h-2 w-2 rounded-full bg-red-500" />
+                  Last Updated At: {lastUpdatedDisplay}
+                </span>
+              </div>
+            }
+            searchPlaceholder="Cari..."
+            headerRight={
+              <div className="flex w-full items-center gap-2 sm:w-auto">
+                <Select
+                  value={pageSize.toString()}
+                  onValueChange={(value) => setPageSize(Number(value))}
+                >
+                  <SelectTrigger className="w-[100px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="25">25</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                  </SelectContent>
+                </Select>
+                <div className="w-full sm:w-auto sm:max-w-sm">
+                  <Input
+                    placeholder="Cari..."
+                    value={searchValue}
+                    onChange={(e) => setSearchValue(e.target.value)}
+                    icon={<SearchIcon className="size-4" />}
+                    className="w-full"
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  className="flex items-center gap-2"
+                  onClick={() => setFilterDialogOpen(true)}
+                >
+                  <SlidersHorizontal className="size-4" />
+                  Filter
+                </Button>
+              </div>
+            }
+            initialPageSize={pageSize}
+            onPageSizeChange={setPageSize}
+            searchValue={searchValue}
+            onSearchChange={setSearchValue}
+            onDetail={handleDetail}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+          />
+        )}
+      </div>
+
       <FilterDialog
         open={filterDialogOpen}
         onOpenChange={setFilterDialogOpen}
-        filterConfig={filterConfig}
+        filterConfig={filterConfigWithOptions}
         filterValues={filterValues}
         onFilterChange={setFilters}
       />
-    </div>
+
+      <ConfirmationDialog
+        open={isConfirmDialogOpen}
+        onOpenChange={setIsConfirmDialogOpen}
+        onConfirm={handleConfirmDelete}
+        title="Hapus Katalog"
+        description="Apakah Anda yakin ingin menghapus katalog ini? Tindakan ini tidak dapat dibatalkan."
+        confirmLabel="Hapus"
+        variant="destructive"
+      />
+    </>
   )
 }
 

@@ -9,7 +9,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu"
-import { cn } from "@workspace/ui/lib/utils"
 
 // Types
 export type ScheduleItem = {
@@ -58,7 +57,7 @@ export function StockOpnameScheduleList({
       {/* Header */}
       <div className="flex items-center justify-between border-b pb-4">
         <h3 className="font-semibold">{formatDate(selectedDate)}</h3>
-        <span className="text-sm font-medium text-destructive">
+        <span className="text-destructive text-sm font-medium">
           {schedules.length} Jadwal
         </span>
       </div>
@@ -66,26 +65,26 @@ export function StockOpnameScheduleList({
       {/* Schedule list */}
       <div className="mt-4 flex flex-1 flex-col gap-3 overflow-y-auto">
         {schedules.length === 0 ? (
-          <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+          <div className="text-muted-foreground flex flex-1 items-center justify-center text-sm">
             Tidak ada jadwal
           </div>
         ) : (
           schedules.map((schedule, index) => (
             <div
               key={schedule.id}
-              className="flex items-start gap-3 rounded-lg border bg-card p-3 shadow-sm"
+              className="bg-card flex items-start gap-2 rounded-lg border p-3 shadow-sm"
             >
               {/* Number indicator */}
-              <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-medium">
+              <div className="bg-muted flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-medium">
                 {index + 1}
               </div>
 
               {/* Content */}
               <div className="flex min-w-0 flex-1 flex-col gap-1">
-                <span className="truncate text-sm font-medium">
+                <span className="truncate text-xs font-medium">
                   {schedule.toko}
                 </span>
-                <div className="flex items-center gap-1 text-xs">
+                <div className="flex items-center gap-1 text-[10px]">
                   <span className="text-destructive">{schedule.idSO}</span>
                   <span className="text-muted-foreground">•</span>
                   <span className="text-muted-foreground">

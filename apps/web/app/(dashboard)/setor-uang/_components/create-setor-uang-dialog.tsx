@@ -15,13 +15,6 @@ import {
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@workspace/ui/components/select"
-import {
   Form,
   FormControl,
   FormField,
@@ -29,42 +22,47 @@ import {
   FormLabel,
   FormMessage,
 } from "@workspace/ui/components/form"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@workspace/ui/components/select"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { formatCurrencyInput, parseCurrencyInput } from "@/lib/format-currency"
 
-const tambahDataSchema = z.object({
-  storeId: z.string().optional(),
+const createSchema = z.object({
+  storeId: z.string().min(1, "Toko wajib dipilih"),
   nominal: z.string().min(1, "Nominal wajib diisi"),
 })
 
-type TambahDataFormValues = z.infer<typeof tambahDataSchema>
+type CreateFormValues = z.infer<typeof createSchema>
 
-type TambahDataDialogProps = {
+type CreateSetorUangDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onConfirm: (data: { nominal: number; storeId?: string }) => void | Promise<void>
+  onConfirm: (data: { storeId: string; amount: number }) => void | Promise<void>
   isSubmitting?: boolean
-  branchOptions?: { value: string; label: string }[]
+  branchOptions: { value: string; label: string }[]
   selectedBranch?: string
 }
 
-type PendingSubmit = {
-  data: { nominal: number; storeId?: string }
-}
-
-export function TambahDataDialog({
+export function CreateSetorUangDialog({
   open,
   onOpenChange,
   onConfirm,
   isSubmitting = false,
   branchOptions = [],
   selectedBranch = "",
-}: TambahDataDialogProps) {
+}: CreateSetorUangDialogProps) {
   const [confirmOpen, setConfirmOpen] = useState(false)
-  const [pendingSubmit, setPendingSubmit] = useState<PendingSubmit | null>(null)
+  const [pendingSubmit, setPendingSubmit] = useState<{
+    data: { storeId: string; amount: number }
+  } | null>(null)
 
-  const form = useForm<TambahDataFormValues>({
-    resolver: zodResolver(tambahDataSchema),
+  const form = useForm<CreateFormValues>({
+    resolver: zodResolver(createSchema),
     defaultValues: {
       storeId: "",
       nominal: "",
@@ -80,7 +78,7 @@ export function TambahDataDialog({
     }
   }, [open, form, selectedBranch, branchOptions])
 
-  const onSubmit = (values: TambahDataFormValues) => {
+  const onSubmit = (values: CreateFormValues) => {
     const parsed = parseCurrencyInput(values.nominal)
     if (parsed === null) {
       form.setError("nominal", { message: "Nominal tidak valid" })
@@ -88,8 +86,8 @@ export function TambahDataDialog({
     }
     setPendingSubmit({
       data: {
-        nominal: parsed,
         storeId: values.storeId,
+        amount: parsed,
       },
     })
     setConfirmOpen(true)
@@ -114,7 +112,7 @@ export function TambahDataDialog({
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle className="border-b pb-4 text-2xl font-bold">
-              Request Tambah Modal
+              Request Setor Uang
             </DialogTitle>
           </DialogHeader>
 
@@ -217,7 +215,7 @@ export function TambahDataDialog({
         onOpenChange={setConfirmOpen}
         onConfirm={handleConfirmSubmit}
         title="Apakah Anda Yakin?"
-        description="Anda akan menyimpan data Tambah Modal baru ke dalam sistem."
+        description="Anda akan membuat request Setor Uang baru."
         note="Pastikan kembali sebelum menyimpan data."
         confirmLabel="Ya"
         cancelLabel="Batal"

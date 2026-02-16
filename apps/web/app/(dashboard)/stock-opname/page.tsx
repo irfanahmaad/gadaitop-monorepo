@@ -1,7 +1,8 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
+import { useAuth } from "@/lib/react-query/hooks/use-auth"
 import { ColumnDef } from "@tanstack/react-table"
 import { Breadcrumbs } from "@/components/breadcrumbs"
 import { DataTable } from "@/components/data-table"
@@ -22,239 +23,85 @@ import {
   TabsContent,
 } from "@workspace/ui/components/tabs"
 import { Input } from "@workspace/ui/components/input"
+import { Skeleton } from "@workspace/ui/components/skeleton"
+import { Card, CardContent, CardHeader } from "@workspace/ui/components/card"
 import { Plus, SearchIcon, SlidersHorizontal } from "lucide-react"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { StockOpnameFormDialog } from "./_components/StockOpnameFormDialog"
 import { CalendarView } from "./_components/CalendarView"
+import type { ScheduleItem } from "./_components/StockOpnameScheduleList"
+import {
+  useStockOpnameSessions,
+  stockOpnameKeys,
+} from "@/lib/react-query/hooks/use-stock-opname"
+import { useQueryClient } from "@tanstack/react-query"
+import { useBranches } from "@/lib/react-query/hooks/use-branches"
+import type { StockOpnameSessionListItem } from "@/lib/api/types"
+import { format } from "date-fns"
+import { id } from "date-fns/locale"
 
-// Sample data type
-type StockOpname = {
+// Row type for table and calendar (mapped from API)
+export type StockOpnameRow = {
   id: string
   idSO: string
   tanggal: string
   toko: string
   petugas: string
   lastUpdatedAt: string
-  status: "Dijadwalkan" | "Berjalan" | "Selesai"
+  status:
+    | "Dijadwalkan"
+    | "Berjalan"
+    | "Menunggu Approval"
+    | "Tervalidasi"
 }
 
-// Sample data
-const sampleData: StockOpname[] = [
-  {
-    id: "SO001",
-    idSO: "SO/001",
-    tanggal: "25 November 2025",
-    toko: "4 Toko",
-    petugas: "2 Petugas",
-    lastUpdatedAt: "20 November 2025 18:33:45",
-    status: "Dijadwalkan",
-  },
-  {
-    id: "SO002",
-    idSO: "SO/002",
-    tanggal: "26 November 2025",
-    toko: "3 Toko",
-    petugas: "4 Petugas",
-    lastUpdatedAt: "20 November 2025 18:33:45",
-    status: "Dijadwalkan",
-  },
-  {
-    id: "SO003",
-    idSO: "SO/003",
-    tanggal: "27 November 2025",
-    toko: "2 Toko",
-    petugas: "3 Petugas",
-    lastUpdatedAt: "20 November 2025 18:33:45",
-    status: "Berjalan",
-  },
-  {
-    id: "SO004",
-    idSO: "SO/004",
-    tanggal: "28 November 2025",
-    toko: "5 Toko",
-    petugas: "2 Petugas",
-    lastUpdatedAt: "20 November 2025 18:33:45",
-    status: "Selesai",
-  },
-  {
-    id: "SO005",
-    idSO: "SO/005",
-    tanggal: "29 November 2025",
-    toko: "3 Toko",
-    petugas: "3 Petugas",
-    lastUpdatedAt: "20 November 2025 18:33:45",
-    status: "Dijadwalkan",
-  },
-  {
-    id: "SO006",
-    idSO: "SO/006",
-    tanggal: "30 November 2025",
-    toko: "4 Toko",
-    petugas: "2 Petugas",
-    lastUpdatedAt: "20 November 2025 18:33:45",
-    status: "Dijadwalkan",
-  },
-]
+const STATUS_DISPLAY: Record<
+  StockOpnameSessionListItem["status"],
+  StockOpnameRow["status"]
+> = {
+  draft: "Dijadwalkan",
+  in_progress: "Berjalan",
+  completed: "Menunggu Approval",
+  approved: "Tervalidasi",
+}
 
-// Dummy data for Dijadwalkan tab
-const dijadwalkanData: StockOpname[] = [
-  {
-    id: "SO007",
-    idSO: "SO/007",
-    tanggal: "1 Desember 2025",
-    toko: "6 Toko",
-    petugas: "5 Petugas",
-    lastUpdatedAt: "21 November 2025 14:20:30",
-    status: "Dijadwalkan",
-  },
-  {
-    id: "SO008",
-    idSO: "SO/008",
-    tanggal: "2 Desember 2025",
-    toko: "7 Toko",
-    petugas: "6 Petugas",
-    lastUpdatedAt: "21 November 2025 15:45:12",
-    status: "Dijadwalkan",
-  },
-  {
-    id: "SO009",
-    idSO: "SO/009",
-    tanggal: "3 Desember 2025",
-    toko: "8 Toko",
-    petugas: "7 Petugas",
-    lastUpdatedAt: "22 November 2025 09:10:25",
-    status: "Dijadwalkan",
-  },
-  {
-    id: "SO010",
-    idSO: "SO/010",
-    tanggal: "4 Desember 2025",
-    toko: "9 Toko",
-    petugas: "8 Petugas",
-    lastUpdatedAt: "22 November 2025 11:30:40",
-    status: "Dijadwalkan",
-  },
-]
+function formatTanggal(isoDate: string): string {
+  try {
+    return format(new Date(isoDate), "d MMMM yyyy", { locale: id })
+  } catch {
+    return isoDate
+  }
+}
 
-// Dummy data for Waiting for Approval tab
-const waitingForApprovalData: StockOpname[] = [
-  {
-    id: "SO013",
-    idSO: "SO/013",
-    tanggal: "7 Desember 2025",
-    toko: "12 Toko",
-    petugas: "11 Petugas",
-    lastUpdatedAt: "24 November 2025 08:15:20",
-    status: "Dijadwalkan",
-  },
-  {
-    id: "SO014",
-    idSO: "SO/014",
-    tanggal: "8 Desember 2025",
-    toko: "13 Toko",
-    petugas: "12 Petugas",
-    lastUpdatedAt: "24 November 2025 10:30:45",
-    status: "Dijadwalkan",
-  },
-  {
-    id: "SO015",
-    idSO: "SO/015",
-    tanggal: "9 Desember 2025",
-    toko: "14 Toko",
-    petugas: "13 Petugas",
-    lastUpdatedAt: "25 November 2025 12:45:10",
-    status: "Dijadwalkan",
-  },
-  {
-    id: "SO016",
-    idSO: "SO/016",
-    tanggal: "10 Desember 2025",
-    toko: "15 Toko",
-    petugas: "14 Petugas",
-    lastUpdatedAt: "25 November 2025 14:20:30",
-    status: "Dijadwalkan",
-  },
-  {
-    id: "SO017",
-    idSO: "SO/017",
-    tanggal: "11 Desember 2025",
-    toko: "16 Toko",
-    petugas: "15 Petugas",
-    lastUpdatedAt: "26 November 2025 09:10:25",
-    status: "Dijadwalkan",
-  },
-  {
-    id: "SO018",
-    idSO: "SO/018",
-    tanggal: "12 Desember 2025",
-    toko: "17 Toko",
-    petugas: "16 Petugas",
-    lastUpdatedAt: "26 November 2025 11:35:50",
-    status: "Dijadwalkan",
-  },
-]
+function formatLastUpdated(isoDate: string): string {
+  try {
+    return format(new Date(isoDate), "d MMMM yyyy HH:mm:ss", { locale: id })
+  } catch {
+    return isoDate
+  }
+}
 
-// Dummy data for Tervalidasi tab
-const tervalidasiData: StockOpname[] = [
-  {
-    id: "SO019",
-    idSO: "SO/019",
-    tanggal: "13 Desember 2025",
-    toko: "18 Toko",
-    petugas: "17 Petugas",
-    lastUpdatedAt: "27 November 2025 13:20:15",
-    status: "Selesai",
-  },
-  {
-    id: "SO020",
-    idSO: "SO/020",
-    tanggal: "14 Desember 2025",
-    toko: "19 Toko",
-    petugas: "18 Petugas",
-    lastUpdatedAt: "27 November 2025 15:45:30",
-    status: "Selesai",
-  },
-  {
-    id: "SO021",
-    idSO: "SO/021",
-    tanggal: "15 Desember 2025",
-    toko: "20 Toko",
-    petugas: "19 Petugas",
-    lastUpdatedAt: "28 November 2025 10:15:45",
-    status: "Selesai",
-  },
-  {
-    id: "SO022",
-    idSO: "SO/022",
-    tanggal: "16 Desember 2025",
-    toko: "21 Toko",
-    petugas: "20 Petugas",
-    lastUpdatedAt: "28 November 2025 12:30:20",
-    status: "Selesai",
-  },
-  {
-    id: "SO023",
-    idSO: "SO/023",
-    tanggal: "17 Desember 2025",
-    toko: "22 Toko",
-    petugas: "21 Petugas",
-    lastUpdatedAt: "29 November 2025 14:25:10",
-    status: "Selesai",
-  },
-  {
-    id: "SO024",
-    idSO: "SO/024",
-    tanggal: "18 Desember 2025",
-    toko: "23 Toko",
-    petugas: "22 Petugas",
-    lastUpdatedAt: "29 November 2025 16:40:35",
-    status: "Selesai",
-  },
-]
+function mapSessionToRow(
+  session: StockOpnameSessionListItem,
+  storeNameById: Map<string, string>
+): StockOpnameRow {
+  return {
+    id: session.uuid,
+    idSO: session.sessionCode,
+    tanggal: formatTanggal(session.startDate),
+    toko: storeNameById.get(session.storeId) ?? session.storeId,
+    petugas: "—",
+    lastUpdatedAt: formatLastUpdated(session.createdAt),
+    status: STATUS_DISPLAY[session.status],
+  }
+}
 
 // Status badge component
-const StatusBadge = ({ status }: { status: StockOpname["status"] }) => {
-  const statusConfig = {
+const StatusBadge = ({ status }: { status: StockOpnameRow["status"] }) => {
+  const statusConfig: Record<
+    StockOpnameRow["status"],
+    { label: string; className: string }
+  > = {
     Dijadwalkan: {
       label: "Dijadwalkan",
       className:
@@ -265,15 +112,18 @@ const StatusBadge = ({ status }: { status: StockOpname["status"] }) => {
       className:
         "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20",
     },
-    Selesai: {
-      label: "Selesai",
+    "Menunggu Approval": {
+      label: "Menunggu Approval",
+      className:
+        "bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/20",
+    },
+    Tervalidasi: {
+      label: "Tervalidasi",
       className:
         "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20",
     },
   }
-
   const config = statusConfig[status]
-
   return (
     <Badge variant="outline" className={config.className}>
       {config.label}
@@ -281,8 +131,35 @@ const StatusBadge = ({ status }: { status: StockOpname["status"] }) => {
   )
 }
 
+// Table skeleton for loading state
+function TableSkeleton() {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-6 w-40" />
+          <Skeleton className="h-10 w-64" />
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="flex gap-4">
+              <Skeleton className="h-10 w-12" />
+              <Skeleton className="h-10 w-32" />
+              <Skeleton className="h-10 flex-1" />
+              <Skeleton className="h-10 w-48" />
+              <Skeleton className="h-10 w-24" />
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 // Column definitions
-const columns: ColumnDef<StockOpname>[] = [
+const columns: ColumnDef<StockOpnameRow>[] = [
   {
     id: "select",
     header: ({ table }) => (
@@ -337,17 +214,83 @@ const columns: ColumnDef<StockOpname>[] = [
 
 export default function StockOpnamePage() {
   const router = useRouter()
+  const queryClient = useQueryClient()
+  const { user } = useAuth()
+  const isCompanyAdmin = useMemo(
+    () => user?.roles?.some((role) => role.code === "company_admin") ?? false,
+    [user]
+  )
+
   const [pageSize, setPageSize] = useState(100)
+  const [page] = useState(1)
   const [searchValue, setSearchValue] = useState("")
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
-  const [itemToDelete, setItemToDelete] = useState<StockOpname | null>(null)
+  const [itemToDelete, setItemToDelete] = useState<StockOpnameRow | ScheduleItem | null>(null)
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState("dijadwalkan")
+  const [activeTab, setActiveTab] = useState("list")
 
-  // Counts for each tab
-  const dijadwalkanCount = dijadwalkanData.length
-  const waitingForApprovalCount = waitingForApprovalData.length
-  const tervalidasiCount = tervalidasiData.length
+  // Branch lookup for store names
+  const { data: branchesData } = useBranches({ pageSize: 500 })
+  const storeNameById = useMemo(() => {
+    const map = new Map<string, string>()
+    branchesData?.data?.forEach((b) =>
+      map.set(b.uuid, b.shortName ?? b.fullName ?? b.uuid)
+    )
+    return map
+  }, [branchesData?.data])
+
+  // List options by tab: list/calendar = all; other tabs = filter by status
+  const listOptions = useMemo(
+    () => ({
+      page,
+      pageSize,
+      sortBy: "createdAt" as const,
+      order: "DESC" as const,
+      ...(activeTab === "dijadwalkan" && { filter: { status: "draft" } }),
+      ...(activeTab === "waiting-for-approval" && {
+        filter: { status: "completed" },
+      }),
+      ...(activeTab === "tervalidasi" && { filter: { status: "approved" } }),
+    }),
+    [activeTab, page, pageSize]
+  )
+
+  const { data: listResponse, isLoading, isError } =
+    useStockOpnameSessions(listOptions)
+
+  // Counts for status tabs (minimal query to get meta.count)
+  const { data: countDraft } = useStockOpnameSessions({
+    filter: { status: "draft" },
+    page: 1,
+    pageSize: 1,
+  })
+  const { data: countCompleted } = useStockOpnameSessions({
+    filter: { status: "completed" },
+    page: 1,
+    pageSize: 1,
+  })
+  const { data: countApproved } = useStockOpnameSessions({
+    filter: { status: "approved" },
+    page: 1,
+    pageSize: 1,
+  })
+
+  const dijadwalkanCount = countDraft?.meta?.count ?? 0
+  const waitingForApprovalCount = countCompleted?.meta?.count ?? 0
+  const tervalidasiCount = countApproved?.meta?.count ?? 0
+
+  const rows = useMemo(
+    () =>
+      (listResponse?.data ?? []).map((s) => mapSessionToRow(s, storeNameById)),
+    [listResponse?.data, storeNameById]
+  )
+
+  // For company_admin, only "list" and "calendar" are available — ensure activeTab is valid
+  useEffect(() => {
+    if (isCompanyAdmin && !["list", "calendar"].includes(activeTab)) {
+      setActiveTab("list")
+    }
+  }, [isCompanyAdmin, activeTab])
 
   const handleCreate = () => {
     setIsFormDialogOpen(true)
@@ -357,24 +300,24 @@ export default function StockOpnamePage() {
     setIsFormDialogOpen(false)
   }
 
-  const handleDetail = (row: StockOpname) => {
+  const handleDetail = (row: StockOpnameRow) => {
     router.push(`/stock-opname/${row.id}`)
   }
 
-  const handleEdit = (row: StockOpname) => {
-    console.log("Edit:", row)
-    // Implement edit action
+  const handleEdit = (row: StockOpnameRow) => {
+    router.push(`/stock-opname/${row.id}`)
   }
 
-  const handleDelete = (row: StockOpname) => {
+  const handleDelete = (row: StockOpnameRow) => {
     setItemToDelete(row)
     setIsConfirmDialogOpen(true)
   }
 
   const handleConfirmDelete = () => {
     if (itemToDelete) {
-      console.log("Delete:", itemToDelete)
-      // Implement delete action
+      // Backend has no delete endpoint for stock opname sessions; placeholder for future
+      setItemToDelete(null)
+      setIsConfirmDialogOpen(false)
     }
   }
 
@@ -406,254 +349,301 @@ export default function StockOpnamePage() {
         <TabsList className="w-fit">
           <TabsTrigger value="list">Tampilan List</TabsTrigger>
           <TabsTrigger value="calendar">Tampilan Kalender</TabsTrigger>
-          <TabsTrigger
-            value="dijadwalkan"
-            className="flex items-center gap-2"
-          >
-            Dijadwalkan
-            <span
-              className={`ml-2 rounded-full px-2 py-0.5 text-xs font-medium ${
-                activeTab === "dijadwalkan"
-                  ? "bg-[#DD3333] text-white"
-                  : "bg-red-50 text-[#DD3333]"
-              }`}
-            >
-              {dijadwalkanCount}
-            </span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="waiting-for-approval"
-            className="flex items-center gap-2"
-          >
-            Waiting for Approval
-            <span
-              className={`ml-2 rounded-full px-2 py-0.5 text-xs font-medium ${
-                activeTab === "waiting-for-approval"
-                  ? "bg-[#DD3333] text-white"
-                  : "bg-red-50 text-[#DD3333]"
-              }`}
-            >
-              {waitingForApprovalCount}
-            </span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="tervalidasi"
-            className="flex items-center gap-2"
-          >
-            Tervalidasi
-            <span
-              className={`ml-2 rounded-full px-2 py-0.5 text-xs font-medium ${
-                activeTab === "tervalidasi"
-                  ? "bg-[#DD3333] text-white"
-                  : "bg-red-50 text-[#DD3333]"
-              }`}
-            >
-              {tervalidasiCount}
-            </span>
-          </TabsTrigger>
+          {!isCompanyAdmin && (
+            <>
+              <TabsTrigger
+                value="dijadwalkan"
+                className="flex items-center gap-2"
+              >
+                Dijadwalkan
+                <span
+                  className={`ml-2 rounded-full px-2 py-0.5 text-xs font-medium ${
+                    activeTab === "dijadwalkan"
+                      ? "bg-[#DD3333] text-white"
+                      : "bg-red-50 text-[#DD3333]"
+                  }`}
+                >
+                  {dijadwalkanCount}
+                </span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="waiting-for-approval"
+                className="flex items-center gap-2"
+              >
+                Waiting for Approval
+                <span
+                  className={`ml-2 rounded-full px-2 py-0.5 text-xs font-medium ${
+                    activeTab === "waiting-for-approval"
+                      ? "bg-[#DD3333] text-white"
+                      : "bg-red-50 text-[#DD3333]"
+                  }`}
+                >
+                  {waitingForApprovalCount}
+                </span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="tervalidasi"
+                className="flex items-center gap-2"
+              >
+                Tervalidasi
+                <span
+                  className={`ml-2 rounded-full px-2 py-0.5 text-xs font-medium ${
+                    activeTab === "tervalidasi"
+                      ? "bg-[#DD3333] text-white"
+                      : "bg-red-50 text-[#DD3333]"
+                  }`}
+                >
+                  {tervalidasiCount}
+                </span>
+              </TabsTrigger>
+            </>
+          )}
         </TabsList>
 
         {/* List View */}
         <TabsContent value="list" className="mt-0">
-          <DataTable
-            columns={columns}
-            data={sampleData}
-            title="Daftar SO"
-            searchPlaceholder="Cari..."
-            headerRight={
-              <div className="flex w-full items-center gap-2 sm:w-auto">
-                <Select
-                  value={pageSize.toString()}
-                  onValueChange={(value) => setPageSize(Number(value))}
-                >
-                  <SelectTrigger className="w-[100px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="10">10</SelectItem>
-                    <SelectItem value="25">25</SelectItem>
-                    <SelectItem value="50">50</SelectItem>
-                    <SelectItem value="100">100</SelectItem>
-                  </SelectContent>
-                </Select>
-                <div className="w-full sm:w-auto sm:max-w-sm">
-                  <Input
-                    placeholder="Cari..."
-                    value={searchValue}
-                    onChange={(e) => setSearchValue(e.target.value)}
-                    icon={<SearchIcon className="size-4" />}
-                    className="w-full"
-                  />
+          {isLoading ? (
+            <TableSkeleton />
+          ) : isError ? (
+            <Card>
+              <CardContent className="py-10 text-center">
+                <p className="text-destructive">Gagal memuat data</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <DataTable
+              columns={columns}
+              data={rows}
+              title="Daftar SO"
+              searchPlaceholder="Cari..."
+              headerRight={
+                <div className="flex w-full items-center gap-2 sm:w-auto">
+                  <Select
+                    value={pageSize.toString()}
+                    onValueChange={(value) => setPageSize(Number(value))}
+                  >
+                    <SelectTrigger className="w-[100px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="25">25</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <div className="w-full sm:w-auto sm:max-w-sm">
+                    <Input
+                      placeholder="Cari..."
+                      value={searchValue}
+                      onChange={(e) => setSearchValue(e.target.value)}
+                      icon={<SearchIcon className="size-4" />}
+                      className="w-full"
+                    />
+                  </div>
+                  <Button variant="outline" className="flex items-center gap-2">
+                    <SlidersHorizontal className="h-4 w-4" />
+                    Filter
+                  </Button>
                 </div>
-                <Button variant="outline" className="flex items-center gap-2">
-                  <SlidersHorizontal className="h-4 w-4" />
-                  Filter
-                </Button>
-              </div>
-            }
-            initialPageSize={pageSize}
-            onPageSizeChange={setPageSize}
-            searchValue={searchValue}
-            onSearchChange={setSearchValue}
-            onDetail={handleDetail}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-          />
+              }
+              initialPageSize={pageSize}
+              onPageSizeChange={setPageSize}
+              searchValue={searchValue}
+              onSearchChange={setSearchValue}
+              onDetail={handleDetail}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+            />
+          )}
         </TabsContent>
 
         {/* Calendar View */}
         <TabsContent value="calendar" className="mt-0">
           <CalendarView
-            data={sampleData}
-            isLoading={false}
+            data={rows}
+            isLoading={isLoading}
             onDetail={(item) => router.push(`/stock-opname/${item.id}`)}
-            onEdit={(item) => console.log("Edit:", item)}
-            onDelete={(item) => console.log("Delete:", item)}
+            onEdit={(item) => router.push(`/stock-opname/${item.id}`)}
+            onDelete={(item) => {
+              setItemToDelete(item)
+              setIsConfirmDialogOpen(true)
+            }}
           />
         </TabsContent>
 
         {/* Dijadwalkan View */}
         <TabsContent value="dijadwalkan" className="mt-0">
-          <DataTable
-            columns={columns}
-            data={dijadwalkanData}
-            title="Daftar SO Dijadwalkan"
-            searchPlaceholder="Cari..."
-            headerRight={
-              <div className="flex w-full items-center gap-2 sm:w-auto">
-                <Select
-                  value={pageSize.toString()}
-                  onValueChange={(value) => setPageSize(Number(value))}
-                >
-                  <SelectTrigger className="w-[100px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="10">10</SelectItem>
-                    <SelectItem value="25">25</SelectItem>
-                    <SelectItem value="50">50</SelectItem>
-                    <SelectItem value="100">100</SelectItem>
-                  </SelectContent>
-                </Select>
-                <div className="w-full sm:w-auto sm:max-w-sm">
-                  <Input
-                    placeholder="Cari..."
-                    value={searchValue}
-                    onChange={(e) => setSearchValue(e.target.value)}
-                    icon={<SearchIcon className="size-4" />}
-                    className="w-full"
-                  />
+          {isLoading ? (
+            <TableSkeleton />
+          ) : isError ? (
+            <Card>
+              <CardContent className="py-10 text-center">
+                <p className="text-destructive">Gagal memuat data</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <DataTable
+              columns={columns}
+              data={rows}
+              title="Daftar SO Dijadwalkan"
+              searchPlaceholder="Cari..."
+              headerRight={
+                <div className="flex w-full items-center gap-2 sm:w-auto">
+                  <Select
+                    value={pageSize.toString()}
+                    onValueChange={(value) => setPageSize(Number(value))}
+                  >
+                    <SelectTrigger className="w-[100px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="25">25</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <div className="w-full sm:w-auto sm:max-w-sm">
+                    <Input
+                      placeholder="Cari..."
+                      value={searchValue}
+                      onChange={(e) => setSearchValue(e.target.value)}
+                      icon={<SearchIcon className="size-4" />}
+                      className="w-full"
+                    />
+                  </div>
+                  <Button variant="outline" className="flex items-center gap-2">
+                    <SlidersHorizontal className="h-4 w-4" />
+                    Filter
+                  </Button>
                 </div>
-                <Button variant="outline" className="flex items-center gap-2">
-                  <SlidersHorizontal className="h-4 w-4" />
-                  Filter
-                </Button>
-              </div>
-            }
-            initialPageSize={pageSize}
-            onPageSizeChange={setPageSize}
-            searchValue={searchValue}
-            onSearchChange={setSearchValue}
-            onDetail={handleDetail}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-          />
+              }
+              initialPageSize={pageSize}
+              onPageSizeChange={setPageSize}
+              searchValue={searchValue}
+              onSearchChange={setSearchValue}
+              onDetail={handleDetail}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+            />
+          )}
         </TabsContent>
 
         {/* Waiting for Approval View */}
         <TabsContent value="waiting-for-approval" className="mt-0">
-          <DataTable
-            columns={columns}
-            data={waitingForApprovalData}
-            title="Daftar SO Waiting for Approval"
-            searchPlaceholder="Cari..."
-            headerRight={
-              <div className="flex w-full items-center gap-2 sm:w-auto">
-                <Select
-                  value={pageSize.toString()}
-                  onValueChange={(value) => setPageSize(Number(value))}
-                >
-                  <SelectTrigger className="w-[100px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="10">10</SelectItem>
-                    <SelectItem value="25">25</SelectItem>
-                    <SelectItem value="50">50</SelectItem>
-                    <SelectItem value="100">100</SelectItem>
-                  </SelectContent>
-                </Select>
-                <div className="w-full sm:w-auto sm:max-w-sm">
-                  <Input
-                    placeholder="Cari..."
-                    value={searchValue}
-                    onChange={(e) => setSearchValue(e.target.value)}
-                    icon={<SearchIcon className="size-4" />}
-                    className="w-full"
-                  />
+          {isLoading ? (
+            <TableSkeleton />
+          ) : isError ? (
+            <Card>
+              <CardContent className="py-10 text-center">
+                <p className="text-destructive">Gagal memuat data</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <DataTable
+              columns={columns}
+              data={rows}
+              title="Daftar SO Waiting for Approval"
+              searchPlaceholder="Cari..."
+              headerRight={
+                <div className="flex w-full items-center gap-2 sm:w-auto">
+                  <Select
+                    value={pageSize.toString()}
+                    onValueChange={(value) => setPageSize(Number(value))}
+                  >
+                    <SelectTrigger className="w-[100px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="25">25</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <div className="w-full sm:w-auto sm:max-w-sm">
+                    <Input
+                      placeholder="Cari..."
+                      value={searchValue}
+                      onChange={(e) => setSearchValue(e.target.value)}
+                      icon={<SearchIcon className="size-4" />}
+                      className="w-full"
+                    />
+                  </div>
+                  <Button variant="outline" className="flex items-center gap-2">
+                    <SlidersHorizontal className="h-4 w-4" />
+                    Filter
+                  </Button>
                 </div>
-                <Button variant="outline" className="flex items-center gap-2">
-                  <SlidersHorizontal className="h-4 w-4" />
-                  Filter
-                </Button>
-              </div>
-            }
-            initialPageSize={pageSize}
-            onPageSizeChange={setPageSize}
-            searchValue={searchValue}
-            onSearchChange={setSearchValue}
-            onDetail={handleDetail}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-          />
+              }
+              initialPageSize={pageSize}
+              onPageSizeChange={setPageSize}
+              searchValue={searchValue}
+              onSearchChange={setSearchValue}
+              onDetail={handleDetail}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+            />
+          )}
         </TabsContent>
 
         {/* Tervalidasi View */}
         <TabsContent value="tervalidasi" className="mt-0">
-          <DataTable
-            columns={columns}
-            data={tervalidasiData}
-            title="Daftar SO Tervalidasi"
-            searchPlaceholder="Cari..."
-            headerRight={
-              <div className="flex w-full items-center gap-2 sm:w-auto">
-                <Select
-                  value={pageSize.toString()}
-                  onValueChange={(value) => setPageSize(Number(value))}
-                >
-                  <SelectTrigger className="w-[100px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="10">10</SelectItem>
-                    <SelectItem value="25">25</SelectItem>
-                    <SelectItem value="50">50</SelectItem>
-                    <SelectItem value="100">100</SelectItem>
-                  </SelectContent>
-                </Select>
-                <div className="w-full sm:w-auto sm:max-w-sm">
-                  <Input
-                    placeholder="Cari..."
-                    value={searchValue}
-                    onChange={(e) => setSearchValue(e.target.value)}
-                    icon={<SearchIcon className="size-4" />}
-                    className="w-full"
-                  />
+          {isLoading ? (
+            <TableSkeleton />
+          ) : isError ? (
+            <Card>
+              <CardContent className="py-10 text-center">
+                <p className="text-destructive">Gagal memuat data</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <DataTable
+              columns={columns}
+              data={rows}
+              title="Daftar SO Tervalidasi"
+              searchPlaceholder="Cari..."
+              headerRight={
+                <div className="flex w-full items-center gap-2 sm:w-auto">
+                  <Select
+                    value={pageSize.toString()}
+                    onValueChange={(value) => setPageSize(Number(value))}
+                  >
+                    <SelectTrigger className="w-[100px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="25">25</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <div className="w-full sm:w-auto sm:max-w-sm">
+                    <Input
+                      placeholder="Cari..."
+                      value={searchValue}
+                      onChange={(e) => setSearchValue(e.target.value)}
+                      icon={<SearchIcon className="size-4" />}
+                      className="w-full"
+                    />
+                  </div>
+                  <Button variant="outline" className="flex items-center gap-2">
+                    <SlidersHorizontal className="h-4 w-4" />
+                    Filter
+                  </Button>
                 </div>
-                <Button variant="outline" className="flex items-center gap-2">
-                  <SlidersHorizontal className="h-4 w-4" />
-                  Filter
-                </Button>
-              </div>
-            }
-            initialPageSize={pageSize}
-            onPageSizeChange={setPageSize}
-            searchValue={searchValue}
-            onSearchChange={setSearchValue}
-            onDetail={handleDetail}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-          />
+              }
+              initialPageSize={pageSize}
+              onPageSizeChange={setPageSize}
+              searchValue={searchValue}
+              onSearchChange={setSearchValue}
+              onDetail={handleDetail}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+            />
+          )}
         </TabsContent>
       </Tabs>
 
@@ -662,6 +652,9 @@ export default function StockOpnamePage() {
         open={isFormDialogOpen}
         onOpenChange={setIsFormDialogOpen}
         onClose={handleFormDialogClose}
+        onSuccess={() =>
+          queryClient.invalidateQueries({ queryKey: stockOpnameKeys.lists() })
+        }
       />
 
       {/* Confirmation Dialog for Delete */}
