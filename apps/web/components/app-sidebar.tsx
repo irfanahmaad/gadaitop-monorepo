@@ -10,7 +10,6 @@ import {
   Building2,
   Package,
   ScanLine,
-  FileText,
   Box,
   Gavel,
   Wallet,
@@ -22,6 +21,7 @@ import {
   User,
   BookOpen,
   Eye,
+  FileText,
 } from "lucide-react"
 
 import {
@@ -34,31 +34,37 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSkeleton,
   SidebarRail,
 } from "@workspace/ui/components/sidebar"
 import { imgLogoGadaiTopTextOnly } from "@/assets/commons"
 import Image from "next/image"
 import { Can, MenuSubject, useAppAbility } from "@/lib/casl"
+import { Skeleton } from "@workspace/ui/components/skeleton"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
   const ability = useAppAbility()
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
   const isOwner = session?.user?.roles?.some((role) => role.code === "owner")
-
+  const isBranchStaff = session?.user?.roles?.some(
+    (role) => role.code === "branch_staff"
+  )
+  // Only show Dashboard when session is ready and user is not branch_staff (avoids flash)
+  const showDashboard = status === "authenticated" && !isBranchStaff
 
   // Check if any "Menu Utama" item is visible (besides Dashboard which is always shown)
   const hasMenuUtamaItems =
     !isOwner &&
     (ability.can("view", MenuSubject.SCAN_KTP) ||
       ability.can("view", MenuSubject.SPK) ||
+      ability.can("view", MenuSubject.NKB) ||
       ability.can("view", MenuSubject.STOCK_OPNAME) ||
       ability.can("view", MenuSubject.LELANGAN) ||
       ability.can("view", MenuSubject.TAMBAH_MODAL) ||
       ability.can("view", MenuSubject.SETOR_UANG) ||
       ability.can("view", MenuSubject.MUTASI_TRANSAKSI) ||
       ability.can("view", MenuSubject.LAPORAN))
-
 
   // Check if any "Master Data" item is visible
   const hasMasterDataItems =
@@ -70,7 +76,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     ability.can("view", MenuSubject.MASTER_SUPER_ADMIN) ||
     ability.can("view", MenuSubject.MASTER_PT) ||
     ability.can("view", MenuSubject.MASTER_TIPE_BARANG)
-
 
   return (
     <Sidebar {...props}>
@@ -87,21 +92,77 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </div>
       </SidebarHeader>
       <SidebarContent>
-        {/* ── Dashboard (always visible) ─────────────────────────────── */}
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={pathname === "/"}>
-                  <Link href="/" className="flex items-center gap-2">
-                    <LayoutDashboard className="size-4 shrink-0" />
-                    <span>Dashboard</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {status === "loading" ? (
+          <>
+            {/* Skeleton: Dashboard group (no label) */}
+            <SidebarGroup>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuSkeleton
+                      showIcon
+                      className="h-12"
+                    />
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+            {/* Skeleton: Menu Utama group */}
+            <SidebarGroup>
+              <SidebarGroupLabel className="pointer-events-none">
+                <Skeleton className="h-4 w-24 rounded-md" />
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <SidebarMenuItem key={i}>
+                      <SidebarMenuSkeleton
+                        showIcon
+                        className="h-12"
+                      />
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+            {/* Skeleton: Master Data group */}
+            <SidebarGroup>
+              <SidebarGroupLabel className="pointer-events-none">
+                <Skeleton className="h-4 w-24 rounded-md" />
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <SidebarMenuItem key={i}>
+                      <SidebarMenuSkeleton
+                        showIcon
+                        className="h-12"
+                      />
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </>
+        ) : (
+          <>
+        {/* ── Dashboard (hidden for branch_staff; hidden while session loading to avoid flash) ── */}
+        {showDashboard && (
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={pathname === "/"}>
+                    <Link href="/" className="flex items-center gap-2">
+                      <LayoutDashboard className="size-4 shrink-0" />
+                      <span>Dashboard</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         {/* ── Menu Utama ─────────────────────────────────────────────── */}
         {hasMenuUtamaItems && (
@@ -115,7 +176,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                       asChild
                       isActive={pathname === "/scan-ktp"}
                     >
-                      <Link href="/scan-ktp" className="flex items-center gap-2">
+                      <Link
+                        href="/scan-ktp"
+                        className="flex items-center gap-2"
+                      >
                         <ScanLine className="size-4 shrink-0" />
                         <span>Scan KTP</span>
                       </Link>
@@ -131,6 +195,19 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                       <Link href="/spk" className="flex items-center gap-2">
                         <FileText className="size-4 shrink-0" />
                         <span>SPK</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </Can>
+                <Can I="view" a={MenuSubject.NKB}>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={pathname?.startsWith("/nkb")}
+                    >
+                      <Link href="/nkb" className="flex items-center gap-2">
+                        <FileText className="size-4 shrink-0" />
+                        <span>NKB</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -157,7 +234,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                       asChild
                       isActive={pathname?.startsWith("/lelangan")}
                     >
-                      <Link href="/lelangan" className="flex items-center gap-2">
+                      <Link
+                        href="/lelangan"
+                        className="flex items-center gap-2"
+                      >
                         <Gavel className="size-4 shrink-0" />
                         <span>Lelangan</span>
                       </Link>
@@ -186,7 +266,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                       asChild
                       isActive={pathname?.startsWith("/setor-uang")}
                     >
-                      <Link href="/setor-uang" className="flex items-center gap-2">
+                      <Link
+                        href="/setor-uang"
+                        className="flex items-center gap-2"
+                      >
                         <Coins className="size-4 shrink-0" />
                         <span>Setor Uang</span>
                       </Link>
@@ -371,6 +454,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
+        )}
+          </>
         )}
       </SidebarContent>
       <SidebarRail />

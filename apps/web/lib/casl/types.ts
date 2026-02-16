@@ -63,6 +63,7 @@ export enum MenuSubject {
   MASTER_SUPER_ADMIN = "MenuMasterSuperAdmin",
   MASTER_PT = "MenuMasterPt",
   MASTER_TIPE_BARANG = "MenuMasterTipeBarang",
+  NKB = "MenuNkb",
 }
 
 export type AclActionValues = `${AclAction}`

@@ -102,6 +102,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
+  // branch_staff: first menu is Scan KTP — redirect "/" to "/scan-ktp" before any render
+  const roles = (token as { roles?: Array<{ code?: string }> })?.roles ?? []
+  const isBranchStaff = roles.some((r) => r.code === "branch_staff")
+  if (isAuthenticated && pathname === "/" && isBranchStaff) {
+    return NextResponse.redirect(new URL("/scan-ktp", request.url))
+  }
+
   return NextResponse.next()
 }
 

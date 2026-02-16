@@ -56,7 +56,7 @@ export default function Page() {
   }, [companiesData])
 
   // ── PT selection: Super Admin picks from list; company_admin uses their company ──
-  const effectiveCompanyId = isSuperAdmin ? null : user?.companyId ?? null
+  const effectiveCompanyId = isSuperAdmin ? null : (user?.companyId ?? null)
   const [selectedPT, setSelectedPT] = useState("")
 
   useEffect(() => {
@@ -122,7 +122,8 @@ export default function Page() {
   }, [isSuperAdmin, isCompanyAdmin, selectedPT, selectedToko, date])
 
   // ── API Hooks ──────────────────────────────────────────────
-  const { data: kpis, isLoading: kpisLoading } = useDashboardKpis(dashboardFilter)
+  const { data: kpis, isLoading: kpisLoading } =
+    useDashboardKpis(dashboardFilter)
   const { data: spkByStatus, isLoading: spkByStatusLoading } =
     useSpkByStatusChart(dashboardFilter)
   const { data: mutationTrends, isLoading: mutationTrendsLoading } =
@@ -143,7 +144,7 @@ export default function Page() {
     [selectedPT, selectedToko]
   )
   const { data: spkListData, isLoading: spkListLoading } = useSpkList(
-    (selectedPT || selectedToko) ? spkListOptions : undefined
+    selectedPT || selectedToko ? spkListOptions : undefined
   )
 
   // ── SPK Overdue (jatuh tempo) ─────────────────────────────────
@@ -162,7 +163,7 @@ export default function Page() {
     [selectedPT, selectedToko]
   )
   const { data: spkOverdueData, isLoading: spkOverdueLoading } = useSpkList(
-    (selectedPT || selectedToko) ? spkOverdueOptions : undefined
+    selectedPT || selectedToko ? spkOverdueOptions : undefined
   )
 
   // ── NKB List (recent, limited) ────────────────────────────────
@@ -180,7 +181,7 @@ export default function Page() {
     [selectedPT, selectedToko]
   )
   const { data: nkbListData, isLoading: nkbListLoading } = useNkbList(
-    (selectedPT || selectedToko) ? nkbListOptions : undefined
+    selectedPT || selectedToko ? nkbListOptions : undefined
   )
 
   // ── Metrics derived from KPI API ──────────────────────────
@@ -245,14 +246,8 @@ export default function Page() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <SPKBaruTable
-          data={spkListData?.data}
-          isLoading={spkListLoading}
-        />
-        <NKBBaruTable
-          data={nkbListData?.data}
-          isLoading={nkbListLoading}
-        />
+        <SPKBaruTable data={spkListData?.data} isLoading={spkListLoading} />
+        <NKBBaruTable data={nkbListData?.data} isLoading={nkbListLoading} />
       </div>
 
       <SPKJatuhTempoTable

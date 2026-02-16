@@ -33,6 +33,7 @@ const ROLE_MENU_MAP: Record<string, MenuSubject[]> = {
   company_admin: [
     MenuSubject.DASHBOARD,
     MenuSubject.SPK,
+    MenuSubject.NKB,
     MenuSubject.STOCK_OPNAME,
     MenuSubject.LELANGAN,
     MenuSubject.TAMBAH_MODAL,
@@ -51,6 +52,7 @@ const ROLE_MENU_MAP: Record<string, MenuSubject[]> = {
     MenuSubject.DASHBOARD,
     MenuSubject.SCAN_KTP,
     MenuSubject.SPK,
+    MenuSubject.NKB,
     MenuSubject.TAMBAH_MODAL,
     MenuSubject.SETOR_UANG,
     MenuSubject.MUTASI_TRANSAKSI,
