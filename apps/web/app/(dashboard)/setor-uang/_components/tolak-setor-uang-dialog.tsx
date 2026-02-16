@@ -26,6 +26,7 @@ import { ConfirmationDialog } from "@/components/confirmation-dialog"
 
 type SetorUang = {
   id: string
+  uuid: string
   tanggalRequest: string
   dilakukanOleh: {
     name: string

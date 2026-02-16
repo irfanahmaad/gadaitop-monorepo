@@ -126,10 +126,12 @@ const getBaseColumns = (): { id: string; header: string; accessorKey?: string; c
     enableSorting: false,
   },
   {
+    id: "tanggalRequest",
     accessorKey: "tanggalRequest",
     header: "Tanggal Request",
   },
   {
+    id: "dilakukanOleh",
     accessorKey: "dilakukanOleh",
     header: "Dilakukan Oleh",
     cell: ({ row }) => {
@@ -152,14 +154,17 @@ const getBaseColumns = (): { id: string; header: string; accessorKey?: string; c
     },
   },
   {
+    id: "namaToko",
     accessorKey: "namaToko",
     header: "Nama Toko",
   },
   {
+    id: "alias",
     accessorKey: "alias",
     header: "Alias",
   },
   {
+    id: "nominal",
     accessorKey: "nominal",
     header: "Nominal",
     cell: ({ row }) => {
@@ -168,6 +173,7 @@ const getBaseColumns = (): { id: string; header: string; accessorKey?: string; c
     },
   },
   {
+    id: "status",
     accessorKey: "status",
     header: "Status",
     cell: ({ row }) => <StatusBadge status={row.getValue("status") as SetorUang["status"]} />,
