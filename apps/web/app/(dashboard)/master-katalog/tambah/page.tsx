@@ -42,6 +42,8 @@ import {
 } from "@workspace/ui/components/select"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { formatCurrencyInput, parseCurrencyInput } from "@/lib/format-currency"
+import { useCreateCatalog } from "@/lib/react-query/hooks/use-catalogs"
+import { useItemTypes } from "@/lib/react-query/hooks/use-item-types"
 
 const katalogSchema = z.object({
   image: z.union([z.instanceof(File), z.string()]).optional(),
@@ -73,21 +75,20 @@ const katalogSchema = z.object({
 
 type KatalogFormValues = z.infer<typeof katalogSchema>
 
-// Tipe Barang options
-const tipeBarangOptions = [
-  { value: "Handphone", label: "Handphone" },
-  { value: "Sepeda Motor", label: "Sepeda Motor" },
-  { value: "Aksesoris Komputer", label: "Aksesoris Komputer" },
-  { value: "Laptop", label: "Laptop" },
-  { value: "Drone", label: "Drone" },
-  { value: "Elektronik", label: "Elektronik" },
-]
-
 export default function TambahMasterKatalogPage() {
   const router = useRouter()
   const [previewImage, setPreviewImage] = useState<string | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const { mutateAsync: createCatalog } = useCreateCatalog()
+  const { data: itemTypesData } = useItemTypes({ pageSize: 100 })
+  const tipeBarangOptions = React.useMemo(() => {
+    const list = itemTypesData?.data ?? []
+    return list.map((itemType) => ({
+      value: itemType.uuid,
+      label: itemType.typeName,
+    }))
+  }, [itemTypesData])
 
   const form = useForm<KatalogFormValues>({
     resolver: zodResolver(katalogSchema),
@@ -129,12 +130,18 @@ export default function TambahMasterKatalogPage() {
     const values = form.getValues()
     setIsSubmitting(true)
     try {
-      // TODO: Replace with API call to create catalog
-      console.log("Simpan Katalog:", {
-        ...values,
-        harga: parseCurrencyInput(values.harga),
-        jumlahPotongan: parseCurrencyInput(values.jumlahPotongan),
+      const parsedPrice = parseCurrencyInput(values.harga)
+      if (parsedPrice === null || parsedPrice <= 0) {
+        throw new Error("Harga harus lebih dari 0")
+      }
+
+      await createCatalog({
+        itemName: values.namaKatalog,
+        itemTypeId: values.tipeBarang,
+        basePrice: parsedPrice,
+        description: values.keterangan?.trim() || undefined,
       })
+
       toast.success("Data Katalog berhasil ditambahkan")
       setConfirmOpen(false)
       router.push("/master-katalog")

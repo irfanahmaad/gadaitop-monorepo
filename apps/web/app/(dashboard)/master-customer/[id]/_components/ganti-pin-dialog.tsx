@@ -28,10 +28,12 @@ const gantiPinSchema = z
   .object({
     pinBaru: z
       .string()
-      .min(8, "PIN minimal 8 karakter"),
+      .min(4, "PIN minimal 4 karakter")
+      .max(6, "PIN maksimal 6 karakter"),
     ulangiPin: z
       .string()
-      .min(8, "PIN minimal 8 karakter"),
+      .min(4, "PIN minimal 4 karakter")
+      .max(6, "PIN maksimal 6 karakter"),
   })
   .refine((data) => data.pinBaru === data.ulangiPin, {
     message: "PIN tidak sama",
@@ -40,7 +42,7 @@ const gantiPinSchema = z
 
 type GantiPinFormValues = z.infer<typeof gantiPinSchema>
 
-const PIN_PLACEHOLDER = "Minimal 8 Karakter"
+const PIN_PLACEHOLDER = "4–6 karakter"
 
 type GantiPinDialogProps = {
   open: boolean

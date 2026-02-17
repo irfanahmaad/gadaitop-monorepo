@@ -158,7 +158,10 @@ export class StockOpnameService {
     if (!session) {
       throw new NotFoundException('Stock opname session not found');
     }
-    if (session.status !== StockOpnameSessionStatusEnum.Draft && session.status !== StockOpnameSessionStatusEnum.InProgress) {
+    if (
+      session.status !== StockOpnameSessionStatusEnum.Draft &&
+      session.status !== StockOpnameSessionStatusEnum.InProgress
+    ) {
       throw new BadRequestException('Session already completed or approved');
     }
     session.status = StockOpnameSessionStatusEnum.Completed;
@@ -167,7 +170,10 @@ export class StockOpnameService {
     return this.findOne(sessionUuid);
   }
 
-  async approve(sessionUuid: string, approvedBy: string): Promise<StockOpnameSessionDto> {
+  async approve(
+    sessionUuid: string,
+    approvedBy: string,
+  ): Promise<StockOpnameSessionDto> {
     const session = await this.sessionRepository.findOne({
       where: { uuid: sessionUuid },
     });

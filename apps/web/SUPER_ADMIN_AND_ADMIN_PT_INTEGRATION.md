@@ -7,59 +7,66 @@ This document summarizes the **current integration** between the web app and the
 
 ---
 
+## TODO (Document maintenance)
+
+- **Backend:** Implement the items marked ❌ in the tables below (see §2 and §3 for details). When each item is done, update this doc as in §4.
+- **Doc owner:** When backend completes an item, set **Done** = ✅ and **Left** = (empty) for that row, then update **Last updated** at the top.
+
+---
+
 ## Status overview – Done ✅ vs Left ❌
 
-| # | Feature | Done | Left |
-|---|---------|:----:|:----:|
-| 1 | **Auth / session** | | |
-| | Login returns `companyId`, `roles`, `ownedCompanyId` | ✅ | |
-| | Refresh token (AC-1.5.1) | | ❌ |
-| | Account lock after N failed attempts (AC-1.1.3–1.1.4) | | ❌ |
-| | Inactive/suspended check on login (AC-1.1.5) | | ❌ |
-| 2 | **List endpoints – PT scoping** | | |
-| | Branches list scoped by `userCompanyId` | ✅ | |
-| | SPK list scoped by `userPtId` | ✅ | |
-| | NKB list scoped by `userPtId` | ✅ | |
-| | Dashboard KPIs/charts use `ptId` / user context | ✅ | |
-| | Reports (mutation, SPK, NKB, stock opname) use `userPtId` | ✅ | |
-| | Customers list scoped by `userPtId` | ✅ | |
-| | Catalogs list scoped by `userPtId` | ✅ | |
-| | Pawn terms list scoped by `userPtId` | ✅ | |
-| | Cash deposits list scoped by `userPtId` | ✅ | |
-| | Capital topups list scoped by `userPtId` | ✅ | |
-| | Stock opname sessions list scoped by `userPtId` | ✅ | |
-| | Auction batches list scoped by `userPtId` | ✅ | |
-| 3 | **Users (Master Pengguna)** | | |
-| | Users list scoped by company for company_admin | | ❌ |
-| | User create: enforce `companyId` = requester’s company for company_admin | | ❌ |
-| | Create user: validate branch belongs to company | | ❌ |
-| 4 | **Resource-level auth (findOne / update / delete)** | | |
-| | Branch findOne/update/delete – ensure branch belongs to requester’s PT | | ❌ |
-| | Customer findOne/update/delete – PT check | | ❌ |
-| | Catalog findOne/update/delete – PT check | | ❌ |
-| | Pawn term findOne/update/delete – PT check | | ❌ |
-| | SPK findOne/update/delete – PT check | | ❌ |
-| | NKB findOne/update/delete – PT check | | ❌ |
-| | Cash deposit findOne/approve/reject – PT check | | ❌ |
-| | Capital topup findOne/approve/reject – PT check | | ❌ |
-| | Stock opname findOne/complete/approve – PT check | | ❌ |
-| | Auction batch findOne/update – PT check | | ❌ |
-| 5 | **Cash mutations** | | |
-| | Mutations list uses storeId / user context | ✅ | |
-| | Validate `storeId` belongs to requester’s PT for company_admin | | ❌ |
-| 6 | **Devices** | | |
-| | Device CRUD endpoints exist | ✅ | |
-| | Scope by company: company_admin only for users in their PT | | ❌ |
-| | MAC/device check at login (if required by spec) | | ❌ |
-| 7 | **Audit logs** | | |
-| | Audit list/export exist | ✅ | |
-| | Scope by PT for company_admin (and rule for owner) | | ❌ |
-| 8 | **Companies** | | |
-| | Companies list returns all (used only by Super Admin in UI) | ✅ | |
-| | Restrict company_admin to single company (optional) | | ❌ |
-| 9 | **Notifications** | | |
-| | Notifications scoped by recipient (user UUID) | ✅ | |
-| | PT-level filtering for Admin PT (if in spec) | | ❌ |
+| #   | Feature                                                                  | Done | Left |
+| --- | ------------------------------------------------------------------------ | :--: | :--: |
+| 1   | **Auth / session**                                                       |      |      |
+|     | Login returns `companyId`, `roles`, `ownedCompanyId`                     |  ✅  |      |
+|     | Refresh token (AC-1.5.1)                                                 |      |  ❌  |
+|     | Account lock after N failed attempts (AC-1.1.3–1.1.4)                    |      |  ❌  |
+|     | Inactive/suspended check on login (AC-1.1.5)                             |      |  ❌  |
+| 2   | **List endpoints – PT scoping**                                          |      |      |
+|     | Branches list scoped by `userCompanyId`                                  |  ✅  |      |
+|     | SPK list scoped by `userPtId`                                            |  ✅  |      |
+|     | NKB list scoped by `userPtId`                                            |  ✅  |      |
+|     | Dashboard KPIs/charts use `ptId` / user context                          |  ✅  |      |
+|     | Reports (mutation, SPK, NKB, stock opname) use `userPtId`                |  ✅  |      |
+|     | Customers list scoped by `userPtId`                                      |  ✅  |      |
+|     | Catalogs list scoped by `userPtId`                                       |  ✅  |      |
+|     | Pawn terms list scoped by `userPtId`                                     |  ✅  |      |
+|     | Cash deposits list scoped by `userPtId`                                  |  ✅  |      |
+|     | Capital topups list scoped by `userPtId`                                 |  ✅  |      |
+|     | Stock opname sessions list scoped by `userPtId`                          |  ✅  |      |
+|     | Auction batches list scoped by `userPtId`                                |  ✅  |      |
+| 3   | **Users (Master Pengguna)**                                              |      |      |
+|     | Users list scoped by company for company_admin                           |      |  ❌  |
+|     | User create: enforce `companyId` = requester’s company for company_admin |      |  ❌  |
+|     | Create user: validate branch belongs to company                          |      |  ❌  |
+| 4   | **Resource-level auth (findOne / update / delete)**                      |      |      |
+|     | Branch findOne/update/delete – ensure branch belongs to requester’s PT   |      |  ❌  |
+|     | Customer findOne/update/delete – PT check                                |      |  ❌  |
+|     | Catalog findOne/update/delete – PT check                                 |      |  ❌  |
+|     | Pawn term findOne/update/delete – PT check                               |      |  ❌  |
+|     | SPK findOne/update/delete – PT check                                     |      |  ❌  |
+|     | NKB findOne/update/delete – PT check                                     |      |  ❌  |
+|     | Cash deposit findOne/approve/reject – PT check                           |      |  ❌  |
+|     | Capital topup findOne/approve/reject – PT check                          |      |  ❌  |
+|     | Stock opname findOne/complete/approve – PT check                         |      |  ❌  |
+|     | Auction batch findOne/update – PT check                                  |      |  ❌  |
+| 5   | **Cash mutations**                                                       |      |      |
+|     | Mutations list uses storeId / user context                               |  ✅  |      |
+|     | Validate `storeId` belongs to requester’s PT for company_admin           |      |  ❌  |
+| 6   | **Devices**                                                              |      |      |
+|     | Device CRUD endpoints exist                                              |  ✅  |      |
+|     | Scope by company: company_admin only for users in their PT               |      |  ❌  |
+|     | MAC/device check at login (if required by spec)                          |      |  ❌  |
+| 7   | **Audit logs**                                                           |      |      |
+|     | Audit list/export exist                                                  |  ✅  |      |
+|     | Scope by PT for company_admin (and rule for owner)                       |      |  ❌  |
+| 8   | **Companies**                                                            |      |      |
+|     | Companies list returns all (used only by Super Admin in UI)              |  ✅  |      |
+|     | Restrict company_admin to single company (optional)                      |      |  ❌  |
+| 9   | **Notifications**                                                        |      |      |
+|     | Notifications scoped by recipient (user UUID)                            |  ✅  |      |
+|     | PT-level filtering for Admin PT (if in spec)                             |      |  ❌  |
 
 **Legend:** ✅ = implemented (backend done), ❌ = not implemented (left for backend).
 
@@ -69,10 +76,10 @@ This document summarizes the **current integration** between the web app and the
 
 ### 1.1 Role Identification
 
-| Role            | Backend code        | Frontend detection                                      |
-|-----------------|---------------------|---------------------------------------------------------|
-| Super Admin     | `owner`             | `user?.roles?.some((r) => r.code === "owner")`         |
-| Admin PT        | `company_admin`     | `user?.roles?.some((r) => r.code === "company_admin")`  |
+| Role        | Backend code    | Frontend detection                                     |
+| ----------- | --------------- | ------------------------------------------------------ |
+| Super Admin | `owner`         | `user?.roles?.some((r) => r.code === "owner")`         |
+| Admin PT    | `company_admin` | `user?.roles?.some((r) => r.code === "company_admin")` |
 
 Session (from `POST /v1/auth/login`) must include:
 
@@ -94,21 +101,21 @@ Defined in `apps/web/lib/casl/ability.ts`:
 
 All of these use `isSuperAdmin` and/or `isCompanyAdmin` and PT/branch filters:
 
-| Page / Route              | Super Admin behaviour              | Admin PT behaviour                          |
-|---------------------------|------------------------------------|---------------------------------------------|
-| `/` (Dashboard)           | PT + Toko filters; KPIs by PT     | Single PT from `user.companyId`; Toko filter |
-| `/spk`                    | PT filter (optional)               | Scoped by `companyId`                        |
-| `/setor-uang`             | PT + branch filters                | Branch filter (branches of their PT)        |
-| `/tambah-modal`           | PT + branch filters                | Branch filter                               |
-| `/mutasi-transaksi`       | PT + branch filters                | Branch filter                               |
-| `/laporan`                | PT filter for reports              | Reports for their PT                        |
-| `/master-toko`           | PT filter; list branches by PT     | Branches of their PT                        |
-| `/master-customer`       | PT filter                          | Customers of their PT                       |
-| `/master-pengguna`       | PT filter                          | Users of their PT (filtered client-side)    |
-| `/master-katalog`        | PT filter                          | Catalogs of their PT                        |
-| `/master-syarat-mata`    | PT filter                          | Pawn terms of their PT                      |
-| `/lelangan`               | PT filter                          | Auction data of their PT                    |
-| `/stock-opname`           | —                                  | company_admin sees list/calendar (no create)|
+| Page / Route          | Super Admin behaviour          | Admin PT behaviour                           |
+| --------------------- | ------------------------------ | -------------------------------------------- |
+| `/` (Dashboard)       | PT + Toko filters; KPIs by PT  | Single PT from `user.companyId`; Toko filter |
+| `/spk`                | PT filter (optional)           | Scoped by `companyId`                        |
+| `/setor-uang`         | PT + branch filters            | Branch filter (branches of their PT)         |
+| `/tambah-modal`       | PT + branch filters            | Branch filter                                |
+| `/mutasi-transaksi`   | PT + branch filters            | Branch filter                                |
+| `/laporan`            | PT filter for reports          | Reports for their PT                         |
+| `/master-toko`        | PT filter; list branches by PT | Branches of their PT                         |
+| `/master-customer`    | PT filter                      | Customers of their PT                        |
+| `/master-pengguna`    | PT filter                      | Users of their PT (filtered client-side)     |
+| `/master-katalog`     | PT filter                      | Catalogs of their PT                         |
+| `/master-syarat-mata` | PT filter                      | Pawn terms of their PT                       |
+| `/lelangan`           | PT filter                      | Auction data of their PT                     |
+| `/stock-opname`       | —                              | company_admin sees list/calendar (no create) |
 
 Super Admin–only pages:
 
@@ -119,6 +126,22 @@ Frontend expects:
 
 - **Super Admin:** Can call `GET /companies` (list all PTs) and pass `ptId` / `companyId` in list/report APIs.
 - **Admin PT:** Never calls `GET /companies` for dropdown; uses `user.companyId` and expects all list/report APIs to be scoped to that PT when no `ptId` is sent (or when backend uses request user’s `companyId`).
+
+### 1.4 Frontend integration progress (Lelangan)
+
+The following Lelangan flows are wired in the web app as of February 2026:
+
+| Area | Implementation |
+|------|----------------|
+| **Lelangan list – cancel batch** | "Hapus" on Batch Lelang SPK tab calls `PUT /v1/auction-batches/:id/cancel` via `useCancelAuctionBatch`. Only batch rows (not item rows) are cancelled. Success/error toasts shown. |
+| **Lelangan detail – Edit** | "Edit" button on detail page navigates to `/validasi-lelangan/[slug]` for validation/edit flow. |
+| **Lelangan detail – QR Code SPK** | "QR Code SPK" button opens `QRCodeDialog` with the item’s No. SPK; user can view, download, or print QR. |
+
+### 1.5 Frontend integration progress (Master Customer)
+
+| Area | Implementation |
+|------|----------------|
+| **Master Customer – create** | Tambah Data form (`/master-customer/tambah`) calls `POST /v1/customers` via `useCreateCustomer` with full `CreateCustomerDto` (nik, pin, name, dob, gender, address, city, phone, email, ptId). **ptId:** Super Admin selects PT from dropdown in the header; Admin PT uses `user.companyId` (no dropdown). Form validates required fields (tanggal lahir, telepon 1, e-mail, PIN 4–6 karakter) before submit; date supports "YYYY-MM-DD" or "d MMMM yyyy" (e.g. 20 November 1990). Success/error toasts; on success redirects to `/master-customer`. |
 
 ---
 
@@ -268,20 +291,49 @@ Frontend expects:
 
 ---
 
+### 2.10 Admin PT Forms – Contract Gaps Found During TODO Execution
+
+**Current (implemented in frontend):**
+
+- Admin PT TODOs in `Master Katalog`, `Master Syarat Mata`, `Master Toko`, and `SPK detail QR print` have been wired to existing APIs/hooks.
+- Frontend now uses real API calls for create/edit/delete/detail where endpoints are available.
+
+**Backend work left (contract alignment):**
+
+1. **Catalog contract parity (`/v1/catalogs`):**
+   - Current DTO supports `itemName`, `itemTypeId`, `basePrice`, `description`.
+   - Admin PT form still has extra fields used in UI: `foto/image`, `namaPotongan`, `jumlahPotongan`.
+   - Confirm whether these fields should be persisted in backend; if yes, extend create/update/detail DTO and response.
+
+2. **Pawn term (Syarat Mata) contract parity (`/v1/pawn-terms`):**
+   - Current DTO supports `itemTypeId`, `loanLimitMin`, `loanLimitMax`, `tenorDefault`, `interestRate`, `adminFee`.
+   - Admin PT form still has business fields not explicitly represented: `namaAturan`, `kondisiBarang`, and separate `macetDari` semantics.
+   - Define canonical mapping or extend DTO so frontend does not rely on inferred mapping.
+
+3. **Branch (Master Toko) extra fields (`/v1/branches`):**
+   - Current DTO persists branch core fields (`branchCode`, `shortName`, `fullName`, `address`, `phone`, `city`, `companyId`).
+   - Form-level extras (`image`, `pinjamPT`) are not persisted by current API contract.
+   - Confirm whether those fields should be stored or removed from UI flow.
+
+---
+
 ## 3. Summary Checklist for Backend
 
-| # | Area                         | Task                                                                 | Done | Left | Priority |
-|---|------------------------------|----------------------------------------------------------------------|:----:|:----:|----------|
-| 1 | Users list                   | Scope `GET /users` by company when requester is company_admin        | | ❌ | High     |
-| 2 | User create                 | Restrict company_admin to `companyId = req.user.companyId`           | | ❌ | High     |
-| 3 | Branch findOne/update/delete| Ensure branch belongs to company_admin’s company                     | | ❌ | High     |
-| 4 | Other resources             | Add PT-ownership check for findOne/update/delete (customer, catalog, SPK, NKB, deposits, topups, stock opname, auction, etc.) | | ❌ | High |
-| 5 | Cash mutations              | Validate storeId belongs to requester’s PT for company_admin        | | ❌ | Medium   |
-| 6 | Devices                     | Scope by user’s company (company_admin only own PT users)             | | ❌ | Medium   |
-| 7 | Audit logs                  | Scope by PT for company_admin (and define rule for owner)            | | ❌ | Medium   |
-| 8 | Companies list              | Optionally restrict company_admin to single company                   | | ❌ | Low      |
-| 9 | Notifications               | Align with “only events for Admin PT’s PT” if in spec               | | ❌ | Low      |
-| 10| Auth                        | Refresh token, lock after failed attempts, inactive/suspended check  | | ❌ | Per spec |
+| #   | Area                         | Task                                                                                                                          | Done | Left | Priority |
+| --- | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | :--: | :--: | -------- |
+| 1   | Users list                   | Scope `GET /users` by company when requester is company_admin                                                                 |      |  ❌  | High     |
+| 2   | User create                  | Restrict company_admin to `companyId = req.user.companyId`                                                                    |      |  ❌  | High     |
+| 3   | Branch findOne/update/delete | Ensure branch belongs to company_admin’s company                                                                              |      |  ❌  | High     |
+| 4   | Other resources              | Add PT-ownership check for findOne/update/delete (customer, catalog, SPK, NKB, deposits, topups, stock opname, auction, etc.) |      |  ❌  | High     |
+| 5   | Cash mutations               | Validate storeId belongs to requester’s PT for company_admin                                                                  |      |  ❌  | Medium   |
+| 6   | Devices                      | Scope by user’s company (company_admin only own PT users)                                                                     |      |  ❌  | Medium   |
+| 7   | Audit logs                   | Scope by PT for company_admin (and define rule for owner)                                                                     |      |  ❌  | Medium   |
+| 8   | Companies list               | Optionally restrict company_admin to single company                                                                           |      |  ❌  | Low      |
+| 9   | Notifications                | Align with “only events for Admin PT’s PT” if in spec                                                                         |      |  ❌  | Low      |
+| 10  | Auth                         | Refresh token, lock after failed attempts, inactive/suspended check                                                           |      |  ❌  | Per spec |
+| 11  | Catalog contract             | Align Admin PT katalog form fields (`image`, `namaPotongan`, `jumlahPotongan`) with `/v1/catalogs` DTO/response             |      |  ❌  | Medium   |
+| 12  | Pawn term contract           | Align Admin PT syarat mata fields (`namaAturan`, `kondisiBarang`, `macetDari`) with `/v1/pawn-terms` canonical model        |      |  ❌  | High     |
+| 13  | Branch contract              | Decide/store optional Admin PT toko fields (`image`, `pinjamPT`) or remove from contract/UI                                 |      |  ❌  | Medium   |
 
 ---
 
@@ -293,4 +345,12 @@ Frontend expects:
 - **Reports/Dashboard:** Frontend sends `ptId` for Super Admin; for Admin PT sends no `ptId` and expects backend to use `req.user.companyId`.
 - **Master Pengguna:** Frontend filters users client-side by company; backend should add server-side scoping so Admin PT never receives users from other PTs.
 
-This document should be updated as backend completes each item so that frontend and backend stay aligned.
+### How to update this document
+
+When the backend completes an item:
+
+1. In **§ Status overview**, set **Done** = ✅ and clear **Left** (leave empty) for that feature row.
+2. In **§ Summary Checklist for Backend**, set **Done** = ✅ and **Left** = (empty) for the corresponding task row.
+3. Update **Last updated** at the top of the document (e.g. month and year).
+
+This keeps frontend and backend aligned as work is completed.

@@ -21,12 +21,19 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "@workspace/ui/components/avatar"
-import { Card, CardContent, CardHeader } from "@workspace/ui/components/card"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+} from "@workspace/ui/components/card"
 import { Skeleton } from "@workspace/ui/components/skeleton"
 import { SearchIcon, SlidersHorizontal, Plus } from "lucide-react"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { useAuth } from "@/lib/react-query/hooks/use-auth"
-import { useCustomers, useDeleteCustomer } from "@/lib/react-query/hooks/use-customers"
+import {
+  useCustomers,
+  useDeleteCustomer,
+} from "@/lib/react-query/hooks/use-customers"
 import { useCompanies } from "@/lib/react-query/hooks/use-companies"
 import type { Customer as ApiCustomer } from "@/lib/api/types"
 
@@ -47,14 +54,17 @@ const STATUS_MAP: Record<string, CustomerRow["status"]> = {
 }
 
 function mapApiCustomerToRow(c: ApiCustomer): CustomerRow {
+  const status =
+    c.status ??
+    (c.isBlacklisted ? "blacklisted" : "active")
   return {
     id: c.uuid,
-    foto: c.ktpPhotoUrl ?? "",
-    namaLengkap: c.fullName,
+    foto: c.ktpPhotoUrl ?? c.selfiePhotoUrl ?? "",
+    namaLengkap: c.name ?? c.fullName ?? "",
     email: c.email ?? "",
-    noTelp: c.phoneNumber ?? "",
-    alamat: c.address ?? "",
-    status: STATUS_MAP[c.status] ?? "Aktif",
+    noTelp: c.phone ?? c.phoneNumber ?? "",
+    alamat: [c.address, c.city].filter(Boolean).join(", ") ?? "",
+    status: STATUS_MAP[status] ?? "Aktif",
   }
 }
 
@@ -161,26 +171,37 @@ const customerColumns: ColumnDef<CustomerRow>[] = [
 export default function MasterCustomerPage() {
   const router = useRouter()
   const { user } = useAuth()
-  const isCompanyAdmin = user?.roles?.some((r) => r.code === "company_admin") ?? false
+  const isCompanyAdmin =
+    user?.roles?.some((r) => r.code === "company_admin") ?? false
   const isSuperAdmin = user?.roles?.some((r) => r.code === "owner") ?? false
 
   const effectiveCompanyId = isCompanyAdmin ? (user?.companyId ?? null) : null
 
   const { data: companiesData } = useCompanies(
-    isSuperAdmin ? { pageSize: 100 } : undefined
+    isSuperAdmin || isCompanyAdmin ? { pageSize: 100 } : undefined
   )
 
   const [selectedPT, setSelectedPT] = useState<string>("")
   const ptOptions = useMemo(() => {
     const list = companiesData?.data ?? []
-    return list.map((c) => ({ value: c.uuid, label: c.companyName }))
-  }, [companiesData])
+    const mapped = list.map((c) => ({ value: c.uuid, label: c.companyName }))
+    if (isCompanyAdmin && effectiveCompanyId) {
+      return mapped.filter((o) => o.value === effectiveCompanyId)
+    }
+    return mapped
+  }, [companiesData, isCompanyAdmin, effectiveCompanyId])
 
   useEffect(() => {
     if (isSuperAdmin && ptOptions.length > 0 && !selectedPT) {
       setSelectedPT(ptOptions[0]!.value)
     }
   }, [isSuperAdmin, ptOptions, selectedPT])
+
+  useEffect(() => {
+    if (isCompanyAdmin && effectiveCompanyId && !selectedPT) {
+      setSelectedPT(effectiveCompanyId)
+    }
+  }, [isCompanyAdmin, effectiveCompanyId, selectedPT])
 
   const branchQueryCompanyId = isSuperAdmin ? selectedPT : effectiveCompanyId
 
@@ -248,28 +269,15 @@ export default function MasterCustomerPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {isSuperAdmin && ptOptions.length > 0 && (
-            <Select value={selectedPT} onValueChange={setSelectedPT}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Pilih PT" />
-              </SelectTrigger>
-              <SelectContent>
-                {ptOptions.map((pt) => (
-                  <SelectItem key={pt.value} value={pt.value}>
-                    {pt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          {!isCompanyAdmin && (
+            <Button
+              onClick={handleTambahData}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Tambah Data
+            </Button>
           )}
-
-          <Button
-            onClick={handleTambahData}
-            className="bg-red-600 text-white hover:bg-red-700"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Tambah Data
-          </Button>
         </div>
       </div>
 
@@ -282,50 +290,67 @@ export default function MasterCustomerPage() {
           </CardContent>
         </Card>
       ) : (
-      <DataTable
-        columns={customerColumns}
-        data={rows}
-        title="Daftar Customer"
-        searchPlaceholder="Email"
-        headerRight={
-          <div className="flex w-full items-center gap-2 sm:w-auto">
-            <Select
-              value={pageSize.toString()}
-              onValueChange={(value) => setPageSize(Number(value))}
-            >
-              <SelectTrigger className="w-[100px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="10">10</SelectItem>
-                <SelectItem value="25">25</SelectItem>
-                <SelectItem value="50">50</SelectItem>
-                <SelectItem value="100">100</SelectItem>
-              </SelectContent>
-            </Select>
-            <div className="w-full sm:w-auto sm:max-w-sm">
-              <Input
-                placeholder="Email"
-                value={searchValue}
-                onChange={(e) => setSearchValue(e.target.value)}
-                icon={<SearchIcon className="size-4" />}
-                className="w-full"
-              />
+        <DataTable
+          columns={customerColumns}
+          data={rows}
+          headerLeft={
+            <div className="flex flex-wrap items-center gap-4">
+              {(isSuperAdmin || isCompanyAdmin) && ptOptions.length > 0 && (
+                <Select value={selectedPT} onValueChange={setSelectedPT}>
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Pilih PT" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ptOptions.map((pt) => (
+                      <SelectItem key={pt.value} value={pt.value}>
+                        {pt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
-            <Button variant="outline" className="flex items-center gap-2">
-              <SlidersHorizontal className="h-4 w-4" />
-              Filter
-            </Button>
-          </div>
-        }
-        initialPageSize={pageSize}
-        onPageSizeChange={setPageSize}
-        searchValue={searchValue}
-        onSearchChange={setSearchValue}
-        onDetail={handleDetail}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-      />
+          }
+          searchPlaceholder="Email"
+          headerRight={
+            <div className="flex w-full items-center gap-2 sm:w-auto">
+              <Select
+                value={pageSize.toString()}
+                onValueChange={(value) => setPageSize(Number(value))}
+              >
+                <SelectTrigger className="w-[100px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="w-full sm:w-auto sm:max-w-sm">
+                <Input
+                  placeholder="Email"
+                  value={searchValue}
+                  onChange={(e) => setSearchValue(e.target.value)}
+                  icon={<SearchIcon className="size-4" />}
+                  className="w-full"
+                />
+              </div>
+              <Button variant="outline" className="flex items-center gap-2">
+                <SlidersHorizontal className="h-4 w-4" />
+                Filter
+              </Button>
+            </div>
+          }
+          initialPageSize={pageSize}
+          onPageSizeChange={setPageSize}
+          searchValue={searchValue}
+          onSearchChange={setSearchValue}
+          onDetail={handleDetail}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+        />
       )}
 
       {/* Confirmation Dialog for Delete */}

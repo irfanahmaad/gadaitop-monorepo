@@ -34,6 +34,11 @@ import {
 } from "@workspace/ui/components/select"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { formatCurrencyInput, parseCurrencyInput } from "@/lib/format-currency"
+import {
+  usePawnTerm,
+  useUpdatePawnTerm,
+} from "@/lib/react-query/hooks/use-pawn-terms"
+import { useItemTypes } from "@/lib/react-query/hooks/use-item-types"
 
 const syaratMataSchema = z.object({
   namaAturan: z
@@ -52,53 +57,11 @@ const syaratMataSchema = z.object({
 
 type SyaratMataFormValues = z.infer<typeof syaratMataSchema>
 
-// Syarat Mata detail type
-type SyaratMataDetail = {
-  id: string
-  namaAturan: string
-  tipeBarang: string
-  hargaDari: number
-  hargaSampai: number
-  macetDari: number
-  macetSampai: number
-  baru: number
-  persentase: number
-  kondisiBarang: string
-}
-
-// Tipe Barang options
-const tipeBarangOptions = [
-  { value: "Handphone", label: "Handphone" },
-  { value: "Sepeda Motor", label: "Sepeda Motor" },
-  { value: "Aksesoris Komputer", label: "Aksesoris Komputer" },
-  { value: "Laptop", label: "Laptop" },
-  { value: "Drone", label: "Drone" },
-  { value: "Elektronik", label: "Elektronik" },
-]
-
 // Kondisi Barang options
 const kondisiBarangOptions = [
   { value: "Ada & Kondisi Sesuai", label: "Ada & Kondisi Sesuai" },
   { value: "Ada Namun Mismatch", label: "Ada Namun Mismatch" },
 ]
-
-// Mock: fetch syarat mata by id (replace with API later)
-function getSyaratMataById(id: string): SyaratMataDetail | null {
-  const mock: SyaratMataDetail = {
-    id: "1",
-    namaAturan: "Barang Mahal",
-    tipeBarang: "Handphone",
-    hargaDari: 10000000,
-    hargaSampai: 30000000,
-    macetDari: 1,
-    macetSampai: 3,
-    baru: 10,
-    persentase: 10,
-    kondisiBarang: "Ada & Kondisi Sesuai",
-  }
-  if (id === "1") return mock
-  return mock
-}
 
 // Loading skeleton for form
 function FormSkeleton() {
@@ -140,9 +103,18 @@ export default function EditMasterSyaratMataPage() {
   const router = useRouter()
   const params = useParams()
   const id = params?.id as string
-  const [isLoading, setIsLoading] = useState(true)
+  const { data: pawnTermData, isLoading } = usePawnTerm(id)
+  const { mutateAsync: updatePawnTerm, isPending: isSubmitting } =
+    useUpdatePawnTerm()
+  const { data: itemTypesData } = useItemTypes({ pageSize: 100 })
+  const tipeBarangOptions = React.useMemo(() => {
+    const list = itemTypesData?.data ?? []
+    return list.map((itemType) => ({
+      value: itemType.uuid,
+      label: itemType.typeName,
+    }))
+  }, [itemTypesData])
   const [confirmOpen, setConfirmOpen] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const form = useForm<SyaratMataFormValues>({
     resolver: zodResolver(syaratMataSchema),
@@ -161,45 +133,28 @@ export default function EditMasterSyaratMataPage() {
 
   // Load data
   useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true)
-      try {
-        // TODO: Replace with API call
-        const data = getSyaratMataById(id)
-        if (!data) {
-          toast.error("Data Syarat Mata tidak ditemukan")
-          router.push("/master-syarat-mata")
-          return
-        }
+    if (!id) return
+    if (!pawnTermData) return
 
-        // Populate form with existing data
-        form.reset({
-          namaAturan: data.namaAturan,
-          tipeBarang: data.tipeBarang,
-          hargaDari: formatCurrencyInput(data.hargaDari),
-          hargaSampai: formatCurrencyInput(data.hargaSampai),
-          macetDari: String(data.macetDari),
-          macetSampai: String(data.macetSampai),
-          baru: String(data.baru),
-          persentase: String(data.persentase),
-          kondisiBarang: data.kondisiBarang,
-        })
-      } catch (error) {
-        const message =
-          error instanceof Error
-            ? error.message
-            : "Gagal memuat data Syarat Mata"
-        toast.error(message)
-        router.push("/master-syarat-mata")
-      } finally {
-        setIsLoading(false)
-      }
-    }
+    form.reset({
+      namaAturan: `${pawnTermData.itemType?.typeName ?? "-"} (Tenor ${pawnTermData.tenorDefault})`,
+      tipeBarang: pawnTermData.itemTypeId,
+      hargaDari: formatCurrencyInput(Number(pawnTermData.loanLimitMin ?? 0)),
+      hargaSampai: formatCurrencyInput(Number(pawnTermData.loanLimitMax ?? 0)),
+      macetDari: String(pawnTermData.tenorDefault ?? 0),
+      macetSampai: String(pawnTermData.tenorDefault ?? 0),
+      baru: String(pawnTermData.adminFee ?? 0),
+      persentase: String(pawnTermData.interestRate ?? 0),
+      kondisiBarang: "Ada & Kondisi Sesuai",
+    })
+  }, [form, id, pawnTermData])
 
-    if (id) {
-      loadData()
+  useEffect(() => {
+    if (!isLoading && id && !pawnTermData) {
+      toast.error("Data Syarat Mata tidak ditemukan")
+      router.push("/master-syarat-mata")
     }
-  }, [id, form, router])
+  }, [id, isLoading, pawnTermData, router])
 
   const handleSimpanClick = () => {
     form.handleSubmit((values) => {
@@ -211,22 +166,36 @@ export default function EditMasterSyaratMataPage() {
 
   const handleConfirmSubmit = async () => {
     const values = form.getValues()
-    setIsSubmitting(true)
     try {
-      // TODO: Replace with API call to update syarat mata
-      const submitData = {
-        id,
-        namaAturan: values.namaAturan,
-        tipeBarang: values.tipeBarang,
-        hargaDari: parseCurrencyInput(values.hargaDari) ?? 0,
-        hargaSampai: parseCurrencyInput(values.hargaSampai) ?? 0,
-        macetDari: Number(values.macetDari),
-        macetSampai: Number(values.macetSampai),
-        baru: Number(values.baru),
-        persentase: Number(values.persentase),
-        kondisiBarang: values.kondisiBarang,
+      const loanLimitMin = parseCurrencyInput(values.hargaDari) ?? 0
+      const loanLimitMax = parseCurrencyInput(values.hargaSampai) ?? 0
+      const tenorDefault = Number(values.macetSampai)
+      const interestRate = Number(values.persentase)
+      const adminFee = Number(values.baru)
+
+      if (loanLimitMin <= 0 || loanLimitMax <= 0) {
+        throw new Error("Harga Dari dan Harga Sampai harus lebih dari 0")
       }
-      console.log("Update Syarat Mata:", submitData)
+      if (loanLimitMax < loanLimitMin) {
+        throw new Error("Harga Sampai tidak boleh lebih kecil dari Harga Dari")
+      }
+      if (Number.isNaN(tenorDefault) || tenorDefault <= 0) {
+        throw new Error("Macet Sampai harus berupa angka lebih dari 0")
+      }
+      if (Number.isNaN(interestRate)) {
+        throw new Error("Persentase harus berupa angka")
+      }
+
+      await updatePawnTerm({
+        id,
+        data: {
+          loanLimitMin,
+          loanLimitMax,
+          tenorDefault,
+          interestRate,
+          adminFee: Number.isNaN(adminFee) ? undefined : adminFee,
+        },
+      })
       toast.success("Data Syarat Mata berhasil diperbarui")
       setConfirmOpen(false)
       router.push("/master-syarat-mata")
@@ -237,7 +206,7 @@ export default function EditMasterSyaratMataPage() {
           : "Gagal memperbarui data Syarat Mata"
       toast.error(message)
     } finally {
-      setIsSubmitting(false)
+      // noop
     }
   }
 

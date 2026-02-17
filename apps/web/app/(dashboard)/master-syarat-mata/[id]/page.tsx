@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useMemo } from "react"
+import React, { useMemo, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Briefcase, Pencil, Trash2 } from "lucide-react"
 import { toast } from "sonner"
@@ -24,6 +24,10 @@ import {
   AlertDialogTitle,
 } from "@workspace/ui/components/alert-dialog"
 import { formatCurrencyDisplay } from "@/lib/format-currency"
+import {
+  useDeletePawnTerm,
+  usePawnTerm,
+} from "@/lib/react-query/hooks/use-pawn-terms"
 
 // Syarat Mata detail type
 type SyaratMataDetail = {
@@ -38,36 +42,6 @@ type SyaratMataDetail = {
   persentase: number
   kondisiBarang: string
   lastUpdatedAt: Date
-}
-
-// Mock: fetch syarat mata by id (replace with API later)
-function getSyaratMataById(id: string): SyaratMataDetail | null {
-  const mock: SyaratMataDetail = {
-    id: "1",
-    namaAturan: "Barang Mahal",
-    tipeBarang: "Handphone",
-    hargaDari: 10000000,
-    hargaSampai: 30000000,
-    macetDari: 1,
-    macetSampai: 3,
-    baru: 10,
-    persentase: 10,
-    kondisiBarang: "Ada & Kondisi Sesuai",
-    lastUpdatedAt: new Date("2025-11-20T18:33:45"),
-  }
-  if (id === "1") return mock
-  // Second syarat mata for id 2
-  if (id === "2") {
-    return {
-      ...mock,
-      id: "2",
-      namaAturan: "Barang Penting",
-      tipeBarang: "Sepeda Motor",
-      hargaDari: 20000000,
-      hargaSampai: 200000000,
-    }
-  }
-  return mock
 }
 
 // Loading skeleton for Data Syarat Mata card
@@ -107,15 +81,25 @@ export default function MasterSyaratMataDetailPage() {
   const router = useRouter()
   const id = typeof params.id === "string" ? params.id : ""
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-
-  // Simulate async fetch (replace with useQuery + API)
-  const [loading, setLoading] = useState(true)
-  React.useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 400)
-    return () => clearTimeout(t)
-  }, [id])
-
-  const syaratMata = useMemo(() => (id ? getSyaratMataById(id) : null), [id])
+  const { data: pawnTermData, isLoading: loading, isError } = usePawnTerm(id)
+  const { mutateAsync: deletePawnTerm, isPending: isDeleting } =
+    useDeletePawnTerm()
+  const syaratMata = useMemo<SyaratMataDetail | null>(() => {
+    if (!pawnTermData) return null
+    return {
+      id: pawnTermData.uuid,
+      namaAturan: `${pawnTermData.itemType?.typeName ?? "-"} (Tenor ${pawnTermData.tenorDefault})`,
+      tipeBarang: pawnTermData.itemType?.typeName ?? "-",
+      hargaDari: Number(pawnTermData.loanLimitMin ?? 0),
+      hargaSampai: Number(pawnTermData.loanLimitMax ?? 0),
+      macetDari: Number(pawnTermData.tenorDefault ?? 0),
+      macetSampai: Number(pawnTermData.tenorDefault ?? 0),
+      baru: Number(pawnTermData.adminFee ?? 0),
+      persentase: Number(pawnTermData.interestRate ?? 0),
+      kondisiBarang: "Ada & Kondisi Sesuai",
+      lastUpdatedAt: new Date(pawnTermData.updatedAt),
+    }
+  }, [pawnTermData])
 
   const handleEdit = () => {
     router.push(`/master-syarat-mata/${id}/edit`)
@@ -127,8 +111,7 @@ export default function MasterSyaratMataDetailPage() {
 
   const confirmDelete = async () => {
     try {
-      // TODO: Replace with API call to delete syarat mata
-      console.log("Delete Syarat Mata:", id)
+      await deletePawnTerm(id)
       toast.success('Data Syarat "Mata" berhasil dihapus')
       setDeleteDialogOpen(false)
       router.push("/master-syarat-mata")
@@ -142,6 +125,20 @@ export default function MasterSyaratMataDetailPage() {
   }
 
   if (!id) {
+    return (
+      <div className="flex flex-col gap-6">
+        <Breadcrumbs
+          items={[
+            { label: 'Master Syarat "Mata"', href: "/master-syarat-mata" },
+            { label: "Detail", className: "text-destructive" },
+          ]}
+        />
+        <p className="text-muted-foreground">Data tidak ditemukan.</p>
+      </div>
+    )
+  }
+
+  if (!loading && (isError || !syaratMata)) {
     return (
       <div className="flex flex-col gap-6">
         <Breadcrumbs
@@ -315,9 +312,10 @@ export default function MasterSyaratMataDetailPage() {
             <AlertDialogCancel>Batal</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDelete}
+              disabled={isDeleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Hapus
+              {isDeleting ? "Menghapus..." : "Hapus"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

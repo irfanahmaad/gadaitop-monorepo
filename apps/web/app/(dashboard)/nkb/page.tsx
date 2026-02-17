@@ -1,7 +1,8 @@
 "use client"
 
-import React, { useMemo, Suspense, useState } from "react"
+import React, { useMemo, Suspense, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { useSession } from "next-auth/react"
 import { ColumnDef } from "@tanstack/react-table"
 import { Breadcrumbs } from "@/components/breadcrumbs"
 import { DataTable } from "@/components/data-table"
@@ -317,6 +318,7 @@ function NKBInfoDialog({
 
 function NKBPageContent() {
   const router = useRouter()
+  const { data: session, status } = useSession()
   const [activeTab, setActiveTab] = useState("nkb-baru")
   const [pageSize, setPageSize] = useState("100")
   const { filterValues, setFilters } = useFilterParams(filterConfig)
@@ -324,6 +326,20 @@ function NKBPageContent() {
   const [itemToDelete, setItemToDelete] = useState<NKB | null>(null)
   const [isNKBInfoDialogOpen, setIsNKBInfoDialogOpen] = useState(false)
   const [selectedNKB, setSelectedNKB] = useState<NKB | null>(null)
+
+  const isCompanyAdmin =
+    session?.user?.roles?.some((r) => r.code === "company_admin") ?? false
+
+  // NKB is not allowed for Admin PT (company_admin) — redirect to dashboard
+  useEffect(() => {
+    if (status === "authenticated" && isCompanyAdmin) {
+      router.replace("/")
+    }
+  }, [status, isCompanyAdmin, router])
+
+  if (status === "authenticated" && isCompanyAdmin) {
+    return <TableSkeleton />
+  }
 
   // Get data based on active tab
   const currentData = useMemo(() => {

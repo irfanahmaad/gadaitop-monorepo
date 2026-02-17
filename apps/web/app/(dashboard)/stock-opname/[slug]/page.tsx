@@ -1,6 +1,7 @@
 "use client"
-import React from "react"
+import React, { useMemo } from "react"
 import { useParams, useRouter } from "next/navigation"
+import { useAuth } from "@/lib/react-query/hooks/use-auth"
 import { Breadcrumbs } from "@/components/breadcrumbs"
 import { Button } from "@workspace/ui/components/button"
 import { Card, CardContent, CardHeader } from "@workspace/ui/components/card"
@@ -165,6 +166,11 @@ export default function StockOpnameDetailPage() {
   const params = useParams()
   const router = useRouter()
   const slug = params.slug as string
+  const { user } = useAuth()
+  const isCompanyAdmin = useMemo(
+    () => user?.roles?.some((r) => r.code === "company_admin") ?? false,
+    [user]
+  )
 
   // Simulate loading - in real app, use useQuery/useSWR
   const [isLoading] = React.useState(false)
@@ -213,7 +219,11 @@ export default function StockOpnameDetailPage() {
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="destructive" className="gap-2">
+            <Button
+              variant="destructive"
+              className="gap-2"
+              disabled={isCompanyAdmin}
+            >
               Approval
               <ChevronDown className="size-4" />
             </Button>

@@ -35,14 +35,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@workspace/ui/components/card"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@workspace/ui/components/select"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
+import { useBranch, useUpdateBranch } from "@/lib/react-query/hooks/use-branches"
+import type { Branch } from "@/lib/api/types"
 
 const tokoSchema = z.object({
   image: z.union([z.instanceof(File), z.string()]).optional(),
@@ -78,55 +73,20 @@ const tokoSchema = z.object({
 
 type TokoFormValues = z.infer<typeof tokoSchema>
 
-// Toko detail type
-type TokoDetail = {
-  id: string
-  foto: string
-  kodeLokasi: string
-  namaToko: string
-  alias: string
-  noTelepon: string
-  kota: string
-  pinjamPT: string | null
-  alamat: string
-}
-
-// Mock: fetch toko by id (replace with API later)
-function getTokoById(id: string): TokoDetail | null {
-  const mock: TokoDetail = {
-    id: "1",
-    foto: "/placeholder-avatar.jpg",
-    kodeLokasi: "JK01",
-    namaToko: "GT Jakarta Satu",
-    alias: "GT Satu",
-    noTelepon: "0812345678910",
-    kota: "Jakarta Timur",
-    pinjamPT: null,
-    alamat:
-      "Jl. Jenderal Basuki Rachmat No.12B, RT.2/RW.3, Pd. Bambu, Kec. Duren Sawit, Kota Jakarta Timur, Daerah Khusus Ibukota Jakarta 13430",
+// Map Branch to form default values (kodeLokasi is read-only; pinjamPT is display-only)
+function branchToFormValues(branch: Branch): TokoFormValues {
+  const company = branch.company as { companyName?: string } | undefined
+  return {
+    image: undefined,
+    kodeLokasi: branch.branchCode,
+    namaToko: branch.fullName,
+    alias: branch.shortName,
+    noTelepon: branch.phone ?? "",
+    kota: branch.city ?? "",
+    pinjamPT: company?.companyName ?? "",
+    alamat: branch.address ?? "",
   }
-  if (id === "1") return mock
-  // Second toko for id 2
-  if (id === "2") {
-    return {
-      ...mock,
-      id: "2",
-      kodeLokasi: "JK02",
-      namaToko: "GT Jakarta Dua",
-      alias: "GT Dua",
-      noTelepon: "0812345678911",
-      pinjamPT: "pt1",
-    }
-  }
-  return mock
 }
-
-// Mock PT options for Pinjam PT (replace with API later)
-const ptOptions = [
-  { value: "pt1", label: "PT Gadai Top Indonesia" },
-  { value: "pt2", label: "PT Gadai Top Premium" },
-  { value: "pt3", label: "PT Gadai Top Sukses Jaya" },
-]
 
 // Loading skeleton for form
 function FormSkeleton() {
@@ -176,16 +136,9 @@ export default function EditMasterTokoPage() {
   const id = typeof params.id === "string" ? params.id : ""
   const [previewImage, setPreviewImage] = useState<string | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Simulate async fetch (replace with useQuery + API)
-  const [loading, setLoading] = useState(true)
-  useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 400)
-    return () => clearTimeout(t)
-  }, [id])
-
-  const toko = useMemo(() => (id ? getTokoById(id) : null), [id])
+  const { data: branchData, isLoading, isError } = useBranch(id)
+  const updateBranchMutation = useUpdateBranch()
 
   const form = useForm<TokoFormValues>({
     resolver: zodResolver(tokoSchema),
@@ -201,25 +154,16 @@ export default function EditMasterTokoPage() {
     },
   })
 
-  // Populate form when data is loaded
+  // Populate form when branch data is loaded
   useEffect(() => {
-    if (toko && !loading) {
-      form.reset({
-        image: toko.foto,
-        kodeLokasi: toko.kodeLokasi,
-        namaToko: toko.namaToko,
-        alias: toko.alias,
-        noTelepon: toko.noTelepon,
-        kota: toko.kota,
-        pinjamPT: toko.pinjamPT || "",
-        alamat: toko.alamat,
-      })
-      // Set preview image if exists
-      if (toko.foto) {
-        setPreviewImage(toko.foto)
+    if (branchData) {
+      const values = branchToFormValues(branchData)
+      form.reset(values)
+      if (values.image && typeof values.image === "string") {
+        setPreviewImage(values.image)
       }
     }
-  }, [toko, loading, form])
+  }, [branchData, form])
 
   const handleImageChange = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -246,10 +190,17 @@ export default function EditMasterTokoPage() {
 
   const handleConfirmSubmit = async () => {
     const values = form.getValues()
-    setIsSubmitting(true)
     try {
-      // TODO: Replace with API call to update store
-      console.log("Update Toko:", { id, values })
+      await updateBranchMutation.mutateAsync({
+        id,
+        data: {
+          shortName: values.alias,
+          fullName: values.namaToko,
+          address: values.alamat ?? "",
+          phone: values.noTelepon ?? "",
+          city: values.kota ?? "",
+        },
+      })
       toast.success("Data Toko berhasil diperbarui")
       setConfirmOpen(false)
       router.push(`/master-toko/${id}`)
@@ -257,8 +208,6 @@ export default function EditMasterTokoPage() {
       const message =
         error instanceof Error ? error.message : "Gagal memperbarui data Toko"
       toast.error(message)
-    } finally {
-      setIsSubmitting(false)
     }
   }
 
@@ -276,7 +225,7 @@ export default function EditMasterTokoPage() {
     )
   }
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-2">
@@ -288,7 +237,7 @@ export default function EditMasterTokoPage() {
     )
   }
 
-  if (!toko) {
+  if (isError || !branchData) {
     return (
       <div className="flex flex-col gap-6">
         <Breadcrumbs
@@ -299,7 +248,9 @@ export default function EditMasterTokoPage() {
         />
         <Card>
           <CardContent className="py-10 text-center">
-            <p className="text-destructive">Toko tidak ditemukan.</p>
+            <p className="text-destructive">
+              {isError ? "Gagal memuat data" : "Toko tidak ditemukan."}
+            </p>
             <Button
               variant="outline"
               className="mt-4"
@@ -421,6 +372,7 @@ export default function EditMasterTokoPage() {
                               type="text"
                               placeholder="Contoh: JK01"
                               icon={<FileText className="size-4" />}
+                              disabled
                               {...field}
                             />
                           </FormControl>
@@ -511,23 +463,15 @@ export default function EditMasterTokoPage() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Pinjam PT (Opsional)</FormLabel>
-                          <Select
-                            value={field.value || ""}
-                            onValueChange={field.onChange}
-                          >
-                            <FormControl>
-                              <SelectTrigger className="w-full">
-                                <SelectValue placeholder="Pilih PT" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {ptOptions.map((opt) => (
-                                <SelectItem key={opt.value} value={opt.value}>
-                                  {opt.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <FormControl>
+                            <Input
+                              type="text"
+                              readOnly
+                              className="bg-muted"
+                              value={field.value || ""}
+                              placeholder="-"
+                            />
+                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -558,7 +502,7 @@ export default function EditMasterTokoPage() {
                     type="button"
                     variant="outline"
                     onClick={() => router.push(`/master-toko/${id}`)}
-                    disabled={isSubmitting}
+                    disabled={updateBranchMutation.isPending}
                   >
                     <X className="mr-2 size-4" />
                     Batal
@@ -567,9 +511,9 @@ export default function EditMasterTokoPage() {
                     type="button"
                     variant="destructive"
                     onClick={handleSimpanClick}
-                    disabled={isSubmitting}
+                    disabled={updateBranchMutation.isPending}
                   >
-                    {isSubmitting ? (
+                    {updateBranchMutation.isPending ? (
                       <>
                         <Loader2 className="mr-2 size-4 animate-spin" />
                         Menyimpan...

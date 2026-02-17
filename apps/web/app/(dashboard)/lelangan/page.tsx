@@ -33,11 +33,16 @@ import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { Skeleton } from "@workspace/ui/components/skeleton"
 import { Card, CardContent, CardHeader } from "@workspace/ui/components/card"
 import type { AuctionBatch } from "@/lib/api/types"
+import type { FilterConfig } from "@/hooks/use-filter-params"
 import { useAuth } from "@/lib/react-query/hooks/use-auth"
-import { useAuctionBatches } from "@/lib/react-query/hooks/use-auction-batches"
+import {
+  useAuctionBatches,
+  useCancelAuctionBatch,
+} from "@/lib/react-query/hooks/use-auction-batches"
 import { useCompanies } from "@/lib/react-query/hooks/use-companies"
 import { useBranches } from "@/lib/react-query/hooks/use-branches"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 
 // Types for SPK Jatuh Tempo (items - from batch detail, list doesn't include items)
 type ItemLelang = {
@@ -59,6 +64,8 @@ type BatchLelang = {
   jumlahItem: number
   lastUpdatedAt: string
   status: BatchStatus
+  toko?: string
+  updatedAtRaw?: string
 }
 
 type BatchStatus =
@@ -81,21 +88,18 @@ function mapBatchStatus(status: string): BatchStatus {
 
 function mapAuctionBatchToBatchLelang(batch: AuctionBatch): BatchLelang {
   const itemCount = batch.items?.length ?? 0
+  const updatedAt = batch.updatedAt ?? batch.createdAt ?? null
   return {
     id: batch.uuid,
     idBatch: batch.batchCode,
     namaBatch: batch.batchCode,
     jumlahItem: itemCount,
-    lastUpdatedAt: batch.updatedAt
-      ? format(new Date(batch.updatedAt), "d MMMM yyyy HH:mm:ss", {
-          locale: id,
-        })
-      : batch.createdAt
-        ? format(new Date(batch.createdAt), "d MMMM yyyy HH:mm:ss", {
-            locale: id,
-          })
-        : "-",
+    lastUpdatedAt: updatedAt
+      ? format(new Date(updatedAt), "d MMMM yyyy HH:mm:ss", { locale: id })
+      : "-",
     status: mapBatchStatus(batch.status),
+    toko: batch.store?.shortName,
+    updatedAtRaw: updatedAt ?? undefined,
   }
 }
 
@@ -358,9 +362,64 @@ function LelangPageContent() {
     }
   }, [branchOptions, selectedBranch])
 
+  const lelanganFilterConfig: FilterConfig[] = React.useMemo(
+    () => [
+      {
+        key: "dateRange",
+        label: "",
+        type: "daterange",
+        labelFrom: "Mulai Dari",
+        labelTo: "Sampai Dengan",
+      },
+      {
+        key: "tipeBarang",
+        label: "Tipe Barang",
+        type: "multiselect",
+        placeholder: "Pilih tipe barang...",
+        options: [
+          { label: "Handphone", value: "Handphone" },
+          { label: "IoT", value: "IoT" },
+          { label: "Laptop", value: "Laptop" },
+          { label: "Drone", value: "Drone" },
+          { label: "Smartwatch", value: "Smartwatch" },
+          { label: "Tablet", value: "Tablet" },
+        ],
+      },
+      {
+        key: "toko",
+        label: "Toko",
+        type: "multiselect",
+        placeholder: "Pilih toko...",
+        options: branchOptions
+          .filter((b) => b.value !== "all")
+          .map((b) => ({ label: b.label, value: b.label })),
+      },
+      {
+        key: "segmentasi",
+        label: "Segmentasi",
+        type: "radio",
+        radioOptions: [
+          { label: "< 1 Bulan", value: "lt_1_bulan" },
+          { label: "> 1 Bulan", value: "gt_1_bulan" },
+        ],
+      },
+    ],
+    [branchOptions]
+  )
+
+  const defaultFilterValues: Record<string, unknown> = {
+    dateRange: { from: null, to: null },
+    tipeBarang: [],
+    toko: [],
+    segmentasi: null,
+  }
+
   const [pageSize, setPageSize] = useState(100)
   const [searchValue, setSearchValue] = useState("")
   const [activeTab, setActiveTab] = useState("spk-jatuh-tempo")
+  const [filterDialogOpen, setFilterDialogOpen] = useState(false)
+  const [filterValues, setFilterValues] =
+    useState<Record<string, unknown>>(defaultFilterValues)
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
   const [itemToDelete, setItemToDelete] = useState<
     ItemLelang | BatchLelang | null
@@ -375,6 +434,7 @@ function LelangPageContent() {
   }, [companyFilterId, selectedBranch])
 
   const { data, isLoading, isError } = useAuctionBatches(listOptions)
+  const cancelBatchMutation = useCancelAuctionBatch()
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const batchesFromApi = data?.data ?? []
@@ -385,6 +445,7 @@ function LelangPageContent() {
 
   const filteredBatchLelang = React.useMemo(() => {
     let result = [...batchRows]
+
     if (searchValue) {
       const s = searchValue.toLowerCase()
       result = result.filter(
@@ -393,8 +454,56 @@ function LelangPageContent() {
           b.namaBatch.toLowerCase().includes(s)
       )
     }
+
+    const dateRange = (filterValues.dateRange as {
+      from: string | null
+      to: string | null
+    }) ?? { from: null, to: null }
+    const tipeBarang = (filterValues.tipeBarang as string[] | undefined) ?? []
+    if (tipeBarang.length) {
+      result = result.filter((b) => {
+        const batch = batchesFromApi.find((x) => x.uuid === b.id)
+        const items = batch?.items ?? []
+        return items.some((item) => {
+          const spkItems = item.spk?.items ?? []
+          return spkItems.some(
+            (si) =>
+              si.itemType?.typeName &&
+              tipeBarang.includes(si.itemType.typeName)
+          )
+        })
+      })
+    }
+    const toko = (filterValues.toko as string[] | undefined) ?? []
+    const segmentasi = filterValues.segmentasi as string | null | undefined
+
+    if (dateRange.from || dateRange.to) {
+      result = result.filter((b) => {
+        const d = b.updatedAtRaw ? new Date(b.updatedAtRaw) : null
+        if (!d) return false
+        if (dateRange.from && d < new Date(dateRange.from)) return false
+        if (dateRange.to && d > new Date(dateRange.to)) return false
+        return true
+      })
+    }
+    if (toko.length) {
+      result = result.filter((b) => b.toko && toko.includes(b.toko))
+    }
+    if (segmentasi) {
+      const now = new Date()
+      const oneMonthAgo = new Date(now)
+      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1)
+      result = result.filter((b) => {
+        const d = b.updatedAtRaw ? new Date(b.updatedAtRaw) : null
+        if (!d) return false
+        if (segmentasi === "lt_1_bulan") return d >= oneMonthAgo
+        if (segmentasi === "gt_1_bulan") return d < oneMonthAgo
+        return true
+      })
+    }
+
     return result
-  }, [batchRows, searchValue])
+  }, [batchRows, batchesFromApi, searchValue, filterValues])
 
   const handleDetail = (row: ItemLelang | BatchLelang) => {
     if ("idBatch" in row) {
@@ -402,8 +511,8 @@ function LelangPageContent() {
     }
   }
 
-  const handleEdit = (_row: ItemLelang | BatchLelang) => {
-    // Implement edit if needed
+  const handleEdit = (row: ItemLelang | BatchLelang) => {
+    void row // reserved for future edit implementation
   }
 
   const handleDelete = (row: ItemLelang | BatchLelang) => {
@@ -412,11 +521,24 @@ function LelangPageContent() {
   }
 
   const handleConfirmDelete = () => {
-    if (itemToDelete) {
-      // TODO: wire to useCancelAuctionBatch or delete API when available
+    if (!itemToDelete) return
+    if (!("idBatch" in itemToDelete)) {
       setIsConfirmDialogOpen(false)
       setItemToDelete(null)
+      return
     }
+    cancelBatchMutation.mutate(itemToDelete.id, {
+      onSuccess: () => {
+        toast.success("Batch lelang berhasil dibatalkan")
+        setIsConfirmDialogOpen(false)
+        setItemToDelete(null)
+      },
+      onError: (err) => {
+        toast.error(
+          err?.message ?? "Gagal membatalkan batch lelang"
+        )
+      },
+    })
   }
 
   return (
@@ -507,12 +629,21 @@ function LelangPageContent() {
                     className="w-full"
                   />
                 </div>
-                <Button variant="outline" className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  className="flex items-center gap-2"
+                  onClick={() => setFilterDialogOpen(true)}
+                >
                   <SlidersHorizontal className="size-4" />
                   Filter
                 </Button>
               </div>
             }
+            filterConfig={lelanganFilterConfig}
+            filterValues={filterValues}
+            onFilterChange={setFilterValues}
+            filterDialogOpen={filterDialogOpen}
+            onFilterDialogOpenChange={setFilterDialogOpen}
             initialPageSize={pageSize}
             onPageSizeChange={setPageSize}
             searchValue={searchValue}
@@ -571,12 +702,21 @@ function LelangPageContent() {
                       className="w-full"
                     />
                   </div>
-                  <Button variant="outline" className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    className="flex items-center gap-2"
+                    onClick={() => setFilterDialogOpen(true)}
+                  >
                     <SlidersHorizontal className="size-4" />
                     Filter
                   </Button>
                 </div>
               }
+              filterConfig={lelanganFilterConfig}
+              filterValues={filterValues}
+              onFilterChange={setFilterValues}
+              filterDialogOpen={filterDialogOpen}
+              onFilterDialogOpenChange={setFilterDialogOpen}
               initialPageSize={pageSize}
               onPageSizeChange={setPageSize}
               searchValue={searchValue}

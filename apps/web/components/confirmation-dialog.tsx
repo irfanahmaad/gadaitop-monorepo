@@ -79,7 +79,6 @@ export function ConfirmationDialog({
                 {cancelLabel}
               </Button>
               <Button
-                variant="destructive"
                 onClick={handleConfirm}
                 className="flex-1 sm:flex-initial"
               >
@@ -89,18 +88,18 @@ export function ConfirmationDialog({
           ) : (
             <>
               <Button
-                variant="destructive"
-                onClick={handleConfirm}
-                className="flex-1 sm:flex-initial"
-              >
-                {confirmLabel}
-              </Button>
-              <Button
                 variant="outline"
                 onClick={() => onOpenChange(false)}
                 className="flex-1 sm:flex-initial"
               >
                 {cancelLabel}
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleConfirm}
+                className="flex-1 sm:flex-initial"
+              >
+                {confirmLabel}
               </Button>
             </>
           )}

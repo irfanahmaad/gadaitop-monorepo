@@ -19,6 +19,7 @@ import {
 } from "@workspace/ui/components/select"
 import { User } from "lucide-react"
 import { useFilterParams, FilterConfig } from "@/hooks/use-filter-params"
+import { useAuth } from "@/lib/react-query/hooks/use-auth"
 import { useSpkList } from "@/lib/react-query/hooks/use-spk"
 import { useBranches } from "@/lib/react-query/hooks/use-branches"
 import type { Spk } from "@/lib/api/types"
@@ -157,10 +158,16 @@ function TableSkeleton() {
 
 export default function SPKPage() {
   const router = useRouter()
+  const { user } = useAuth()
   const { filterValues, setFilters } = useFilterParams(filterConfig)
   const [selectedBranch, setSelectedBranch] = useState<string>("")
   const [page, setPage] = useState(1)
   const pageSize = 10
+
+  const isAdminPT = useMemo(
+    () => user?.roles?.some((r) => r.code === "company_admin") ?? false,
+    [user]
+  )
 
   const listOptions = useMemo(() => {
     const filter: Record<string, string | number> = {}
@@ -229,10 +236,12 @@ export default function SPKPage() {
             items={[{ label: "Pages", href: "/" }, { label: "SPK" }]}
           />
         </div>
-        <Button onClick={() => router.push("/spk/tambah")}>
-          <Plus className="size-5" />
-          Tambah SPK
-        </Button>
+        {!isAdminPT && (
+          <Button onClick={() => router.push("/spk/tambah")}>
+            <Plus className="size-5" />
+            Tambah SPK
+          </Button>
+        )}
       </div>
 
       {isLoading ? (

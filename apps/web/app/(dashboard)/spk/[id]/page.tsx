@@ -33,9 +33,11 @@ import {
   QrCode,
   ExternalLink,
 } from "lucide-react"
+import { toast } from "sonner"
 import { Badge } from "@workspace/ui/components/badge"
 import { useSpk, useSpkNkb } from "@/lib/react-query/hooks/use-spk"
 import type { Nkb } from "@/lib/api/types"
+import { QRCodeDialog } from "../../_components/QRCodeDialog"
 
 const formatCurrency = (amount: number): string =>
   new Intl.NumberFormat("id-ID", {
@@ -237,6 +239,7 @@ export default function SPKDetailPage() {
   const id = typeof params.id === "string" ? params.id : ""
   const [pageSize, setPageSize] = useState(100)
   const [searchValue, setSearchValue] = useState("")
+  const [qrDialogOpen, setQrDialogOpen] = useState(false)
 
   const { data: spkData, isLoading: spkLoading, isError: spkError } = useSpk(id)
   const { data: nkbData } = useSpkNkb(id)
@@ -267,7 +270,11 @@ export default function SPKDetailPage() {
   const handleDelete = () => {}
 
   const handlePrintQR = () => {
-    // TODO: Implement print QR
+    if (!spk?.spkNumber) {
+      toast.error("Nomor SPK tidak tersedia")
+      return
+    }
+    setQrDialogOpen(true)
   }
 
   const customerName = spk?.customer
@@ -498,6 +505,14 @@ export default function SPKDetailPage() {
           onDelete={handleDelete}
         />
       )}
+      {spk?.spkNumber ? (
+        <QRCodeDialog
+          open={qrDialogOpen}
+          onOpenChange={setQrDialogOpen}
+          value={spk.spkNumber}
+          title="QR Code SPK"
+        />
+      ) : null}
     </div>
   )
 }

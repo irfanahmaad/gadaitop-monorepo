@@ -43,6 +43,8 @@ import {
 } from "@workspace/ui/components/select"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { formatCurrencyInput, parseCurrencyInput } from "@/lib/format-currency"
+import { useCatalog, useUpdateCatalog } from "@/lib/react-query/hooks/use-catalogs"
+import { useItemTypes } from "@/lib/react-query/hooks/use-item-types"
 
 const katalogSchema = z.object({
   image: z.union([z.instanceof(File), z.string()]).optional(),
@@ -73,44 +75,6 @@ const katalogSchema = z.object({
 })
 
 type KatalogFormValues = z.infer<typeof katalogSchema>
-
-// Tipe Barang options
-const tipeBarangOptions = [
-  { value: "Handphone", label: "Handphone" },
-  { value: "Sepeda Motor", label: "Sepeda Motor" },
-  { value: "Aksesoris Komputer", label: "Aksesoris Komputer" },
-  { value: "Laptop", label: "Laptop" },
-  { value: "Drone", label: "Drone" },
-  { value: "Elektronik", label: "Elektronik" },
-]
-
-// Katalog detail type
-type KatalogDetail = {
-  id: string
-  foto: string
-  namaKatalog: string
-  tipeBarang: string
-  harga: number
-  namaPotongan: string
-  jumlahPotongan: number
-  keterangan: string
-}
-
-// Mock: fetch katalog by id (replace with API later)
-function getKatalogById(id: string): KatalogDetail | null {
-  // Mock data - replace with API call
-  const mock: KatalogDetail = {
-    id: id,
-    foto: "/placeholder-avatar.jpg",
-    namaKatalog: "iPhone 15 Pro",
-    tipeBarang: "Handphone",
-    harga: 17500000,
-    namaPotongan: "Diskon Apple",
-    jumlahPotongan: 500000,
-    keterangan: "Potongan Khusus Produk Apple",
-  }
-  return mock
-}
 
 // Form skeleton component
 function FormSkeleton() {
@@ -158,9 +122,16 @@ export default function EditMasterKatalogPage() {
   const id = params.id as string
   const [previewImage, setPreviewImage] = useState<string | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
-  const [katalogData, setKatalogData] = useState<KatalogDetail | null>(null)
+  const { data: catalogData, isLoading } = useCatalog(id)
+  const { mutateAsync: updateCatalog, isPending: isSubmitting } = useUpdateCatalog()
+  const { data: itemTypesData } = useItemTypes({ pageSize: 100 })
+  const tipeBarangOptions = React.useMemo(() => {
+    const list = itemTypesData?.data ?? []
+    return list.map((itemType) => ({
+      value: itemType.uuid,
+      label: itemType.typeName,
+    }))
+  }, [itemTypesData])
 
   const form = useForm<KatalogFormValues>({
     resolver: zodResolver(katalogSchema),
@@ -177,46 +148,27 @@ export default function EditMasterKatalogPage() {
 
   // Load katalog data
   useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true)
-      try {
-        // TODO: Replace with API call
-        const data = getKatalogById(id)
-        if (!data) {
-          toast.error("Data Katalog tidak ditemukan")
-          router.push("/master-katalog")
-          return
-        }
+    if (!id) return
+    if (!catalogData) return
 
-        setKatalogData(data)
-        setPreviewImage(data.foto)
+    setPreviewImage("/placeholder-avatar.jpg")
+    form.reset({
+      image: "/placeholder-avatar.jpg",
+      namaKatalog: catalogData.name ?? catalogData.itemName ?? "",
+      tipeBarang: catalogData.itemTypeId ?? "",
+      harga: formatCurrencyInput(Number(catalogData.basePrice ?? 0)),
+      namaPotongan: "",
+      jumlahPotongan: formatCurrencyInput(0),
+      keterangan: catalogData.description || "",
+    })
+  }, [id, catalogData, form])
 
-        // Set form values
-        form.reset({
-          image: data.foto,
-          namaKatalog: data.namaKatalog,
-          tipeBarang: data.tipeBarang,
-          harga: formatCurrencyInput(data.harga),
-          namaPotongan: data.namaPotongan,
-          jumlahPotongan: formatCurrencyInput(data.jumlahPotongan),
-          keterangan: data.keterangan || "",
-        })
-      } catch (error) {
-        const message =
-          error instanceof Error
-            ? error.message
-            : "Gagal memuat data Katalog"
-        toast.error(message)
-        router.push("/master-katalog")
-      } finally {
-        setIsLoading(false)
-      }
+  useEffect(() => {
+    if (!isLoading && id && !catalogData) {
+      toast.error("Data Katalog tidak ditemukan")
+      router.push("/master-katalog")
     }
-
-    if (id) {
-      loadData()
-    }
-  }, [id, form, router])
+  }, [catalogData, id, isLoading, router])
 
   const handleImageChange = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -243,14 +195,19 @@ export default function EditMasterKatalogPage() {
 
   const handleConfirmSubmit = async () => {
     const values = form.getValues()
-    setIsSubmitting(true)
     try {
-      // TODO: Replace with API call to update catalog
-      console.log("Update Katalog:", {
+      const parsedPrice = parseCurrencyInput(values.harga)
+      if (parsedPrice === null || parsedPrice <= 0) {
+        throw new Error("Harga harus lebih dari 0")
+      }
+
+      await updateCatalog({
         id,
-        ...values,
-        harga: parseCurrencyInput(values.harga),
-        jumlahPotongan: parseCurrencyInput(values.jumlahPotongan),
+        data: {
+          itemName: values.namaKatalog,
+          basePrice: parsedPrice,
+          description: values.keterangan?.trim() || undefined,
+        },
       })
       toast.success("Data Katalog berhasil diupdate")
       setConfirmOpen(false)
@@ -260,7 +217,7 @@ export default function EditMasterKatalogPage() {
         error instanceof Error ? error.message : "Gagal mengupdate data Katalog"
       toast.error(message)
     } finally {
-      setIsSubmitting(false)
+      // noop
     }
   }
 
@@ -276,7 +233,7 @@ export default function EditMasterKatalogPage() {
     )
   }
 
-  if (!katalogData) {
+  if (!catalogData) {
     return null
   }
 

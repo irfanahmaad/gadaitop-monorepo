@@ -1,10 +1,12 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useMemo, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { useRouter } from "next/navigation"
+import { format, parse } from "date-fns"
+import { id } from "date-fns/locale"
 import {
   User,
   Mail,
@@ -44,6 +46,16 @@ import {
 } from "@workspace/ui/components/radio-group"
 import { Label } from "@workspace/ui/components/label"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@workspace/ui/components/select"
+import { useAuth } from "@/lib/react-query/hooks/use-auth"
+import { useCompanies } from "@/lib/react-query/hooks/use-companies"
+import { useCreateCustomer } from "@/lib/react-query/hooks/use-customers"
 
 const customerSchema = z.object({
   image: z.union([z.instanceof(File), z.string()]).optional(),
@@ -116,8 +128,52 @@ const customerSchema = z.object({
 
 type CustomerFormValues = z.infer<typeof customerSchema>
 
+function parseDobToIso(value: string): string | null {
+  if (!value?.trim()) return null
+  const trimmed = value.trim()
+  try {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed
+    const parsed = parse(trimmed, "d MMMM yyyy", new Date(), { locale: id })
+    return format(parsed, "yyyy-MM-dd")
+  } catch {
+    return null
+  }
+}
+
 export default function TambahMasterCustomerPage() {
   const router = useRouter()
+  const { user } = useAuth()
+  const isCompanyAdmin =
+    user?.roles?.some((r) => r.code === "company_admin") ?? false
+  const isSuperAdmin = user?.roles?.some((r) => r.code === "owner") ?? false
+  const effectiveCompanyId = isCompanyAdmin ? (user?.companyId ?? null) : null
+
+  const { data: companiesData } = useCompanies(
+    isSuperAdmin || isCompanyAdmin ? { pageSize: 100 } : undefined
+  )
+  const ptOptions = useMemo(() => {
+    const list = companiesData?.data ?? []
+    const mapped = list.map((c) => ({ value: c.uuid, label: c.companyName }))
+    if (isCompanyAdmin && effectiveCompanyId) {
+      return mapped.filter((o) => o.value === effectiveCompanyId)
+    }
+    return mapped
+  }, [companiesData, isCompanyAdmin, effectiveCompanyId])
+
+  const [selectedPT, setSelectedPT] = useState("")
+  useEffect(() => {
+    if (isCompanyAdmin && effectiveCompanyId && !selectedPT) {
+      setSelectedPT(effectiveCompanyId)
+    }
+  }, [isCompanyAdmin, effectiveCompanyId, selectedPT])
+  useEffect(() => {
+    if (isSuperAdmin && ptOptions.length > 0 && !selectedPT) {
+      setSelectedPT(ptOptions[0]!.value)
+    }
+  }, [isSuperAdmin, ptOptions, selectedPT])
+
+  const createCustomerMutation = useCreateCustomer()
+
   const [previewImage, setPreviewImage] = useState<string | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -158,13 +214,12 @@ export default function TambahMasterCustomerPage() {
   }
 
   const handleScan = () => {
-    // TODO: Implement KTP scanning functionality
-    toast.info("Fitur scan KTP akan segera tersedia")
+    router.push("/scan-ktp")
   }
 
   const handleCustomerMasukkanPin = () => {
-    // TODO: Implement customer PIN input flow
-    toast.info("Fitur input PIN customer akan segera tersedia")
+    form.setFocus("pin")
+    toast.info("Customer dapat memasukkan PIN pada kolom PIN di form ini")
   }
 
   const handleSimpanClick = () => {
@@ -177,17 +232,56 @@ export default function TambahMasterCustomerPage() {
 
   const handleConfirmSubmit = async () => {
     const values = form.getValues()
+    if (!selectedPT) {
+      toast.error("Pilih PT terlebih dahulu")
+      return
+    }
+    const dobIso = parseDobToIso(values.tanggalLahir ?? "")
+    if (!dobIso) {
+      toast.error(
+        "Tanggal lahir wajib diisi dengan format yang valid (contoh: 20 November 1990 atau YYYY-MM-DD)"
+      )
+      return
+    }
+    const phone = (values.telepon1 ?? "").trim()
+    const email = (values.email ?? "").trim()
+    const pin = (values.pin ?? "").trim()
+    if (!phone) {
+      toast.error("Telepon 1 wajib diisi")
+      return
+    }
+    if (!email) {
+      toast.error("E-mail wajib diisi")
+      return
+    }
+    if (!pin || pin.length < 4 || pin.length > 6) {
+      toast.error("PIN wajib diisi (4–6 karakter)")
+      return
+    }
+    const address = (values.alamat ?? "").trim() || "-"
+    const city = (values.kota ?? "").trim() || "-"
+
     setIsSubmitting(true)
     try {
-      // TODO: Replace with API call to create customer
-      console.log("Simpan Customer:", values)
+      await createCustomerMutation.mutateAsync({
+        nik: values.nik,
+        pin,
+        name: values.namaCustomer,
+        dob: dobIso,
+        gender: values.jenisKelamin === "Laki-laki" ? "male" : "female",
+        address,
+        city,
+        phone,
+        email,
+        ptId: selectedPT,
+      })
       toast.success("Data Customer berhasil ditambahkan")
       setConfirmOpen(false)
       router.push("/master-customer")
-    } catch (error) {
+    } catch (error: unknown) {
       const message =
-        error instanceof Error
-          ? error.message
+        error && typeof error === "object" && "message" in error
+          ? String((error as { message: unknown }).message)
           : "Gagal menambahkan data Customer"
       toast.error(message)
     } finally {
@@ -198,14 +292,33 @@ export default function TambahMasterCustomerPage() {
   return (
     <div className="flex flex-col gap-6">
       {/* Header section */}
-      <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-bold">Tambah Data</h1>
-        <Breadcrumbs
-          items={[
-            { label: "Master Customer", href: "/master-customer" },
-            { label: "Tambah Data", className: "text-destructive" },
-          ]}
-        />
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-2xl font-bold">Tambah Data</h1>
+          <Breadcrumbs
+            items={[
+              { label: "Master Customer", href: "/master-customer" },
+              { label: "Tambah Data", className: "text-destructive" },
+            ]}
+          />
+        </div>
+        {isSuperAdmin && ptOptions.length > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium">PT :</span>
+            <Select value={selectedPT} onValueChange={setSelectedPT}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Pilih PT" />
+              </SelectTrigger>
+              <SelectContent>
+                {ptOptions.map((pt) => (
+                  <SelectItem key={pt.value} value={pt.value}>
+                    {pt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
 
       {/* Data Customer card */}

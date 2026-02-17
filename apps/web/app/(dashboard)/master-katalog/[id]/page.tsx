@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useMemo } from "react"
+import React, { useMemo, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Pencil, Trash2, Package, Clock } from "lucide-react"
 import { toast } from "sonner"
@@ -29,8 +29,9 @@ import {
   AlertDialogTitle,
 } from "@workspace/ui/components/alert-dialog"
 import { formatCurrencyDisplay } from "@/lib/format-currency"
+import { useCatalog, useDeleteCatalog } from "@/lib/react-query/hooks/use-catalogs"
 
-// Katalog detail type
+// Katalog detail type for view model
 type KatalogDetail = {
   id: string
   foto: string
@@ -41,36 +42,6 @@ type KatalogDetail = {
   namaPotongan: string
   jumlahPotongan: number
   keterangan: string
-}
-
-// Mock: fetch katalog by id (replace with API later)
-function getKatalogById(id: string): KatalogDetail | null {
-  const mock: KatalogDetail = {
-    id: id,
-    foto: "/placeholder-avatar.jpg",
-    idKatalog: "KT01",
-    namaKatalog: "iPhone 15 Pro",
-    tipeBarang: "Handphone",
-    harga: 17500000,
-    namaPotongan: "Spesial Diskon",
-    jumlahPotongan: 10000,
-    keterangan: "",
-  }
-  if (id === "1" || id === "KT01") return mock
-  // Second katalog for id 2
-  if (id === "2" || id === "KT02") {
-    return {
-      ...mock,
-      id: "2",
-      idKatalog: "KT02",
-      namaKatalog: "Yamaha XSR 155",
-      tipeBarang: "Sepeda Motor",
-      harga: 30000000,
-      jumlahPotongan: 500000,
-      keterangan: "Potongan khusus untuk produk motor",
-    }
-  }
-  return mock
 }
 
 // Loading skeleton for Data Katalog card
@@ -126,15 +97,22 @@ export default function MasterKatalogDetailPage() {
   const router = useRouter()
   const id = typeof params.id === "string" ? params.id : ""
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-
-  // Simulate async fetch (replace with useQuery + API)
-  const [loading, setLoading] = useState(true)
-  React.useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 400)
-    return () => clearTimeout(t)
-  }, [id])
-
-  const katalog = useMemo(() => (id ? getKatalogById(id) : null), [id])
+  const { data: catalogData, isLoading: loading, isError } = useCatalog(id)
+  const { mutateAsync: deleteCatalog, isPending: isDeleting } = useDeleteCatalog()
+  const katalog = useMemo<KatalogDetail | null>(() => {
+    if (!catalogData) return null
+    return {
+      id: catalogData.uuid,
+      foto: "/placeholder-avatar.jpg",
+      idKatalog: catalogData.code ?? catalogData.uuid.slice(0, 8),
+      namaKatalog: catalogData.name ?? catalogData.itemName ?? "-",
+      tipeBarang: catalogData.itemType?.typeName ?? "-",
+      harga: Number(catalogData.basePrice ?? 0),
+      namaPotongan: "-",
+      jumlahPotongan: 0,
+      keterangan: catalogData.description ?? "",
+    }
+  }, [catalogData])
 
   const handleEdit = () => {
     router.push(`/master-katalog/${id}/edit`)
@@ -146,8 +124,7 @@ export default function MasterKatalogDetailPage() {
 
   const confirmDelete = async () => {
     try {
-      // TODO: Replace with API call to delete katalog
-      console.log("Delete Katalog:", id)
+      await deleteCatalog(id)
       toast.success("Data Katalog berhasil dihapus")
       setDeleteDialogOpen(false)
       router.push("/master-katalog")
@@ -161,6 +138,20 @@ export default function MasterKatalogDetailPage() {
   }
 
   if (!id) {
+    return (
+      <div className="flex flex-col gap-6">
+        <Breadcrumbs
+          items={[
+            { label: "Master Katalog", href: "/master-katalog" },
+            { label: "Detail", className: "text-destructive" },
+          ]}
+        />
+        <p className="text-muted-foreground">Katalog tidak ditemukan.</p>
+      </div>
+    )
+  }
+
+  if (!loading && (isError || !katalog)) {
     return (
       <div className="flex flex-col gap-6">
         <Breadcrumbs
@@ -337,9 +328,10 @@ export default function MasterKatalogDetailPage() {
             <AlertDialogCancel>Batal</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDelete}
+              disabled={isDeleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Hapus
+              {isDeleting ? "Menghapus..." : "Hapus"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

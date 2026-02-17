@@ -224,7 +224,6 @@ export interface Branch {
 
 export type BranchStatus = "pending" | "active" | "inactive" | "rejected"
 
-
 export interface CreateBranchDto {
   branchCode: string
   shortName: string
@@ -453,31 +452,55 @@ export interface QuerySpkDto extends PageOptions {
 export type CustomerStatus = "active" | "blacklisted" | "inactive"
 
 export interface Customer {
-  id: string
+  id: number | string
   uuid: string
   nik: string
-  fullName: string
+  /** API may return `name`; frontend also supports `fullName` */
+  name?: string
+  fullName?: string
   dateOfBirth?: string
+  dob?: string
+  gender?: string
   address?: string
+  city?: string
+  /** API may return `phone`; frontend also supports `phoneNumber` */
+  phone?: string
   phoneNumber?: string
   email?: string
-  status: CustomerStatus
+  status?: CustomerStatus
+  isBlacklisted?: boolean
   blacklistReason?: string
-  ktpPhotoUrl?: string
+  blacklistedAt?: string | null
+  blacklistedBy?: string | null
+  unblacklistedAt?: string | null
+  unblacklistedBy?: string | null
+  ktpPhotoUrl?: string | null
+  selfiePhotoUrl?: string | null
   companyId?: string
+  ptId?: string
   company?: Company
   createdAt: string
   updatedAt: string
+  createdBy?: string | null
+  updatedBy?: string | null
+  deletedAt?: string | null
+  deletedBy?: string | null
+  version?: number
 }
 
 export interface CreateCustomerDto {
   nik: string
-  fullName: string
-  dateOfBirth?: string
-  address?: string
-  phoneNumber?: string
-  email?: string
   pin: string
+  name: string
+  dob: string
+  gender: "male" | "female"
+  address: string
+  city: string
+  phone: string
+  email: string
+  ptId: string
+  ktpPhotoUrl?: string
+  selfiePhotoUrl?: string
 }
 
 export interface UpdateCustomerDto {
@@ -499,7 +522,8 @@ export interface KtpScanResult {
 }
 
 export interface ChangePinDto {
-  oldPin: string
+  /** Omit for admin reset; include for customer-initiated change */
+  oldPin?: string
   newPin: string
 }
 
@@ -744,8 +768,10 @@ export interface StockOpnameSession {
 }
 
 export interface CreateStockOpnameDto {
+  ptId: string
   storeId: string
-  scheduledDate: string
+  startDate: string
+  notes?: string
 }
 
 export interface UpdateStockOpnameItemsDto {
@@ -1049,4 +1075,3 @@ export interface UpdateLinkDto {
   description?: string
   isActive?: boolean
 }
-

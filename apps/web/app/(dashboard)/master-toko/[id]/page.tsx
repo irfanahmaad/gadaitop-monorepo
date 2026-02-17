@@ -43,8 +43,10 @@ import {
   SelectValue,
 } from "@workspace/ui/components/select"
 import { Label } from "@workspace/ui/components/label"
+import { useBranch, useDeleteBranch } from "@/lib/react-query/hooks/use-branches"
+import type { Branch } from "@/lib/api/types"
 
-// Toko detail type
+// Toko detail type (UI shape)
 type TokoDetail = {
   id: string
   foto: string
@@ -57,37 +59,22 @@ type TokoDetail = {
   alamat: string
 }
 
-// Mock: fetch toko by id (replace with API later)
-function getTokoById(id: string): TokoDetail | null {
-  const mock: TokoDetail = {
-    id: "1",
-    foto: "/placeholder-avatar.jpg",
-    kodeLokasi: "JK01",
-    namaToko: "GT Jakarta Satu",
-    alias: "GT Satu",
-    noTelepon: "0812345678910",
-    kota: "Jakarta Timur",
-    pinjamPT: null,
-    alamat:
-      "Jl. Jenderal Basuki Rachmat No.12B, RT.2/RW.3, Pd. Bambu, Kec. Duren Sawit, Kota Jakarta Timur, Daerah Khusus Ibukota Jakarta 13430",
+function mapBranchToTokoDetail(branch: Branch): TokoDetail {
+  const company = branch.company as { companyName?: string } | undefined
+  return {
+    id: branch.uuid,
+    foto: "",
+    kodeLokasi: branch.branchCode,
+    namaToko: branch.fullName,
+    alias: branch.shortName,
+    noTelepon: branch.phone ?? "",
+    kota: branch.city ?? "",
+    pinjamPT: company?.companyName ?? null,
+    alamat: branch.address ?? "",
   }
-  if (id === "1") return mock
-  // Second toko for id 2
-  if (id === "2") {
-    return {
-      ...mock,
-      id: "2",
-      kodeLokasi: "JK02",
-      namaToko: "GT Jakarta Dua",
-      alias: "GT Dua",
-      noTelepon: "0812345678911",
-      pinjamPT: "PT Gadai Top Indonesia",
-    }
-  }
-  return mock
 }
 
-// Mock PT options for Pindah Toko (replace with API later)
+// PT options for Pindah Toko dialog (static until transfer API exists)
 const ptOptions = [
   { value: "pt1", label: "PT Gadai Top Indonesia" },
   { value: "pt2", label: "PT Gadai Top Premium" },
@@ -142,14 +129,13 @@ export default function MasterTokoDetailPage() {
   const [selectedPT, setSelectedPT] = useState<string>("")
   const [isSubmittingPindahToko, setIsSubmittingPindahToko] = useState(false)
 
-  // Simulate async fetch (replace with useQuery + API)
-  const [loading, setLoading] = useState(true)
-  React.useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 400)
-    return () => clearTimeout(t)
-  }, [id])
+  const { data: branchData, isLoading, isError } = useBranch(id)
+  const deleteBranchMutation = useDeleteBranch()
 
-  const toko = useMemo(() => (id ? getTokoById(id) : null), [id])
+  const toko = useMemo(
+    () => (branchData ? mapBranchToTokoDetail(branchData) : null),
+    [branchData]
+  )
 
   const handleEdit = () => {
     router.push(`/master-toko/${id}/edit`)
@@ -165,24 +151,11 @@ export default function MasterTokoDetailPage() {
       toast.error("Pilih PT terlebih dahulu")
       return
     }
-
-    setIsSubmittingPindahToko(true)
-    try {
-      // TODO: Replace with API call to transfer ownership
-      console.log("Pindah Kepemilikan:", { tokoId: id, ptId: selectedPT })
-      toast.success("Kepemilikan Toko berhasil dipindahkan")
-      setPindahTokoDialogOpen(false)
-      setSelectedPT("")
-      // Optionally refresh the page or update the data
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Gagal memindahkan kepemilikan Toko"
-      toast.error(message)
-    } finally {
-      setIsSubmittingPindahToko(false)
-    }
+    // Backend transfer endpoint not yet available
+    toast.info("Fitur pindah kepemilikan belum tersedia")
+    setPindahTokoDialogOpen(false)
+    setSelectedPT("")
+    setIsSubmittingPindahToko(false)
   }
 
   const handleDelete = () => {
@@ -191,10 +164,9 @@ export default function MasterTokoDetailPage() {
 
   const confirmDelete = async () => {
     try {
-      // TODO: Replace with API call to delete toko
-      console.log("Delete Toko:", id)
-      toast.success("Data Toko berhasil dihapus")
+      await deleteBranchMutation.mutateAsync(id)
       setDeleteDialogOpen(false)
+      toast.success("Data Toko berhasil dihapus")
       router.push("/master-toko")
     } catch (error) {
       const message =
@@ -224,7 +196,7 @@ export default function MasterTokoDetailPage() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex flex-col gap-2">
             <h1 className="text-2xl font-bold">
-              {loading ? (
+              {isLoading ? (
                 <Skeleton className="h-8 w-64" />
               ) : (
                 (toko?.namaToko ?? "—")
@@ -238,7 +210,7 @@ export default function MasterTokoDetailPage() {
             />
           </div>
 
-          {!loading && toko && (
+          {!isLoading && toko && (
             <div className="flex gap-2">
               <Button variant="outline" onClick={handleEdit}>
                 <Pencil className="mr-2 size-4" />
@@ -261,8 +233,21 @@ export default function MasterTokoDetailPage() {
         </div>
 
         {/* Data Toko card */}
-        {loading ? (
+        {isLoading ? (
           <DataTokoSkeleton />
+        ) : isError ? (
+          <Card>
+            <CardContent className="py-10 text-center">
+              <p className="text-destructive">Gagal memuat data</p>
+              <Button
+                variant="outline"
+                className="mt-4"
+                onClick={() => router.push("/master-toko")}
+              >
+                Kembali ke Master Toko
+              </Button>
+            </CardContent>
+          </Card>
         ) : toko ? (
           <Card>
             <CardHeader>

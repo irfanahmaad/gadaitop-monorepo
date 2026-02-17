@@ -25,7 +25,10 @@ import { SearchIcon, SlidersHorizontal, ArrowUpDown, Plus } from "lucide-react"
 import { formatCurrencyDisplay } from "@/lib/format-currency"
 import { TambahDataMutasiDialog } from "./_components/tambah-data-mutasi-dialog"
 import { useAuth } from "@/lib/react-query/hooks/use-auth"
-import { useCashMutations, useCreateCashMutation } from "@/lib/react-query/hooks/use-cash-mutations"
+import {
+  useCashMutations,
+  useCreateCashMutation,
+} from "@/lib/react-query/hooks/use-cash-mutations"
 import { useBranches } from "@/lib/react-query/hooks/use-branches"
 import { useCompanies } from "@/lib/react-query/hooks/use-companies"
 import type { CashMutation } from "@/lib/api/types"
@@ -59,7 +62,9 @@ function mapCashMutationToMutasi(
 ): MutasiTransaksi {
   const mutationType = m.mutationType ?? (m.type === "out" ? "debit" : "credit")
   const amount = typeof m.amount === "string" ? parseFloat(m.amount) : m.amount
-  const balanceAfter = m.balanceAfter ?? (typeof m.balanceAfter === "string" ? parseFloat(m.balanceAfter) : 0)
+  const balanceAfter =
+    m.balanceAfter ??
+    (typeof m.balanceAfter === "string" ? parseFloat(m.balanceAfter) : 0)
   const category = m.category ?? "other"
 
   const isDebit = mutationType === "debit"
@@ -205,7 +210,8 @@ function TableSkeleton() {
 
 export default function MutasiTransaksiPage() {
   const { user } = useAuth()
-  const isCompanyAdmin = user?.roles?.some((r) => r.code === "company_admin") ?? false
+  const isCompanyAdmin =
+    user?.roles?.some((r) => r.code === "company_admin") ?? false
   const isSuperAdmin = user?.roles?.some((r) => r.code === "owner") ?? false
 
   const effectiveCompanyId = isCompanyAdmin ? (user?.companyId ?? null) : null
@@ -228,7 +234,9 @@ export default function MutasiTransaksiPage() {
 
   const branchQueryCompanyId = isSuperAdmin ? selectedPT : effectiveCompanyId
   const { data: branchesData } = useBranches(
-    branchQueryCompanyId ? { companyId: branchQueryCompanyId, pageSize: 100 } : undefined
+    branchQueryCompanyId
+      ? { companyId: branchQueryCompanyId, pageSize: 100 }
+      : undefined
   )
 
   const branchOptions = useMemo(() => {
@@ -294,7 +302,16 @@ export default function MutasiTransaksiPage() {
 
     const mapping: Record<
       string,
-      { mutationType: "debit" | "credit"; category: "spk_disbursement" | "nkb_payment" | "expense" | "topup" | "deposit" | "other" }
+      {
+        mutationType: "debit" | "credit"
+        category:
+          | "spk_disbursement"
+          | "nkb_payment"
+          | "expense"
+          | "topup"
+          | "deposit"
+          | "other"
+      }
     > = {
       SPK1: { mutationType: "debit", category: "spk_disbursement" },
       SPK2: { mutationType: "debit", category: "nkb_payment" },
@@ -371,13 +388,15 @@ export default function MutasiTransaksiPage() {
               </div>
             )}
 
-            <Button
-              onClick={handleTambahData}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              Tambah Data
-            </Button>
+            {!isCompanyAdmin && (
+              <Button
+                onClick={handleTambahData}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                Tambah Data
+              </Button>
+            )}
           </div>
         </div>
       </div>

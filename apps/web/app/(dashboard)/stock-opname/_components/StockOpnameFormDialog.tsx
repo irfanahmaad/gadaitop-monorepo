@@ -1,11 +1,12 @@
 "use client"
 
-import React from "react"
+import React, { useMemo, useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { format } from "date-fns"
 import { id } from "date-fns/locale"
+import { toast } from "sonner"
 import { Calendar as CalendarIcon, X, Save, Loader2 } from "lucide-react"
 import {
   Dialog,
@@ -18,6 +19,7 @@ import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
 import { Textarea } from "@workspace/ui/components/textarea"
 import { MultiSelectCombobox } from "@/components/multi-select-combobox"
+import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import {
   Popover,
   PopoverContent,
@@ -33,24 +35,28 @@ import {
   FormMessage,
 } from "@workspace/ui/components/form"
 import { cn } from "@workspace/ui/lib/utils"
+import { useAuth } from "@/lib/react-query/hooks/use-auth"
+import { useBranches } from "@/lib/react-query/hooks/use-branches"
+import { useCreateStockOpname } from "@/lib/react-query/hooks/use-stock-opname"
+import type { CreateStockOpnameDto } from "@/lib/api/types"
 
 const stockOpnameSchema = z.object({
   tanggal: z.date({
     required_error: "Tanggal harus diisi",
   }),
   toko: z.array(z.string()).min(1, "Toko harus dipilih minimal satu"),
-  petugasSO: z
-    .array(z.string())
-    .min(1, "Petugas SO harus dipilih minimal satu"),
-  syaratMata: z
-    .array(z.string())
-    .min(1, "Syarat 'Mata' harus dipilih minimal satu"),
+  petugasSO: z.array(z.string()).optional(),
+  syaratMata: z.array(z.string()).optional(),
   jumlahItemMata: z
     .string()
-    .min(1, "Jumlah item harus diisi")
-    .refine((val) => !isNaN(Number(val)) && Number(val) > 0, {
-      message: "Jumlah item harus berupa angka positif",
-    }),
+    .optional()
+    .refine(
+      (val) =>
+        val === undefined ||
+        val === "" ||
+        (!isNaN(Number(val)) && Number(val) > 0),
+      { message: "Jumlah item harus berupa angka positif" }
+    ),
   catatan: z.string().optional(),
 })
 
@@ -71,15 +77,24 @@ export function StockOpnameFormDialog({
   onSuccess,
 }: StockOpnameFormDialogProps) {
   const [mounted, setMounted] = React.useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [pendingValues, setPendingValues] = useState<StockOpnameFormValues | null>(
+    null
+  )
 
-  // Sample options - TODO: Replace with actual API data
-  const tokoOptions = [
-    { label: "GT Jakarta Satu", value: "gt-jakarta-satu" },
-    { label: "GT Jakarta Dua", value: "gt-jakarta-dua" },
-    { label: "GT Jakarta Tiga", value: "gt-jakarta-tiga" },
-    { label: "GT Bandung Satu", value: "gt-bandung-satu" },
-    { label: "GT Surabaya Satu", value: "gt-surabaya-satu" },
-  ]
+  const { user } = useAuth()
+  const ptId = user?.companyId ?? user?.ownedCompanyId ?? null
+
+  const { data: branchesData } = useBranches({ pageSize: 500 })
+
+  const tokoOptions = useMemo(
+    () =>
+      (branchesData?.data ?? []).map((b) => ({
+        label: b.shortName ?? b.fullName ?? b.branchCode ?? b.uuid,
+        value: b.uuid,
+      })),
+    [branchesData?.data]
+  )
 
   const petugasSOOptions = [
     { label: "Ben Affleck", value: "ben-affleck" },
@@ -95,6 +110,8 @@ export function StockOpnameFormDialog({
     { label: "Barang Antik", value: "barang-antik" },
     { label: "Barang Langka", value: "barang-langka" },
   ]
+
+  const createMutation = useCreateStockOpname()
 
   const form = useForm<StockOpnameFormValues>({
     resolver: zodResolver(stockOpnameSchema),
@@ -128,16 +145,57 @@ export function StockOpnameFormDialog({
   }, [open, form])
 
   const onSubmit = (values: StockOpnameFormValues) => {
-    console.log("Form values:", values)
-    // TODO: Implement API call to create stock opname schedule (useCreateStockOpname with ptId, storeId, startDate)
-    onSuccess?.()
-    onClose()
+    if (!ptId) {
+      toast.error("Company (PT) tidak ditemukan. Silakan login kembali.")
+      return
+    }
+    setPendingValues(values)
+    setConfirmOpen(true)
+  }
+
+  const handleConfirmSubmit = async () => {
+    if (!pendingValues || !ptId) {
+      setConfirmOpen(false)
+      setPendingValues(null)
+      return
+    }
+    const startDate = format(pendingValues.tanggal, "yyyy-MM-dd")
+    const notes = pendingValues.catatan?.trim() || undefined
+    const payloads: CreateStockOpnameDto[] = pendingValues.toko.map(
+      (storeId) => ({
+        ptId,
+        storeId,
+        startDate,
+        notes,
+      })
+    )
+    try {
+      await Promise.all(
+        payloads.map((dto) => createMutation.mutateAsync(dto))
+      )
+      toast.success(
+        payloads.length === 1
+          ? "Jadwal SO berhasil dibuat."
+          : `${payloads.length} jadwal SO berhasil dibuat.`
+      )
+      onSuccess?.()
+      setConfirmOpen(false)
+      setPendingValues(null)
+      onClose()
+    } catch {
+      toast.error("Gagal membuat jadwal SO. Silakan coba lagi.")
+    }
   }
 
   const handleCancel = () => {
     form.reset()
+    setPendingValues(null)
+    setConfirmOpen(false)
     onClose()
   }
+
+  const isSubmitting =
+    form.formState.isSubmitting || createMutation.isPending
 
   // Don't render on server to prevent hydration mismatch with Radix UI IDs
   if (!mounted) {
@@ -145,8 +203,20 @@ export function StockOpnameFormDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+    <>
+      <ConfirmationDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        onConfirm={handleConfirmSubmit}
+        title="Apakah Anda Yakin?"
+        description="Anda akan menyimpan data jadwal Stock Opname ke dalam sistem."
+        note="Pastikan kembali sebelum menyimpan data."
+        confirmLabel="Ya"
+        cancelLabel="Batal"
+        variant="info"
+      />
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle className="border-b pb-4 text-2xl font-bold">
             Buat Jadwal SO
@@ -234,7 +304,7 @@ export function StockOpnameFormDialog({
                   <FormControl>
                     <MultiSelectCombobox
                       options={petugasSOOptions}
-                      selected={field.value}
+                      selected={field.value ?? []}
                       onSelectedChange={field.onChange}
                       placeholder="Pilih Petugas"
                       searchPlaceholder="Cari Petugas..."
@@ -260,7 +330,7 @@ export function StockOpnameFormDialog({
                   <FormControl>
                     <MultiSelectCombobox
                       options={syaratMataOptions}
-                      selected={field.value}
+                      selected={field.value ?? []}
                       onSelectedChange={field.onChange}
                       placeholder="Pilih Syarat 'Mata'"
                       searchPlaceholder="Cari Syarat..."
@@ -321,7 +391,7 @@ export function StockOpnameFormDialog({
                 type="button"
                 variant="outline"
                 onClick={handleCancel}
-                disabled={form.formState.isSubmitting}
+                disabled={isSubmitting}
                 className="gap-2"
               >
                 <X className="size-4" />
@@ -330,10 +400,10 @@ export function StockOpnameFormDialog({
               <Button
                 type="submit"
                 variant="destructive"
-                disabled={form.formState.isSubmitting}
+                disabled={isSubmitting || !ptId}
                 className="gap-2"
               >
-                {form.formState.isSubmitting ? (
+                {isSubmitting ? (
                   <Loader2 className="size-4 animate-spin" />
                 ) : (
                   <Save className="size-4" />
@@ -345,5 +415,6 @@ export function StockOpnameFormDialog({
         </Form>
       </DialogContent>
     </Dialog>
+    </>
   )
 }

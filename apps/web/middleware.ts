@@ -109,6 +109,18 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/scan-ktp", request.url))
   }
 
+  // stock_auditor: redirect "/" to "/stock-opname"
+  const isStockAuditor = roles.some((r) => r.code === "stock_auditor")
+  if (isAuthenticated && pathname === "/" && isStockAuditor) {
+    return NextResponse.redirect(new URL("/stock-opname", request.url))
+  }
+
+  // auction_staff: redirect "/" to "/lelangan"
+  const isAuctionStaff = roles.some((r) => r.code === "auction_staff")
+  if (isAuthenticated && pathname === "/" && isAuctionStaff) {
+    return NextResponse.redirect(new URL("/lelangan", request.url))
+  }
+
   return NextResponse.next()
 }
 

@@ -42,6 +42,8 @@ import {
   SelectValue,
 } from "@workspace/ui/components/select"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
+import { useCreateBranch } from "@/lib/react-query/hooks/use-branches"
+import { useAuth } from "@/lib/react-query/hooks/use-auth"
 
 const tokoSchema = z.object({
   image: z.union([z.instanceof(File), z.string()]).optional(),
@@ -88,7 +90,8 @@ export default function TambahMasterTokoPage() {
   const router = useRouter()
   const [previewImage, setPreviewImage] = useState<string | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const { user } = useAuth()
+  const { mutateAsync: createBranch, isPending: isSubmitting } = useCreateBranch()
 
   const form = useForm<TokoFormValues>({
     resolver: zodResolver(tokoSchema),
@@ -129,10 +132,20 @@ export default function TambahMasterTokoPage() {
 
   const handleConfirmSubmit = async () => {
     const values = form.getValues()
-    setIsSubmitting(true)
     try {
-      // TODO: Replace with API call to create store
-      console.log("Simpan Toko:", values)
+      const companyId = user?.companyId
+      if (!companyId) {
+        throw new Error("Company ID Admin PT tidak ditemukan")
+      }
+      await createBranch({
+        branchCode: values.kodeLokasi,
+        shortName: values.alias,
+        fullName: values.namaToko,
+        address: (values.alamat ?? "").trim() || "-",
+        phone: (values.noTelepon ?? "").trim() || "-",
+        city: (values.kota ?? "").trim() || "-",
+        companyId,
+      })
       toast.success("Data Toko berhasil ditambahkan")
       setConfirmOpen(false)
       router.push("/master-toko")
@@ -141,7 +154,7 @@ export default function TambahMasterTokoPage() {
         error instanceof Error ? error.message : "Gagal menambahkan data Toko"
       toast.error(message)
     } finally {
-      setIsSubmitting(false)
+      // noop
     }
   }
 

@@ -26,6 +26,7 @@ import { Input } from "@workspace/ui/components/input"
 import { Skeleton } from "@workspace/ui/components/skeleton"
 import { Card, CardContent, CardHeader } from "@workspace/ui/components/card"
 import { Plus, SearchIcon, SlidersHorizontal } from "lucide-react"
+import type { FilterConfig } from "@/hooks/use-filter-params"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { StockOpnameFormDialog } from "./_components/StockOpnameFormDialog"
 import { CalendarView } from "./_components/CalendarView"
@@ -239,6 +240,68 @@ export default function StockOpnamePage() {
     return map
   }, [branchesData?.data])
 
+  // Filter config for Stock Opname
+  const filterConfig: FilterConfig[] = useMemo(
+    () => [
+      {
+        key: "dateRange",
+        label: "",
+        type: "daterange",
+        labelFrom: "Mulai Dari",
+        labelTo: "Sampai Dengan",
+      },
+      {
+        key: "tipeBarang",
+        label: "Tipe Barang",
+        type: "multiselect",
+        placeholder: "Pilih tipe barang...",
+        options: [
+          { label: "Handphone", value: "Handphone" },
+          { label: "IoT", value: "IoT" },
+          { label: "Laptop", value: "Laptop" },
+          { label: "Drone", value: "Drone" },
+          { label: "Smartwatch", value: "Smartwatch" },
+          { label: "Tablet", value: "Tablet" },
+        ],
+      },
+      {
+        key: "toko",
+        label: "Toko",
+        type: "multiselect",
+        placeholder: "Pilih toko...",
+        options: (branchesData?.data ?? []).map((b) => ({
+          label: b.shortName ?? b.fullName ?? b.branchCode,
+          value: b.shortName ?? b.fullName ?? b.branchCode,
+        })),
+      },
+      {
+        key: "segmentasi",
+        label: "Segmentasi",
+        type: "radio",
+        radioOptions: [
+          { label: "< 1 Bulan", value: "lt_1_bulan" },
+          { label: "> 1 Bulan", value: "gt_1_bulan" },
+        ],
+      },
+    ],
+    [branchesData?.data]
+  )
+
+  const defaultFilterValues: Record<string, unknown> = useMemo(
+    () => ({
+      dateRange: { from: null, to: null },
+      tipeBarang: [],
+      toko: [],
+      segmentasi: null,
+    }),
+    []
+  )
+
+  const [filterDialogOpen, setFilterDialogOpen] = useState(false)
+  const [filterValues, setFilterValues] = useState<Record<string, unknown>>(
+    defaultFilterValues
+  )
+
   // List options by tab: list/calendar = all; other tabs = filter by status
   const listOptions = useMemo(
     () => ({
@@ -279,11 +342,59 @@ export default function StockOpnamePage() {
   const waitingForApprovalCount = countCompleted?.meta?.count ?? 0
   const tervalidasiCount = countApproved?.meta?.count ?? 0
 
-  const rows = useMemo(
-    () =>
-      (listResponse?.data ?? []).map((s) => mapSessionToRow(s, storeNameById)),
-    [listResponse?.data, storeNameById]
-  )
+  // Apply filters client-side, then map to rows
+  const rows = useMemo(() => {
+    const sessions = listResponse?.data ?? []
+    const dateRange = (filterValues.dateRange as {
+      from: string | null
+      to: string | null
+    }) ?? { from: null, to: null }
+    // tipeBarang filter: session list has no item types; reserved for future API support
+    const toko = (filterValues.toko as string[] | undefined) ?? []
+    const segmentasi = filterValues.segmentasi as string | null | undefined
+
+    let filtered = sessions
+
+    // Date range filter (on startDate)
+    if (dateRange.from || dateRange.to) {
+      filtered = filtered.filter((s) => {
+        const d = new Date(s.startDate)
+        if (dateRange.from && d < new Date(dateRange.from)) return false
+        if (dateRange.to && d > new Date(dateRange.to)) return false
+        return true
+      })
+    }
+
+    // Toko filter (store name)
+    if (toko.length) {
+      filtered = filtered.filter((s) => {
+        const storeName = storeNameById.get(s.storeId) ?? s.storeId
+        return toko.includes(storeName)
+      })
+    }
+
+    // Segmentasi filter (< 1 Bulan vs > 1 Bulan based on startDate)
+    if (segmentasi) {
+      const now = new Date()
+      const oneMonthAgo = new Date(now)
+      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1)
+      filtered = filtered.filter((s) => {
+        const d = new Date(s.startDate)
+        if (segmentasi === "lt_1_bulan") return d >= oneMonthAgo
+        if (segmentasi === "gt_1_bulan") return d < oneMonthAgo
+        return true
+      })
+    }
+
+    // tipeBarang: session list doesn't include item types; no client-side filter
+    return filtered.map((s) => mapSessionToRow(s, storeNameById))
+  }, [
+    listResponse?.data,
+    storeNameById,
+    filterValues.dateRange,
+    filterValues.toko,
+    filterValues.segmentasi,
+  ])
 
   // For company_admin, only "list" and "calendar" are available — ensure activeTab is valid
   useEffect(() => {
@@ -441,12 +552,21 @@ export default function StockOpnamePage() {
                       className="w-full"
                     />
                   </div>
-                  <Button variant="outline" className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    className="flex items-center gap-2"
+                    onClick={() => setFilterDialogOpen(true)}
+                  >
                     <SlidersHorizontal className="h-4 w-4" />
                     Filter
                   </Button>
                 </div>
               }
+              filterConfig={filterConfig}
+              filterValues={filterValues}
+              onFilterChange={setFilterValues}
+              filterDialogOpen={filterDialogOpen}
+              onFilterDialogOpenChange={setFilterDialogOpen}
               initialPageSize={pageSize}
               onPageSizeChange={setPageSize}
               searchValue={searchValue}
@@ -513,12 +633,21 @@ export default function StockOpnamePage() {
                       className="w-full"
                     />
                   </div>
-                  <Button variant="outline" className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    className="flex items-center gap-2"
+                    onClick={() => setFilterDialogOpen(true)}
+                  >
                     <SlidersHorizontal className="h-4 w-4" />
                     Filter
                   </Button>
                 </div>
               }
+              filterConfig={filterConfig}
+              filterValues={filterValues}
+              onFilterChange={setFilterValues}
+              filterDialogOpen={filterDialogOpen}
+              onFilterDialogOpenChange={setFilterDialogOpen}
               initialPageSize={pageSize}
               onPageSizeChange={setPageSize}
               searchValue={searchValue}
@@ -571,12 +700,21 @@ export default function StockOpnamePage() {
                       className="w-full"
                     />
                   </div>
-                  <Button variant="outline" className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    className="flex items-center gap-2"
+                    onClick={() => setFilterDialogOpen(true)}
+                  >
                     <SlidersHorizontal className="h-4 w-4" />
                     Filter
                   </Button>
                 </div>
               }
+              filterConfig={filterConfig}
+              filterValues={filterValues}
+              onFilterChange={setFilterValues}
+              filterDialogOpen={filterDialogOpen}
+              onFilterDialogOpenChange={setFilterDialogOpen}
               initialPageSize={pageSize}
               onPageSizeChange={setPageSize}
               searchValue={searchValue}
@@ -629,12 +767,21 @@ export default function StockOpnamePage() {
                       className="w-full"
                     />
                   </div>
-                  <Button variant="outline" className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    className="flex items-center gap-2"
+                    onClick={() => setFilterDialogOpen(true)}
+                  >
                     <SlidersHorizontal className="h-4 w-4" />
                     Filter
                   </Button>
                 </div>
               }
+              filterConfig={filterConfig}
+              filterValues={filterValues}
+              onFilterChange={setFilterValues}
+              filterDialogOpen={filterDialogOpen}
+              onFilterDialogOpenChange={setFilterDialogOpen}
               initialPageSize={pageSize}
               onPageSizeChange={setPageSize}
               searchValue={searchValue}

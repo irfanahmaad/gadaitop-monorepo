@@ -30,7 +30,10 @@ import {
 import { SearchIcon, SlidersHorizontal, Plus } from "lucide-react"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { useAuth } from "@/lib/react-query/hooks/use-auth"
-import { useBranches, useDeleteBranch } from "@/lib/react-query/hooks/use-branches"
+import {
+  useBranches,
+  useDeleteBranch,
+} from "@/lib/react-query/hooks/use-branches"
 import { useBorrowRequests } from "@/lib/react-query/hooks/use-borrow-requests"
 import { useCompanies } from "@/lib/react-query/hooks/use-companies"
 import type { Branch, BorrowRequest } from "@/lib/api/types"
@@ -263,7 +266,8 @@ const requestColumns: ColumnDef<RequestToko>[] = [
 export default function MasterTokoPage() {
   const router = useRouter()
   const { user } = useAuth()
-  const isCompanyAdmin = user?.roles?.some((r) => r.code === "company_admin") ?? false
+  const isCompanyAdmin =
+    user?.roles?.some((r) => r.code === "company_admin") ?? false
   const isSuperAdmin = user?.roles?.some((r) => r.code === "owner") ?? false
 
   const effectiveCompanyId = isCompanyAdmin ? (user?.companyId ?? null) : null
@@ -299,16 +303,12 @@ export default function MasterTokoPage() {
 
   const tokoUtamaRows = useMemo(() => {
     const list = branchesData?.data ?? []
-    return list
-      .filter((b) => !b.isBorrowed)
-      .map(mapBranchToToko)
+    return list.filter((b) => !b.isBorrowed).map(mapBranchToToko)
   }, [branchesData])
 
   const tokoPinjamanRows = useMemo(() => {
     const list = branchesData?.data ?? []
-    return list
-      .filter((b) => b.isBorrowed)
-      .map(mapBranchToToko)
+    return list.filter((b) => b.isBorrowed).map(mapBranchToToko)
   }, [branchesData])
 
   const requestRows = useMemo(() => {
@@ -422,50 +422,50 @@ export default function MasterTokoPage() {
           {branchesLoading ? (
             <TableSkeleton />
           ) : (
-          <DataTable
-            columns={tokoColumns}
-            data={tokoUtamaRows}
-            title="Daftar Toko Utama"
-            searchPlaceholder="Search"
-            headerRight={
-              <div className="flex w-full items-center gap-2 sm:w-auto">
-                <Select
-                  value={pageSize.toString()}
-                  onValueChange={(value) => setPageSize(Number(value))}
-                >
-                  <SelectTrigger className="w-[100px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="10">10</SelectItem>
-                    <SelectItem value="25">25</SelectItem>
-                    <SelectItem value="50">50</SelectItem>
-                    <SelectItem value="100">100</SelectItem>
-                  </SelectContent>
-                </Select>
-                <div className="w-full sm:w-auto sm:max-w-sm">
-                  <Input
-                    placeholder="Email"
-                    value={searchValue}
-                    onChange={(e) => setSearchValue(e.target.value)}
-                    icon={<SearchIcon className="size-4" />}
-                    className="w-full"
-                  />
+            <DataTable
+              columns={tokoColumns}
+              data={tokoUtamaRows}
+              title="Daftar Toko Utama"
+              searchPlaceholder="Search"
+              headerRight={
+                <div className="flex w-full items-center gap-2 sm:w-auto">
+                  <Select
+                    value={pageSize.toString()}
+                    onValueChange={(value) => setPageSize(Number(value))}
+                  >
+                    <SelectTrigger className="w-[100px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="25">25</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <div className="w-full sm:w-auto sm:max-w-sm">
+                    <Input
+                      placeholder="Search"
+                      value={searchValue}
+                      onChange={(e) => setSearchValue(e.target.value)}
+                      icon={<SearchIcon className="size-4" />}
+                      className="w-full"
+                    />
+                  </div>
+                  <Button variant="outline" className="flex items-center gap-2">
+                    <SlidersHorizontal className="h-4 w-4" />
+                    Filter
+                  </Button>
                 </div>
-                <Button variant="outline" className="flex items-center gap-2">
-                  <SlidersHorizontal className="h-4 w-4" />
-                  Filter
-                </Button>
-              </div>
-            }
-            initialPageSize={pageSize}
-            onPageSizeChange={setPageSize}
-            searchValue={searchValue}
-            onSearchChange={setSearchValue}
-            onDetail={handleDetail}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-          />
+              }
+              initialPageSize={pageSize}
+              onPageSizeChange={setPageSize}
+              searchValue={searchValue}
+              onSearchChange={setSearchValue}
+              onDetail={handleDetail}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+            />
           )}
         </TabsContent>
 
@@ -474,50 +474,50 @@ export default function MasterTokoPage() {
           {branchesLoading ? (
             <TableSkeleton />
           ) : (
-          <DataTable
-            columns={tokoColumns}
-            data={tokoPinjamanRows}
-            title="Daftar Toko Pinjaman"
-            searchPlaceholder="Search"
-            headerRight={
-              <div className="flex w-full items-center gap-2 sm:w-auto">
-                <Select
-                  value={pageSize.toString()}
-                  onValueChange={(value) => setPageSize(Number(value))}
-                >
-                  <SelectTrigger className="w-[100px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="10">10</SelectItem>
-                    <SelectItem value="25">25</SelectItem>
-                    <SelectItem value="50">50</SelectItem>
-                    <SelectItem value="100">100</SelectItem>
-                  </SelectContent>
-                </Select>
-                <div className="w-full sm:w-auto sm:max-w-sm">
-                  <Input
-                    placeholder="Email"
-                    value={searchValue}
-                    onChange={(e) => setSearchValue(e.target.value)}
-                    icon={<SearchIcon className="size-4" />}
-                    className="w-full"
-                  />
+            <DataTable
+              columns={tokoColumns}
+              data={tokoPinjamanRows}
+              title="Daftar Toko Pinjaman"
+              searchPlaceholder="Search"
+              headerRight={
+                <div className="flex w-full items-center gap-2 sm:w-auto">
+                  <Select
+                    value={pageSize.toString()}
+                    onValueChange={(value) => setPageSize(Number(value))}
+                  >
+                    <SelectTrigger className="w-[100px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="25">25</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <div className="w-full sm:w-auto sm:max-w-sm">
+                    <Input
+                      placeholder="Email"
+                      value={searchValue}
+                      onChange={(e) => setSearchValue(e.target.value)}
+                      icon={<SearchIcon className="size-4" />}
+                      className="w-full"
+                    />
+                  </div>
+                  <Button variant="outline" className="flex items-center gap-2">
+                    <SlidersHorizontal className="h-4 w-4" />
+                    Filter
+                  </Button>
                 </div>
-                <Button variant="outline" className="flex items-center gap-2">
-                  <SlidersHorizontal className="h-4 w-4" />
-                  Filter
-                </Button>
-              </div>
-            }
-            initialPageSize={pageSize}
-            onPageSizeChange={setPageSize}
-            searchValue={searchValue}
-            onSearchChange={setSearchValue}
-            onDetail={handleDetail}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-          />
+              }
+              initialPageSize={pageSize}
+              onPageSizeChange={setPageSize}
+              searchValue={searchValue}
+              onSearchChange={setSearchValue}
+              onDetail={handleDetail}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+            />
           )}
         </TabsContent>
 

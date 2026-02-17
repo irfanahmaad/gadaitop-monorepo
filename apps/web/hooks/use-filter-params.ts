@@ -12,6 +12,7 @@ export type FilterType =
   | "numberrange"
   | "currencyrange"
   | "multiselect"
+  | "radio"
 
 export interface FilterConfig {
   key: string
@@ -24,6 +25,8 @@ export interface FilterConfig {
   labelFrom?: string
   /** For daterange: label for "to" field (e.g. "Sampai Dengan") */
   labelTo?: string
+  /** For radio: radio options (label/value pairs) */
+  radioOptions?: { label: string; value: string }[]
 }
 
 interface UseFilterParamsReturn {

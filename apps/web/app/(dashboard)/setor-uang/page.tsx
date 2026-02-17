@@ -41,7 +41,12 @@ import { Skeleton } from "@workspace/ui/components/skeleton"
 import { TolakSetorUangDialog } from "./_components/tolak-setor-uang-dialog"
 import { CreateSetorUangDialog } from "./_components/create-setor-uang-dialog"
 import { useAuth } from "@/lib/react-query/hooks/use-auth"
-import { useCashDeposits, useApproveCashDeposit, useRejectCashDeposit, useCreateCashDeposit } from "@/lib/react-query/hooks/use-cash-deposits"
+import {
+  useCashDeposits,
+  useApproveCashDeposit,
+  useRejectCashDeposit,
+  useCreateCashDeposit,
+} from "@/lib/react-query/hooks/use-cash-deposits"
 import { useBranches } from "@/lib/react-query/hooks/use-branches"
 import { useCompanies } from "@/lib/react-query/hooks/use-companies"
 import type { CashDeposit } from "@/lib/api/types"
@@ -69,7 +74,9 @@ const STATUS_MAP: Record<CashDeposit["status"], SetorUang["status"]> = {
 
 function mapCashDepositToSetorUang(c: CashDeposit): SetorUang {
   const createdBy = c.createdBy as { fullName?: string } | undefined
-  const store = c.store as { shortName?: string; branchCode?: string; fullName?: string } | undefined
+  const store = c.store as
+    | { shortName?: string; branchCode?: string; fullName?: string }
+    | undefined
   return {
     id: c.uuid,
     uuid: c.uuid,
@@ -78,7 +85,8 @@ function mapCashDepositToSetorUang(c: CashDeposit): SetorUang {
       name: createdBy?.fullName ?? "-",
       avatar: undefined,
     },
-    namaToko: store?.fullName ?? store?.shortName ?? store?.branchCode ?? c.storeId,
+    namaToko:
+      store?.fullName ?? store?.shortName ?? store?.branchCode ?? c.storeId,
     alias: store?.shortName ?? store?.branchCode ?? "",
     nominal: c.amount,
     status: STATUS_MAP[c.status],
@@ -118,7 +126,19 @@ const StatusBadge = ({ status }: { status: SetorUang["status"] }) => {
   )
 }
 
-const getBaseColumns = (): { id: string; header: string; accessorKey?: string; cell?: (props: { row: { getValue: (key: string) => unknown; index: number; original: SetorUang } }) => React.ReactNode; enableSorting?: boolean }[] => [
+const getBaseColumns = (): {
+  id: string
+  header: string
+  accessorKey?: string
+  cell?: (props: {
+    row: {
+      getValue: (key: string) => unknown
+      index: number
+      original: SetorUang
+    }
+  }) => React.ReactNode
+  enableSorting?: boolean
+}[] => [
   {
     id: "no",
     header: "No",
@@ -176,7 +196,9 @@ const getBaseColumns = (): { id: string; header: string; accessorKey?: string; c
     id: "status",
     accessorKey: "status",
     header: "Status",
-    cell: ({ row }) => <StatusBadge status={row.getValue("status") as SetorUang["status"]} />,
+    cell: ({ row }) => (
+      <StatusBadge status={row.getValue("status") as SetorUang["status"]} />
+    ),
   },
 ]
 
@@ -219,7 +241,8 @@ const getActionColumn = (
 
 export default function SetorUangPage() {
   const { user } = useAuth()
-  const isCompanyAdmin = user?.roles?.some((r) => r.code === "company_admin") ?? false
+  const isCompanyAdmin =
+    user?.roles?.some((r) => r.code === "company_admin") ?? false
   const isSuperAdmin = user?.roles?.some((r) => r.code === "owner") ?? false
 
   const effectiveCompanyId = isCompanyAdmin ? (user?.companyId ?? null) : null
@@ -242,7 +265,9 @@ export default function SetorUangPage() {
 
   const branchQueryCompanyId = isSuperAdmin ? selectedPT : effectiveCompanyId
   const { data: branchesData } = useBranches(
-    branchQueryCompanyId ? { companyId: branchQueryCompanyId, pageSize: 100 } : undefined
+    branchQueryCompanyId
+      ? { companyId: branchQueryCompanyId, pageSize: 100 }
+      : undefined
   )
 
   const branchOptions = useMemo(() => {
@@ -292,7 +317,10 @@ export default function SetorUangPage() {
     setCreateDialogOpen(true)
   }
 
-  const handleCreateConfirm = async (data: { storeId: string; amount: number }) => {
+  const handleCreateConfirm = async (data: {
+    storeId: string
+    amount: number
+  }) => {
     try {
       await createMutation.mutateAsync({
         storeId: data.storeId,
@@ -378,7 +406,7 @@ export default function SetorUangPage() {
               </SelectContent>
             </Select>
           )}
-          {(isSuperAdmin || isCompanyAdmin) && branchOptions.length > 0 && (
+          {isSuperAdmin && branchOptions.length > 0 && (
             <Select value={selectedBranch} onValueChange={setSelectedBranch}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Pilih Toko" />
@@ -428,47 +456,47 @@ export default function SetorUangPage() {
           </CardContent>
         </Card>
       ) : (
-      <DataTable
-        columns={columns}
-        data={rows}
-        title="Daftar Request Setor Uang"
-        searchPlaceholder="Cari..."
-        headerRight={
-          <div className="flex w-full items-center gap-2 sm:w-auto">
-            <Select
-              value={pageSize.toString()}
-              onValueChange={(value) => setPageSize(Number(value))}
-            >
-              <SelectTrigger className="w-[100px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="10">10</SelectItem>
-                <SelectItem value="25">25</SelectItem>
-                <SelectItem value="50">50</SelectItem>
-                <SelectItem value="100">100</SelectItem>
-              </SelectContent>
-            </Select>
-            <div className="w-full sm:w-auto sm:max-w-sm">
-              <Input
-                placeholder="Cari..."
-                value={searchValue}
-                onChange={(e) => setSearchValue(e.target.value)}
-                icon={<SearchIcon className="size-4" />}
-                className="w-full"
-              />
+        <DataTable
+          columns={columns}
+          data={rows}
+          title="Daftar Request Setor Uang"
+          searchPlaceholder="Cari..."
+          headerRight={
+            <div className="flex w-full items-center gap-2 sm:w-auto">
+              <Select
+                value={pageSize.toString()}
+                onValueChange={(value) => setPageSize(Number(value))}
+              >
+                <SelectTrigger className="w-[100px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="w-full sm:w-auto sm:max-w-sm">
+                <Input
+                  placeholder="Cari..."
+                  value={searchValue}
+                  onChange={(e) => setSearchValue(e.target.value)}
+                  icon={<SearchIcon className="size-4" />}
+                  className="w-full"
+                />
+              </div>
+              <Button variant="outline" className="flex items-center gap-2">
+                <SlidersHorizontal className="h-4 w-4" />
+                Filter
+              </Button>
             </div>
-            <Button variant="outline" className="flex items-center gap-2">
-              <SlidersHorizontal className="h-4 w-4" />
-              Filter
-            </Button>
-          </div>
-        }
-        initialPageSize={pageSize}
-        onPageSizeChange={setPageSize}
-        searchValue={searchValue}
-        onSearchChange={setSearchValue}
-      />
+          }
+          initialPageSize={pageSize}
+          onPageSizeChange={setPageSize}
+          searchValue={searchValue}
+          onSearchChange={setSearchValue}
+        />
       )}
 
       <TolakSetorUangDialog

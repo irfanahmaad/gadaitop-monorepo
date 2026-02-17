@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { X, RotateCcw, Check, CalendarIcon, CurrencyIcon } from "lucide-react"
+import { X, RotateCcw, Check, CalendarIcon } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -22,6 +22,10 @@ import {
 import { FilterConfig } from "@/hooks/use-filter-params"
 import { formatCurrencyInput, parseCurrencyInput } from "@/lib/format-currency"
 import { MultiSelectCombobox } from "@/components/multi-select-combobox"
+import {
+  RadioGroup,
+  RadioGroupItem,
+} from "@workspace/ui/components/radio-group"
 
 interface FilterDialogProps {
   open: boolean
@@ -67,6 +71,8 @@ export function FilterDialog({
         resetFilters[config.key] = { from: null, to: null }
       } else if (config.type === "multiselect") {
         resetFilters[config.key] = []
+      } else if (config.type === "radio") {
+        resetFilters[config.key] = null
       } else {
         resetFilters[config.key] = null
       }
@@ -367,6 +373,37 @@ export function FilterDialog({
         )
       }
 
+      case "radio": {
+        const radioValue = (value as string | undefined) ?? ""
+        const radioOptions = config.radioOptions ?? []
+
+        return (
+          <div key={config.key} className="space-y-2">
+            <Label>{config.label}</Label>
+            <RadioGroup
+              value={radioValue}
+              onValueChange={(v) => handleFilterChange(config.key, v || null)}
+              className="flex gap-2"
+            >
+              {radioOptions.map((opt) => (
+                <div key={opt.value} className="flex items-center space-x-2">
+                  <RadioGroupItem
+                    value={opt.value}
+                    id={`${config.key}-${opt.value}`}
+                  />
+                  <Label
+                    htmlFor={`${config.key}-${opt.value}`}
+                    className="cursor-pointer text-sm font-normal"
+                  >
+                    {opt.label}
+                  </Label>
+                </div>
+              ))}
+            </RadioGroup>
+          </div>
+        )
+      }
+
       default:
         return null
     }
@@ -374,7 +411,7 @@ export function FilterDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Filter</DialogTitle>
         </DialogHeader>

@@ -33,6 +33,9 @@ import {
   User,
   Pencil,
 } from "lucide-react"
+import { toast } from "sonner"
+import { useQueryClient } from "@tanstack/react-query"
+import { useChangeCustomerPin, customerKeys } from "@/lib/react-query/hooks/use-customers"
 import { GantiPinDialog } from "./_components/ganti-pin-dialog"
 
 // Customer detail type (matches image layout)
@@ -241,11 +244,13 @@ function DaftarSPKSkeleton() {
 export default function MasterCustomerDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const queryClient = useQueryClient()
   const id = typeof params.id === "string" ? params.id : ""
   const [pageSize, setPageSize] = useState(100)
   const [searchValue, setSearchValue] = useState("")
   const [gantiPinOpen, setGantiPinOpen] = useState(false)
-  const [isSubmittingPin, setIsSubmittingPin] = useState(false)
+
+  const changePinMutation = useChangeCustomerPin()
 
   // Simulate async fetch (replace with useQuery + API)
   const [loading, setLoading] = useState(true)
@@ -281,12 +286,17 @@ export default function MasterCustomerDetailPage() {
   }
 
   const handleGantiPinConfirm = async (pinBaru: string) => {
-    setIsSubmittingPin(true)
+    if (!id) return
     try {
-      // TODO: Replace with API call to update customer PIN
-      console.log("Ganti PIN:", pinBaru)
-    } finally {
-      setIsSubmittingPin(false)
+      await changePinMutation.mutateAsync({
+        id,
+        data: { newPin: pinBaru },
+      })
+      toast.success("PIN berhasil diubah")
+      queryClient.invalidateQueries({ queryKey: customerKeys.detail(id) })
+      setGantiPinOpen(false)
+    } catch {
+      toast.error("Gagal mengubah PIN. Periksa kembali data dan coba lagi.")
     }
   }
 
@@ -339,7 +349,7 @@ export default function MasterCustomerDetailPage() {
         open={gantiPinOpen}
         onOpenChange={setGantiPinOpen}
         onConfirm={handleGantiPinConfirm}
-        isSubmitting={isSubmittingPin}
+        isSubmitting={changePinMutation.isPending}
       />
 
       {/* Data Customer card */}

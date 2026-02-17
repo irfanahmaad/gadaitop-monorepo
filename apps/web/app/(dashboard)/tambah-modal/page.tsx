@@ -29,22 +29,31 @@ import { EditRequestDialog } from "./_components/edit-request-dialog"
 import { TAMBAH_MODAL_FILTER_CONFIG } from "./_components/filter-config"
 import type { RequestTambahModal } from "./_components/types"
 import { useAuth } from "@/lib/react-query/hooks/use-auth"
-import { useCapitalTopups, useApproveCapitalTopup, useRejectCapitalTopup, useCreateCapitalTopup, useUpdateCapitalTopup } from "@/lib/react-query/hooks/use-capital-topups"
+import {
+  useCapitalTopups,
+  useApproveCapitalTopup,
+  useRejectCapitalTopup,
+  useCreateCapitalTopup,
+  useUpdateCapitalTopup,
+} from "@/lib/react-query/hooks/use-capital-topups"
 import { useBranches } from "@/lib/react-query/hooks/use-branches"
 import { useCompanies } from "@/lib/react-query/hooks/use-companies"
 import type { CapitalTopup } from "@/lib/api/types"
 import { toast } from "sonner"
 
-const STATUS_MAP: Record<CapitalTopup["status"], RequestTambahModal["status"]> = {
-  pending: "Pending",
-  approved: "Disetujui",
-  rejected: "Ditolak",
-  disbursed: "Disetujui",
-}
+const STATUS_MAP: Record<CapitalTopup["status"], RequestTambahModal["status"]> =
+  {
+    pending: "Pending",
+    approved: "Disetujui",
+    rejected: "Ditolak",
+    disbursed: "Disetujui",
+  }
 
 function mapCapitalTopupToRequest(c: CapitalTopup): RequestTambahModal {
   const createdBy = c.createdBy as { fullName?: string } | undefined
-  const store = c.store as { shortName?: string; branchCode?: string; fullName?: string } | undefined
+  const store = c.store as
+    | { shortName?: string; branchCode?: string; fullName?: string }
+    | undefined
   return {
     id: c.uuid,
     uuid: c.uuid,
@@ -53,7 +62,8 @@ function mapCapitalTopupToRequest(c: CapitalTopup): RequestTambahModal {
       name: createdBy?.fullName ?? "-",
       avatar: undefined,
     },
-    namaToko: store?.fullName ?? store?.shortName ?? store?.branchCode ?? c.storeId,
+    namaToko:
+      store?.fullName ?? store?.shortName ?? store?.branchCode ?? c.storeId,
     alias: store?.shortName ?? store?.branchCode ?? "",
     nominal: c.amount,
     status: STATUS_MAP[c.status],
@@ -67,10 +77,12 @@ function applyTambahModalFilters(
 ): RequestTambahModal[] {
   let result = [...data]
 
-  const lastUpdate = filterValues.lastUpdate as {
-    from: string | null
-    to: string | null
-  } | undefined
+  const lastUpdate = filterValues.lastUpdate as
+    | {
+        from: string | null
+        to: string | null
+      }
+    | undefined
   if (lastUpdate?.from || lastUpdate?.to) {
     result = result.filter((row) => {
       const date = row.tanggalRequest.slice(0, 10)
@@ -80,10 +92,12 @@ function applyTambahModalFilters(
     })
   }
 
-  const nominal = filterValues.nominal as {
-    from: number | null
-    to: number | null
-  } | undefined
+  const nominal = filterValues.nominal as
+    | {
+        from: number | null
+        to: number | null
+      }
+    | undefined
   if (nominal?.from != null || nominal?.to != null) {
     result = result.filter((row) => {
       if (nominal.from != null && row.nominal < nominal.from) return false
@@ -107,12 +121,11 @@ function applyTambahModalFilters(
 
 function TambahModalPageContent() {
   const { user } = useAuth()
-  const isCompanyAdmin = user?.roles?.some((r) => r.code === "company_admin") ?? false
+  const isCompanyAdmin =
+    user?.roles?.some((r) => r.code === "company_admin") ?? false
   const isSuperAdmin = user?.roles?.some((r) => r.code === "owner") ?? false
 
-  const effectiveCompanyId = isCompanyAdmin
-    ? (user?.companyId ?? null)
-    : null
+  const effectiveCompanyId = isCompanyAdmin ? (user?.companyId ?? null) : null
 
   const { data: companiesData } = useCompanies(
     isSuperAdmin ? { pageSize: 100 } : undefined
@@ -132,7 +145,9 @@ function TambahModalPageContent() {
 
   const branchQueryCompanyId = isSuperAdmin ? selectedPT : effectiveCompanyId
   const { data: branchesData } = useBranches(
-    branchQueryCompanyId ? { companyId: branchQueryCompanyId, pageSize: 100 } : undefined
+    branchQueryCompanyId
+      ? { companyId: branchQueryCompanyId, pageSize: 100 }
+      : undefined
   )
 
   const branchOptions = useMemo(() => {
@@ -154,7 +169,9 @@ function TambahModalPageContent() {
     }
   }, [branchOptions])
 
-  const { filterValues, setFilters } = useFilterParams(TAMBAH_MODAL_FILTER_CONFIG)
+  const { filterValues, setFilters } = useFilterParams(
+    TAMBAH_MODAL_FILTER_CONFIG
+  )
   const [activeTab, setActiveTab] = useState("request")
   const [pageSize, setPageSize] = useState(10)
   const [searchValue, setSearchValue] = useState("")
@@ -181,8 +198,10 @@ function TambahModalPageContent() {
     return { page: 1, pageSize: 200, filter }
   }, [selectedBranch])
 
-  const { data: requestData, isLoading: isLoadingRequest } = useCapitalTopups(requestListOptions)
-  const { data: historyData, isLoading: isLoadingHistory } = useCapitalTopups(historyListOptions)
+  const { data: requestData, isLoading: isLoadingRequest } =
+    useCapitalTopups(requestListOptions)
+  const { data: historyData, isLoading: isLoadingHistory } =
+    useCapitalTopups(historyListOptions)
 
   const approveMutation = useApproveCapitalTopup()
   const rejectMutation = useRejectCapitalTopup()
@@ -270,7 +289,10 @@ function TambahModalPageContent() {
     setTambahDataDialogOpen(true)
   }
 
-  const handleTambahDataConfirm = async (data: { nominal: number; storeId?: string }) => {
+  const handleTambahDataConfirm = async (data: {
+    nominal: number
+    storeId?: string
+  }) => {
     const storeId = data.storeId ?? selectedBranch ?? branchOptions[0]?.value
     if (!storeId) {
       toast.error("Pilih toko terlebih dahulu")
@@ -351,11 +373,8 @@ function TambahModalPageContent() {
               </SelectContent>
             </Select>
           )}
-          {(isSuperAdmin || isCompanyAdmin) && branchOptions.length > 0 && (
-            <Select
-              value={selectedBranch}
-              onValueChange={setSelectedBranch}
-            >
+          {isSuperAdmin && branchOptions.length > 0 && (
+            <Select value={selectedBranch} onValueChange={setSelectedBranch}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Pilih Toko" />
               </SelectTrigger>
@@ -369,13 +388,15 @@ function TambahModalPageContent() {
             </Select>
           )}
 
-          <Button
-            onClick={handleTambahData}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            Tambah Data
-          </Button>
+          {!isCompanyAdmin && (
+            <Button
+              onClick={handleTambahData}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Tambah Data
+            </Button>
+          )}
         </div>
       </div>
 
@@ -389,7 +410,7 @@ function TambahModalPageContent() {
             Request Tambah Modal
             <Badge
               variant="secondary"
-              className="ml-2 rounded-full bg-destructive/10 px-2 py-0 text-destructive hover:bg-destructive/20"
+              className="bg-destructive/10 text-destructive hover:bg-destructive/20 ml-2 rounded-full px-2 py-0"
             >
               {pendingCount}
             </Badge>

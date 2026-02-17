@@ -10,7 +10,7 @@ export const TAMBAH_MODAL_FILTER_CONFIG: FilterConfig[] = [
   },
   {
     key: "nominal",
-    label: "Nominal",
+    label: "",
     type: "currencyrange",
     currency: "",
   },
