@@ -1,6 +1,7 @@
 "use client"
 
-import React, { useMemo, useState, useEffect } from "react"
+import React, { useMemo, useState, useEffect, useCallback } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import { useRouter } from "next/navigation"
 import { ColumnDef } from "@tanstack/react-table"
 import { Breadcrumbs } from "@/components/breadcrumbs"
@@ -27,18 +28,32 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "@workspace/ui/components/avatar"
-import { SearchIcon, SlidersHorizontal, Plus } from "lucide-react"
+import {
+  SearchIcon,
+  SlidersHorizontal,
+  Plus,
+  RotateCcw,
+  Check,
+  X,
+} from "lucide-react"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
+import { toast } from "sonner"
 import { useAuth } from "@/lib/react-query/hooks/use-auth"
 import {
   useBranches,
   useDeleteBranch,
+  branchKeys,
 } from "@/lib/react-query/hooks/use-branches"
-import { useBorrowRequests } from "@/lib/react-query/hooks/use-borrow-requests"
+import {
+  useBorrowRequests,
+  useApproveBorrowRequest,
+  useRejectBorrowRequest,
+} from "@/lib/react-query/hooks/use-borrow-requests"
 import { useCompanies } from "@/lib/react-query/hooks/use-companies"
 import type { Branch, BorrowRequest } from "@/lib/api/types"
 import { Card, CardContent, CardHeader } from "@workspace/ui/components/card"
 import { Skeleton } from "@workspace/ui/components/skeleton"
+import { TolakBorrowRequestDialog } from "./_components/tolak-borrow-request-dialog"
 
 // Types for Toko Utama and Toko Pinjaman
 type Toko = {
@@ -265,6 +280,7 @@ const requestColumns: ColumnDef<RequestToko>[] = [
 
 export default function MasterTokoPage() {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const { user } = useAuth()
   const isCompanyAdmin =
     user?.roles?.some((r) => r.code === "company_admin") ?? false
@@ -300,6 +316,8 @@ export default function MasterTokoPage() {
   })
 
   const deleteBranchMutation = useDeleteBranch()
+  const approveBorrowRequestMutation = useApproveBorrowRequest()
+  const rejectBorrowRequestMutation = useRejectBorrowRequest()
 
   const tokoUtamaRows = useMemo(() => {
     const list = branchesData?.data ?? []
@@ -324,9 +342,13 @@ export default function MasterTokoPage() {
   const [searchValue, setSearchValue] = useState("")
   const [activeTab, setActiveTab] = useState("toko-utama")
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
-  const [itemToDelete, setItemToDelete] = useState<Toko | RequestToko | null>(
-    null
-  )
+  const [itemToDelete, setItemToDelete] = useState<Toko | null>(null)
+  const [setujuiRow, setSetujuiRow] = useState<RequestToko | null>(null)
+  const [isSetujuiConfirmOpen, setIsSetujuiConfirmOpen] = useState(false)
+  const [tolakRow, setTolakRow] = useState<RequestToko | null>(null)
+  const [isTolakDialogOpen, setIsTolakDialogOpen] = useState(false)
+  const [revokeRow, setRevokeRow] = useState<Toko | null>(null)
+  const [isRevokeConfirmOpen, setIsRevokeConfirmOpen] = useState(false)
 
   const handleDetail = (row: Toko | RequestToko) => {
     router.push(`/master-toko/${row.id}`)
@@ -336,7 +358,7 @@ export default function MasterTokoPage() {
     router.push(`/master-toko/${row.id}/edit`)
   }
 
-  const handleDelete = (row: Toko | RequestToko) => {
+  const handleDelete = (row: Toko) => {
     setItemToDelete(row)
     setIsConfirmDialogOpen(true)
   }
@@ -347,8 +369,11 @@ export default function MasterTokoPage() {
         await deleteBranchMutation.mutateAsync(itemToDelete.id)
         setIsConfirmDialogOpen(false)
         setItemToDelete(null)
-      } catch {
-        // Error handled by mutation
+        toast.success("Data Toko berhasil dihapus")
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Gagal menghapus data Toko"
+        toast.error(message)
       }
     }
   }
@@ -356,6 +381,98 @@ export default function MasterTokoPage() {
   const handleTambahData = () => {
     router.push("/master-toko/tambah")
   }
+
+  const handleRevoke = useCallback((row: Toko) => {
+    setRevokeRow(row)
+    setIsRevokeConfirmOpen(true)
+  }, [])
+
+  const handleRevokeConfirm = async () => {
+    if (!revokeRow) return
+    // TODO: Wire to revoke API when backend implements PATCH branches/:id/revoke
+    toast.info("Fitur Revoke akan segera tersedia")
+    setIsRevokeConfirmOpen(false)
+    setRevokeRow(null)
+  }
+
+  const handleSetujui = useCallback((row: RequestToko) => {
+    setSetujuiRow(row)
+    setIsSetujuiConfirmOpen(true)
+  }, [])
+
+  const handleSetujuiConfirm = async () => {
+    if (!setujuiRow) return
+    try {
+      await approveBorrowRequestMutation.mutateAsync(setujuiRow.id)
+      queryClient.invalidateQueries({ queryKey: branchKeys.lists() })
+      toast.success("Request Pinjam PT berhasil disetujui")
+      setIsSetujuiConfirmOpen(false)
+      setSetujuiRow(null)
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Gagal menyetujui request Pinjam PT"
+      toast.error(message)
+    }
+  }
+
+  const handleTolak = useCallback((row: RequestToko) => {
+    setTolakRow(row)
+    setIsTolakDialogOpen(true)
+  }, [])
+
+  const handleTolakConfirm = async (
+    row: RequestToko,
+    data: { rejectionReason: string }
+  ) => {
+    try {
+      await rejectBorrowRequestMutation.mutateAsync({
+        id: row.id,
+        data: { rejectionReason: data.rejectionReason },
+      })
+      queryClient.invalidateQueries({ queryKey: branchKeys.lists() })
+      toast.success("Request Pinjam PT berhasil ditolak")
+      setIsTolakDialogOpen(false)
+      setTolakRow(null)
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Gagal menolak request Pinjam PT"
+      toast.error(message)
+      throw error
+    }
+  }
+
+  const tokoPinjamanCustomActions = useMemo(
+    () => [
+      {
+        label: "Revoke",
+        icon: <RotateCcw className="mr-2 size-4" />,
+        onClick: handleRevoke,
+        variant: "destructive" as const,
+      },
+    ],
+    [handleRevoke]
+  )
+
+  const requestCustomActions = useMemo(
+    () => [
+      {
+        label: "Setujui",
+        icon: <Check className="mr-2 size-4" />,
+        onClick: handleSetujui,
+      },
+      {
+        label: "Tolak",
+        icon: <X className="mr-2 size-4" />,
+        onClick: handleTolak,
+        variant: "destructive" as const,
+      },
+    ],
+    [handleSetujui, handleTolak]
+  )
 
   return (
     <div className="flex flex-col gap-6">
@@ -497,7 +614,7 @@ export default function MasterTokoPage() {
                   </Select>
                   <div className="w-full sm:w-auto sm:max-w-sm">
                     <Input
-                      placeholder="Email"
+                      placeholder="Search"
                       value={searchValue}
                       onChange={(e) => setSearchValue(e.target.value)}
                       icon={<SearchIcon className="size-4" />}
@@ -514,9 +631,7 @@ export default function MasterTokoPage() {
               onPageSizeChange={setPageSize}
               searchValue={searchValue}
               onSearchChange={setSearchValue}
-              onDetail={handleDetail}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
+              customActions={tokoPinjamanCustomActions}
             />
           )}
         </TabsContent>
@@ -546,7 +661,7 @@ export default function MasterTokoPage() {
                 </Select>
                 <div className="w-full sm:w-auto sm:max-w-sm">
                   <Input
-                    placeholder="Email"
+                    placeholder="Search"
                     value={searchValue}
                     onChange={(e) => setSearchValue(e.target.value)}
                     icon={<SearchIcon className="size-4" />}
@@ -563,9 +678,7 @@ export default function MasterTokoPage() {
             onPageSizeChange={setPageSize}
             searchValue={searchValue}
             onSearchChange={setSearchValue}
-            onDetail={handleDetail}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
+            customActions={requestCustomActions}
           />
         </TabsContent>
       </Tabs>
@@ -576,6 +689,41 @@ export default function MasterTokoPage() {
         onOpenChange={setIsConfirmDialogOpen}
         onConfirm={handleConfirmDelete}
         description="Anda akan menghapus data Toko dari dalam sistem."
+      />
+
+      {/* Confirmation Dialog for Setujui Request */}
+      <ConfirmationDialog
+        open={isSetujuiConfirmOpen}
+        onOpenChange={setIsSetujuiConfirmOpen}
+        onConfirm={handleSetujuiConfirm}
+        title="Setujui Request Pinjam PT?"
+        description="Anda akan menyetujui request Pinjam PT ini."
+        note="Pastikan kembali sebelum menyetujui."
+        confirmLabel="Ya, Setujui"
+        cancelLabel="Batal"
+        variant="info"
+      />
+
+      {/* Confirmation Dialog for Revoke */}
+      <ConfirmationDialog
+        open={isRevokeConfirmOpen}
+        onOpenChange={setIsRevokeConfirmOpen}
+        onConfirm={handleRevokeConfirm}
+        title="Revoke Toko Pinjaman?"
+        description="Anda akan mencabut akses Pinjam PT untuk toko ini."
+        note="Toko akan dikembalikan kepada pemilik asli."
+        confirmLabel="Ya, Revoke"
+        cancelLabel="Batal"
+        variant="info"
+      />
+
+      {/* Tolak Request Dialog */}
+      <TolakBorrowRequestDialog
+        open={isTolakDialogOpen}
+        onOpenChange={setIsTolakDialogOpen}
+        row={tolakRow}
+        onConfirm={handleTolakConfirm}
+        isSubmitting={rejectBorrowRequestMutation.isPending}
       />
     </div>
   )

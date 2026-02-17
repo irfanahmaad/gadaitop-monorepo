@@ -224,7 +224,8 @@ function TableSkeleton() {
 function MasterPenggunaPageContent() {
   const router = useRouter()
   const { user } = useAuth()
-  const isCompanyAdmin = user?.roles?.some((r) => r.code === "company_admin") ?? false
+  const isCompanyAdmin =
+    user?.roles?.some((r) => r.code === "company_admin") ?? false
   const isSuperAdmin = user?.roles?.some((r) => r.code === "owner") ?? false
 
   const effectiveCompanyId = isCompanyAdmin ? (user?.companyId ?? null) : null
@@ -429,7 +430,7 @@ function MasterPenggunaPageContent() {
                 </Select>
                 <div className="w-full sm:w-auto sm:max-w-sm">
                   <Input
-                    placeholder="Email"
+                    placeholder="Search"
                     value={searchValue}
                     onChange={(e) => setSearchValue(e.target.value)}
                     icon={<SearchIcon className="size-4" />}

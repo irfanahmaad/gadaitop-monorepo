@@ -35,7 +35,10 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
-import { useChangeCustomerPin, customerKeys } from "@/lib/react-query/hooks/use-customers"
+import {
+  useChangeCustomerPin,
+  customerKeys,
+} from "@/lib/react-query/hooks/use-customers"
 import { GantiPinDialog } from "./_components/ganti-pin-dialog"
 
 // Customer detail type (matches image layout)
@@ -515,7 +518,7 @@ export default function MasterCustomerDetailPage() {
               </Select>
               <div className="w-full sm:w-auto sm:max-w-sm">
                 <Input
-                  placeholder="Email"
+                  placeholder="Search"
                   value={searchValue}
                   onChange={(e) => setSearchValue(e.target.value)}
                   icon={<SearchIcon className="size-4" />}

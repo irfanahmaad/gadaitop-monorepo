@@ -21,20 +21,19 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "@workspace/ui/components/avatar"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-} from "@workspace/ui/components/card"
+import { Card, CardContent, CardHeader } from "@workspace/ui/components/card"
 import { Skeleton } from "@workspace/ui/components/skeleton"
-import { SearchIcon, SlidersHorizontal, Plus } from "lucide-react"
-import { ConfirmationDialog } from "@/components/confirmation-dialog"
+import { SearchIcon, Plus, Lock } from "lucide-react"
 import { useAuth } from "@/lib/react-query/hooks/use-auth"
 import {
   useCustomers,
-  useDeleteCustomer,
+  useChangeCustomerPin,
+  customerKeys,
 } from "@/lib/react-query/hooks/use-customers"
 import { useCompanies } from "@/lib/react-query/hooks/use-companies"
+import { useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
+import { GantiPinDialog } from "./[id]/_components/ganti-pin-dialog"
 import type { Customer as ApiCustomer } from "@/lib/api/types"
 
 type CustomerRow = {
@@ -54,9 +53,7 @@ const STATUS_MAP: Record<string, CustomerRow["status"]> = {
 }
 
 function mapApiCustomerToRow(c: ApiCustomer): CustomerRow {
-  const status =
-    c.status ??
-    (c.isBlacklisted ? "blacklisted" : "active")
+  const status = c.status ?? (c.isBlacklisted ? "blacklisted" : "active")
   return {
     id: c.uuid,
     foto: c.ktpPhotoUrl ?? c.selfiePhotoUrl ?? "",
@@ -177,19 +174,14 @@ export default function MasterCustomerPage() {
 
   const effectiveCompanyId = isCompanyAdmin ? (user?.companyId ?? null) : null
 
-  const { data: companiesData } = useCompanies(
-    isSuperAdmin || isCompanyAdmin ? { pageSize: 100 } : undefined
-  )
+  const { data: companiesData } = useCompanies({ pageSize: 100 })
 
   const [selectedPT, setSelectedPT] = useState<string>("")
   const ptOptions = useMemo(() => {
     const list = companiesData?.data ?? []
     const mapped = list.map((c) => ({ value: c.uuid, label: c.companyName }))
-    if (isCompanyAdmin && effectiveCompanyId) {
-      return mapped.filter((o) => o.value === effectiveCompanyId)
-    }
     return mapped
-  }, [companiesData, isCompanyAdmin, effectiveCompanyId])
+  }, [companiesData])
 
   useEffect(() => {
     if (isSuperAdmin && ptOptions.length > 0 && !selectedPT) {
@@ -207,8 +199,11 @@ export default function MasterCustomerPage() {
 
   const [pageSize, setPageSize] = useState(100)
   const [searchValue, setSearchValue] = useState("")
-  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
-  const [itemToDelete, setItemToDelete] = useState<CustomerRow | null>(null)
+  const [gantiPinOpen, setGantiPinOpen] = useState(false)
+  const [gantiPinCustomerId, setGantiPinCustomerId] = useState<string | null>(
+    null
+  )
+  const queryClient = useQueryClient()
 
   const listOptions = useMemo(() => {
     const filter: Record<string, string> = {}
@@ -218,7 +213,7 @@ export default function MasterCustomerPage() {
   }, [branchQueryCompanyId, searchValue])
 
   const { data, isLoading, isError } = useCustomers(listOptions)
-  const deleteCustomerMutation = useDeleteCustomer()
+  const changePinMutation = useChangeCustomerPin()
 
   const rows = useMemo(
     () => (data?.data ?? []).map(mapApiCustomerToRow),
@@ -229,24 +224,25 @@ export default function MasterCustomerPage() {
     router.push(`/master-customer/${row.id}`)
   }
 
-  const handleEdit = (row: CustomerRow) => {
-    router.push(`/master-customer/${row.id}/edit`)
+  const handleGantiPin = (row: CustomerRow) => {
+    setGantiPinCustomerId(row.id)
+    setGantiPinOpen(true)
   }
 
-  const handleDelete = (row: CustomerRow) => {
-    setItemToDelete(row)
-    setIsConfirmDialogOpen(true)
-  }
-
-  const handleConfirmDelete = async () => {
-    if (itemToDelete) {
-      try {
-        await deleteCustomerMutation.mutateAsync(itemToDelete.id)
-        setIsConfirmDialogOpen(false)
-        setItemToDelete(null)
-      } catch {
-        // Error handled by mutation
-      }
+  const handleGantiPinConfirm = async (pinBaru: string) => {
+    if (!gantiPinCustomerId) return
+    try {
+      await changePinMutation.mutateAsync({
+        id: gantiPinCustomerId,
+        data: { newPin: pinBaru },
+      })
+      toast.success("PIN berhasil diubah")
+      queryClient.invalidateQueries({ queryKey: customerKeys.detail(gantiPinCustomerId) })
+      queryClient.invalidateQueries({ queryKey: customerKeys.lists() })
+      setGantiPinOpen(false)
+      setGantiPinCustomerId(null)
+    } catch {
+      toast.error("Gagal mengubah PIN. Periksa kembali data dan coba lagi.")
     }
   }
 
@@ -311,7 +307,7 @@ export default function MasterCustomerPage() {
               )}
             </div>
           }
-          searchPlaceholder="Email"
+          searchPlaceholder="Search"
           headerRight={
             <div className="flex w-full items-center gap-2 sm:w-auto">
               <Select
@@ -330,17 +326,13 @@ export default function MasterCustomerPage() {
               </Select>
               <div className="w-full sm:w-auto sm:max-w-sm">
                 <Input
-                  placeholder="Email"
+                  placeholder="Search"
                   value={searchValue}
                   onChange={(e) => setSearchValue(e.target.value)}
                   icon={<SearchIcon className="size-4" />}
                   className="w-full"
                 />
               </div>
-              <Button variant="outline" className="flex items-center gap-2">
-                <SlidersHorizontal className="h-4 w-4" />
-                Filter
-              </Button>
             </div>
           }
           initialPageSize={pageSize}
@@ -348,17 +340,24 @@ export default function MasterCustomerPage() {
           searchValue={searchValue}
           onSearchChange={setSearchValue}
           onDetail={handleDetail}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
+          customActions={[
+            {
+              label: "Ganti PIN",
+              icon: <Lock className="mr-2 size-4" />,
+              onClick: handleGantiPin,
+            },
+          ]}
         />
       )}
 
-      {/* Confirmation Dialog for Delete */}
-      <ConfirmationDialog
-        open={isConfirmDialogOpen}
-        onOpenChange={setIsConfirmDialogOpen}
-        onConfirm={handleConfirmDelete}
-        description="Anda akan menghapus data Customer dari dalam sistem."
+      <GantiPinDialog
+        open={gantiPinOpen}
+        onOpenChange={(open) => {
+          setGantiPinOpen(open)
+          if (!open) setGantiPinCustomerId(null)
+        }}
+        onConfirm={handleGantiPinConfirm}
+        isSubmitting={changePinMutation.isPending}
       />
     </div>
   )

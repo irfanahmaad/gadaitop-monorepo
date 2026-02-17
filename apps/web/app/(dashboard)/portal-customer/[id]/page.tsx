@@ -166,10 +166,7 @@ const nkbColumns: ColumnDef<NKBRow>[] = [
           "bg-red-100 text-red-800 hover:bg-red-100 dark:bg-red-900 dark:text-red-300",
       }
       return (
-        <Badge
-          variant="secondary"
-          className={statusStyles[status]}
-        >
+        <Badge variant="secondary" className={statusStyles[status]}>
           {status}
         </Badge>
       )
@@ -422,7 +419,7 @@ export default function PortalCustomerDetailPage() {
           columns={nkbColumns as ColumnDef<NKBRow, unknown>[]}
           data={filteredNKB}
           title="Daftar NKB"
-          searchPlaceholder="Email"
+          searchplaceholder="Search"
           headerRight={
             <div className="flex w-full items-center gap-2 sm:w-auto">
               <Select
@@ -441,7 +438,7 @@ export default function PortalCustomerDetailPage() {
               </Select>
               <div className="w-full sm:w-auto sm:max-w-sm">
                 <Input
-                  placeholder="Email"
+                  placeholder="Search"
                   value={searchValue}
                   onChange={(e) => setSearchValue(e.target.value)}
                   icon={<SearchIcon className="size-4" />}

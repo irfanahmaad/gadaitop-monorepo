@@ -166,9 +166,12 @@ const columnsHistoryNKB: ColumnDef<NKB>[] = [
     accessorKey: "status",
     header: "Status",
     cell: ({ row }) => {
-      const status = row.getValue("status") as "Disetujui" | "Ditolak" | undefined
+      const status = row.getValue("status") as
+        | "Disetujui"
+        | "Ditolak"
+        | undefined
       if (!status) return null
-      
+
       return (
         <Badge
           variant={status === "Disetujui" ? "secondary" : "destructive"}
@@ -305,7 +308,7 @@ function NKBInfoDialog({
               onApprove()
               onOpenChange(false)
             }}
-            className="flex items-center gap-2 bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90 flex items-center gap-2"
           >
             <Check className="size-4" />
             Setujui
@@ -375,9 +378,7 @@ function NKBPageContent() {
             ? Number(pembayaranRange.to)
             : pembayaranRange.to
         if (!isNaN(toValue)) {
-          filtered = filtered.filter(
-            (item) => item.totalPembayaran <= toValue
-          )
+          filtered = filtered.filter((item) => item.totalPembayaran <= toValue)
         }
       }
     }
@@ -478,7 +479,7 @@ function NKBPageContent() {
             onFilterChange={setFilters}
             initialPageSize={parseInt(pageSize)}
             onPageSizeChange={(size) => setPageSize(String(size))}
-            searchPlaceholder="Email"
+            searchplaceholder="Search"
           />
         </TabsContent>
 
@@ -508,7 +509,7 @@ function NKBPageContent() {
             onFilterChange={setFilters}
             initialPageSize={parseInt(pageSize)}
             onPageSizeChange={(size) => setPageSize(String(size))}
-            searchPlaceholder="Email"
+            searchplaceholder="Search"
           />
         </TabsContent>
       </Tabs>
