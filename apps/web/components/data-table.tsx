@@ -84,6 +84,8 @@ interface DataTableProps<TData, TValue> {
   searchValue?: string
   onSearchChange?: (value: string) => void
   getRowClassName?: (row: TData) => string
+  /** Called when row selection changes; receives selected row data */
+  onSelectionChange?: (selectedRows: TData[]) => void
 }
 
 export function DataTable<TData, TValue>({
@@ -107,6 +109,7 @@ export function DataTable<TData, TValue>({
   searchValue: controlledSearchValue,
   onSearchChange,
   getRowClassName,
+  onSelectionChange,
 }: DataTableProps<TData, TValue>) {
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
@@ -234,6 +237,13 @@ export function DataTable<TData, TValue>({
     onGlobalFilterChange: setGlobalFilter,
     globalFilterFn: "includesString",
   })
+
+  const onSelectionChangeRef = React.useRef(onSelectionChange)
+  onSelectionChangeRef.current = onSelectionChange
+  React.useEffect(() => {
+    const selected = table.getSelectedRowModel().rows.map((r) => r.original)
+    onSelectionChangeRef.current?.(selected)
+  }, [rowSelection, data])
 
   const currentPage = table.getState().pagination.pageIndex + 1
   const pageSize = table.getState().pagination.pageSize

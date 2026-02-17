@@ -71,7 +71,7 @@ function FormSkeleton() {
         <Skeleton className="h-6 w-48" />
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[250px_1fr]">
+        <div className="grid grid-cols-1 gap-8">
           <div className="flex justify-center"></div>
           <div className="space-y-8">
             <div className="space-y-4">
@@ -307,7 +307,7 @@ export default function EditMasterSyaratMataPage() {
                       )}
                     />
                     {/* Harga - spans both columns */}
-                    <div className="md:col-span-2 space-y-2">
+                    <div className="space-y-2 md:col-span-2">
                       <FormLabel>Harga</FormLabel>
                       <div className="flex items-center gap-2">
                         <FormField
@@ -368,7 +368,7 @@ export default function EditMasterSyaratMataPage() {
                       </div>
                     </div>
                     {/* Macet - spans both columns */}
-                    <div className="md:col-span-2 space-y-2">
+                    <div className="space-y-2 md:col-span-2">
                       <FormLabel>Macet</FormLabel>
                       <div className="flex items-center gap-2">
                         <FormField
@@ -381,7 +381,9 @@ export default function EditMasterSyaratMataPage() {
                                   type="number"
                                   placeholder="Contoh: 1"
                                   value={field.value}
-                                  onChange={(e) => field.onChange(e.target.value)}
+                                  onChange={(e) =>
+                                    field.onChange(e.target.value)
+                                  }
                                 />
                               </FormControl>
                               <FormMessage />
@@ -400,7 +402,9 @@ export default function EditMasterSyaratMataPage() {
                                   type="number"
                                   placeholder="Contoh: 1"
                                   value={field.value}
-                                  onChange={(e) => field.onChange(e.target.value)}
+                                  onChange={(e) =>
+                                    field.onChange(e.target.value)
+                                  }
                                 />
                               </FormControl>
                               <FormMessage />

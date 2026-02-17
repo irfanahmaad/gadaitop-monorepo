@@ -45,7 +45,7 @@ export function ConfirmationDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent showCloseButton={false} className="sm:max-w-md">
+      <DialogContent showCloseButton={false} className="sm:max-w-lg">
         <DialogHeader>
           <div className="flex flex-col items-center gap-4 text-center">
             <div

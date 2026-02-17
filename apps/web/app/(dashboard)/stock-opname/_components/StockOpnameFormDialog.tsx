@@ -37,6 +37,8 @@ import {
 import { cn } from "@workspace/ui/lib/utils"
 import { useAuth } from "@/lib/react-query/hooks/use-auth"
 import { useBranches } from "@/lib/react-query/hooks/use-branches"
+import { useUsers } from "@/lib/react-query/hooks/use-users"
+import { usePawnTerms } from "@/lib/react-query/hooks/use-pawn-terms"
 import { useCreateStockOpname } from "@/lib/react-query/hooks/use-stock-opname"
 import type { CreateStockOpnameDto } from "@/lib/api/types"
 
@@ -86,6 +88,14 @@ export function StockOpnameFormDialog({
   const ptId = user?.companyId ?? user?.ownedCompanyId ?? null
 
   const { data: branchesData } = useBranches({ pageSize: 500 })
+  const { data: usersData } = useUsers({
+    pageSize: 500,
+    filter: { roleCode: "stock_auditor" },
+  })
+  const { data: pawnTermsData } = usePawnTerms({
+    pageSize: 500,
+    filter: ptId ? { ptId } : undefined,
+  })
 
   const tokoOptions = useMemo(
     () =>
@@ -96,20 +106,24 @@ export function StockOpnameFormDialog({
     [branchesData?.data]
   )
 
-  const petugasSOOptions = [
-    { label: "Ben Affleck", value: "ben-affleck" },
-    { label: "Rocks D Xebec", value: "rocks-d-xebec" },
-    { label: "Edward Newgate", value: "edward-newgate" },
-    { label: "John Doe", value: "john-doe" },
-    { label: "Jane Smith", value: "jane-smith" },
-  ]
+  const petugasSOOptions = useMemo(
+    () =>
+      (usersData?.data ?? []).map((u) => ({
+        label: u.fullName ?? u.email ?? u.uuid,
+        value: u.uuid,
+      })),
+    [usersData?.data]
+  )
 
-  const syaratMataOptions = [
-    { label: "Barang Mahal", value: "barang-mahal" },
-    { label: "Barang Penting", value: "barang-penting" },
-    { label: "Barang Antik", value: "barang-antik" },
-    { label: "Barang Langka", value: "barang-langka" },
-  ]
+  const syaratMataOptions = useMemo(
+    () =>
+      (pawnTermsData?.data ?? []).map((term) => {
+        const typeName = term.itemType?.typeName ?? "—"
+        const label = `${typeName} (Tenor ${term.tenorDefault} bln)`
+        return { label, value: term.uuid }
+      }),
+    [pawnTermsData?.data]
+  )
 
   const createMutation = useCreateStockOpname()
 

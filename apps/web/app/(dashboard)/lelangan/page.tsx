@@ -26,7 +26,7 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "@workspace/ui/components/avatar"
-import { SearchIcon, SlidersHorizontal, Eye } from "lucide-react"
+import { SearchIcon, SlidersHorizontal, Eye, Plus } from "lucide-react"
 import { format } from "date-fns"
 import { id } from "date-fns/locale"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
@@ -424,6 +424,9 @@ function LelangPageContent() {
   const [itemToDelete, setItemToDelete] = useState<
     ItemLelang | BatchLelang | null
   >(null)
+  const [selectedItemLelangRows, setSelectedItemLelangRows] = useState<
+    ItemLelang[]
+  >([])
 
   const listOptions = React.useMemo(() => {
     const filter: Record<string, string> = {}
@@ -637,6 +640,15 @@ function LelangPageContent() {
                   <SlidersHorizontal className="size-4" />
                   Filter
                 </Button>
+                {selectedItemLelangRows.length > 0 && (
+                  <Button
+                    type="button"
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90 flex items-center gap-2"
+                  >
+                    <Plus className="size-4" />
+                    Buat Batch
+                  </Button>
+                )}
               </div>
             }
             filterConfig={lelanganFilterConfig}
@@ -651,6 +663,7 @@ function LelangPageContent() {
             onDetail={handleDetail}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            onSelectionChange={(rows) => setSelectedItemLelangRows(rows)}
           />
           {placeholderItemLelang.length === 0 && (
             <p className="text-muted-foreground py-4 text-center text-sm">
