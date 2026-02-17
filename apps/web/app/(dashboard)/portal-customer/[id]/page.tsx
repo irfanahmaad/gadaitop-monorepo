@@ -419,7 +419,7 @@ export default function PortalCustomerDetailPage() {
           columns={nkbColumns as ColumnDef<NKBRow, unknown>[]}
           data={filteredNKB}
           title="Daftar NKB"
-          searchplaceholder="Search"
+          searchPlaceholder="Search"
           headerRight={
             <div className="flex w-full items-center gap-2 sm:w-auto">
               <Select

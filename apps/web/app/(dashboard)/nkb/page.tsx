@@ -479,7 +479,7 @@ function NKBPageContent() {
             onFilterChange={setFilters}
             initialPageSize={parseInt(pageSize)}
             onPageSizeChange={(size) => setPageSize(String(size))}
-            searchplaceholder="Search"
+            searchPlaceholder="Search"
           />
         </TabsContent>
 
@@ -509,7 +509,7 @@ function NKBPageContent() {
             onFilterChange={setFilters}
             initialPageSize={parseInt(pageSize)}
             onPageSizeChange={(size) => setPageSize(String(size))}
-            searchplaceholder="Search"
+            searchPlaceholder="Search"
           />
         </TabsContent>
       </Tabs>

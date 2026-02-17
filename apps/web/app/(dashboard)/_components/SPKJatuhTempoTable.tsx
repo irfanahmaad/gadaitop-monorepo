@@ -73,7 +73,7 @@ export function SPKJatuhTempoTable({
                     <TableCell>
                       <Avatar>
                         <AvatarImage
-                          src={spk.customer?.ktpPhotoUrl}
+                          src={spk.customer?.ktpPhotoUrl ?? undefined}
                           alt={customerName}
                         />
                         <AvatarFallback>
