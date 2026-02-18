@@ -1,14 +1,23 @@
 import {
-    BaseEntity, Column, CreateDateColumn, DeleteDateColumn, Generated, PrimaryGeneratedColumn,
-    UpdateDateColumn, VersionColumn,
+  BaseEntity,
+  Column,
+  CreateDateColumn,
+  DeleteDateColumn,
+  Generated,
+  Index,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+  VersionColumn,
 } from 'typeorm';
 
 export abstract class AbstractEntity extends BaseEntity {
   @PrimaryGeneratedColumn('increment')
+  @Index()
   id: number;
 
   @Generated('uuid')
   @Column({ type: 'uuid', unique: true })
+  @Index()
   uuid: string;
 
   @CreateDateColumn({
