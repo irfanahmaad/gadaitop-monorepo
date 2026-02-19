@@ -7,6 +7,7 @@ import { CapitalTopupStatusEnum } from '../../../constants/capital-topup-status'
  * Capital top-up (Tambah Modal) - Store requests additional capital from PT.
  */
 @Entity({ name: 'capital_topups' })
+@Index(['ptId', 'storeId', 'status'])
 export class CapitalTopupEntity extends AbstractEntity {
   @Column({ type: 'varchar', length: 50, unique: true })
   @Index()

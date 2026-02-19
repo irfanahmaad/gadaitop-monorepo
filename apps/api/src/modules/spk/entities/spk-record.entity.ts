@@ -10,6 +10,12 @@ import { SpkItemEntity } from './spk-item.entity';
  * Customer SPK number: YYYYMMDD[4 random digits].
  */
 @Entity({ name: 'spk_records' })
+@Index(['ptId', 'status'])
+@Index(['ptId', 'storeId', 'status'])
+@Index(['ptId', 'createdAt'])
+@Index(['status', 'dueDate'])
+@Index(['customerId', 'status'])
+@Index(['storeId', 'status'])
 export class SpkRecordEntity extends AbstractEntity {
   @Column({ type: 'varchar', length: 50, unique: true })
   @Index()

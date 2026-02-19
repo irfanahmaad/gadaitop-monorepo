@@ -24,6 +24,7 @@ export abstract class AbstractEntity extends BaseEntity {
     type: 'timestamp with time zone',
     default: () => 'CURRENT_TIMESTAMP',
   })
+  @Index()
   createdAt: Date;
 
   @UpdateDateColumn({

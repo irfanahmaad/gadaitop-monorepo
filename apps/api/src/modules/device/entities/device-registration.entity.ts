@@ -9,6 +9,7 @@ import { AbstractEntity } from '../../../common/abstract.entity';
  */
 @Entity({ name: 'device_registrations' })
 @Unique(['userId', 'ipAddress'])
+@Index(['userId', 'isActive'])
 export class DeviceRegistrationEntity extends AbstractEntity {
   @Column({ type: 'uuid' })
   @Index()

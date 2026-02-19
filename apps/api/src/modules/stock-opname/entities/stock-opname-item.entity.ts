@@ -5,6 +5,7 @@ import { SpkItemConditionEnum } from '../../../constants/spk-item-condition';
 import { StockOpnameSessionEntity } from './stock-opname-session.entity';
 
 @Entity({ name: 'stock_opname_items' })
+@Index(['soSessionId', 'spkItemId'])
 export class StockOpnameItemEntity extends AbstractEntity {
   @Column({ type: 'uuid' })
   @Index()

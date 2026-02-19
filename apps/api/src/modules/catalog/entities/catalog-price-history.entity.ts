@@ -6,6 +6,7 @@ import { AbstractEntity } from '../../../common/abstract.entity';
  * Historical pricing records for catalogs (RS 8.2.a).
  */
 @Entity({ name: 'catalog_price_history' })
+@Index(['catalogId', 'effectiveUntil'])
 export class CatalogPriceHistoryEntity extends AbstractEntity {
   @Column({ type: 'uuid' })
   @Index()

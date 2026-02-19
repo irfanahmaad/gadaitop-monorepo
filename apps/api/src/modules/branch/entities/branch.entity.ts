@@ -16,6 +16,8 @@ import { BranchStatusEnum } from '../../../constants/branch-status';
  */
 @Entity({ name: 'branches' })
 @Unique(['companyId', 'branchCode'])
+@Index(['companyId', 'status'])
+@Index(['companyId', 'city'])
 export class BranchEntity extends AbstractEntity {
   // ============================================
   // BASIC INFO - RS: "Data: kode lokasi, nama toko (short/long), alamat, telepon, kota"

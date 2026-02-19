@@ -9,6 +9,7 @@ import { AuctionBatchEntity } from './auction-batch.entity';
  * Auction batch item (ItemLelang) - one SPK item in a batch; pickup and validation tracking.
  */
 @Entity({ name: 'auction_batch_items' })
+@Index(['auctionBatchId', 'pickupStatus'])
 export class AuctionBatchItemEntity extends AbstractEntity {
   @Column({ type: 'uuid' })
   @Index()

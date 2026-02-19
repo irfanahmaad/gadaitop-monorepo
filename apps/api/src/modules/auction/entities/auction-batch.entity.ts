@@ -8,6 +8,7 @@ import { AuctionBatchItemEntity } from './auction-batch-item.entity';
  * Auction batch (BatchLelang) - per-store batch of overdue SPK items for pickup and validation.
  */
 @Entity({ name: 'auction_batches' })
+@Index(['ptId', 'storeId', 'status'])
 export class AuctionBatchEntity extends AbstractEntity {
   @Column({ type: 'varchar', length: 50, unique: true })
   @Index()
@@ -34,6 +35,7 @@ export class AuctionBatchEntity extends AbstractEntity {
   status: AuctionBatchStatusEnum;
 
   @Column({ type: 'uuid', nullable: true })
+  @Index()
   assignedTo: string | null;
 
   @ManyToOne('UserEntity', { nullable: true, onDelete: 'SET NULL' })

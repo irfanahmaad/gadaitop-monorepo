@@ -9,6 +9,7 @@ import { CashDepositStatusEnum } from '../../../constants/cash-deposit-status';
  * Creates deposit request with VA/QR; approved by Admin PT.
  */
 @Entity({ name: 'cash_deposits' })
+@Index(['ptId', 'storeId', 'status'])
 export class CashDepositEntity extends AbstractEntity {
   @Column({ type: 'varchar', length: 50, unique: true })
   @Index()

@@ -5,6 +5,7 @@ import { StockOpnameSessionStatusEnum } from '../../../constants/stock-opname-se
 import { StockOpnameItemEntity } from './stock-opname-item.entity';
 
 @Entity({ name: 'stock_opname_sessions' })
+@Index(['ptId', 'storeId', 'status'])
 export class StockOpnameSessionEntity extends AbstractEntity {
   @Column({ type: 'varchar', length: 50, unique: true })
   @Index()

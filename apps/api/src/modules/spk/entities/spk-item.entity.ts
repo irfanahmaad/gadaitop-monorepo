@@ -9,6 +9,7 @@ import { SpkRecordEntity } from './spk-record.entity';
  * Item pledged in an SPK (pawn contract).
  */
 @Entity({ name: 'spk_items' })
+@Index(['spkId', 'status'])
 export class SpkItemEntity extends AbstractEntity {
   @Column({ type: 'uuid' })
   @Index()

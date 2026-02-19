@@ -10,6 +10,8 @@ import { NkbStatusEnum } from '../../../constants/nkb-status';
  * Created by SPK extend/redeem or by staff. Confirmed by store staff.
  */
 @Entity({ name: 'nkb_records' })
+@Index(['spkId', 'status'])
+@Index(['spkId', 'createdAt'])
 export class NkbRecordEntity extends AbstractEntity {
   @Column({ type: 'varchar', length: 50, unique: true })
   @Index()

@@ -10,6 +10,7 @@ import { GenderEnum } from '../../../constants/gender';
  * RS 8.3.b - PIN per customer (1:1). RS 8.3.a - Blacklist support.
  */
 @Entity({ name: 'customers' })
+@Index(['ptId', 'createdAt'])
 export class CustomerEntity extends AbstractEntity {
   @Column({ type: 'varchar', length: 20, unique: true })
   @Index()

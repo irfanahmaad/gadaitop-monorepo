@@ -8,6 +8,7 @@ import { AbstractEntity } from '../../../common/abstract.entity';
  */
 @Entity({ name: 'catalogs' })
 @Unique(['ptId', 'code'])
+@Index(['ptId', 'itemTypeId'])
 export class CatalogEntity extends AbstractEntity {
   @Column({ type: 'varchar', length: 50 })
   code: string;

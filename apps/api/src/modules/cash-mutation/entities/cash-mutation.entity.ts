@@ -18,6 +18,7 @@ import { CashMutationTypeEnum } from '../../../constants/cash-mutation-type';
  * Created automatically by SPK/NKB/deposit/topup or manually (adjustment/expense).
  */
 @Entity({ name: 'cash_mutations' })
+@Index(['storeId', 'mutationDate', 'id'])
 export class CashMutationEntity extends BaseEntity {
   @PrimaryGeneratedColumn('increment')
   id: number;

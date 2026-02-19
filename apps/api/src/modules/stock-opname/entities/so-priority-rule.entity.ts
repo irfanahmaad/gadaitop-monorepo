@@ -4,6 +4,7 @@ import { AbstractEntity } from '../../../common/abstract.entity';
 import { SoPriorityRuleTypeEnum } from '../../../constants/so-priority-rule-type';
 
 @Entity({ name: 'so_priority_rules' })
+@Index(['ptId', 'priorityLevel'])
 export class SoPriorityRuleEntity extends AbstractEntity {
   @Column({ type: 'uuid' })
   @Index()

@@ -6,6 +6,8 @@ import { AbstractEntity } from '../../../common/abstract.entity';
  * In-app notification for a user (recipient).
  */
 @Entity({ name: 'notifications' })
+@Index(['recipientId', 'readAt'])
+@Index(['recipientId', 'createdAt'])
 export class NotificationEntity extends AbstractEntity {
   @Column({ type: 'uuid' })
   @Index()
