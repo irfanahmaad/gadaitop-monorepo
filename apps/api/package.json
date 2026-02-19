@@ -18,7 +18,8 @@
     "migration:check": "ts-node -r tsconfig-paths/register -r reflect-metadata src/database/check-migrations.ts",
     "migration:revert": "ts-node -r tsconfig-paths/register -r reflect-metadata src/database/revert.ts",
     "migration:create": "ts-node -r tsconfig-paths/register -r reflect-metadata ./node_modules/typeorm/cli.js migration:create",
-    "seed": "TS_NODE_PROJECT=tsconfig.json ts-node -r tsconfig-paths/register -r reflect-metadata ./node_modules/@concepta/typeorm-seeding/dist/cli.js seed -c src/seeders/db.seed"
+    "seed": "TS_NODE_PROJECT=tsconfig.json ts-node -r tsconfig-paths/register -r reflect-metadata ./node_modules/@concepta/typeorm-seeding/dist/cli.js seed -c src/seeders/db.seed",
+    "database:reset": "ts-node -r tsconfig-paths/register -r reflect-metadata src/database/reset.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.981.0",
