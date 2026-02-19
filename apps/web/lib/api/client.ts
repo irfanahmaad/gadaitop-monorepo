@@ -51,15 +51,45 @@ interface RequestOptions<TBody = unknown> {
   accessToken?: string
 }
 
-// Get access token from NextAuth session (client-side)
+// Token cache to avoid calling getSession() (HTTP request) on every API call.
+// Concurrent calls share a single in-flight promise (deduplication).
+let cachedToken: string | null = null
+let tokenExpiresAt = 0
+let pendingSessionPromise: Promise<string | null> | null = null
+
+const TOKEN_CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+
 async function getAccessToken(): Promise<string | null> {
   if (typeof window === "undefined") {
     // Server-side: token should be passed via options.accessToken
     return null
   }
 
-  const session = await getSession()
-  return session?.accessToken ?? null
+  // Return cached token if still valid
+  if (cachedToken && Date.now() < tokenExpiresAt) {
+    return cachedToken
+  }
+
+  // Deduplicate: reuse in-flight getSession() call
+  if (!pendingSessionPromise) {
+    pendingSessionPromise = getSession()
+      .then((session) => {
+        cachedToken = session?.accessToken ?? null
+        tokenExpiresAt = Date.now() + TOKEN_CACHE_TTL
+        return cachedToken
+      })
+      .finally(() => {
+        pendingSessionPromise = null
+      })
+  }
+
+  return pendingSessionPromise
+}
+
+export function clearTokenCache() {
+  cachedToken = null
+  tokenExpiresAt = 0
+  pendingSessionPromise = null
 }
 
 // Base fetch function

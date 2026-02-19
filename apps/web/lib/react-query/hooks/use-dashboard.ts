@@ -45,31 +45,40 @@ export const dashboardKeys = {
 }
 
 // Get dashboard KPIs
-export function useDashboardKpis(filter?: Record<string, string>) {
+export function useDashboardKpis(
+  filter?: Record<string, string>,
+  enabled = true
+) {
   return useQuery({
     queryKey: dashboardKeys.kpis(filter),
     queryFn: () =>
       apiClient.get<DashboardKpis>(
         `${endpoints.dashboard.kpis}${buildFilterQueryString(filter)}`
       ),
+    enabled,
   })
 }
 
 // Get SPK by status chart data (returns array of { status, count })
-export function useSpkByStatusChart(filter?: Record<string, string>) {
+export function useSpkByStatusChart(
+  filter?: Record<string, string>,
+  enabled = true
+) {
   return useQuery({
     queryKey: dashboardKeys.spkByStatus(filter),
     queryFn: () =>
       apiClient.get<SpkByStatusChart[]>(
         `${endpoints.dashboard.spkByStatusChart}${buildFilterQueryString(filter)}`
       ),
+    enabled,
   })
 }
 
 // Get mutation trends chart data (returns array of { date, creditTotal, debitTotal, net })
 export function useMutationTrends(
   days: number = 30,
-  filter?: Record<string, string>
+  filter?: Record<string, string>,
+  enabled = true
 ) {
   return useQuery({
     queryKey: dashboardKeys.mutationTrends(days, filter),
@@ -77,5 +86,6 @@ export function useMutationTrends(
       apiClient.get<MutationTrend[]>(
         `${endpoints.dashboard.mutationTrends}${buildFilterQueryString(filter, { days })}`
       ),
+    enabled,
   })
 }

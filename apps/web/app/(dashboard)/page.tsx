@@ -28,7 +28,7 @@ import { useBranches } from "@/lib/react-query/hooks/use-branches"
 import { useAuth } from "@/lib/react-query/hooks/use-auth"
 
 export default function Page() {
-  const { user } = useAuth()
+  const { user, isLoading: isUserLoading } = useAuth()
 
   // ── Determine if user is Super Admin (owner) or Admin PT (company_admin) ──
   const isSuperAdmin = useMemo(() => {
@@ -39,12 +39,15 @@ export default function Page() {
     return user?.roles?.some((role) => role.code === "company_admin") ?? false
   }, [user])
 
+  // ── True once the session has resolved ────────────────────
+  const isUserReady = !isUserLoading && !!user
+
   // ── Date state ────────────────────────────────────────────
   const [date, setDate] = useState<Date>(new Date())
 
-  // ── Fetch companies (PT) for Super Admin only ──────────────
+  // ── Fetch companies (PT) for Super Admin only — gate on user ready ─────
   const { data: companiesData, isLoading: companiesLoading } = useCompanies(
-    isSuperAdmin ? { pageSize: 100 } : undefined
+    isUserReady && isSuperAdmin ? { pageSize: 100 } : undefined
   )
 
   const ptOptions: PTOption[] = useMemo(() => {
@@ -59,14 +62,19 @@ export default function Page() {
   const effectiveCompanyId = isSuperAdmin ? null : (user?.companyId ?? null)
   const [selectedPT, setSelectedPT] = useState("")
 
+  // Derive the initial PT once the right data arrives — collapsed into one memo
+  // to minimise the number of effect re-runs that change selectedPT
+  const derivedInitialPT = useMemo(() => {
+    if (isSuperAdmin && ptOptions.length > 0) return ptOptions[0]!.value
+    if (isCompanyAdmin && effectiveCompanyId) return effectiveCompanyId
+    return ""
+  }, [isSuperAdmin, isCompanyAdmin, ptOptions, effectiveCompanyId])
+
   useEffect(() => {
-    if (isSuperAdmin && ptOptions.length > 0 && !selectedPT) {
-      setSelectedPT(ptOptions[0]!.value)
+    if (derivedInitialPT && !selectedPT) {
+      setSelectedPT(derivedInitialPT)
     }
-    if (isCompanyAdmin && effectiveCompanyId && !selectedPT) {
-      setSelectedPT(effectiveCompanyId)
-    }
-  }, [isSuperAdmin, isCompanyAdmin, ptOptions, effectiveCompanyId, selectedPT])
+  }, [derivedInitialPT, selectedPT])
 
   // ── Fetch branches (Toko) for Super Admin (by selected PT) or company_admin (by user's company) ──
   const branchQueryCompanyId = isSuperAdmin ? selectedPT : effectiveCompanyId
@@ -107,6 +115,9 @@ export default function Page() {
   }
 
   // ── Build filter for dashboard data queries ───────────────
+  // isContextReady: don't fire any query until selectedPT is determined.
+  // This prevents a double-fetch (empty filter → selectedPT set → filter changes → refetch).
+  const isContextReady = !!selectedPT
   const dashboardFilter = useMemo(() => {
     const filter: Record<string, string> = {}
     if (selectedPT) {
@@ -123,11 +134,11 @@ export default function Page() {
 
   // ── API Hooks ──────────────────────────────────────────────
   const { data: kpis, isLoading: kpisLoading } =
-    useDashboardKpis(dashboardFilter)
+    useDashboardKpis(dashboardFilter, isContextReady)
   const { data: spkByStatus, isLoading: spkByStatusLoading } =
-    useSpkByStatusChart(dashboardFilter)
+    useSpkByStatusChart(dashboardFilter, isContextReady)
   const { data: mutationTrends, isLoading: mutationTrendsLoading } =
-    useMutationTrends(30, dashboardFilter)
+    useMutationTrends(30, dashboardFilter, isContextReady)
 
   // ── SPK List (recent: active + draft, limited) ───────────────
   const spkListOptions = useMemo(
@@ -144,7 +155,7 @@ export default function Page() {
     [selectedPT, selectedToko]
   )
   const { data: spkListData, isLoading: spkListLoading } = useSpkList(
-    selectedPT || selectedToko ? spkListOptions : undefined
+    isContextReady ? spkListOptions : undefined
   )
 
   // ── SPK Overdue (jatuh tempo) ─────────────────────────────────
@@ -163,7 +174,7 @@ export default function Page() {
     [selectedPT, selectedToko]
   )
   const { data: spkOverdueData, isLoading: spkOverdueLoading } = useSpkList(
-    selectedPT || selectedToko ? spkOverdueOptions : undefined
+    isContextReady ? spkOverdueOptions : undefined
   )
 
   // ── NKB List (recent, limited) ────────────────────────────────
