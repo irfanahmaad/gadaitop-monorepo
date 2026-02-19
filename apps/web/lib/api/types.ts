@@ -15,6 +15,8 @@ export interface PageOptions {
   sortBy?: string
   query?: string
   filter?: Record<string, string | number>
+  relation?: Record<string, any>
+  select?: Record<string, any>
 }
 
 // API Response types

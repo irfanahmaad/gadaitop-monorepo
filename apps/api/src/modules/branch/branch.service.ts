@@ -40,13 +40,6 @@ export class BranchService {
 
     const qbOptions: QueryBuilderOptionsType<BranchEntity> = {
       ...queryDto,
-      select: {
-        branchCode: true,
-        shortName: true,
-        fullName: true,
-        city: true,
-        status: true,
-      },
       where,
       orderBy: sortAttribute(queryDto.sortBy, {
         branchCode: { branchCode: true },

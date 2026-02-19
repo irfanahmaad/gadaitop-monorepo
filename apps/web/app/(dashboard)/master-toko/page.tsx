@@ -305,11 +305,28 @@ export default function MasterTokoPage() {
   }, [isSuperAdmin, ptOptions, selectedPT])
 
   const branchQueryCompanyId = isSuperAdmin ? selectedPT : effectiveCompanyId
-  const { data: branchesData, isLoading: branchesLoading } = useBranches(
-    branchQueryCompanyId
+  const { data: branchesData, isLoading: branchesLoading } = useBranches({
+    ...(branchQueryCompanyId
       ? { companyId: branchQueryCompanyId, pageSize: 200, status: "active" }
-      : undefined
-  )
+      : {}),
+    relation: { company: true },
+    select: {
+      uuid: true,
+      branchCode: true,
+      shortName: true,
+      fullName: true,
+      city: true,
+      phone: true,
+      status: true,
+      isBorrowed: true,
+      companyId: true,
+      company: {
+        id: true,
+        uuid: true,
+        companyName: true,
+      },
+    },
+  })
 
   const { data: borrowRequestsData } = useBorrowRequests({
     pageSize: 100,

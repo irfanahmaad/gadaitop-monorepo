@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { IsEnum, IsNumber, IsObject, IsOptional, IsString, Min } from 'class-validator';
 
 export enum Order {
@@ -41,6 +41,32 @@ export class PageOptionsDto {
   @IsOptional()
   @IsString()
   query?: string;
+  
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      try {
+        return JSON.parse(value);
+      } catch {
+        return value;
+      }
+    }
+    return value;
+  })
+  relation?: Record<string, any>;
+
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      try {
+        return JSON.parse(value);
+      } catch {
+        return value;
+      }
+    }
+    return value;
+  })
+  select?: Record<string, any>;
 
   /**
    * Get the skip value, calculating it from page and pageSize if not provided

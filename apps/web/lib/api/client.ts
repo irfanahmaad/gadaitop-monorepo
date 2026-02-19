@@ -21,6 +21,16 @@ function buildQueryString(options?: PageOptions): string {
     })
   }
 
+  // Handle relation object
+  if (options.relation) {
+    params.set('relation', JSON.stringify(options.relation));
+  }
+
+  // Handle select object
+  if (options.select) {
+    params.set('select', JSON.stringify(options.select));
+  }
+
   const queryString = params.toString()
   return queryString ? `?${queryString}` : ""
 }
