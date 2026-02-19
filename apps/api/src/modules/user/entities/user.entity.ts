@@ -50,35 +50,35 @@ export class UserEntity extends AbstractEntity {
    * For non-owner users: which company they belong to
    * Admin PT, Staff assigned to a company
    */
-  @Column({ type: 'uuid', nullable: true })
+  @Column({ name: 'company_id', type: 'uuid', nullable: true })
   @Index()
   companyId: string | null;
 
   @ManyToOne('CompanyEntity', { nullable: true })
-  @JoinColumn({ name: 'companyId', referencedColumnName: 'uuid' })
+  @JoinColumn({ name: 'company_id', referencedColumnName: 'uuid' })
   company: Relation<any> | null;
 
   /**
    * For branch-level users: which branch they're assigned to
    * Staff Toko, Stock Opname staff
    */
-  @Column({ type: 'uuid', nullable: true })
+  @Column({ name: 'branch_id', type: 'uuid', nullable: true })
   @Index()
   branchId: string | null;
 
   @ManyToOne('BranchEntity', { nullable: true })
-  @JoinColumn({ name: 'branchId', referencedColumnName: 'uuid' })
+  @JoinColumn({ name: 'branch_id', referencedColumnName: 'uuid' })
   branch: Relation<any> | null;
 
   /**
    * For owner role: link to owned company (1:1 relationship)
    * RS: "PT berelasi dengan pemilik (one to one). 1 Pemilik hanya memiliki 1 PT"
    */
-  @Column({ type: 'uuid', nullable: true, unique: true })
+  @Column({ name: 'owned_company_id', type: 'uuid', nullable: true, unique: true })
   ownedCompanyId: string | null;
 
   @OneToOne('CompanyEntity', 'owner', { nullable: true })
-  @JoinColumn({ name: 'ownedCompanyId', referencedColumnName: 'uuid' })
+  @JoinColumn({ name: 'owned_company_id', referencedColumnName: 'uuid' })
   ownedCompany: Relation<any> | null;
 
   // ============================================

@@ -37,12 +37,12 @@ export class CompanyEntity extends AbstractEntity {
   // RS: "1 Pemilik hanya memiliki 1 PT"
   // ============================================
 
-  @Column({ type: 'uuid', unique: true })
+  @Column({ name: 'owner_id', type: 'uuid', unique: true })
   @Index()
   ownerId: string;
 
   @OneToOne('UserEntity', 'ownedCompany')
-  @JoinColumn({ name: 'ownerId', referencedColumnName: 'uuid' })
+  @JoinColumn({ name: 'owner_id', referencedColumnName: 'uuid' })
   owner: Relation<any>;
 
   // ============================================

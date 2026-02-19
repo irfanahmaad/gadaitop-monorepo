@@ -37,12 +37,12 @@ export class RoleEntity extends AbstractEntity {
   isActive: boolean;
 
   // Optional: Company-specific custom roles
-  @Column({ type: 'uuid', nullable: true })
+  @Column({ name: 'company_id', type: 'uuid', nullable: true })
   @Index()
   companyId: string | null;
 
   @ManyToOne('CompanyEntity', { nullable: true })
-  @JoinColumn({ name: 'companyId', referencedColumnName: 'uuid' })
+  @JoinColumn({ name: 'company_id', referencedColumnName: 'uuid' })
   company: Relation<any> | null;
 
   @ManyToMany(() => UserEntity, (user) => user.roles)
