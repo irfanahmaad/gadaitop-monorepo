@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import { usePathname } from "next/navigation"
-import { useSession } from "next-auth/react"
 import Link from "next/link"
 import {
   LayoutDashboard,
@@ -41,22 +40,24 @@ import { imgLogoGadaiTopTextOnly } from "@/assets/commons"
 import Image from "next/image"
 import { Can, MenuSubject, useAppAbility } from "@/lib/casl"
 import { Skeleton } from "@workspace/ui/components/skeleton"
+import { useAuth } from "@/lib/react-query/hooks/use-auth"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
   const ability = useAppAbility()
-  const { data: session, status } = useSession()
-  const isOwner = session?.user?.roles?.some((role) => role.code === "owner")
-  const isBranchStaff = session?.user?.roles?.some(
+  const { user, isLoading } = useAuth()
+  const status = isLoading ? "loading" : "authenticated"
+  const isOwner = user?.roles?.some((role) => role.code === "owner")
+  const isBranchStaff = user?.roles?.some(
     (role) => role.code === "branch_staff"
   )
-  const isStockAuditor = session?.user?.roles?.some(
+  const isStockAuditor = user?.roles?.some(
     (role) => role.code === "stock_auditor"
   )
-  const isAuctionStaff = session?.user?.roles?.some(
+  const isAuctionStaff = user?.roles?.some(
     (role) => role.code === "auction_staff"
   )
-  const isCompanyAdmin = session?.user?.roles?.some(
+  const isCompanyAdmin = user?.roles?.some(
     (role) => role.code === "company_admin"
   )
   // Only show Dashboard when session is ready and user is not branch_staff, stock_auditor, or auction_staff (avoids flash)

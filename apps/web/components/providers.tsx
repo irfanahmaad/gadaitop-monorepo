@@ -10,7 +10,7 @@ import { Toaster } from "@workspace/ui/components/sonner"
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <SessionProvider>
+    <SessionProvider refetchOnWindowFocus={false}>
       <AbilityProvider>
         <ReactQueryProvider>
           <NextThemesProvider

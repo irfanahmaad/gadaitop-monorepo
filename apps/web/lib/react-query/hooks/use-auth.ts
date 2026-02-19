@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { signIn, signOut, useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 
-import { apiClient } from "@/lib/api/client"
+import { apiClient, clearTokenCache } from "@/lib/api/client"
 import { endpoints } from "@/lib/api/endpoints"
 import type { ApiResponse, LoginCredentials, RegisterCredentials } from "@/lib/api/types"
 import type { AuthUser } from "@/lib/auth/types"
@@ -61,7 +61,6 @@ export function useLogin() {
     },
     onSuccess: (_, variables) => {
       router.push(variables.callbackUrl || "/")
-      router.refresh()
     },
   })
 }
@@ -96,7 +95,6 @@ export function useRegister() {
     },
     onSuccess: () => {
       router.push("/")
-      router.refresh()
     },
   })
 }
@@ -119,23 +117,11 @@ export function useLogout() {
       // Then sign out from NextAuth
       await signOut({ redirect: false })
     },
-    onSuccess: () => {
-      // Clear all React Query cache
-      queryClient.removeQueries({ queryKey: authKeys.all })
+    onSettled: () => {
+      // Clear cached token, React Query cache, and redirect
+      clearTokenCache()
       queryClient.clear()
-
-      // Redirect to login
       router.push("/login")
-      router.refresh()
-    },
-    onError: () => {
-      // Even if logout fails, attempt to sign out and redirect
-      signOut({ redirect: false }).then(() => {
-        queryClient.removeQueries({ queryKey: authKeys.all })
-        queryClient.clear()
-        router.push("/login")
-        router.refresh()
-      })
     },
   })
 }
