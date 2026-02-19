@@ -15,18 +15,18 @@ export class BorrowRequestEntity extends AbstractEntity {
   /**
    * The branch being requested to borrow
    */
-  @Column({ type: 'uuid' })
+  @Column({ name: 'branch_id', type: 'uuid' })
   @Index()
   branchId: string;
 
   @ManyToOne('BranchEntity')
-  @JoinColumn({ name: 'branchId', referencedColumnName: 'uuid' })
+  @JoinColumn({ name: 'branch_id', referencedColumnName: 'uuid' })
   branch: Relation<any>;
 
   /**
    * The owner requesting to borrow
    */
-  @Column({ type: 'uuid' })
+  @Column({ name: 'requester_id', type: 'uuid' })
   @Index()
   requesterId: string;
 
@@ -37,12 +37,12 @@ export class BorrowRequestEntity extends AbstractEntity {
   /**
    * The company being borrowed from
    */
-  @Column({ type: 'uuid' })
+  @Column({ name: 'target_company_id', type: 'uuid' })
   @Index()
   targetCompanyId: string;
 
   @ManyToOne('CompanyEntity')
-  @JoinColumn({ name: 'targetCompanyId', referencedColumnName: 'uuid' })
+  @JoinColumn({ name: 'target_company_id', referencedColumnName: 'uuid' })
   targetCompany: Relation<any>;
 
   /**
@@ -65,11 +65,11 @@ export class BorrowRequestEntity extends AbstractEntity {
   /**
    * Who processed this request
    */
-  @Column({ type: 'uuid', nullable: true })
+  @Column({ name: 'processed_by', type: 'uuid', nullable: true })
   processedBy: string | null;
 
   @ManyToOne('UserEntity', { nullable: true })
-  @JoinColumn({ name: 'processedBy', referencedColumnName: 'uuid' })
+  @JoinColumn({ name: 'processed_by', referencedColumnName: 'uuid' })
   processor: Relation<any> | null;
 
   @Column({ type: 'timestamp with time zone', nullable: true })

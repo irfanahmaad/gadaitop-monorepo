@@ -1,10 +1,14 @@
-import { Repository } from 'typeorm';
+import { type FindOptionsWhere, Repository } from 'typeorm';
 
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 
 import { PageMetaDto } from '../../common/dtos/page-meta.dto';
 import { PageOptionsDto } from '../../common/dtos/page-options.dto';
+import {
+  DynamicQueryBuilder,
+  QueryBuilderOptionsType,
+} from '../../common/helpers/query-builder';
 import { BorrowRequestStatusEnum } from '../../constants/borrow-request-status';
 import { BorrowRequestDto } from './dto/borrow-request.dto';
 import { CreateBorrowRequestDto } from './dto/create-borrow-request.dto';
@@ -21,24 +25,26 @@ export class BorrowRequestService {
     data: BorrowRequestDto[];
     meta: PageMetaDto;
   }> {
-    const query = this.borrowRequestRepository.createQueryBuilder('request');
+    const where: FindOptionsWhere<BorrowRequestEntity> = {};
 
     if (requesterId) {
-      query.andWhere('request.requesterId = :requesterId', { requesterId });
+      where.requesterId = requesterId;
     }
-
     if (targetCompanyId) {
-      query.andWhere('request.targetCompanyId = :targetCompanyId', { targetCompanyId });
+      where.targetCompanyId = targetCompanyId;
     }
 
-    query.orderBy('request.createdAt', 'DESC');
-    query.skip(options.getSkip());
-    const take = options.getTake();
-    if (take !== undefined) {
-      query.take(take);
-    }
+    const qbOptions: QueryBuilderOptionsType<BorrowRequestEntity> = {
+      ...options,
+      where,
+      orderBy: { createdAt: 'DESC' } as any,
+    };
 
-    const [requests, count] = await query.getManyAndCount();
+    const dynamicQueryBuilder = new DynamicQueryBuilder(this.borrowRequestRepository.metadata);
+    const [requests, count] = await dynamicQueryBuilder.buildDynamicQuery(
+      BorrowRequestEntity.createQueryBuilder('request'),
+      qbOptions,
+    );
 
     const data = requests.map((request) => new BorrowRequestDto(request));
     const meta = new PageMetaDto({ pageOptionsDto: options, itemCount: count });

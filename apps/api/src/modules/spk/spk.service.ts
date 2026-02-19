@@ -4,10 +4,15 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, type FindOptionsWhere, Repository } from 'typeorm';
 
 import { validateHash } from '../../common/utils';
 import { PageMetaDto } from '../../common/dtos/page-meta.dto';
+import {
+  DynamicQueryBuilder,
+  QueryBuilderOptionsType,
+  sortAttribute,
+} from '../../common/helpers/query-builder';
 import { SpkItemConditionEnum } from '../../constants/spk-item-condition';
 import { SpkStatusEnum } from '../../constants/spk-status';
 import { NkbPaymentMethodEnum } from '../../constants/nkb-payment-method';
@@ -52,51 +57,68 @@ export class SpkService {
     queryDto: QuerySpkDto,
     userPtId?: string,
   ): Promise<{ data: SpkDto[]; meta: PageMetaDto }> {
-    const query = this.spkRepository
-      .createQueryBuilder('spk')
-      .leftJoinAndSelect('spk.customer', 'customer')
-      .leftJoinAndSelect('spk.store', 'store')
-      .leftJoinAndSelect('spk.pt', 'pt');
+    const where: FindOptionsWhere<SpkRecordEntity> = {};
 
     if (userPtId) {
-      query.andWhere('spk.ptId = :ptId', { ptId: userPtId });
+      where.ptId = userPtId;
     }
     if (queryDto.ptId) {
-      query.andWhere('spk.ptId = :ptId', { ptId: queryDto.ptId });
+      where.ptId = queryDto.ptId;
     }
     if (queryDto.branchId) {
-      query.andWhere('spk.storeId = :storeId', { storeId: queryDto.branchId });
+      where.storeId = queryDto.branchId;
     }
     if (queryDto.customerId) {
-      query.andWhere('spk.customerId = :customerId', {
-        customerId: queryDto.customerId,
-      });
+      where.customerId = queryDto.customerId;
     }
     if (queryDto.status) {
-      query.andWhere('spk.status = :status', { status: queryDto.status });
-    }
-    if (queryDto.dateFrom) {
-      query.andWhere('spk.createdAt >= :dateFrom', {
-        dateFrom: queryDto.dateFrom,
-      });
-    }
-    if (queryDto.dateTo) {
-      query.andWhere('spk.createdAt <= :dateTo', { dateTo: queryDto.dateTo });
+      where.status = queryDto.status;
     }
 
-    if (queryDto.sortBy) {
-      query.orderBy(`spk.${queryDto.sortBy}`, queryDto.order || 'DESC');
-    } else {
-      query.orderBy('spk.createdAt', 'DESC');
-    }
+    const qbOptions: QueryBuilderOptionsType<SpkRecordEntity> = {
+      ...queryDto,
+      select: {
+        spkNumber: true,
+        internalSpkNumber: true,
+        customerSpkNumber: true,
+        principalAmount: true,
+        tenor: true,
+        interestRate: true,
+        totalAmount: true,
+        remainingBalance: true,
+        dueDate: true,
+        status: true,
+        customer: {
+          id: true,
+          name: true,
+        },
+        store: {
+          id: true,
+        },
+        pt: {
+          id: true,
+        },
+      } as any,
+      relation: {
+        customer: true,
+        store: true,
+        pt: true,
+      },
+      where,
+      orderBy: sortAttribute(queryDto.sortBy, {
+        createdAt: { createdAt: true },
+        spkNumber: { spkNumber: true },
+        dueDate: { dueDate: true },
+        status: { status: true },
+      }) ?? { createdAt: 'DESC' } as any,
+    };
 
-    query.skip(queryDto.getSkip());
-    const take = queryDto.getTake();
-    if (take !== undefined) {
-      query.take(take);
-    }
+    const dynamicQueryBuilder = new DynamicQueryBuilder(this.spkRepository.metadata);
+    const [records, count] = await dynamicQueryBuilder.buildDynamicQuery(
+      SpkRecordEntity.createQueryBuilder('spk'),
+      qbOptions,
+    );
 
-    const [records, count] = await query.getManyAndCount();
     const data = records.map((r) => new SpkDto(r));
     const meta = new PageMetaDto({
       pageOptionsDto: queryDto,

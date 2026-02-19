@@ -4,9 +4,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { type FindOptionsWhere, Repository } from 'typeorm';
 
 import { PageMetaDto } from '../../common/dtos/page-meta.dto';
+import {
+  DynamicQueryBuilder,
+  QueryBuilderOptionsType,
+  sortAttribute,
+} from '../../common/helpers/query-builder';
 import { CashDepositPaymentMethodEnum } from '../../constants/cash-deposit-payment-method';
 import { CashDepositStatusEnum } from '../../constants/cash-deposit-status';
 import { CashDepositEntity } from './entities/cash-deposit.entity';
@@ -26,39 +31,38 @@ export class CashDepositService {
     queryDto: QueryCashDepositDto,
     userPtId?: string,
   ): Promise<{ data: CashDepositDto[]; meta: PageMetaDto }> {
-    const query = this.cashDepositRepository
-      .createQueryBuilder('deposit')
-      .leftJoinAndSelect('deposit.store', 'store')
-      .leftJoinAndSelect('deposit.pt', 'pt');
+    const where: FindOptionsWhere<CashDepositEntity> = {};
 
     if (userPtId) {
-      query.andWhere('deposit.ptId = :ptId', { ptId: userPtId });
+      where.ptId = userPtId;
     }
     if (queryDto.ptId) {
-      query.andWhere('deposit.ptId = :ptId', { ptId: queryDto.ptId });
+      where.ptId = queryDto.ptId;
     }
     if (queryDto.storeId) {
-      query.andWhere('deposit.storeId = :storeId', {
-        storeId: queryDto.storeId,
-      });
+      where.storeId = queryDto.storeId;
     }
     if (queryDto.status) {
-      query.andWhere('deposit.status = :status', { status: queryDto.status });
+      where.status = queryDto.status;
     }
 
-    if (queryDto.sortBy) {
-      query.orderBy(`deposit.${queryDto.sortBy}`, queryDto.order || 'DESC');
-    } else {
-      query.orderBy('deposit.createdAt', 'DESC');
-    }
+    const qbOptions: QueryBuilderOptionsType<CashDepositEntity> = {
+      ...queryDto,
+      relation: {
+        store: true,
+        pt: true,
+      },
+      where,
+      orderBy: sortAttribute(queryDto.sortBy, {
+        createdAt: { createdAt: true },
+      }) ?? { createdAt: 'DESC' } as any,
+    };
 
-    query.skip(queryDto.getSkip());
-    const take = queryDto.getTake();
-    if (take !== undefined) {
-      query.take(take);
-    }
-
-    const [records, count] = await query.getManyAndCount();
+    const dynamicQueryBuilder = new DynamicQueryBuilder(this.cashDepositRepository.metadata);
+    const [records, count] = await dynamicQueryBuilder.buildDynamicQuery(
+      CashDepositEntity.createQueryBuilder('deposit'),
+      qbOptions,
+    );
     const data = records.map((r) => new CashDepositDto(r));
     const meta = new PageMetaDto({
       pageOptionsDto: queryDto,

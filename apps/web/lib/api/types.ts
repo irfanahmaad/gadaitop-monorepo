@@ -15,6 +15,8 @@ export interface PageOptions {
   sortBy?: string
   query?: string
   filter?: Record<string, string | number>
+  relation?: Record<string, any>
+  select?: Record<string, any>
 }
 
 // API Response types
@@ -535,16 +537,17 @@ export interface BlacklistCustomerDto {
 // NKB (Transaction Record) types
 // ==========================================
 
-export type NkbStatus = "pending" | "confirmed" | "rejected" | "cancelled"
-export type NkbType = "extension" | "redemption" | "partial_payment"
+export type NkbStatus = "pending" | "confirmed" | "rejected" | "failed"
+export type NkbType = "renewal" | "full_redemption" | "partial"
 
 export interface Nkb {
   id: string
   uuid: string
   nkbNumber: string
   spkId: string
-  type: NkbType
+  paymentType: NkbType
   amount: number
+  amountPaid: number
   status: NkbStatus
   notes?: string
   rejectionReason?: string

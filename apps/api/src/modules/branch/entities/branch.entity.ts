@@ -49,12 +49,12 @@ export class BranchEntity extends AbstractEntity {
   // "Toko harus dimiliki oleh sebuah PT"
   // ============================================
 
-  @Column({ type: 'uuid' })
+  @Column({ name: 'company_id', type: 'uuid' })
   @Index()
   companyId: string;
 
   @ManyToOne('CompanyEntity', 'branches')
-  @JoinColumn({ name: 'companyId', referencedColumnName: 'uuid' })
+  @JoinColumn({ name: 'company_id', referencedColumnName: 'uuid' })
   company: Relation<any>;
 
   // ============================================
@@ -73,7 +73,7 @@ export class BranchEntity extends AbstractEntity {
    * The actual owner of this branch (for "Pinjam PT" case)
    * NULL if branch is not borrowed
    */
-  @Column({ type: 'uuid', nullable: true })
+  @Column({ name: 'actual_owner_id', type: 'uuid', nullable: true })
   @Index()
   actualOwnerId: string | null;
 

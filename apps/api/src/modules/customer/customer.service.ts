@@ -1,9 +1,14 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { type FindOptionsWhere, Repository } from 'typeorm';
 
 import { generateHash } from '../../common/utils';
 import { PageMetaDto } from '../../common/dtos/page-meta.dto';
+import {
+  DynamicQueryBuilder,
+  QueryBuilderOptionsType,
+  sortAttribute,
+} from '../../common/helpers/query-builder';
 import { CustomerEntity } from './entities/customer.entity';
 import { CustomerPinHistoryEntity } from './entities/customer-pin-history.entity';
 import { CustomerDto } from './dto/customer.dto';
@@ -26,36 +31,38 @@ export class CustomerService {
     queryDto: QueryCustomerDto,
     userPtId?: string,
   ): Promise<{ data: CustomerDto[]; meta: PageMetaDto }> {
-    const query = this.customerRepository.createQueryBuilder('customer');
+    const where: FindOptionsWhere<CustomerEntity> = {};
 
     if (userPtId) {
-      query.andWhere('customer.ptId = :ptId', { ptId: userPtId });
+      where.ptId = userPtId;
     }
-
     if (queryDto.ptId) {
-      query.andWhere('customer.ptId = :ptId', { ptId: queryDto.ptId });
+      where.ptId = queryDto.ptId;
     }
 
-    if (queryDto.search) {
-      query.andWhere(
-        '(customer.nik ILIKE :search OR customer.name ILIKE :search OR customer.phone ILIKE :search OR customer.email ILIKE :search)',
-        { search: `%${queryDto.search}%` },
-      );
-    }
+    const qbOptions: QueryBuilderOptionsType<CustomerEntity> = {
+      ...queryDto,
+      select: {
+        name: true,
+        nik: true,
+        phone: true,
+        email: true,
+        city: true,
+        isBlacklisted: true,
+      },
+      where,
+      orderBy: sortAttribute(queryDto.sortBy, {
+        name: { name: true },
+        nik: { nik: true },
+        email: { email: true },
+      }) ?? { createdAt: 'DESC' } as any,
+    };
 
-    if (queryDto.sortBy) {
-      query.orderBy(`customer.${queryDto.sortBy}`, queryDto.order || 'ASC');
-    } else {
-      query.orderBy('customer.createdAt', 'DESC');
-    }
-
-    query.skip(queryDto.getSkip());
-    const take = queryDto.getTake();
-    if (take !== undefined) {
-      query.take(take);
-    }
-
-    const [customers, count] = await query.getManyAndCount();
+    const dynamicQueryBuilder = new DynamicQueryBuilder(this.customerRepository.metadata);
+    const [customers, count] = await dynamicQueryBuilder.buildDynamicQuery(
+      CustomerEntity.createQueryBuilder('customer'),
+      qbOptions,
+    );
 
     const data = customers.map((c) => new CustomerDto(c));
     const meta = new PageMetaDto({

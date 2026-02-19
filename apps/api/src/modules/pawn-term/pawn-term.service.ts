@@ -1,8 +1,13 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { type FindOptionsWhere, Repository } from 'typeorm';
 
 import { PageMetaDto } from '../../common/dtos/page-meta.dto';
+import {
+  DynamicQueryBuilder,
+  QueryBuilderOptionsType,
+  sortAttribute,
+} from '../../common/helpers/query-builder';
 import { PawnTermEntity } from './entities/pawn-term.entity';
 import { PawnTermDto } from './dto/pawn-term.dto';
 import { CreatePawnTermDto } from './dto/create-pawn-term.dto';
@@ -20,38 +25,35 @@ export class PawnTermService {
     queryDto: QueryPawnTermDto,
     userPtId?: string,
   ): Promise<{ data: PawnTermDto[]; meta: PageMetaDto }> {
-    const query = this.pawnTermRepository.createQueryBuilder('pawn_term');
+    const where: FindOptionsWhere<PawnTermEntity> = {};
 
     if (userPtId) {
-      query.andWhere('pawn_term.ptId = :ptId', { ptId: userPtId });
+      where.ptId = userPtId;
     }
-
     if (queryDto.ptId) {
-      query.andWhere('pawn_term.ptId = :ptId', { ptId: queryDto.ptId });
+      where.ptId = queryDto.ptId;
     }
-
     if (queryDto.itemTypeId) {
-      query.andWhere('pawn_term.itemTypeId = :itemTypeId', {
-        itemTypeId: queryDto.itemTypeId,
-      });
+      where.itemTypeId = queryDto.itemTypeId;
     }
 
-    if (queryDto.sortBy) {
-      query.orderBy(`pawn_term.${queryDto.sortBy}`, queryDto.order || 'ASC');
-    } else {
-      query.orderBy('pawn_term.createdAt', 'DESC');
-    }
+    const qbOptions: QueryBuilderOptionsType<PawnTermEntity> = {
+      ...queryDto,
+      relation: {
+        itemType: true,
+        pt: true,
+      },
+      where,
+      orderBy: sortAttribute(queryDto.sortBy, {
+        createdAt: { createdAt: true },
+      }) ?? { createdAt: 'DESC' } as any,
+    };
 
-    query.skip(queryDto.getSkip());
-    const take = queryDto.getTake();
-    if (take !== undefined) {
-      query.take(take);
-    }
-
-    query.leftJoinAndSelect('pawn_term.itemType', 'itemType');
-    query.leftJoinAndSelect('pawn_term.pt', 'pt');
-
-    const [terms, count] = await query.getManyAndCount();
+    const dynamicQueryBuilder = new DynamicQueryBuilder(this.pawnTermRepository.metadata);
+    const [terms, count] = await dynamicQueryBuilder.buildDynamicQuery(
+      PawnTermEntity.createQueryBuilder('pawn_term'),
+      qbOptions,
+    );
 
     const data = terms.map((t) => new PawnTermDto(t));
     const meta = new PageMetaDto({

@@ -1,8 +1,13 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { type FindOptionsWhere, Repository } from 'typeorm';
 
 import { PageMetaDto } from '../../common/dtos/page-meta.dto';
+import {
+  DynamicQueryBuilder,
+  QueryBuilderOptionsType,
+  sortAttribute,
+} from '../../common/helpers/query-builder';
 import { CatalogEntity } from './entities/catalog.entity';
 import { CatalogPriceHistoryEntity } from './entities/catalog-price-history.entity';
 import { CatalogDto } from './dto/catalog.dto';
@@ -24,44 +29,36 @@ export class CatalogService {
     queryDto: QueryCatalogDto,
     userPtId?: string,
   ): Promise<{ data: CatalogDto[]; meta: PageMetaDto }> {
-    const query = this.catalogRepository.createQueryBuilder('catalog');
+    const where: FindOptionsWhere<CatalogEntity> = {};
 
     if (userPtId) {
-      query.andWhere('catalog.ptId = :ptId', { ptId: userPtId });
+      where.ptId = userPtId;
     }
-
     if (queryDto.ptId) {
-      query.andWhere('catalog.ptId = :ptId', { ptId: queryDto.ptId });
+      where.ptId = queryDto.ptId;
     }
-
     if (queryDto.itemTypeId) {
-      query.andWhere('catalog.itemTypeId = :itemTypeId', {
-        itemTypeId: queryDto.itemTypeId,
-      });
+      where.itemTypeId = queryDto.itemTypeId;
     }
 
-    if (queryDto.search) {
-      query.andWhere(
-        '(catalog.code ILIKE :search OR catalog.name ILIKE :search)',
-        { search: `%${queryDto.search}%` },
-      );
-    }
+    const qbOptions: QueryBuilderOptionsType<CatalogEntity> = {
+      ...queryDto,
+      relation: {
+        itemType: true,
+      },
+      where,
+      orderBy: sortAttribute(queryDto.sortBy, {
+        code: { code: true },
+        name: { name: true },
+        createdAt: { createdAt: true },
+      }) ?? { createdAt: 'DESC' } as any,
+    };
 
-    if (queryDto.sortBy) {
-      query.orderBy(`catalog.${queryDto.sortBy}`, queryDto.order || 'ASC');
-    } else {
-      query.orderBy('catalog.createdAt', 'DESC');
-    }
-
-    query.skip(queryDto.getSkip());
-    const take = queryDto.getTake();
-    if (take !== undefined) {
-      query.take(take);
-    }
-
-    query.leftJoinAndSelect('catalog.itemType', 'itemType');
-
-    const [catalogs, count] = await query.getManyAndCount();
+    const dynamicQueryBuilder = new DynamicQueryBuilder(this.catalogRepository.metadata);
+    const [catalogs, count] = await dynamicQueryBuilder.buildDynamicQuery(
+      CatalogEntity.createQueryBuilder('catalog'),
+      qbOptions,
+    );
 
     const data = catalogs.map((c) => new CatalogDto(c));
     const meta = new PageMetaDto({

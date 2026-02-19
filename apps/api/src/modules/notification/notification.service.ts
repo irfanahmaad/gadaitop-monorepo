@@ -3,6 +3,11 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 
 import { PageMetaDto } from '../../common/dtos/page-meta.dto';
+import {
+  DynamicQueryBuilder,
+  QueryBuilderOptionsType,
+  sortAttribute,
+} from '../../common/helpers/query-builder';
 import { NotificationEntity } from './entities/notification.entity';
 import { NotificationDto } from './dto/notification.dto';
 import { CreateNotificationDto } from './dto/create-notification.dto';
@@ -32,29 +37,28 @@ export class NotificationService {
     queryDto: QueryNotificationDto,
     recipientId: string,
   ): Promise<{ data: NotificationDto[]; meta: PageMetaDto }> {
-    const query = this.notificationRepository
+    const qb = this.notificationRepository
       .createQueryBuilder('n')
       .where('n.recipientId = :recipientId', { recipientId });
 
     if (queryDto.read === 'read') {
-      query.andWhere('n.readAt IS NOT NULL');
+      qb.andWhere('n.readAt IS NOT NULL');
     } else if (queryDto.read === 'unread') {
-      query.andWhere('n.readAt IS NULL');
+      qb.andWhere('n.readAt IS NULL');
     }
 
-    if (queryDto.sortBy) {
-      query.orderBy(`n.${queryDto.sortBy}`, queryDto.order || 'DESC');
-    } else {
-      query.orderBy('n.createdAt', 'DESC');
-    }
+    const qbOptions: QueryBuilderOptionsType<NotificationEntity> = {
+      ...queryDto,
+      orderBy: sortAttribute(queryDto.sortBy, {
+        createdAt: { createdAt: true },
+      }) ?? { createdAt: 'DESC' } as any,
+    };
 
-    query.skip(queryDto.getSkip());
-    const take = queryDto.getTake();
-    if (take !== undefined) {
-      query.take(take);
-    }
-
-    const [notifications, count] = await query.getManyAndCount();
+    const dynamicQueryBuilder = new DynamicQueryBuilder(this.notificationRepository.metadata);
+    const [notifications, count] = await dynamicQueryBuilder.buildDynamicQuery(
+      qb,
+      qbOptions,
+    );
     const data = notifications.map((n) => new NotificationDto(n));
     const meta = new PageMetaDto({
       pageOptionsDto: queryDto,

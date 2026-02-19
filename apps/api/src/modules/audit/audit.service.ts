@@ -1,9 +1,13 @@
-import { Repository } from 'typeorm';
+import { type FindOptionsWhere, Repository } from 'typeorm';
 
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 
 import { PageMetaDto } from '../../common/dtos/page-meta.dto';
+import {
+  DynamicQueryBuilder,
+  QueryBuilderOptionsType,
+} from '../../common/helpers/query-builder';
 import { AuditLogDto } from './dto/audit-log.dto';
 import { QueryAuditLogDto } from './dto/query-audit-log.dto';
 import { AuditLogEntity } from './entities/audit-log.entity';
@@ -19,37 +23,39 @@ export class AuditService {
     data: AuditLogDto[];
     meta: PageMetaDto;
   }> {
-    const query = this.auditLogRepository.createQueryBuilder('audit');
+    const where: FindOptionsWhere<AuditLogEntity> = {};
 
     if (queryDto.entityName) {
-      query.andWhere('audit.entityName = :entityName', { entityName: queryDto.entityName });
+      where.entityName = queryDto.entityName;
     }
-
     if (queryDto.entityId) {
-      query.andWhere('audit.entityId = :entityId', { entityId: queryDto.entityId });
+      where.entityId = queryDto.entityId;
     }
-
     if (queryDto.action) {
-      query.andWhere('audit.action = :action', { action: queryDto.action });
+      where.action = queryDto.action;
     }
-
     if (queryDto.userId) {
-      query.andWhere('audit.userId = :userId', { userId: queryDto.userId });
+      where.userId = queryDto.userId;
     }
 
+    const qbOptions: QueryBuilderOptionsType<AuditLogEntity> = {
+      ...queryDto,
+      where,
+      orderBy: { createdAt: 'DESC' } as any,
+    };
+
+    // If search is specified, we need a raw join for the user table
+    const qb = this.auditLogRepository.createQueryBuilder('audit');
     if (queryDto.search) {
-      query.leftJoin('audit.user', 'user');
-      query.andWhere('user.fullName ILIKE :search', { search: `%${queryDto.search}%` });
+      qb.leftJoin('audit.user', 'user');
+      qb.andWhere('user.fullName ILIKE :search', { search: `%${queryDto.search}%` });
     }
 
-    query.orderBy('audit.createdAt', 'DESC');
-    query.skip(queryDto.getSkip());
-    const take = queryDto.getTake();
-    if (take !== undefined) {
-      query.take(take);
-    }
-
-    const [logs, count] = await query.getManyAndCount();
+    const dynamicQueryBuilder = new DynamicQueryBuilder(this.auditLogRepository.metadata);
+    const [logs, count] = await dynamicQueryBuilder.buildDynamicQuery(
+      qb,
+      qbOptions,
+    );
 
     const data = logs.map((log) => new AuditLogDto(log));
     const meta = new PageMetaDto({
