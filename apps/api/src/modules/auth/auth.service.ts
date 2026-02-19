@@ -85,7 +85,8 @@ export class AuthService {
 
     const [isPasswordValid] = await Promise.all([
       validateHash(userLoginDto.password, user.password),
-      this.handleDeviceCheck(user.uuid, ipAddress),
+      // temporary disable device check
+      // this.handleDeviceCheck(user.uuid, ipAddress),
     ]);
 
     if (!isPasswordValid) {

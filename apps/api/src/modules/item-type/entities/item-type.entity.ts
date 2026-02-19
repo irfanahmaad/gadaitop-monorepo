@@ -11,8 +11,9 @@ import { AbstractEntity } from '../../../common/abstract.entity';
  * - SPK internal format: [Tipe barang][kode urutan] e.g., H00000001
  */
 @Entity({ name: 'item_types' })
+@Index(['typeCode'], { unique: true, where: '"deleted_at" IS NULL' })
 export class ItemTypeEntity extends AbstractEntity {
-  @Column({ type: 'varchar', length: 5, unique: true })
+  @Column({ type: 'varchar', length: 5 })
   @Index()
   typeCode: string; // e.g., 'H' for Handphone, 'L' for Laptop
 

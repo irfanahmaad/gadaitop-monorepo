@@ -7,10 +7,11 @@ import { AbstractEntity } from '../../../common/abstract.entity';
  * Current price stored here; historical prices in catalog_price_history (RS 8.2.a).
  */
 @Entity({ name: 'catalogs' })
-@Unique(['ptId', 'code'])
+@Index(['ptId', 'code'], { unique: true, where: '"deleted_at" IS NULL' })
 @Index(['ptId', 'itemTypeId'])
 export class CatalogEntity extends AbstractEntity {
   @Column({ type: 'varchar', length: 50 })
+  @Index()
   code: string;
 
   @Column({ type: 'varchar', length: 255 })
