@@ -48,6 +48,20 @@ export class UserService {
     return new UserDto(user);
   }
 
+  /**
+   * Lightweight method for JWT strategy validation.
+   * Only selects id and accessToken — no relations join.
+   * Used on every authenticated request, so performance is critical.
+   */
+  async findOneTokenStatus(
+    userId: number,
+  ): Promise<{ id: number; accessToken: string | null } | null> {
+    return this.userRepository.findOne({
+      where: { id: userId },
+      select: ['id', 'accessToken'],
+    });
+  }
+
   async findAll(options: QueryUserDto): Promise<{
     data: UserDto[];
     meta: PageMetaDto;

@@ -45,11 +45,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException();
     }
 
-    const user = await this.userService.findOne({
-      id: args.userId,
-    });
+    const user = await this.userService.findOneTokenStatus(args.userId);
 
-    if (!user.accessToken) {
+    if (!user || !user.accessToken) {
       throw new UnauthorizedException();
     }
 

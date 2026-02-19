@@ -83,42 +83,10 @@ export class AuthService {
       });
     }
 
-      if (ipAddress) {
-      const hasRegisteredDevices = await this.deviceService.hasRegisteredDevices(user.uuid);
-
-      if (hasRegisteredDevices) {
-        const isIpValid = await this.deviceService.verifyIpAddress(
-          user.uuid,
-          ipAddress,
-        );
-
-        if (!isIpValid) {
-          await this.deviceService.autoRegisterDevice(
-            user.uuid,
-            ipAddress,
-          );
-        }
-      } else {
-        // User has no devices registered - auto-register this device
-        await this.deviceService.autoRegisterDevice(
-          user.uuid,
-          ipAddress,
-        );
-      }
-    } else {
-      const hasRegisteredDevices = await this.deviceService.hasRegisteredDevices(user.uuid);
-      
-      if (hasRegisteredDevices) {
-        throw new UnauthorizedException(
-          'IP address diperlukan untuk login. Perangkat Anda belum terdaftar.',
-        );
-      }
-    }
-
-    const isPasswordValid = await validateHash(
-      userLoginDto.password,
-      user.password,
-    );
+    const [isPasswordValid] = await Promise.all([
+      validateHash(userLoginDto.password, user.password),
+      this.handleDeviceCheck(user.uuid, ipAddress),
+    ]);
 
     if (!isPasswordValid) {
       await this.handleFailedLogin(user);
@@ -153,6 +121,30 @@ export class AuthService {
     } catch (error) {
       // Silently fail device registration to not break user registration
       console.error('Device registration failed during user registration:', error);
+    }
+  }
+
+  private async handleDeviceCheck(userUuid: string, ipAddress?: string): Promise<void> {
+    if (ipAddress) {
+      const hasRegisteredDevices = await this.deviceService.hasRegisteredDevices(userUuid);
+
+      if (hasRegisteredDevices) {
+        const isIpValid = await this.deviceService.verifyIpAddress(userUuid, ipAddress);
+
+        if (!isIpValid) {
+          await this.deviceService.autoRegisterDevice(userUuid, ipAddress);
+        }
+      } else {
+        await this.deviceService.autoRegisterDevice(userUuid, ipAddress);
+      }
+    } else {
+      const hasRegisteredDevices = await this.deviceService.hasRegisteredDevices(userUuid);
+
+      if (hasRegisteredDevices) {
+        throw new UnauthorizedException(
+          'IP address diperlukan untuk login. Perangkat Anda belum terdaftar.',
+        );
+      }
     }
   }
 

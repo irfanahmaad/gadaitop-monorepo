@@ -44,14 +44,7 @@ export class AuthController {
     @Body() userLoginDto: UserLoginDto,
     @Req() req: Request,
   ): Promise<{ data: LoginPayloadDto }> {
-    const rawIp =
-      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
-      (req.headers['x-real-ip'] as string) ||
-      req.ip ||
-      req.socket.remoteAddress ||
-      undefined;
-
-    const ipAddress = this.normalizeIpAddress(rawIp);
+    const ipAddress = this.extractClientIp(req);
     
     const user = await this.authService.validateUser(userLoginDto, ipAddress);
 
@@ -69,14 +62,7 @@ export class AuthController {
   ): Promise<{ data: LoginPayloadDto }> {
     const registeredUser = await this.userService.registerUser(userRegisterDto);
 
-    const rawIp =
-      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
-      (req.headers['x-real-ip'] as string) ||
-      req.ip ||
-      req.socket.remoteAddress ||
-      undefined;
-
-    const ipAddress = this.normalizeIpAddress(rawIp);
+    const ipAddress = this.extractClientIp(req);
 
     if (ipAddress) {
       await this.authService.registerDeviceForUser(registeredUser.uuid, ipAddress);
@@ -137,6 +123,17 @@ export class AuthController {
     await this.userService.validateEmail(token);
 
     return { data: true };
+  }
+
+  private extractClientIp(req: Request): string | undefined {
+    const rawIp =
+      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
+      (req.headers['x-real-ip'] as string) ||
+      req.ip ||
+      req.socket.remoteAddress ||
+      undefined;
+
+    return this.normalizeIpAddress(rawIp);
   }
 
   private normalizeIpAddress(ip?: string): string | undefined {
