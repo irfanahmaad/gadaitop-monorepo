@@ -4,9 +4,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { type FindOptionsWhere, Repository } from 'typeorm';
 
 import { PageMetaDto } from '../../common/dtos/page-meta.dto';
+import {
+  DynamicQueryBuilder,
+  QueryBuilderOptionsType,
+  sortAttribute,
+} from '../../common/helpers/query-builder';
 import { NkbPaymentTypeEnum } from '../../constants/nkb-payment-type';
 import { NkbStatusEnum } from '../../constants/nkb-status';
 import { SpkStatusEnum } from '../../constants/spk-status';
@@ -30,47 +35,64 @@ export class NkbService {
     queryDto: QueryNkbDto,
     userPtId?: string,
   ): Promise<{ data: NkbDto[]; meta: PageMetaDto }> {
-    const query = this.nkbRepository
-      .createQueryBuilder('nkb')
-      .leftJoinAndSelect('nkb.spk', 'spk')
-      .leftJoinAndSelect('spk.customer', 'customer');
+    const where: FindOptionsWhere<NkbRecordEntity> = {};
 
-    if (userPtId) {
-      query.andWhere('spk.ptId = :ptId', { ptId: userPtId });
-    }
-    if (queryDto.ptId) {
-      query.andWhere('spk.ptId = :ptId', { ptId: queryDto.ptId });
-    }
-    if (queryDto.branchId) {
-      query.andWhere('spk.storeId = :storeId', {
-        storeId: queryDto.branchId,
-      });
-    }
     if (queryDto.spkId) {
-      query.andWhere('nkb.spkId = :spkId', { spkId: queryDto.spkId });
+      where.spkId = queryDto.spkId;
     }
     if (queryDto.status) {
-      query.andWhere('nkb.status = :status', { status: queryDto.status });
+      where.status = queryDto.status;
     }
     if (queryDto.paymentType) {
-      query.andWhere('nkb.paymentType = :paymentType', {
-        paymentType: queryDto.paymentType,
-      });
+      where.paymentType = queryDto.paymentType;
     }
 
-    if (queryDto.sortBy) {
-      query.orderBy(`nkb.${queryDto.sortBy}`, queryDto.order || 'DESC');
-    } else {
-      query.orderBy('nkb.createdAt', 'DESC');
+    const qbOptions: QueryBuilderOptionsType<NkbRecordEntity> = {
+      ...queryDto,
+      select: {
+        nkbNumber: true,
+        amountPaid: true,
+        paymentType: true,
+        paymentMethod: true,
+        status: true,
+        spk: {
+          id: true,
+          spkNumber: true,
+          customer: {
+            id: true,
+            name: true,
+          },
+        },
+      } as any,
+      relation: {
+        spk: {
+          customer: true,
+        },
+      } as any,
+      where,
+      orderBy: sortAttribute(queryDto.sortBy, {
+        createdAt: { createdAt: true },
+        nkbNumber: { nkbNumber: true },
+      }) ?? { createdAt: 'DESC' } as any,
+    };
+
+    // Apply ptId filter on the spk relation via raw where since it's a nested join
+    const qb = NkbRecordEntity.createQueryBuilder('nkb');
+    if (userPtId) {
+      qb.andWhere('spk.ptId = :ptId', { ptId: userPtId });
+    }
+    if (queryDto.ptId) {
+      qb.andWhere('spk.ptId = :ptId', { ptId: queryDto.ptId });
+    }
+    if (queryDto.branchId) {
+      qb.andWhere('spk.storeId = :storeId', { storeId: queryDto.branchId });
     }
 
-    query.skip(queryDto.getSkip());
-    const take = queryDto.getTake();
-    if (take !== undefined) {
-      query.take(take);
-    }
-
-    const [records, count] = await query.getManyAndCount();
+    const dynamicQueryBuilder = new DynamicQueryBuilder(this.nkbRepository.metadata);
+    const [records, count] = await dynamicQueryBuilder.buildDynamicQuery(
+      qb,
+      qbOptions,
+    );
     const data = records.map((r) => new NkbDto(r));
     const meta = new PageMetaDto({
       pageOptionsDto: queryDto,

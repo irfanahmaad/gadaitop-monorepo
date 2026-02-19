@@ -80,7 +80,7 @@ export function SPKBaruTable({ data, isLoading }: SPKBaruTableProps) {
                     </span>
                   </TableCell>
                   <TableCell>
-                    {spk.customer?.fullName ?? "-"}
+                    {spk?.customer?.name ?? "-"}
                   </TableCell>
                   <TableCell>
                     <Badge variant={STATUS_VARIANT[spk.status] ?? "outline"}>

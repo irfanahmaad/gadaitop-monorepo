@@ -66,7 +66,7 @@ export function SPKJatuhTempoTable({
             </TableHeader>
             <TableBody>
               {data.map((spk, index) => {
-                const customerName = spk.customer?.fullName ?? "-"
+                const customerName = spk.customer?.name ?? "-"
                 return (
                   <TableRow key={spk.id}>
                     <TableCell>{index + 1}</TableCell>

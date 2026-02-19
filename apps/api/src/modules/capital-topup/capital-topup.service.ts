@@ -4,9 +4,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { type FindOptionsWhere, Repository } from 'typeorm';
 
 import { PageMetaDto } from '../../common/dtos/page-meta.dto';
+import {
+  DynamicQueryBuilder,
+  QueryBuilderOptionsType,
+  sortAttribute,
+} from '../../common/helpers/query-builder';
 import { CapitalTopupStatusEnum } from '../../constants/capital-topup-status';
 import { CapitalTopupEntity } from './entities/capital-topup.entity';
 import { CapitalTopupDto } from './dto/capital-topup.dto';
@@ -27,39 +32,38 @@ export class CapitalTopupService {
     queryDto: QueryCapitalTopupDto,
     userPtId?: string,
   ): Promise<{ data: CapitalTopupDto[]; meta: PageMetaDto }> {
-    const query = this.capitalTopupRepository
-      .createQueryBuilder('topup')
-      .leftJoinAndSelect('topup.store', 'store')
-      .leftJoinAndSelect('topup.pt', 'pt');
+    const where: FindOptionsWhere<CapitalTopupEntity> = {};
 
     if (userPtId) {
-      query.andWhere('topup.ptId = :ptId', { ptId: userPtId });
+      where.ptId = userPtId;
     }
     if (queryDto.ptId) {
-      query.andWhere('topup.ptId = :ptId', { ptId: queryDto.ptId });
+      where.ptId = queryDto.ptId;
     }
     if (queryDto.storeId) {
-      query.andWhere('topup.storeId = :storeId', {
-        storeId: queryDto.storeId,
-      });
+      where.storeId = queryDto.storeId;
     }
     if (queryDto.status) {
-      query.andWhere('topup.status = :status', { status: queryDto.status });
+      where.status = queryDto.status;
     }
 
-    if (queryDto.sortBy) {
-      query.orderBy(`topup.${queryDto.sortBy}`, queryDto.order || 'DESC');
-    } else {
-      query.orderBy('topup.createdAt', 'DESC');
-    }
+    const qbOptions: QueryBuilderOptionsType<CapitalTopupEntity> = {
+      ...queryDto,
+      relation: {
+        store: true,
+        pt: true,
+      },
+      where,
+      orderBy: sortAttribute(queryDto.sortBy, {
+        createdAt: { createdAt: true },
+      }) ?? { createdAt: 'DESC' } as any,
+    };
 
-    query.skip(queryDto.getSkip());
-    const take = queryDto.getTake();
-    if (take !== undefined) {
-      query.take(take);
-    }
-
-    const [records, count] = await query.getManyAndCount();
+    const dynamicQueryBuilder = new DynamicQueryBuilder(this.capitalTopupRepository.metadata);
+    const [records, count] = await dynamicQueryBuilder.buildDynamicQuery(
+      CapitalTopupEntity.createQueryBuilder('topup'),
+      qbOptions,
+    );
     const data = records.map((r) => new CapitalTopupDto(r));
     const meta = new PageMetaDto({
       pageOptionsDto: queryDto,

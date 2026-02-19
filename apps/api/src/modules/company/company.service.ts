@@ -9,6 +9,11 @@ import { DataSource, Repository } from 'typeorm';
 import { generateHash } from '../../common/utils';
 import { PageMetaDto } from '../../common/dtos/page-meta.dto';
 import { PageOptionsDto } from '../../common/dtos/page-options.dto';
+import {
+  DynamicQueryBuilder,
+  QueryBuilderOptionsType,
+  sortAttribute,
+} from '../../common/helpers/query-builder';
 import { ActiveStatusEnum } from '../../constants/active-status';
 import { UserEntity } from '../user/entities/user.entity';
 import { RoleEntity } from '../role/entities/role.entity';
@@ -36,33 +41,34 @@ export class CompanyService {
     data: CompanyDto[];
     meta: PageMetaDto;
   }> {
-    const queryBuilder = this.companyRepository
-      .createQueryBuilder('company')
-      .leftJoinAndSelect('company.owner', 'owner');
+    const qbOptions: QueryBuilderOptionsType<CompanyEntity> = {
+      ...options,
+      select: {
+        companyName: true,
+        companyCode: true,
+        phoneNumber: true,
+        address: true,
+        activeStatus: true,
+        owner: {
+          id: true,
+          fullName: true,
+          email: true,
+        },
+      } as any,
+      relation: {
+        owner: true,
+      },
+      orderBy: sortAttribute(options.sortBy, {
+        companyName: { companyName: true },
+        companyCode: { companyCode: true },
+      }) ?? { id: 'ASC' } as any,
+    };
 
-    // Apply search query if provided
-    if (options.query) {
-      queryBuilder.where(
-        '(company.companyName ILIKE :query OR company.companyCode ILIKE :query)',
-        { query: `%${options.query}%` },
-      );
-    }
-
-    // Apply sorting
-    if (options.sortBy) {
-      queryBuilder.orderBy(`company.${options.sortBy}`, options.order || 'ASC');
-    } else {
-      queryBuilder.orderBy('company.id', 'ASC');
-    }
-
-    // Apply pagination
-    queryBuilder.skip(options.getSkip());
-    const take = options.getTake();
-    if (take !== undefined) {
-      queryBuilder.take(take);
-    }
-
-    const [res, count] = await queryBuilder.getManyAndCount();
+    const dynamicQueryBuilder = new DynamicQueryBuilder(this.companyRepository.metadata);
+    const [res, count] = await dynamicQueryBuilder.buildDynamicQuery(
+      CompanyEntity.createQueryBuilder('company'),
+      qbOptions,
+    );
 
     const data = res.map((company) => new CompanyDto(company));
     const meta = new PageMetaDto({ pageOptionsDto: options, itemCount: count });

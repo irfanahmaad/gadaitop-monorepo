@@ -66,7 +66,7 @@ function mapCatalogToRow(catalog: CatalogItem): KatalogRow {
   return {
     id: catalog.uuid,
     foto: "/placeholder-avatar.jpg",
-    idKatalog: catalog.code ?? catalog.uuid.slice(0, 8),
+    idKatalog: catalog?.code ?? catalog?.uuid?.slice(0, 8),
     namaKatalog: name,
     tipeBarang: typeName,
     harga: catalog.basePrice,

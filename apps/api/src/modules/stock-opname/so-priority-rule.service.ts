@@ -4,9 +4,13 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { type FindOptionsWhere, Repository } from 'typeorm';
 
 import { PageMetaDto } from '../../common/dtos/page-meta.dto';
+import {
+  DynamicQueryBuilder,
+  QueryBuilderOptionsType,
+} from '../../common/helpers/query-builder';
 import { SoPriorityRuleEntity } from './entities/so-priority-rule.entity';
 import { SoPriorityRuleDto } from './dto/so-priority-rule.dto';
 import { CreateSoPriorityRuleDto } from './dto/create-so-priority-rule.dto';
@@ -24,22 +28,24 @@ export class SoPriorityRuleService {
     queryDto: QuerySoPriorityRuleDto,
     userPtId?: string,
   ): Promise<{ data: SoPriorityRuleDto[]; meta: PageMetaDto }> {
-    const query = this.ruleRepository
-      .createQueryBuilder('rule')
-      .orderBy('rule.priorityLevel', 'ASC');
+    const where: FindOptionsWhere<SoPriorityRuleEntity> = {};
 
     const effectivePtId = queryDto.ptId ?? userPtId;
     if (effectivePtId) {
-      query.andWhere('rule.ptId = :ptId', { ptId: effectivePtId });
+      where.ptId = effectivePtId;
     }
 
-    query.skip(queryDto.getSkip());
-    const take = queryDto.getTake();
-    if (take !== undefined) {
-      query.take(take);
-    }
+    const qbOptions: QueryBuilderOptionsType<SoPriorityRuleEntity> = {
+      ...queryDto,
+      where,
+      orderBy: { priorityLevel: 'ASC' } as any,
+    };
 
-    const [rules, count] = await query.getManyAndCount();
+    const dynamicQueryBuilder = new DynamicQueryBuilder(this.ruleRepository.metadata);
+    const [rules, count] = await dynamicQueryBuilder.buildDynamicQuery(
+      SoPriorityRuleEntity.createQueryBuilder('rule'),
+      qbOptions,
+    );
     const data = rules.map((r) => new SoPriorityRuleDto(r));
     const meta = new PageMetaDto({
       pageOptionsDto: queryDto,

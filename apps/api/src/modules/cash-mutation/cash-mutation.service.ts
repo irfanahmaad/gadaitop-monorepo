@@ -4,9 +4,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { type FindOptionsWhere, Repository } from 'typeorm';
 
 import { PageMetaDto } from '../../common/dtos/page-meta.dto';
+import {
+  DynamicQueryBuilder,
+  QueryBuilderOptionsType,
+  sortAttribute,
+} from '../../common/helpers/query-builder';
 import { CashMutationCategoryEnum } from '../../constants/cash-mutation-category';
 import { CashMutationTypeEnum } from '../../constants/cash-mutation-type';
 import { CashMutationEntity } from './entities/cash-mutation.entity';
@@ -25,53 +30,46 @@ export class CashMutationService {
     queryDto: QueryCashMutationDto,
     storeId?: string,
   ): Promise<{ data: CashMutationDto[]; meta: PageMetaDto }> {
-    const query = this.cashMutationRepository
-      .createQueryBuilder('mutation')
-      .where('1=1');
+    const where: FindOptionsWhere<CashMutationEntity> = {};
 
     const effectiveStoreId = queryDto.storeId ?? storeId;
     if (effectiveStoreId) {
-      query.andWhere('mutation.storeId = :storeId', {
-        storeId: effectiveStoreId,
-      });
+      where.storeId = effectiveStoreId;
     }
+    if (queryDto.mutationType) {
+      where.mutationType = queryDto.mutationType;
+    }
+    if (queryDto.category) {
+      where.category = queryDto.category;
+    }
+
+    const qbOptions: QueryBuilderOptionsType<CashMutationEntity> = {
+      ...queryDto,
+      where,
+      orderBy: sortAttribute(queryDto.sortBy, {
+        mutationDate: { mutationDate: true },
+        createdAt: { createdAt: true },
+      }) ?? { mutationDate: 'DESC' } as any,
+    };
+
+    // Apply date range filters via raw where (Between operator not easily declarative)
+    const qb = CashMutationEntity.createQueryBuilder('mutation');
     if (queryDto.dateFrom) {
-      query.andWhere('mutation.mutationDate >= :dateFrom', {
+      qb.andWhere('mutation.mutationDate >= :dateFrom', {
         dateFrom: queryDto.dateFrom,
       });
     }
     if (queryDto.dateTo) {
-      query.andWhere('mutation.mutationDate <= :dateTo', {
+      qb.andWhere('mutation.mutationDate <= :dateTo', {
         dateTo: queryDto.dateTo,
       });
     }
-    if (queryDto.mutationType) {
-      query.andWhere('mutation.mutationType = :mutationType', {
-        mutationType: queryDto.mutationType,
-      });
-    }
-    if (queryDto.category) {
-      query.andWhere('mutation.category = :category', {
-        category: queryDto.category,
-      });
-    }
 
-    if (queryDto.sortBy) {
-      query.orderBy(
-        `mutation.${queryDto.sortBy}`,
-        queryDto.order || 'DESC',
-      );
-    } else {
-      query.orderBy('mutation.mutationDate', 'DESC').addOrderBy('mutation.id', 'DESC');
-    }
-
-    query.skip(queryDto.getSkip());
-    const take = queryDto.getTake();
-    if (take !== undefined) {
-      query.take(take);
-    }
-
-    const [records, count] = await query.getManyAndCount();
+    const dynamicQueryBuilder = new DynamicQueryBuilder(this.cashMutationRepository.metadata);
+    const [records, count] = await dynamicQueryBuilder.buildDynamicQuery(
+      qb,
+      qbOptions,
+    );
     const data = records.map((r) => new CashMutationDto(r));
     const meta = new PageMetaDto({
       pageOptionsDto: queryDto,

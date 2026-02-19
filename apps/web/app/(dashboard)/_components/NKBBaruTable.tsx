@@ -17,9 +17,9 @@ import { Skeleton } from "@workspace/ui/components/skeleton"
 import type { Nkb } from "@/lib/api/types"
 
 const TYPE_LABELS: Record<string, string> = {
-  extension: "Perpanjangan",
-  redemption: "Pelunasan",
-  partial_payment: "Cicilan",
+  renewal: "Perpanjangan",
+  full_redemption: "Pelunasan",
+  partial: "Cicilan",
 }
 
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
@@ -86,12 +86,12 @@ export function NKBBaruTable({ data, isLoading }: NKBBaruTableProps) {
                         style: "currency",
                         currency: "IDR",
                         minimumFractionDigits: 0,
-                      }).format(nkb.amount)}
+                      }).format(nkb.amountPaid)}
                     </span>
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline">
-                      {TYPE_LABELS[nkb.type] ?? nkb.type}
+                      {TYPE_LABELS[nkb.paymentType] ?? nkb.paymentType}
                     </Badge>
                   </TableCell>
                   <TableCell>

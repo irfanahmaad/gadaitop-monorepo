@@ -4,6 +4,11 @@ import { In, Not, Repository } from 'typeorm';
 
 import { PageMetaDto } from '../../common/dtos/page-meta.dto';
 import type { PageOptionsDto } from '../../common/dtos/page-options.dto';
+import {
+  DynamicQueryBuilder,
+  QueryBuilderOptionsType,
+  sortAttribute,
+} from '../../common/helpers/query-builder';
 import { RoleDto } from './dtos/role.dto';
 import { RoleEntity } from './entities/role.entity';
 
@@ -31,23 +36,30 @@ export class RoleService {
     data: RoleDto[];
     meta: PageMetaDto;
   }> {
-    const findOptions: any = {
+    const qbOptions: QueryBuilderOptionsType<RoleEntity> = {
+      ...options,
+      select: {
+        name: true,
+        code: true,
+        description: true,
+        permissions: true,
+        isSystemRole: true,
+        isActive: true,
+      },
       where: {
         id: Not(1), // 1 = Super Admin
       },
-      skip: options.getSkip(),
-      order: options.sortBy
-        ? { [options.sortBy]: options.order }
-        : { id: 'ASC' },
+      orderBy: sortAttribute(options.sortBy, {
+        name: { name: true },
+        code: { code: true },
+      }) ?? { id: 'ASC' } as any,
     };
 
-    // Only add take if pageSize is not 0 (0 means load all)
-    const take = options.getTake();
-    if (take !== undefined) {
-      findOptions.take = take;
-    }
-
-    const [res, count] = await this.roleRepository.findAndCount(findOptions);
+    const dynamicQueryBuilder = new DynamicQueryBuilder(this.roleRepository.metadata);
+    const [res, count] = await dynamicQueryBuilder.buildDynamicQuery(
+      RoleEntity.createQueryBuilder('roles'),
+      qbOptions,
+    );
 
     const data = res.map((role) => new RoleDto(role));
     const meta = new PageMetaDto({ pageOptionsDto: options, itemCount: count });

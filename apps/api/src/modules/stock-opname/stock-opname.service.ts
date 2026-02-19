@@ -4,9 +4,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { type FindOptionsWhere, Repository } from 'typeorm';
 
 import { PageMetaDto } from '../../common/dtos/page-meta.dto';
+import {
+  DynamicQueryBuilder,
+  QueryBuilderOptionsType,
+  sortAttribute,
+} from '../../common/helpers/query-builder';
 import { StockOpnameSessionStatusEnum } from '../../constants/stock-opname-session-status';
 import { StockOpnameSessionEntity } from './entities/stock-opname-session.entity';
 import { StockOpnameItemEntity } from './entities/stock-opname-item.entity';
@@ -29,36 +34,34 @@ export class StockOpnameService {
     queryDto: QueryStockOpnameDto,
     userPtId?: string,
   ): Promise<{ data: StockOpnameSessionDto[]; meta: PageMetaDto }> {
-    const query = this.sessionRepository.createQueryBuilder('session');
+    const where: FindOptionsWhere<StockOpnameSessionEntity> = {};
 
     if (userPtId) {
-      query.andWhere('session.ptId = :ptId', { ptId: userPtId });
+      where.ptId = userPtId;
     }
     if (queryDto.ptId) {
-      query.andWhere('session.ptId = :ptId', { ptId: queryDto.ptId });
+      where.ptId = queryDto.ptId;
     }
     if (queryDto.storeId) {
-      query.andWhere('session.storeId = :storeId', {
-        storeId: queryDto.storeId,
-      });
+      where.storeId = queryDto.storeId;
     }
     if (queryDto.status) {
-      query.andWhere('session.status = :status', { status: queryDto.status });
+      where.status = queryDto.status;
     }
 
-    if (queryDto.sortBy) {
-      query.orderBy(`session.${queryDto.sortBy}`, queryDto.order || 'DESC');
-    } else {
-      query.orderBy('session.createdAt', 'DESC');
-    }
+    const qbOptions: QueryBuilderOptionsType<StockOpnameSessionEntity> = {
+      ...queryDto,
+      where,
+      orderBy: sortAttribute(queryDto.sortBy, {
+        createdAt: { createdAt: true },
+      }) ?? { createdAt: 'DESC' } as any,
+    };
 
-    query.skip(queryDto.getSkip());
-    const take = queryDto.getTake();
-    if (take !== undefined) {
-      query.take(take);
-    }
-
-    const [sessions, count] = await query.getManyAndCount();
+    const dynamicQueryBuilder = new DynamicQueryBuilder(this.sessionRepository.metadata);
+    const [sessions, count] = await dynamicQueryBuilder.buildDynamicQuery(
+      StockOpnameSessionEntity.createQueryBuilder('session'),
+      qbOptions,
+    );
     const data = sessions.map((s) => new StockOpnameSessionDto(s));
     const meta = new PageMetaDto({
       pageOptionsDto: queryDto,

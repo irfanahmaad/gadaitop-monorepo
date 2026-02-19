@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { type FindOptionsWhere, Repository } from 'typeorm';
 
 import { BranchEntity } from './entities/branch.entity';
 import { BranchDto } from './dto/branch.dto';
@@ -9,6 +9,11 @@ import { UpdateBranchDto } from './dto/update-branch.dto';
 import { QueryBranchDto } from './dto/query-branch.dto';
 import { BranchStatusEnum } from '../../constants/branch-status';
 import { PageMetaDto } from '../../common/dtos/page-meta.dto';
+import {
+  DynamicQueryBuilder,
+  QueryBuilderOptionsType,
+  sortAttribute,
+} from '../../common/helpers/query-builder';
 
 @Injectable()
 export class BranchService {
@@ -21,40 +26,41 @@ export class BranchService {
     data: BranchDto[];
     meta: PageMetaDto;
   }> {
-    const query = this.branchRepository.createQueryBuilder('branch');
+    const where: FindOptionsWhere<BranchEntity> = {};
 
     if (userCompanyId) {
-      query.where('branch.companyId = :companyId', { companyId: userCompanyId });
+      where.companyId = userCompanyId;
     }
-
     if (queryDto.city) {
-      query.andWhere('branch.city = :city', { city: queryDto.city });
+      where.city = queryDto.city;
     }
-
     if (queryDto.status) {
-      query.andWhere('branch.status = :status', { status: queryDto.status });
+      where.status = queryDto.status as any;
     }
 
-    if (queryDto.search) {
-      query.andWhere(
-        '(branch.branchCode ILIKE :search OR branch.shortName ILIKE :search OR branch.fullName ILIKE :search)',
-        { search: `%${queryDto.search}%` },
-      );
-    }
+    const qbOptions: QueryBuilderOptionsType<BranchEntity> = {
+      ...queryDto,
+      select: {
+        branchCode: true,
+        shortName: true,
+        fullName: true,
+        city: true,
+        status: true,
+      },
+      where,
+      orderBy: sortAttribute(queryDto.sortBy, {
+        branchCode: { branchCode: true },
+        shortName: { shortName: true },
+        fullName: { fullName: true },
+        city: { city: true },
+      }) ?? { createdAt: 'DESC' } as any,
+    };
 
-    if (queryDto.sortBy) {
-      query.orderBy(`branch.${queryDto.sortBy}`, queryDto.order || 'ASC');
-    } else {
-      query.orderBy('branch.createdAt', 'DESC');
-    }
-
-    query.skip(queryDto.getSkip());
-    const take = queryDto.getTake();
-    if (take !== undefined) {
-      query.take(take);
-    }
-
-    const [branches, count] = await query.getManyAndCount();
+    const dynamicQueryBuilder = new DynamicQueryBuilder(this.branchRepository.metadata);
+    const [branches, count] = await dynamicQueryBuilder.buildDynamicQuery(
+      BranchEntity.createQueryBuilder('branch'),
+      qbOptions,
+    );
 
     const data = branches.map((branch) => new BranchDto(branch));
     const meta = new PageMetaDto({

@@ -8,6 +8,11 @@ import { CreateItemTypeDto } from './dto/create-item-type.dto';
 import { UpdateItemTypeDto } from './dto/update-item-type.dto';
 import { PageOptionsDto } from '../../common/dtos/page-options.dto';
 import { PageMetaDto } from '../../common/dtos/page-meta.dto';
+import {
+  DynamicQueryBuilder,
+  QueryBuilderOptionsType,
+  sortAttribute,
+} from '../../common/helpers/query-builder';
 
 @Injectable()
 export class ItemTypeService {
@@ -20,20 +25,19 @@ export class ItemTypeService {
     data: ItemTypeDto[];
     meta: PageMetaDto;
   }> {
-    const findOptions: any = {
-      skip: options.getSkip(),
-      order: options.sortBy
-        ? { [options.sortBy]: options.order }
-        : { sortOrder: 'ASC', createdAt: 'DESC' },
+    const qbOptions: QueryBuilderOptionsType<ItemTypeEntity> = {
+      ...options,
+      orderBy: sortAttribute(options.sortBy, {
+        sortOrder: { sortOrder: true },
+        createdAt: { createdAt: true },
+      }) ?? { sortOrder: 'ASC' } as any,
     };
 
-    // Only add take if pageSize is not 0 (0 means load all)
-    const take = options.getTake();
-    if (take !== undefined) {
-      findOptions.take = take;
-    }
-
-    const [items, count] = await this.itemTypeRepository.findAndCount(findOptions);
+    const dynamicQueryBuilder = new DynamicQueryBuilder(this.itemTypeRepository.metadata);
+    const [items, count] = await dynamicQueryBuilder.buildDynamicQuery(
+      ItemTypeEntity.createQueryBuilder('item_type'),
+      qbOptions,
+    );
 
     const data = items.map((item) => new ItemTypeDto(item));
     const meta = new PageMetaDto({ pageOptionsDto: options, itemCount: count });

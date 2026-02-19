@@ -7,7 +7,6 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
-  type FindOptionsRelations,
   type FindOptionsWhere,
   In,
   Repository,
@@ -15,6 +14,11 @@ import {
 
 import { generateHash } from '../../common/utils';
 import { PageMetaDto } from '../../common/dtos/page-meta.dto';
+import {
+  DynamicQueryBuilder,
+  QueryBuilderOptionsType,
+  sortAttribute,
+} from '../../common/helpers/query-builder';
 import { ActiveStatusEnum } from '../../constants/active-status';
 import { UserRegisterDto } from '../auth/dtos/user-register.dto';
 import { RoleEntity } from '../role/entities/role.entity';
@@ -66,54 +70,28 @@ export class UserService {
     data: UserDto[];
     meta: PageMetaDto;
   }> {
-    // Check if we need to filter by role code
-    const roleCode = options.roleCode;
-
-    if (roleCode) {
-      // Use query builder for role filtering with join
-      const queryBuilder = this.userRepository
-        .createQueryBuilder('user')
-        .leftJoinAndSelect('user.roles', 'role')
-        .where('role.code = :roleCode', { roleCode });
-
-      // Apply sorting
-      if (options.sortBy) {
-        queryBuilder.orderBy(`user.${options.sortBy}`, options.order || 'ASC');
-      } else {
-        queryBuilder.orderBy('user.id', 'ASC');
-      }
-
-      // Apply pagination
-      queryBuilder.skip(options.getSkip());
-      const take = options.getTake();
-      if (take !== undefined) {
-        queryBuilder.take(take);
-      }
-
-      const [res, count] = await queryBuilder.getManyAndCount();
-
-      const data = res.map((user) => new UserDto(user));
-      const meta = new PageMetaDto({ pageOptionsDto: options, itemCount: count });
-
-      return { data, meta };
-    }
-
-    // Default behavior without role filtering
-    const findOptions: any = {
-      relations: { roles: true },
-      skip: options.getSkip(),
-      order: options.sortBy
-        ? { [options.sortBy]: options.order }
-        : { id: 'ASC' },
+    const qbOptions: QueryBuilderOptionsType<UserEntity> = {
+      ...options,
+      orderBy: sortAttribute(options.sortBy, {
+        fullName: { fullName: true },
+        email: { email: true },
+        activeStatus: { activeStatus: true },
+      }) ?? { id: 'ASC' } as any,
     };
 
-    // Only add take if pageSize is not 0 (0 means load all)
-    const take = options.getTake();
-    if (take !== undefined) {
-      findOptions.take = take;
+    const qb = UserEntity.createQueryBuilder('users');
+
+    // roleCode requires a ManyToMany join that DynamicQueryBuilder can't handle
+    if (options.roleCode) {
+      qb.innerJoin('users.roles', 'roles')
+        .andWhere('roles.code = :roleCode', { roleCode: options.roleCode });
     }
 
-    const [res, count] = await this.userRepository.findAndCount(findOptions);
+    const dynamicQueryBuilder = new DynamicQueryBuilder(this.userRepository.metadata);
+    const [res, count] = await dynamicQueryBuilder.buildDynamicQuery(
+      qb,
+      qbOptions,
+    );
 
     const data = res.map((user) => new UserDto(user));
     const meta = new PageMetaDto({ pageOptionsDto: options, itemCount: count });

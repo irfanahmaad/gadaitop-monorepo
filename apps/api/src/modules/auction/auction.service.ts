@@ -4,9 +4,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { type FindOptionsWhere, In, Repository } from 'typeorm';
 
 import { PageMetaDto } from '../../common/dtos/page-meta.dto';
+import {
+  DynamicQueryBuilder,
+  QueryBuilderOptionsType,
+  sortAttribute,
+} from '../../common/helpers/query-builder';
 import { AuctionBatchStatusEnum } from '../../constants/auction-batch-status';
 import { AuctionPickupStatusEnum } from '../../constants/auction-pickup-status';
 import { AuctionValidationVerdictEnum } from '../../constants/auction-validation-verdict';
@@ -39,41 +44,38 @@ export class AuctionService {
     queryDto: QueryAuctionBatchDto,
     userPtId?: string,
   ): Promise<{ data: AuctionBatchDto[]; meta: PageMetaDto }> {
-    const query = this.batchRepository.createQueryBuilder('batch');
+    const where: FindOptionsWhere<AuctionBatchEntity> = {};
 
     if (userPtId) {
-      query.andWhere('batch.ptId = :ptId', { ptId: userPtId });
+      where.ptId = userPtId;
     }
     if (queryDto.ptId) {
-      query.andWhere('batch.ptId = :ptId', { ptId: queryDto.ptId });
+      where.ptId = queryDto.ptId;
     }
     if (queryDto.storeId) {
-      query.andWhere('batch.storeId = :storeId', {
-        storeId: queryDto.storeId,
-      });
+      where.storeId = queryDto.storeId;
     }
     if (queryDto.status) {
-      query.andWhere('batch.status = :status', { status: queryDto.status });
+      where.status = queryDto.status;
     }
     if (queryDto.assignedTo) {
-      query.andWhere('batch.assignedTo = :assignedTo', {
-        assignedTo: queryDto.assignedTo,
-      });
+      where.assignedTo = queryDto.assignedTo;
     }
 
-    if (queryDto.sortBy) {
-      query.orderBy(`batch.${queryDto.sortBy}`, queryDto.order || 'DESC');
-    } else {
-      query.orderBy('batch.createdAt', 'DESC');
-    }
+    const qbOptions: QueryBuilderOptionsType<AuctionBatchEntity> = {
+      ...queryDto,
+      where,
+      orderBy: sortAttribute(queryDto.sortBy, {
+        createdAt: { createdAt: true },
+        batchCode: { batchCode: true },
+      }) ?? { createdAt: 'DESC' } as any,
+    };
 
-    query.skip(queryDto.getSkip());
-    const take = queryDto.getTake();
-    if (take !== undefined) {
-      query.take(take);
-    }
-
-    const [batches, count] = await query.getManyAndCount();
+    const dynamicQueryBuilder = new DynamicQueryBuilder(this.batchRepository.metadata);
+    const [batches, count] = await dynamicQueryBuilder.buildDynamicQuery(
+      AuctionBatchEntity.createQueryBuilder('batch'),
+      qbOptions,
+    );
     const data = batches.map((b) => new AuctionBatchDto(b));
     const meta = new PageMetaDto({
       pageOptionsDto: queryDto,
