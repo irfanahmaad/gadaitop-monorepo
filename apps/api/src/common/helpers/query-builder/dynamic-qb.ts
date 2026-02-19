@@ -47,15 +47,15 @@ export class DynamicQueryBuilder {
     options: QueryBuilderOptionsType<Entity>,
   ): Promise<[Entity[], number]> {
     const rootAlias = qb.alias;
-    const columnSelected: string[] = [
-      `${rootAlias}.id`,
-      `${rootAlias}.createdAt`,
-    ];
+    const columnSelected: string[] = [];
 
     // populate target selected columns
     const selectOpt = options.select;
 
     if (!isEmpty(selectOpt)) {
+      columnSelected.push(`${rootAlias}.id`);
+      columnSelected.push(`${rootAlias}.uuid`);
+      columnSelected.push(`${rootAlias}.createdAt`);
       const addSelects = (alias: string, selects: Record<string, any>) => {
         for (const select of Object.keys(selects)) {
           const nestedSelects = selects[select];
@@ -96,7 +96,9 @@ export class DynamicQueryBuilder {
       joinRelations(rootAlias, relationOpt);
     }
 
-    qb.select(uniq(columnSelected));
+    if (columnSelected.length > 0) {
+      qb.select(uniq(columnSelected));
+    }
 
     const isWhere = options.where;
 
