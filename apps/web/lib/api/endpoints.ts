@@ -222,6 +222,7 @@ export const endpoints = {
 
   // Upload
   upload: {
+    file: baseUrl("upload/file"),
     presigned: baseUrl("upload/presigned"),
     publicUrl: baseUrl("upload/public-url"),
     status: baseUrl("upload/status"),
