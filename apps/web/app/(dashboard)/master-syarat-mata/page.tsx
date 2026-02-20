@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from "@workspace/ui/components/select"
 import { Input } from "@workspace/ui/components/input"
-import { SearchIcon, SlidersHorizontal, Plus } from "lucide-react"
+import { SearchIcon, SlidersHorizontal, Plus, Trash2 } from "lucide-react"
 import { formatCurrencyDisplay } from "@/lib/format-currency"
 import { format } from "date-fns"
 import { id } from "date-fns/locale"
@@ -23,7 +23,12 @@ import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { FilterDialog } from "@/components/filter-dialog"
 import { useFilterParams, FilterConfig } from "@/hooks/use-filter-params"
 import { Skeleton } from "@workspace/ui/components/skeleton"
-import { Card, CardContent, CardHeader } from "@workspace/ui/components/card"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@workspace/ui/components/card"
 import type { PawnTerm } from "@/lib/api/types"
 import { getItemConditionLabel } from "@/lib/constants/item-condition"
 import { useAuth } from "@/lib/react-query/hooks/use-auth"
@@ -194,6 +199,9 @@ function MasterSyaratMataPageContent() {
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
   const [itemToDelete, setItemToDelete] = useState<SyaratMataRow | null>(null)
   const [filterDialogOpen, setFilterDialogOpen] = useState(false)
+  const [selectedRows, setSelectedRows] = useState<SyaratMataRow[]>([])
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false)
+  const [resetSelectionKey, setResetSelectionKey] = useState(0)
 
   const { data: itemTypesData } = useItemTypes({ pageSize: 100 })
   const itemTypeOptions = React.useMemo(() => {
@@ -309,6 +317,24 @@ function MasterSyaratMataPageContent() {
     router.push("/master-syarat-mata/tambah")
   }
 
+  const handleBulkDelete = () => {
+    setIsBulkDeleteDialogOpen(true)
+  }
+
+  const handleConfirmBulkDelete = async () => {
+    try {
+      await Promise.all(
+        selectedRows.map((row) => deletePawnTermMutation.mutateAsync(row.id))
+      )
+      toast.success(`${selectedRows.length} Syarat Mata berhasil dihapus`)
+      setIsBulkDeleteDialogOpen(false)
+      setSelectedRows([])
+      setResetSelectionKey((k) => k + 1)
+    } catch {
+      toast.error("Gagal menghapus Syarat Mata")
+    }
+  }
+
   return (
     <>
       <div className="flex flex-col gap-6">
@@ -365,8 +391,17 @@ function MasterSyaratMataPageContent() {
           <DataTable
             columns={syaratMataColumns}
             data={tableData}
-            title="Daftar Katalog"
             searchPlaceholder="Cari..."
+            headerLeft={
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-xl">Daftar Syarat Mata</CardTitle>
+                {selectedRows.length > 0 && (
+                  <span className="text-destructive font-semibold">
+                    &middot; {selectedRows.length} Selected
+                  </span>
+                )}
+              </div>
+            }
             headerRight={
               <div className="flex w-full items-center gap-2 sm:w-auto">
                 <Select
@@ -403,6 +438,15 @@ function MasterSyaratMataPageContent() {
                   <SlidersHorizontal className="size-4" />
                   Filter
                 </Button>
+                {selectedRows.length > 0 && (
+                  <Button
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90 flex items-center gap-2"
+                    onClick={handleBulkDelete}
+                  >
+                    <Trash2 className="size-4" />
+                    Hapus
+                  </Button>
+                )}
               </div>
             }
             initialPageSize={pageSize}
@@ -415,6 +459,8 @@ function MasterSyaratMataPageContent() {
             onDetail={handleDetail}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            onSelectionChange={setSelectedRows}
+            resetSelectionKey={resetSelectionKey}
             serverSidePagination={{
               totalRowCount: data?.meta?.count ?? 0,
               pageIndex: page - 1,
@@ -438,6 +484,16 @@ function MasterSyaratMataPageContent() {
         onConfirm={handleConfirmDelete}
         title="Hapus Syarat Mata"
         description="Anda akan menghapus data Syarat Mata dari dalam sistem."
+        confirmLabel="Hapus"
+        variant="destructive"
+      />
+
+      <ConfirmationDialog
+        open={isBulkDeleteDialogOpen}
+        onOpenChange={setIsBulkDeleteDialogOpen}
+        onConfirm={handleConfirmBulkDelete}
+        title="Hapus Syarat Mata"
+        description={`Anda akan menghapus ${selectedRows.length} data Syarat Mata dari dalam sistem.`}
         confirmLabel="Hapus"
         variant="destructive"
       />

@@ -1,0 +1,168 @@
+---
+description: Table row selection with bulk delete behavior for list/table pages
+globs: "**/app/(dashboard)/**/page.tsx"
+alwaysApply: false
+---
+
+# Table Row Selection with Bulk Delete
+
+List/table pages that support row selection MUST implement a consistent bulk delete UX. When the user selects rows via checkboxes, the selected count and a bulk "Hapus" (Delete) button appear in the table card header.
+
+## Requirements
+
+### 1. Select Column
+
+**The first column MUST be a checkbox select column:**
+
+```tsx
+const columns: ColumnDef<RowType>[] = [
+  {
+    id: "select",
+    header: ({ table }) => (
+      <Checkbox
+        checked={
+          table.getIsAllPageRowsSelected() ||
+          (table.getIsSomePageRowsSelected() && "indeterminate")
+        }
+        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+        aria-label="Select all"
+      />
+    ),
+    cell: ({ row }) => (
+      <div className="flex items-center gap-2">
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+        />
+        <span className="text-sm">{row.index + 1}</span>
+      </div>
+    ),
+    enableSorting: false,
+    enableHiding: false,
+  },
+  // ... other columns
+]
+```
+
+### 2. Track Selected Rows
+
+**Use state and `onSelectionChange` from DataTable:**
+
+```tsx
+const [selectedRows, setSelectedRows] = useState<RowType[]>([])
+
+<DataTable
+  // ...
+  onSelectionChange={setSelectedRows}
+/>
+```
+
+### 3. Selected Count in Header Left
+
+**When rows are selected, show the count next to the table title using `headerLeft`:**
+
+```tsx
+headerLeft={
+  <div className="flex items-center gap-2">
+    <CardTitle className="text-xl">Daftar [Entity Name]</CardTitle>
+    {selectedRows.length > 0 && (
+      <span className="text-destructive font-semibold">
+        &middot; {selectedRows.length} Selected
+      </span>
+    )}
+  </div>
+}
+```
+
+- Import `CardTitle` from `@workspace/ui/components/card`.
+- The selected count text uses `text-destructive font-semibold`.
+- Prefixed with a middle dot (`&middot;`) separator.
+- Only shown when `selectedRows.length > 0`.
+
+### 4. Bulk Delete Button in Header Right
+
+**When rows are selected, show a "Hapus" button after the "Filter" button in `headerRight`:**
+
+```tsx
+headerRight={
+  <div className="flex w-full items-center gap-2 sm:w-auto">
+    {/* Page size select, Search input, Filter button ... */}
+    {selectedRows.length > 0 && (
+      <Button
+        className="bg-destructive text-destructive-foreground hover:bg-destructive/90 flex items-center gap-2"
+        onClick={handleBulkDelete}
+      >
+        <Trash2 className="size-4" />
+        Hapus
+      </Button>
+    )}
+  </div>
+}
+```
+
+- Button uses destructive styling (`bg-destructive text-destructive-foreground`).
+- Includes `Trash2` icon from `lucide-react` with `size-4`.
+- Only rendered when `selectedRows.length > 0`.
+- Positioned **after** the Filter button.
+
+### 5. Bulk Delete Confirmation Dialog
+
+**Bulk delete MUST use a `ConfirmationDialog` with `variant="destructive"` before executing:**
+
+```tsx
+const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false)
+
+const handleBulkDelete = () => {
+  setIsBulkDeleteDialogOpen(true)
+}
+
+const handleConfirmBulkDelete = async () => {
+  try {
+    await Promise.all(
+      selectedRows.map((row) => deleteMutation.mutateAsync(row.id))
+    )
+    toast.success(`${selectedRows.length} [Entity] berhasil dihapus`)
+    setIsBulkDeleteDialogOpen(false)
+    setSelectedRows([])
+  } catch {
+    toast.error("Gagal menghapus [Entity]")
+  }
+}
+
+<ConfirmationDialog
+  open={isBulkDeleteDialogOpen}
+  onOpenChange={setIsBulkDeleteDialogOpen}
+  onConfirm={handleConfirmBulkDelete}
+  title="Hapus [Entity]"
+  description={`Anda akan menghapus ${selectedRows.length} data [Entity] dari dalam sistem.`}
+  confirmLabel="Hapus"
+  variant="destructive"
+/>
+```
+
+- The description includes the dynamic count of selected rows.
+- After successful deletion, clear `selectedRows` and reset the table’s checkbox selection so no rows stay checked:
+  - Add state: `const [resetSelectionKey, setResetSelectionKey] = useState(0)`.
+  - Pass `resetSelectionKey={resetSelectionKey}` to `DataTable`.
+  - In `handleConfirmBulkDelete` after success: `setResetSelectionKey((k) => k + 1)` (DataTable clears its internal row selection when this key changes).
+- Use `Promise.all` to delete all selected items concurrently.
+
+### 6. When NOT Using `title` Prop
+
+When using `headerLeft` to render the custom title with selected count, do **not** pass the `title` prop to DataTable — `headerLeft` replaces it.
+
+## Reference Implementation
+
+- `apps/web/app/(dashboard)/master-syarat-mata/page.tsx` — Daftar Syarat Mata with row selection and bulk delete.
+
+## Summary
+
+- ✅ Select column with header checkbox (select all) and row checkboxes.
+- ✅ Track selected rows via `onSelectionChange` + `useState`.
+- ✅ Show `· N Selected` in `text-destructive` next to the table title (via `headerLeft`).
+- ✅ Show red "Hapus" button with `Trash2` icon after Filter button (via `headerRight`), only when rows are selected.
+- ✅ Confirmation dialog (`variant="destructive"`) with dynamic count before bulk delete.
+- ✅ Clear selection after successful bulk delete (both parent `selectedRows` and table checkboxes via `resetSelectionKey`).
+- ❌ Do not show the selected count or bulk delete button when no rows are selected.
+- ❌ Do not skip the confirmation dialog for bulk delete.

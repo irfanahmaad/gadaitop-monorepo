@@ -92,6 +92,8 @@ interface DataTableProps<TData, TValue> {
     pageIndex: number
     onPageIndexChange: (pageIndex: number) => void
   }
+  /** When this key changes, row selection is reset (e.g. after bulk delete) */
+  resetSelectionKey?: number | string
 }
 
 export function DataTable<TData, TValue>({
@@ -117,6 +119,7 @@ export function DataTable<TData, TValue>({
   getRowClassName,
   onSelectionChange,
   serverSidePagination,
+  resetSelectionKey,
 }: DataTableProps<TData, TValue>) {
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
@@ -124,6 +127,13 @@ export function DataTable<TData, TValue>({
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = React.useState({})
+
+  // Reset row selection when parent signals (e.g. after bulk delete)
+  React.useEffect(() => {
+    if (resetSelectionKey !== undefined) {
+      setRowSelection({})
+    }
+  }, [resetSelectionKey])
   const [internalGlobalFilter, setInternalGlobalFilter] = React.useState("")
   const [internalFilterDialogOpen, setInternalFilterDialogOpen] =
     React.useState(false)
