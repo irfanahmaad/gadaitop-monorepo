@@ -46,6 +46,7 @@ export function useCreateSuperAdmin() {
         email: data.email,
         password: data.password,
         phoneNumber: data.phoneNumber,
+        imageUrl: data.imageUrl,
         roleIds: [data.roleId],
       }
       return apiClient.post<User, CreateUserDto>(endpoints.users.create, createData)

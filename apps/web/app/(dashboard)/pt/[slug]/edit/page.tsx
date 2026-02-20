@@ -31,7 +31,13 @@ import {
   FormMessage,
 } from "@workspace/ui/components/form"
 import { Card, CardContent } from "@workspace/ui/components/card"
-import { useCompany, useUpdateCompany } from "@/lib/react-query/hooks"
+import { Skeleton } from "@workspace/ui/components/skeleton"
+import {
+  useCompany,
+  useUpdateCompany,
+  useUploadFile,
+  usePublicUrl,
+} from "@/lib/react-query/hooks"
 
 const ptEditSchema = z
   .object({
@@ -70,6 +76,55 @@ const ptEditSchema = z
 
 type PTEditFormValues = z.infer<typeof ptEditSchema>
 
+// Loading skeleton for form
+function FormSkeleton() {
+  return (
+    <Card>
+      <CardContent className="pt-6">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[250px_1fr]">
+          <div className="flex justify-center">
+            <Skeleton className="aspect-square size-48 rounded-full" />
+          </div>
+          <div className="space-y-8">
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <Skeleton className="size-6 rounded" />
+                <Skeleton className="h-6 w-24" />
+              </div>
+              <div className="grid gap-6 md:grid-cols-2">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="space-y-2">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-10 w-full" />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <Skeleton className="size-6 rounded" />
+                <Skeleton className="h-6 w-32" />
+              </div>
+              <div className="grid gap-6 md:grid-cols-2">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="space-y-2">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-10 w-full" />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="flex justify-end gap-4 pt-4">
+              <Skeleton className="h-10 w-24" />
+              <Skeleton className="h-10 w-24" />
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 export default function EditPTPage() {
   const router = useRouter()
   const params = useParams()
@@ -81,6 +136,9 @@ export default function EditPTPage() {
   // Fetch company data
   const { data: company, isLoading, isError } = useCompany(slug)
   const updateCompanyMutation = useUpdateCompany()
+  const uploadFileMutation = useUploadFile()
+  const existingImageKey = company?.imageUrl ?? ""
+  const { data: publicUrlData } = usePublicUrl(existingImageKey)
 
   const form = useForm<PTEditFormValues>({
     resolver: zodResolver(ptEditSchema),
@@ -102,7 +160,7 @@ export default function EditPTPage() {
   useEffect(() => {
     if (company) {
       form.reset({
-        image: undefined,
+        image: company.imageUrl || undefined,
         code: company.companyCode,
         name: company.companyName,
         phone: company.phoneNumber || "",
@@ -113,8 +171,11 @@ export default function EditPTPage() {
         password: "",
         confirmPassword: "",
       })
+      if (company.imageUrl && publicUrlData?.url) {
+        setPreviewImage(publicUrlData.url)
+      }
     }
-  }, [company, form])
+  }, [company, form, publicUrlData?.url])
 
   const handleImageChange = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -140,16 +201,33 @@ export default function EditPTPage() {
 
   const onSubmit = async (values: PTEditFormValues) => {
     try {
+      let imageUrl: string | null | undefined = undefined
+
+      if (values.image instanceof File) {
+        const file = values.image
+        const ext = file.name.split(".").pop() || "jpg"
+        const key = `companies/${slug}/logo-${Date.now()}.${ext}`
+
+        const { key: s3Key } = await uploadFileMutation.mutateAsync({
+          file,
+          key,
+        })
+        imageUrl = s3Key
+      } else if (company?.imageUrl && !values.image) {
+        imageUrl = null
+      }
+
       await updateCompanyMutation.mutateAsync({
         id: slug,
         data: {
           companyName: values.name,
           phoneNumber: values.phone || undefined,
           address: values.address || undefined,
+          ...(imageUrl !== undefined && { imageUrl }),
         },
       })
       toast.success("PT berhasil diperbarui")
-      router.push("/pt")
+      router.push(`/pt/${slug}`)
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Gagal memperbarui PT"
       toast.error(message)
@@ -158,8 +236,12 @@ export default function EditPTPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <Loader2 className="size-8 animate-spin text-muted-foreground" />
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-2">
+          <Skeleton className="h-8 w-32" />
+          <Skeleton className="h-5 w-48" />
+        </div>
+        <FormSkeleton />
       </div>
     )
   }
@@ -541,12 +623,21 @@ export default function EditPTPage() {
                       type="button"
                       variant="outline"
                       onClick={() => router.back()}
-                      disabled={updateCompanyMutation.isPending}
+                      disabled={
+                        updateCompanyMutation.isPending ||
+                        uploadFileMutation.isPending
+                      }
                     >
                       <X className="mr-2 size-4" />
                       Batal
                     </Button>
-                    <Button type="submit" disabled={updateCompanyMutation.isPending}>
+                    <Button
+                      type="submit"
+                      disabled={
+                        updateCompanyMutation.isPending ||
+                        uploadFileMutation.isPending
+                      }
+                    >
                       {updateCompanyMutation.isPending ? (
                         <>
                           <Loader2 className="mr-2 size-4 animate-spin" />

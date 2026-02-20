@@ -32,6 +32,12 @@ export class CompanyEntity extends AbstractEntity {
   @Column({ type: 'text', nullable: true })
   address: string | null;
 
+  /**
+   * Logo or image URL (S3 key). Resolved to public URL via upload service.
+   */
+  @Column({ name: 'image_url', type: 'varchar', length: 500, nullable: true })
+  imageUrl: string | null;
+
   // ============================================
   // OWNER RELATIONSHIP (1:1)
   // RS: "1 Pemilik hanya memiliki 1 PT"

@@ -266,12 +266,12 @@ export default function TambahMasterCustomerPage() {
       await createCustomerMutation.mutateAsync({
         nik: values.nik,
         pin,
-        name: values.namaCustomer,
-        dob: dobIso,
+        fullName: values.namaCustomer,
+        dateOfBirth: dobIso,
         gender: values.jenisKelamin === "Laki-laki" ? "male" : "female",
         address,
         city,
-        phone,
+        phoneNumber: phone,
         email,
         ptId: selectedPT,
       })

@@ -1,7 +1,8 @@
 import { API_URL, API_VERSION } from "@/utils/constants"
 
-// Base URL helper
+// Base URL helpers
 const baseUrl = (path: string) => `${API_URL}/${API_VERSION}/${path}`
+const rawUrl = (path: string) => `${API_URL}/${path}`
 
 export const endpoints = {
   // Auth
@@ -80,6 +81,7 @@ export const endpoints = {
   audit: {
     list: baseUrl("audit-logs"),
     detail: (id: string) => baseUrl(`audit-logs/${id}`),
+    export: baseUrl("audit-logs/export"),
   },
 
   // Roles
@@ -220,23 +222,22 @@ export const endpoints = {
     delete: (id: string) => baseUrl(`pawn-terms/${id}`),
   },
 
-  // Upload
+  // Upload (uses v1 prefix like other API routes)
   upload: {
-    file: baseUrl("upload/file"),
     presigned: baseUrl("upload/presigned"),
     publicUrl: baseUrl("upload/public-url"),
     status: baseUrl("upload/status"),
   },
 
-  // Links
+  // Links (no version prefix)
   links: {
-    list: baseUrl("links"),
-    detail: (id: string) => baseUrl(`links/${id}`),
-    create: baseUrl("links"),
-    update: (id: string) => baseUrl(`links/${id}`),
-    delete: (id: string) => baseUrl(`links/${id}`),
+    list: rawUrl("links"),
+    detail: (id: string) => rawUrl(`links/${id}`),
+    create: rawUrl("links"),
+    update: (id: string) => rawUrl(`links/${id}`),
+    delete: (id: string) => rawUrl(`links/${id}`),
   },
 
-  // Health
-  health: baseUrl("health"),
+  // Health (no version prefix)
+  health: rawUrl("health"),
 } as const

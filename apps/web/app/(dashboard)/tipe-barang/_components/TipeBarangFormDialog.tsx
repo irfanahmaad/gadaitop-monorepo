@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { toast } from "sonner"
-import { FileText, X, Save, Loader2 } from "lucide-react"
+import { FileText, X, Save } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -13,6 +13,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@workspace/ui/components/dialog"
+import { Skeleton } from "@workspace/ui/components/skeleton"
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
 import {
@@ -209,7 +210,7 @@ export function TipeBarangFormDialog({
               </Button>
               <Button type="submit" disabled={isSubmitting} className="gap-2">
                 {isSubmitting ? (
-                  <Loader2 className="size-4 animate-spin" />
+                  <Skeleton className="size-4 rounded" />
                 ) : (
                   <Save className="size-4" />
                 )}

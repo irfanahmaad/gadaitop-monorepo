@@ -27,7 +27,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@workspace/ui/components/alert-dialog"
-import { useUser, useDeleteSuperAdmin, usePublicUrl } from "@/lib/react-query/hooks"
+import {
+  useUser,
+  useDeleteSuperAdmin,
+  usePublicUrl,
+} from "@/lib/react-query/hooks"
 
 export default function DetailSuperAdminPage() {
   const params = useParams()
@@ -56,6 +60,7 @@ export default function DetailSuperAdminPage() {
       await deleteMutation.mutateAsync(slug)
       toast.success("Super Admin berhasil dihapus")
       router.push("/super-admin")
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       toast.error("Gagal menghapus Super Admin")
     }
@@ -64,7 +69,7 @@ export default function DetailSuperAdminPage() {
   if (isLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <Loader2 className="size-8 animate-spin text-muted-foreground" />
+        <Loader2 className="text-muted-foreground size-8 animate-spin" />
       </div>
     )
   }
@@ -72,7 +77,9 @@ export default function DetailSuperAdminPage() {
   if (isError || !superAdmin) {
     return (
       <div className="flex h-64 flex-col items-center justify-center gap-2">
-        <p className="text-muted-foreground">Data Super Admin tidak ditemukan</p>
+        <p className="text-muted-foreground">
+          Data Super Admin tidak ditemukan
+        </p>
         <Button variant="outline" onClick={() => router.push("/super-admin")}>
           Kembali ke Daftar
         </Button>
@@ -118,7 +125,10 @@ export default function DetailSuperAdminPage() {
               {/* Profile Picture */}
               <div className="flex justify-center">
                 <Avatar className="size-48">
-                  <AvatarImage src={publicUrlData?.url || ""} alt={superAdmin.fullName} />
+                  <AvatarImage
+                    src={publicUrlData?.url || ""}
+                    alt={superAdmin.fullName}
+                  />
                   <AvatarFallback>
                     <UserIcon className="text-muted-foreground size-24" />
                   </AvatarFallback>
@@ -174,7 +184,9 @@ export default function DetailSuperAdminPage() {
                             : "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200"
                         }`}
                       >
-                        {superAdmin.activeStatus === "active" ? "Active" : "Inactive"}
+                        {superAdmin.activeStatus === "active"
+                          ? "Active"
+                          : "Inactive"}
                       </span>
                     </p>
                   </div>
@@ -185,11 +197,14 @@ export default function DetailSuperAdminPage() {
                       Dibuat Pada
                     </label>
                     <p className="text-base">
-                      {new Date(superAdmin.createdAt).toLocaleDateString("id-ID", {
-                        day: "2-digit",
-                        month: "long",
-                        year: "numeric",
-                      })}
+                      {new Date(superAdmin.createdAt).toLocaleDateString(
+                        "id-ID",
+                        {
+                          day: "2-digit",
+                          month: "long",
+                          year: "numeric",
+                        }
+                      )}
                     </p>
                   </div>
                 </div>
@@ -206,8 +221,8 @@ export default function DetailSuperAdminPage() {
             <AlertDialogTitle>Hapus Super Admin</AlertDialogTitle>
             <AlertDialogDescription>
               Apakah Anda yakin ingin menghapus{" "}
-              <strong>{superAdmin.fullName}</strong>? Tindakan ini tidak
-              dapat dibatalkan.
+              <strong>{superAdmin.fullName}</strong>? Tindakan ini tidak dapat
+              dibatalkan.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

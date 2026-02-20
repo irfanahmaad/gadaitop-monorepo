@@ -1,4 +1,9 @@
-import { IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  MaxLength,
+  ValidateIf,
+} from 'class-validator';
 
 export class UpdateCompanyDto {
   @IsOptional()
@@ -14,4 +19,10 @@ export class UpdateCompanyDto {
   @IsOptional()
   @IsString()
   address?: string;
+
+  @IsOptional()
+  @ValidateIf((o) => o.imageUrl != null)
+  @IsString()
+  @MaxLength(500)
+  imageUrl?: string | null;
 }

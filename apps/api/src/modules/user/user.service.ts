@@ -195,6 +195,7 @@ export class UserService {
       email: createDto.email,
       password: hashedPassword,
       phoneNumber: createDto.phoneNumber,
+      imageUrl: createDto.imageUrl ?? null,
       companyId: createDto.companyId,
       branchId: createDto.branchId,
       activeStatus: ActiveStatusEnum.Active,

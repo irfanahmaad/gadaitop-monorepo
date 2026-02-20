@@ -35,6 +35,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@workspace/ui/components/card"
+import { Skeleton } from "@workspace/ui/components/skeleton"
 import {
   useUser,
   useUpdateSuperAdmin,
@@ -74,6 +75,58 @@ const superAdminEditSchema = z
   )
 
 type SuperAdminEditFormValues = z.infer<typeof superAdminEditSchema>
+
+// Loading skeleton for form
+function FormSkeleton() {
+  return (
+    <Card>
+      <CardHeader>
+        <Skeleton className="h-6 w-40" />
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[250px_1fr]">
+          <div className="flex justify-center">
+            <Skeleton className="aspect-square size-48 rounded-full" />
+          </div>
+          <div className="space-y-8">
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <Skeleton className="size-6 rounded" />
+                <Skeleton className="h-6 w-40" />
+              </div>
+              <div className="grid gap-6 md:grid-cols-2">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="space-y-2">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-10 w-full" />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <Skeleton className="size-6 rounded" />
+                <Skeleton className="h-6 w-24" />
+              </div>
+              <div className="grid gap-6 md:grid-cols-2">
+                {Array.from({ length: 2 }).map((_, i) => (
+                  <div key={i} className="space-y-2">
+                    <Skeleton className="h-4 w-28" />
+                    <Skeleton className="h-10 w-full" />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="flex justify-end gap-4 pt-4">
+              <Skeleton className="h-10 w-24" />
+              <Skeleton className="h-10 w-36" />
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
 
 export default function EditSuperAdminPage() {
   const router = useRouter()
@@ -184,6 +237,7 @@ export default function EditSuperAdminPage() {
 
       toast.success("Super Admin berhasil diperbarui")
       router.push(`/super-admin/${slug}`)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       toast.error(error?.errorMessage || "Gagal memperbarui Super Admin")
     }
@@ -191,8 +245,12 @@ export default function EditSuperAdminPage() {
 
   if (isLoadingUser) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <Loader2 className="size-8 animate-spin text-muted-foreground" />
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-2">
+          <Skeleton className="h-8 w-32" />
+          <Skeleton className="h-5 w-48" />
+        </div>
+        <FormSkeleton />
       </div>
     )
   }
@@ -200,7 +258,9 @@ export default function EditSuperAdminPage() {
   if (isError || !superAdmin) {
     return (
       <div className="flex h-64 flex-col items-center justify-center gap-2">
-        <p className="text-muted-foreground">Data Super Admin tidak ditemukan</p>
+        <p className="text-muted-foreground">
+          Data Super Admin tidak ditemukan
+        </p>
         <Button variant="outline" onClick={() => router.push("/super-admin")}>
           Kembali ke Daftar
         </Button>
@@ -208,7 +268,10 @@ export default function EditSuperAdminPage() {
     )
   }
 
-  const isSubmitting = updateMutation.isPending || resetPasswordMutation.isPending || presignedUrlMutation.isPending
+  const isSubmitting =
+    updateMutation.isPending ||
+    resetPasswordMutation.isPending ||
+    presignedUrlMutation.isPending
 
   return (
     <>
@@ -339,8 +402,7 @@ export default function EditSuperAdminPage() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>
-                              Email{" "}
-                              <span className="text-destructive">*</span>
+                              Email <span className="text-destructive">*</span>
                             </FormLabel>
                             <FormControl>
                               <Input

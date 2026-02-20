@@ -46,7 +46,7 @@ function mapPawnTermToRow(term: PawnTerm): SyaratMataRow {
   const typeName = term.itemType?.typeName ?? "-"
   return {
     id: term.uuid,
-    namaAturan: `${typeName} (Tenor ${term.tenorDefault} bln)`,
+    namaAturan: `${typeName} (Tenor ${term.tenor ?? term.tenorDefault ?? 0} bln)`,
     tipeBarang: typeName,
     hargaDari: Number(term.loanLimitMin),
     hargaSampai: Number(term.loanLimitMax),

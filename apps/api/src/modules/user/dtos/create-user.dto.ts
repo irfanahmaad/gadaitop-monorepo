@@ -20,6 +20,11 @@ export class CreateUserDto {
   phoneNumber?: string;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  imageUrl?: string;
+
+  @IsOptional()
   @IsUUID()
   companyId?: string;
 

@@ -1,7 +1,6 @@
 "use client"
 
 import { useMutation, useQuery } from "@tanstack/react-query"
-import { getSession } from "next-auth/react"
 
 import { apiClient } from "@/lib/api/client"
 import { endpoints } from "@/lib/api/endpoints"
@@ -22,7 +21,7 @@ export interface UploadFileResponse {
   url: string
 }
 
-// Upload a file through the backend to S3 (avoids CORS)
+// Upload a file via presigned URL flow: get a signed URL then PUT the file directly to S3
 export function useUploadFile() {
   return useMutation({
     mutationFn: async ({
@@ -32,27 +31,27 @@ export function useUploadFile() {
       file: File
       key?: string
     }): Promise<UploadFileResponse> => {
-      const formData = new FormData()
-      formData.append("file", file)
-      if (key) formData.append("key", key)
+      const fileKey = key ?? `uploads/${Date.now()}-${file.name}`
 
-      const session = await getSession()
-      const res = await fetch(endpoints.upload.file, {
-        method: "POST",
-        headers: {
-          ...(session?.accessToken && {
-            Authorization: `Bearer ${session.accessToken}`,
-          }),
-        },
-        body: formData,
+      const presigned = await apiClient.post<
+        PresignedUrlResponse,
+        PresignedUrlRequest
+      >(endpoints.upload.presigned, {
+        key: fileKey,
+        contentType: file.type,
       })
 
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        throw new Error(err.message || "Upload failed")
+      const uploadRes = await fetch(presigned.url, {
+        method: "PUT",
+        headers: { "Content-Type": file.type },
+        body: file,
+      })
+
+      if (!uploadRes.ok) {
+        throw new Error("Upload to storage failed")
       }
 
-      return res.json()
+      return { key: presigned.key, url: presigned.url }
     },
   })
 }

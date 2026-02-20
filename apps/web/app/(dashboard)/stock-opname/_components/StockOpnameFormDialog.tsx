@@ -119,7 +119,7 @@ export function StockOpnameFormDialog({
     () =>
       (pawnTermsData?.data ?? []).map((term) => {
         const typeName = term.itemType?.typeName ?? "—"
-        const label = `${typeName} (Tenor ${term.tenorDefault} bln)`
+        const label = `${typeName} (Tenor ${term.tenor ?? term.tenorDefault ?? 0} bln)`
         return { label, value: term.uuid }
       }),
     [pawnTermsData?.data]
@@ -173,13 +173,13 @@ export function StockOpnameFormDialog({
       setPendingValues(null)
       return
     }
-    const startDate = format(pendingValues.tanggal, "yyyy-MM-dd")
+    const scheduledDate = format(pendingValues.tanggal, "yyyy-MM-dd")
     const notes = pendingValues.catatan?.trim() || undefined
     const payloads: CreateStockOpnameDto[] = pendingValues.toko.map(
       (storeId) => ({
         ptId,
         storeId,
-        startDate,
+        scheduledDate,
         notes,
       })
     )

@@ -16,7 +16,10 @@ import { Skeleton } from "@workspace/ui/components/skeleton"
 import { Badge } from "@workspace/ui/components/badge"
 import type { Spk } from "@/lib/api/types"
 
-const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+const STATUS_VARIANT: Record<
+  string,
+  "default" | "secondary" | "destructive" | "outline"
+> = {
   draft: "outline",
   active: "default",
   extended: "secondary",
@@ -65,11 +68,9 @@ export function SPKBaruTable({ data, isLoading }: SPKBaruTableProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.map((spk) => (
-                <TableRow key={spk.id}>
-                  <TableCell className="font-medium">
-                    {spk.spkNumber}
-                  </TableCell>
+              {data.map((spk, i) => (
+                <TableRow key={i}>
+                  <TableCell className="font-medium">{spk.spkNumber}</TableCell>
                   <TableCell className="text-right">
                     <span className="font-medium">
                       {new Intl.NumberFormat("id-ID", {
@@ -79,9 +80,7 @@ export function SPKBaruTable({ data, isLoading }: SPKBaruTableProps) {
                       }).format(spk.principalAmount)}
                     </span>
                   </TableCell>
-                  <TableCell>
-                    {spk?.customer?.name ?? "-"}
-                  </TableCell>
+                  <TableCell>{spk?.customer?.name ?? "-"}</TableCell>
                   <TableCell>
                     <Badge variant={STATUS_VARIANT[spk.status] ?? "outline"}>
                       {spk.status}

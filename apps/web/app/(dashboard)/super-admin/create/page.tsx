@@ -35,7 +35,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@workspace/ui/components/card"
-import { useCreateSuperAdmin, useOwnerRole } from "@/lib/react-query/hooks"
+import {
+  useCreateSuperAdmin,
+  useOwnerRole,
+  useUploadFile,
+} from "@/lib/react-query/hooks"
 
 const superAdminSchema = z
   .object({
@@ -68,6 +72,7 @@ export default function SuperAdminCreatePage() {
   // Fetch owner role to get the UUID
   const { data: ownerRole, isLoading: isLoadingRole } = useOwnerRole()
   const createMutation = useCreateSuperAdmin()
+  const presignedUrlMutation = useUploadFile()
 
   const form = useForm<SuperAdminFormValues>({
     resolver: zodResolver(superAdminSchema),
@@ -110,12 +115,27 @@ export default function SuperAdminCreatePage() {
     }
 
     try {
+      let imageUrl: string | undefined
+
+      if (values.image instanceof File) {
+        const file = values.image
+        const ext = file.name.split(".").pop() || "jpg"
+        const key = `users/avatars/avatar-${Date.now()}.${ext}`
+
+        const { key: s3Key } = await presignedUrlMutation.mutateAsync({
+          file,
+          key,
+        })
+        imageUrl = s3Key
+      }
+
       await createMutation.mutateAsync({
         fullName: values.fullName,
         email: values.email,
         password: values.password,
         phoneNumber: values.phoneNumber,
         roleId: ownerRole.uuid,
+        imageUrl,
       })
       toast.success("Super Admin berhasil ditambahkan")
       router.push("/super-admin")
@@ -405,12 +425,22 @@ export default function SuperAdminCreatePage() {
                       type="button"
                       variant="outline"
                       onClick={() => router.back()}
-                      disabled={createMutation.isPending}
+                      disabled={
+                        createMutation.isPending ||
+                        presignedUrlMutation.isPending
+                      }
                     >
                       Batal
                     </Button>
-                    <Button type="submit" disabled={createMutation.isPending}>
-                      {createMutation.isPending ? (
+                    <Button
+                      type="submit"
+                      disabled={
+                        createMutation.isPending ||
+                        presignedUrlMutation.isPending
+                      }
+                    >
+                      {createMutation.isPending ||
+                      presignedUrlMutation.isPending ? (
                         <>
                           <Loader2 className="mr-2 size-4 animate-spin" />
                           Menyimpan...

@@ -22,7 +22,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@workspace/ui/components/alert-dialog"
-import { useCompany, useDeleteCompany } from "@/lib/react-query/hooks"
+import {
+  useCompany,
+  useDeleteCompany,
+  usePublicUrl,
+} from "@/lib/react-query/hooks"
 
 export default function DetailPTPage() {
   const params = useParams()
@@ -33,6 +37,8 @@ export default function DetailPTPage() {
   // Fetch company data
   const { data: company, isLoading, isError } = useCompany(slug)
   const deleteMutation = useDeleteCompany()
+  const imageKey = company?.imageUrl ?? ""
+  const { data: publicUrlData } = usePublicUrl(imageKey)
 
   const handleEdit = () => {
     router.push(`/pt/${slug}/edit`)
@@ -106,7 +112,10 @@ export default function DetailPTPage() {
               {/* Profile Picture */}
               <div className="flex justify-center">
                 <Avatar className="size-48">
-                  <AvatarImage src="" alt={company.companyName} />
+                  <AvatarImage
+                    src={publicUrlData?.url ?? ""}
+                    alt={company.companyName}
+                  />
                   <AvatarFallback>
                     <Building2 className="text-muted-foreground size-24" />
                   </AvatarFallback>

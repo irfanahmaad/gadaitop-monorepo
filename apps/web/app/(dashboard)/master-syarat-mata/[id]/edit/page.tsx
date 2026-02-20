@@ -136,13 +136,14 @@ export default function EditMasterSyaratMataPage() {
     if (!id) return
     if (!pawnTermData) return
 
+    const tenorValue = pawnTermData.tenor ?? pawnTermData.tenorDefault ?? 0
     form.reset({
-      namaAturan: `${pawnTermData.itemType?.typeName ?? "-"} (Tenor ${pawnTermData.tenorDefault})`,
+      namaAturan: `${pawnTermData.itemType?.typeName ?? "-"} (Tenor ${tenorValue})`,
       tipeBarang: pawnTermData.itemTypeId,
       hargaDari: formatCurrencyInput(Number(pawnTermData.loanLimitMin ?? 0)),
       hargaSampai: formatCurrencyInput(Number(pawnTermData.loanLimitMax ?? 0)),
-      macetDari: String(pawnTermData.tenorDefault ?? 0),
-      macetSampai: String(pawnTermData.tenorDefault ?? 0),
+      macetDari: String(tenorValue),
+      macetSampai: String(tenorValue),
       baru: String(pawnTermData.adminFee ?? 0),
       persentase: String(pawnTermData.interestRate ?? 0),
       kondisiBarang: "Ada & Kondisi Sesuai",
@@ -169,7 +170,7 @@ export default function EditMasterSyaratMataPage() {
     try {
       const loanLimitMin = parseCurrencyInput(values.hargaDari) ?? 0
       const loanLimitMax = parseCurrencyInput(values.hargaSampai) ?? 0
-      const tenorDefault = Number(values.macetSampai)
+      const tenor = Number(values.macetSampai)
       const interestRate = Number(values.persentase)
       const adminFee = Number(values.baru)
 
@@ -179,7 +180,7 @@ export default function EditMasterSyaratMataPage() {
       if (loanLimitMax < loanLimitMin) {
         throw new Error("Harga Sampai tidak boleh lebih kecil dari Harga Dari")
       }
-      if (Number.isNaN(tenorDefault) || tenorDefault <= 0) {
+      if (Number.isNaN(tenor) || tenor <= 0) {
         throw new Error("Macet Sampai harus berupa angka lebih dari 0")
       }
       if (Number.isNaN(interestRate)) {
@@ -191,7 +192,7 @@ export default function EditMasterSyaratMataPage() {
         data: {
           loanLimitMin,
           loanLimitMax,
-          tenorDefault,
+          tenor,
           interestRate,
           adminFee: Number.isNaN(adminFee) ? undefined : adminFee,
         },

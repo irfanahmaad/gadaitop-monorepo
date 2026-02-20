@@ -15,8 +15,8 @@ export interface PageOptions {
   sortBy?: string
   query?: string
   filter?: Record<string, string | number>
-  relation?: Record<string, any>
-  select?: Record<string, any>
+  relation?: Record<string, unknown>
+  select?: Record<string, unknown>
 }
 
 // API Response types
@@ -89,6 +89,7 @@ export interface CreateUserDto {
   password: string
   fullName: string
   phoneNumber?: string
+  imageUrl?: string
   roleIds?: string[]
   companyId?: string
   branchId?: string
@@ -100,6 +101,8 @@ export interface UpdateUserDto {
   phoneNumber?: string
   imageUrl?: string
   activeStatus?: ActiveStatus
+  companyId?: string
+  branchId?: string
 }
 
 export interface AssignRoleDto {
@@ -139,6 +142,7 @@ export interface Company {
   companyName: string
   phoneNumber?: string
   address?: string
+  imageUrl?: string | null
   ownerId: string
   owner?: User
   branches?: Branch[]
@@ -178,6 +182,7 @@ export interface UpdateCompanyDto {
   companyName?: string
   phoneNumber?: string
   address?: string
+  imageUrl?: string | null
 }
 
 export interface UpdateCompanyConfigDto {
@@ -236,6 +241,7 @@ export interface CreateBranchDto {
   phone: string
   city: string
   companyId: string
+  isBorrowed?: boolean
 }
 
 export interface UpdateBranchDto {
@@ -274,6 +280,7 @@ export interface CreateItemTypeDto {
   description?: string
   isActive?: boolean
   sortOrder?: number
+  iconUrl?: string
 }
 
 export interface UpdateItemTypeDto {
@@ -281,6 +288,7 @@ export interface UpdateItemTypeDto {
   description?: string
   isActive?: boolean
   sortOrder?: number
+  iconUrl?: string
 }
 
 // Borrow Request types
@@ -299,7 +307,9 @@ export interface BorrowRequest {
 export type BorrowRequestStatus = "pending" | "approved" | "rejected"
 
 export interface CreateBorrowRequestDto {
+  branchId: string
   targetCompanyId: string
+  requestReason?: string
 }
 
 export interface RejectBorrowRequestDto {
@@ -310,10 +320,10 @@ export interface RejectBorrowRequestDto {
 export interface DeviceRegistration {
   id: string
   uuid: string
-  deviceId: string
+  macAddress: string
   deviceName?: string
-  platform?: string
-  pushToken?: string
+  deviceType?: string
+  osInfo?: string
   isActive: boolean
   user?: User
   createdAt: string
@@ -321,16 +331,14 @@ export interface DeviceRegistration {
 }
 
 export interface RegisterDeviceDto {
-  userId?: string
-  deviceId: string
+  macAddress: string
   deviceName?: string
-  platform?: string
-  pushToken?: string
+  deviceType?: string
+  osInfo?: string
 }
 
 export interface UpdateDeviceDto {
   deviceName?: string
-  pushToken?: string
   isActive?: boolean
 }
 
@@ -350,9 +358,18 @@ export interface AuditLog {
 
 export interface QueryAuditLogDto extends PageOptions {
   action?: string
-  entityType?: string
-  entityId?: string
+  entityName?: string
   userId?: string
+  startDate?: string
+  endDate?: string
+}
+
+export interface ExportAuditLogDto {
+  entityName?: string
+  action?: string
+  userId?: string
+  startDate?: string
+  endDate?: string
 }
 
 // ==========================================
@@ -495,14 +512,14 @@ export interface Customer {
 export interface CreateCustomerDto {
   nik: string
   pin: string
-  name: string
-  dob: string
-  gender: "male" | "female"
+  fullName: string
+  dateOfBirth: string
   address: string
-  city: string
-  phone: string
+  phoneNumber: string
   email: string
-  ptId: string
+  gender?: "male" | "female"
+  city?: string
+  ptId?: string
   ktpPhotoUrl?: string
   selfiePhotoUrl?: string
 }
@@ -562,9 +579,9 @@ export interface Nkb {
 
 export interface CreateNkbDto {
   spkId: string
-  type: NkbType
+  transactionType: string
   amount: number
-  paymentMethod?: string
+  description?: string
 }
 
 export interface ConfirmNkbDto {
@@ -572,7 +589,7 @@ export interface ConfirmNkbDto {
 }
 
 export interface RejectNkbDto {
-  reason: string
+  rejectionReason: string
 }
 
 export interface QueryNkbDto extends PageOptions {
@@ -773,9 +790,9 @@ export interface StockOpnameSession {
 }
 
 export interface CreateStockOpnameDto {
-  ptId: string
   storeId: string
-  startDate: string
+  scheduledDate: string
+  ptId?: string
   notes?: string
 }
 
@@ -1003,13 +1020,16 @@ export interface PawnTerm {
   id?: string
   uuid: string
   ptId: string
-  itemTypeId: string
+  itemTypeId?: string
   itemType?: ItemType
-  loanLimitMin: number
-  loanLimitMax: number
-  tenorDefault: number
+  tenor: number
+  /** @deprecated Use `tenor` instead */
+  tenorDefault?: number
+  loanLimitMin?: number
+  loanLimitMax?: number
   interestRate: number
   adminFee: number
+  storageFee?: number
   pt?: Company
   createdAt: string
   updatedAt: string
@@ -1017,20 +1037,22 @@ export interface PawnTerm {
 
 export interface CreatePawnTermDto {
   ptId: string
-  itemTypeId: string
-  loanLimitMin: number
-  loanLimitMax: number
-  tenorDefault: number
+  tenor: number
   interestRate: number
   adminFee?: number
+  storageFee?: number
+  itemTypeId?: string
+  loanLimitMin?: number
+  loanLimitMax?: number
 }
 
 export interface UpdatePawnTermDto {
-  loanLimitMin?: number
-  loanLimitMax?: number
-  tenorDefault?: number
+  tenor?: number
   interestRate?: number
   adminFee?: number
+  storageFee?: number
+  loanLimitMin?: number
+  loanLimitMax?: number
 }
 
 // ==========================================

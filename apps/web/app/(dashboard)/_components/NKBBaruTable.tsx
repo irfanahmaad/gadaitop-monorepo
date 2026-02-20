@@ -22,7 +22,10 @@ const TYPE_LABELS: Record<string, string> = {
   partial: "Cicilan",
 }
 
-const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+const STATUS_VARIANT: Record<
+  string,
+  "default" | "secondary" | "destructive" | "outline"
+> = {
   pending: "outline",
   confirmed: "secondary",
   rejected: "destructive",
@@ -75,11 +78,9 @@ export function NKBBaruTable({ data, isLoading }: NKBBaruTableProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.map((nkb) => (
-                <TableRow key={nkb.id}>
-                  <TableCell className="font-medium">
-                    {nkb.nkbNumber}
-                  </TableCell>
+              {data.map((nkb, i) => (
+                <TableRow key={i}>
+                  <TableCell className="font-medium">{nkb.nkbNumber}</TableCell>
                   <TableCell className="text-right">
                     <span className="font-medium">
                       {new Intl.NumberFormat("id-ID", {
@@ -95,9 +96,7 @@ export function NKBBaruTable({ data, isLoading }: NKBBaruTableProps) {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge
-                      variant={STATUS_VARIANT[nkb.status] ?? "outline"}
-                    >
+                    <Badge variant={STATUS_VARIANT[nkb.status] ?? "outline"}>
                       {STATUS_LABELS[nkb.status] ?? nkb.status}
                     </Badge>
                   </TableCell>
