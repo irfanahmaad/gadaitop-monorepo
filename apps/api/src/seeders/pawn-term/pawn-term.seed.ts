@@ -76,6 +76,7 @@ export class PawnTermSeed extends Seeder {
           tenorDefault: config.tenorDefault,
           interestRate: config.interestRate,
           adminFee: config.adminFee,
+          itemCondition: 'present_and_matching',
         });
         totalCreated++;
       }

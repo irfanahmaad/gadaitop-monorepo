@@ -1,6 +1,11 @@
 "use client"
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query"
 
 import { apiClient } from "@/lib/api/client"
 import { endpoints } from "@/lib/api/endpoints"
@@ -27,6 +32,7 @@ export function usePawnTerms(options?: PageOptions) {
     queryKey: pawnTermKeys.list(options),
     queryFn: () =>
       apiClient.getList<PawnTerm>(endpoints.pawnTerms.list, options),
+    placeholderData: keepPreviousData,
   })
 }
 

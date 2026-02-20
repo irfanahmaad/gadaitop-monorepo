@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useMemo, useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -39,6 +39,9 @@ import {
   useUpdatePawnTerm,
 } from "@/lib/react-query/hooks/use-pawn-terms"
 import { useItemTypes } from "@/lib/react-query/hooks/use-item-types"
+import { ITEM_CONDITION_OPTIONS } from "@/lib/constants/item-condition"
+
+type TipeBarangOption = { value: string; label: string }
 
 const syaratMataSchema = z.object({
   namaAturan: z
@@ -52,16 +55,10 @@ const syaratMataSchema = z.object({
   macetSampai: z.string().min(1, "Macet Sampai harus diisi"),
   baru: z.string().min(1, "Baru harus diisi"),
   persentase: z.string().min(1, "Persentase harus diisi"),
-  kondisiBarang: z.string().min(1, "Kondisi Barang harus dipilih"),
+  itemCondition: z.string().min(1, "Kondisi Barang harus dipilih"),
 })
 
 type SyaratMataFormValues = z.infer<typeof syaratMataSchema>
-
-// Kondisi Barang options
-const kondisiBarangOptions = [
-  { value: "Ada & Kondisi Sesuai", label: "Ada & Kondisi Sesuai" },
-  { value: "Ada Namun Mismatch", label: "Ada Namun Mismatch" },
-]
 
 // Loading skeleton for form
 function FormSkeleton() {
@@ -99,69 +96,29 @@ function FormSkeleton() {
   )
 }
 
-export default function EditMasterSyaratMataPage() {
+// Form that mounts only when initialData is ready so Select gets correct value on first render
+function EditSyaratMataForm({
+  id,
+  initialData,
+  tipeBarangOptions,
+}: {
+  id: string
+  initialData: SyaratMataFormValues
+  tipeBarangOptions: TipeBarangOption[]
+}) {
   const router = useRouter()
-  const params = useParams()
-  const id = params?.id as string
-  const { data: pawnTermData, isLoading } = usePawnTerm(id)
+  const [confirmOpen, setConfirmOpen] = useState(false)
   const { mutateAsync: updatePawnTerm, isPending: isSubmitting } =
     useUpdatePawnTerm()
-  const { data: itemTypesData } = useItemTypes({ pageSize: 100 })
-  const tipeBarangOptions = React.useMemo(() => {
-    const list = itemTypesData?.data ?? []
-    return list.map((itemType) => ({
-      value: itemType.uuid,
-      label: itemType.typeName,
-    }))
-  }, [itemTypesData])
-  const [confirmOpen, setConfirmOpen] = useState(false)
 
   const form = useForm<SyaratMataFormValues>({
     resolver: zodResolver(syaratMataSchema),
-    defaultValues: {
-      namaAturan: "",
-      tipeBarang: "",
-      hargaDari: "",
-      hargaSampai: "",
-      macetDari: "",
-      macetSampai: "",
-      baru: "",
-      persentase: "",
-      kondisiBarang: "",
-    },
+    defaultValues: initialData,
   })
-
-  // Load data
-  useEffect(() => {
-    if (!id) return
-    if (!pawnTermData) return
-
-    const tenorValue = pawnTermData.tenor ?? pawnTermData.tenorDefault ?? 0
-    form.reset({
-      namaAturan: `${pawnTermData.itemType?.typeName ?? "-"} (Tenor ${tenorValue})`,
-      tipeBarang: pawnTermData.itemTypeId,
-      hargaDari: formatCurrencyInput(Number(pawnTermData.loanLimitMin ?? 0)),
-      hargaSampai: formatCurrencyInput(Number(pawnTermData.loanLimitMax ?? 0)),
-      macetDari: String(tenorValue),
-      macetSampai: String(tenorValue),
-      baru: String(pawnTermData.adminFee ?? 0),
-      persentase: String(pawnTermData.interestRate ?? 0),
-      kondisiBarang: "Ada & Kondisi Sesuai",
-    })
-  }, [form, id, pawnTermData])
-
-  useEffect(() => {
-    if (!isLoading && id && !pawnTermData) {
-      toast.error("Data Syarat Mata tidak ditemukan")
-      router.push("/master-syarat-mata")
-    }
-  }, [id, isLoading, pawnTermData, router])
 
   const handleSimpanClick = () => {
     form.handleSubmit((values) => {
-      if (values) {
-        setConfirmOpen(true)
-      }
+      if (values) setConfirmOpen(true)
     })()
   }
 
@@ -192,9 +149,10 @@ export default function EditMasterSyaratMataPage() {
         data: {
           loanLimitMin,
           loanLimitMax,
-          tenor,
+          tenorDefault: tenor,
           interestRate,
           adminFee: Number.isNaN(adminFee) ? undefined : adminFee,
+          itemCondition: values.itemCondition as "present_and_matching" | "present_but_mismatch",
         },
       })
       toast.success("Data Syarat Mata berhasil diperbarui")
@@ -206,51 +164,19 @@ export default function EditMasterSyaratMataPage() {
           ? error.message
           : "Gagal memperbarui data Syarat Mata"
       toast.error(message)
-    } finally {
-      // noop
     }
   }
 
-  if (isLoading) {
-    return (
-      <div className="flex flex-col gap-6">
-        {/* Header section */}
-        <div className="flex flex-col gap-2">
-          <Skeleton className="h-8 w-40" />
-          <Skeleton className="h-4 w-64" />
-        </div>
-        <FormSkeleton />
-      </div>
-    )
-  }
-
   return (
-    <div className="flex flex-col gap-6">
-      {/* Header section */}
-      <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-bold">Edit Data</h1>
-        <Breadcrumbs
-          items={[
-            { label: 'Master Syarat "Mata"', href: "/master-syarat-mata" },
-            { label: "Edit Data", className: "text-destructive" },
-          ]}
-        />
-      </div>
-
-      {/* Data Syarat Mata card */}
+    <>
       <Card>
         <CardHeader>
           <CardTitle>Detail Syarat &quot;Mata&quot;</CardTitle>
         </CardHeader>
         <CardContent>
           <Form {...form}>
-            <form className="grid grid-cols-1 gap-8 lg:grid-cols-[250px_1fr]">
-              {/* Empty left column (no image upload) */}
-              <div className="flex justify-center"></div>
-
-              {/* Form fields column (right) */}
+            <form className="grid grid-cols-1 gap-8">
               <div className="space-y-8">
-                {/* Detail Syarat Mata section */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-3">
                     <Briefcase className="text-destructive size-6" />
@@ -307,7 +233,6 @@ export default function EditMasterSyaratMataPage() {
                         </FormItem>
                       )}
                     />
-                    {/* Harga - spans both columns */}
                     <div className="space-y-2 md:col-span-2">
                       <FormLabel>Harga</FormLabel>
                       <div className="flex items-center gap-2">
@@ -368,7 +293,6 @@ export default function EditMasterSyaratMataPage() {
                         />
                       </div>
                     </div>
-                    {/* Macet - spans both columns */}
                     <div className="space-y-2 md:col-span-2">
                       <FormLabel>Macet</FormLabel>
                       <div className="flex items-center gap-2">
@@ -381,6 +305,7 @@ export default function EditMasterSyaratMataPage() {
                                 <Input
                                   type="number"
                                   placeholder="Contoh: 1"
+                                  suffix="Bulan"
                                   value={field.value}
                                   onChange={(e) =>
                                     field.onChange(e.target.value)
@@ -391,7 +316,6 @@ export default function EditMasterSyaratMataPage() {
                             </FormItem>
                           )}
                         />
-                        <span className="text-muted-foreground">Bulan</span>
                         <span className="text-muted-foreground">-</span>
                         <FormField
                           control={form.control}
@@ -402,6 +326,7 @@ export default function EditMasterSyaratMataPage() {
                                 <Input
                                   type="number"
                                   placeholder="Contoh: 1"
+                                  suffix="Bulan"
                                   value={field.value}
                                   onChange={(e) =>
                                     field.onChange(e.target.value)
@@ -412,7 +337,6 @@ export default function EditMasterSyaratMataPage() {
                             </FormItem>
                           )}
                         />
-                        <span className="text-muted-foreground">Bulan</span>
                       </div>
                     </div>
                     <FormField
@@ -459,7 +383,7 @@ export default function EditMasterSyaratMataPage() {
                     />
                     <FormField
                       control={form.control}
-                      name="kondisiBarang"
+                      name="itemCondition"
                       render={({ field }) => (
                         <FormItem className="md:col-span-2">
                           <FormLabel>Kondisi Barang</FormLabel>
@@ -473,7 +397,7 @@ export default function EditMasterSyaratMataPage() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              {kondisiBarangOptions.map((opt) => (
+                              {ITEM_CONDITION_OPTIONS.map((opt) => (
                                 <SelectItem key={opt.value} value={opt.value}>
                                   {opt.label}
                                 </SelectItem>
@@ -486,8 +410,6 @@ export default function EditMasterSyaratMataPage() {
                     />
                   </div>
                 </div>
-
-                {/* Action buttons */}
                 <div className="flex justify-end gap-4 pt-4">
                   <Button
                     type="button"
@@ -519,8 +441,6 @@ export default function EditMasterSyaratMataPage() {
           </Form>
         </CardContent>
       </Card>
-
-      {/* Save confirmation dialog */}
       <ConfirmationDialog
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
@@ -531,6 +451,93 @@ export default function EditMasterSyaratMataPage() {
         confirmLabel="Ya"
         cancelLabel="Batal"
         variant="info"
+      />
+    </>
+  )
+}
+
+export default function EditMasterSyaratMataPage() {
+  const router = useRouter()
+  const params = useParams()
+  const id = params?.id as string
+  const { data: pawnTermData, isLoading } = usePawnTerm(id)
+  const { data: itemTypesData, isLoading: isItemTypesLoading } = useItemTypes({
+    pageSize: 100,
+  })
+  const tipeBarangOptions = useMemo(() => {
+    const list = itemTypesData?.data ?? []
+    return list.map((itemType) => ({
+      value: itemType.uuid,
+      label: itemType.typeName,
+    }))
+  }, [itemTypesData])
+
+  const initialFormValues = useMemo((): SyaratMataFormValues | null => {
+    if (!id || !pawnTermData || tipeBarangOptions.length === 0) return null
+    // API returns tenorDefault; tenor may be absent. ?? does not treat NaN as nullish, so resolve explicitly.
+    const rawTenor =
+      pawnTermData.tenor ?? pawnTermData.tenorDefault ?? undefined
+    const tenorValue =
+      typeof rawTenor === "number" && !Number.isNaN(rawTenor) ? rawTenor : 0
+    const tipeBarangValue =
+      pawnTermData.itemTypeId ?? pawnTermData.itemType?.uuid ?? ""
+    const hasMatchingOption = tipeBarangOptions.some(
+      (opt) => opt.value === tipeBarangValue
+    )
+    if (!hasMatchingOption) return null
+    return {
+      namaAturan: `${pawnTermData.itemType?.typeName ?? "-"} (Tenor ${tenorValue})`,
+      tipeBarang: tipeBarangValue,
+      hargaDari: formatCurrencyInput(Number(pawnTermData.loanLimitMin ?? 0)),
+      hargaSampai: formatCurrencyInput(Number(pawnTermData.loanLimitMax ?? 0)),
+      macetDari: String(tenorValue),
+      macetSampai: String(tenorValue),
+      baru: String(pawnTermData.adminFee ?? 0),
+      persentase: String(pawnTermData.interestRate ?? 0),
+      itemCondition: pawnTermData.itemCondition ?? "present_and_matching",
+    }
+  }, [id, pawnTermData, tipeBarangOptions])
+
+  useEffect(() => {
+    if (!isLoading && id && !pawnTermData) {
+      toast.error("Data Syarat Mata tidak ditemukan")
+      router.push("/master-syarat-mata")
+    }
+  }, [id, isLoading, pawnTermData, router])
+
+  const showSkeleton = isLoading || isItemTypesLoading || !initialFormValues
+
+  if (showSkeleton) {
+    return (
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-2">
+          <Skeleton className="h-8 w-40" />
+          <Skeleton className="h-4 w-64" />
+        </div>
+        <FormSkeleton />
+      </div>
+    )
+  }
+
+  // initialFormValues is set here (we returned above when null)
+  const initialData = initialFormValues
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-2xl font-bold">Edit Data</h1>
+        <Breadcrumbs
+          items={[
+            { label: 'Master Syarat "Mata"', href: "/master-syarat-mata" },
+            { label: "Edit Data", className: "text-destructive" },
+          ]}
+        />
+      </div>
+      <EditSyaratMataForm
+        key={id}
+        id={id}
+        initialData={initialData}
+        tipeBarangOptions={tipeBarangOptions}
       />
     </div>
   )

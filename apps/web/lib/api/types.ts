@@ -1016,6 +1016,9 @@ export interface StockOpnameReport {
 // Pawn Term types
 // ==========================================
 
+/** Item condition codes returned by API (English) */
+export type PawnTermItemCondition = "present_and_matching" | "present_but_mismatch"
+
 export interface PawnTerm {
   id?: string
   uuid: string
@@ -1030,6 +1033,8 @@ export interface PawnTerm {
   interestRate: number
   adminFee: number
   storageFee?: number
+  /** Item condition rule (English code) */
+  itemCondition?: PawnTermItemCondition
   pt?: Company
   createdAt: string
   updatedAt: string
@@ -1037,22 +1042,24 @@ export interface PawnTerm {
 
 export interface CreatePawnTermDto {
   ptId: string
-  tenor: number
+  itemTypeId: string
+  loanLimitMin: number
+  loanLimitMax: number
+  tenorDefault: number
   interestRate: number
   adminFee?: number
   storageFee?: number
-  itemTypeId?: string
-  loanLimitMin?: number
-  loanLimitMax?: number
+  itemCondition?: PawnTermItemCondition
 }
 
 export interface UpdatePawnTermDto {
-  tenor?: number
+  tenorDefault?: number
   interestRate?: number
   adminFee?: number
   storageFee?: number
   loanLimitMin?: number
   loanLimitMax?: number
+  itemCondition?: PawnTermItemCondition
 }
 
 // ==========================================

@@ -1,10 +1,16 @@
 import {
+  IsIn,
   IsNotEmpty,
   IsNumber,
+  IsOptional,
+  IsString,
   IsUUID,
   Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+
+export const PAWN_TERM_ITEM_CONDITION_VALUES = ['present_and_matching', 'present_but_mismatch'] as const;
+export type PawnTermItemCondition = (typeof PAWN_TERM_ITEM_CONDITION_VALUES)[number];
 
 export class CreatePawnTermDto {
   @IsNotEmpty()
@@ -43,4 +49,9 @@ export class CreatePawnTermDto {
   @Min(0)
   @Type(() => Number)
   adminFee: number = 0;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(PAWN_TERM_ITEM_CONDITION_VALUES)
+  itemCondition?: PawnTermItemCondition;
 }

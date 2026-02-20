@@ -86,6 +86,12 @@ interface DataTableProps<TData, TValue> {
   getRowClassName?: (row: TData) => string
   /** Called when row selection changes; receives selected row data */
   onSelectionChange?: (selectedRows: TData[]) => void
+  /** When set, pagination is server-driven: parent controls page and total count */
+  serverSidePagination?: {
+    totalRowCount: number
+    pageIndex: number
+    onPageIndexChange: (pageIndex: number) => void
+  }
 }
 
 export function DataTable<TData, TValue>({
@@ -110,6 +116,7 @@ export function DataTable<TData, TValue>({
   onSearchChange,
   getRowClassName,
   onSelectionChange,
+  serverSidePagination,
 }: DataTableProps<TData, TValue>) {
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
@@ -143,10 +150,18 @@ export function DataTable<TData, TValue>({
     },
     [globalFilter, onSearchChange]
   )
-  const [pagination, setPagination] = React.useState<PaginationState>({
-    pageIndex: 0,
-    pageSize: initialPageSize,
-  })
+  const [internalPagination, setInternalPagination] =
+    React.useState<PaginationState>({
+      pageIndex: 0,
+      pageSize: initialPageSize,
+    })
+
+  const pagination = serverSidePagination
+    ? {
+        pageIndex: serverSidePagination.pageIndex,
+        pageSize: internalPagination.pageSize,
+      }
+    : internalPagination
 
   // Add actions column if any action handlers are provided
   const hasCustomActions = customActions && customActions.length > 0
@@ -213,19 +228,42 @@ export function DataTable<TData, TValue>({
     columns: columnsWithActions,
     onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
+    ...(serverSidePagination
+      ? {
+          manualPagination: true,
+          pageCount: Math.ceil(
+            serverSidePagination.totalRowCount / internalPagination.pageSize
+          ) || 1,
+        }
+      : {
+          getPaginationRowModel: getPaginationRowModel(),
+          getFilteredRowModel: getFilteredRowModel(),
+        }),
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
     onPaginationChange: (updater) => {
-      setPagination((prev) => {
-        const newPagination =
-          typeof updater === "function" ? updater(prev) : updater
-        if (onPageSizeChange && newPagination.pageSize !== prev.pageSize) {
-          onPageSizeChange(newPagination.pageSize)
+      if (serverSidePagination) {
+        const next = typeof updater === "function" ? updater(pagination) : updater
+        if (next.pageSize !== pagination.pageSize && onPageSizeChange) {
+          onPageSizeChange(next.pageSize)
         }
-        return newPagination
-      })
+        setInternalPagination((prev) => ({
+          ...prev,
+          pageSize: next.pageSize,
+        }))
+        if (next.pageIndex !== serverSidePagination.pageIndex) {
+          serverSidePagination.onPageIndexChange(next.pageIndex)
+        }
+      } else {
+        setInternalPagination((prev) => {
+          const newPagination =
+            typeof updater === "function" ? updater(prev) : updater
+          if (onPageSizeChange && newPagination.pageSize !== prev.pageSize) {
+            onPageSizeChange(newPagination.pageSize)
+          }
+          return newPagination
+        })
+      }
     },
     state: {
       columnFilters,
@@ -247,9 +285,14 @@ export function DataTable<TData, TValue>({
 
   const currentPage = table.getState().pagination.pageIndex + 1
   const pageSize = table.getState().pagination.pageSize
-  const totalRows = table.getFilteredRowModel().rows.length
-  const startRow = totalRows === 0 ? 0 : (currentPage - 1) * pageSize + 1
-  const endRow = Math.min(currentPage * pageSize, totalRows)
+  const totalRows = serverSidePagination
+    ? serverSidePagination.totalRowCount
+    : table.getFilteredRowModel().rows.length
+  const startRow =
+    totalRows === 0 ? 0 : (currentPage - 1) * pageSize + 1
+  const endRow = serverSidePagination
+    ? Math.min(currentPage * pageSize, totalRows)
+    : Math.min(currentPage * pageSize, totalRows)
   const totalPages = table.getPageCount()
 
   // Generate page numbers to display

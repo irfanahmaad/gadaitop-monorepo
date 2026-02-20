@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { useRouter } from "next/navigation"
-import { Briefcase, X, Loader2 } from "lucide-react"
+import { Briefcase, X, Loader2, Percent } from "lucide-react"
 import { toast } from "sonner"
 import { Breadcrumbs } from "@/components/breadcrumbs"
 import { Button } from "@workspace/ui/components/button"
@@ -36,6 +36,7 @@ import { formatCurrencyInput, parseCurrencyInput } from "@/lib/format-currency"
 import { useCreatePawnTerm } from "@/lib/react-query/hooks/use-pawn-terms"
 import { useItemTypes } from "@/lib/react-query/hooks/use-item-types"
 import { useAuth } from "@/lib/react-query/hooks/use-auth"
+import { ITEM_CONDITION_OPTIONS } from "@/lib/constants/item-condition"
 
 const syaratMataSchema = z.object({
   namaAturan: z
@@ -49,16 +50,10 @@ const syaratMataSchema = z.object({
   macetSampai: z.string().min(1, "Macet Sampai harus diisi"),
   baru: z.string().min(1, "Baru harus diisi"),
   persentase: z.string().min(1, "Persentase harus diisi"),
-  kondisiBarang: z.string().min(1, "Kondisi Barang harus dipilih"),
+  itemCondition: z.string().min(1, "Kondisi Barang harus dipilih"),
 })
 
 type SyaratMataFormValues = z.infer<typeof syaratMataSchema>
-
-// Kondisi Barang options
-const kondisiBarangOptions = [
-  { value: "Ada & Kondisi Sesuai", label: "Ada & Kondisi Sesuai" },
-  { value: "Ada Namun Mismatch", label: "Ada Namun Mismatch" },
-]
 
 export default function TambahMasterSyaratMataPage() {
   const router = useRouter()
@@ -86,7 +81,7 @@ export default function TambahMasterSyaratMataPage() {
       macetSampai: "",
       baru: "",
       persentase: "",
-      kondisiBarang: "",
+      itemCondition: "",
     },
   })
 
@@ -130,9 +125,10 @@ export default function TambahMasterSyaratMataPage() {
         itemTypeId: values.tipeBarang,
         loanLimitMin,
         loanLimitMax,
-        tenor,
+        tenorDefault: tenor,
         interestRate,
         adminFee: Number.isNaN(adminFee) ? undefined : adminFee,
+        itemCondition: values.itemCondition as "present_and_matching" | "present_but_mismatch",
       })
       toast.success("Data Syarat Mata berhasil ditambahkan")
       setConfirmOpen(false)
@@ -169,9 +165,6 @@ export default function TambahMasterSyaratMataPage() {
         <CardContent>
           <Form {...form}>
             <form className="grid grid-cols-1 gap-8">
-              {/* Empty left column (no image upload) */}
-              <div className="flex justify-center"></div>
-
               {/* Form fields column (right) */}
               <div className="space-y-8">
                 {/* Detail Syarat Mata section */}
@@ -231,112 +224,112 @@ export default function TambahMasterSyaratMataPage() {
                         </FormItem>
                       )}
                     />
-                    {/* Harga - spans both columns */}
-                    <div className="space-y-2 md:col-span-2">
-                      <FormLabel>Harga</FormLabel>
-                      <div className="flex items-center gap-2">
-                        <FormField
-                          control={form.control}
-                          name="hargaDari"
-                          render={({ field }) => (
-                            <FormItem className="flex-1">
-                              <FormControl>
-                                <Input
-                                  type="text"
-                                  placeholder="Contoh: 10.000.000"
-                                  value={field.value}
-                                  onChange={(e) => {
-                                    const parsed = parseCurrencyInput(
-                                      e.target.value
-                                    )
-                                    field.onChange(
-                                      parsed !== null
-                                        ? formatCurrencyInput(parsed)
-                                        : ""
-                                    )
-                                  }}
-                                  icon={<>Rp</>}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <span className="text-muted-foreground">-</span>
-                        <FormField
-                          control={form.control}
-                          name="hargaSampai"
-                          render={({ field }) => (
-                            <FormItem className="flex-1">
-                              <FormControl>
-                                <Input
-                                  type="text"
-                                  placeholder="Contoh: 10.000.000"
-                                  value={field.value}
-                                  onChange={(e) => {
-                                    const parsed = parseCurrencyInput(
-                                      e.target.value
-                                    )
-                                    field.onChange(
-                                      parsed !== null
-                                        ? formatCurrencyInput(parsed)
-                                        : ""
-                                    )
-                                  }}
-                                  icon={<>Rp</>}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                    <div className="grid gap-6 md:col-span-2 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <FormLabel>Harga</FormLabel>
+                        <div className="flex items-center gap-2">
+                          <FormField
+                            control={form.control}
+                            name="hargaDari"
+                            render={({ field }) => (
+                              <FormItem className="flex-1">
+                                <FormControl>
+                                  <Input
+                                    type="text"
+                                    placeholder="Contoh: 10.000.000"
+                                    value={field.value}
+                                    onChange={(e) => {
+                                      const parsed = parseCurrencyInput(
+                                        e.target.value
+                                      )
+                                      field.onChange(
+                                        parsed !== null
+                                          ? formatCurrencyInput(parsed)
+                                          : ""
+                                      )
+                                    }}
+                                    icon={<>Rp</>}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <span className="text-muted-foreground">-</span>
+                          <FormField
+                            control={form.control}
+                            name="hargaSampai"
+                            render={({ field }) => (
+                              <FormItem className="flex-1">
+                                <FormControl>
+                                  <Input
+                                    type="text"
+                                    placeholder="Contoh: 10.000.000"
+                                    value={field.value}
+                                    onChange={(e) => {
+                                      const parsed = parseCurrencyInput(
+                                        e.target.value
+                                      )
+                                      field.onChange(
+                                        parsed !== null
+                                          ? formatCurrencyInput(parsed)
+                                          : ""
+                                      )
+                                    }}
+                                    icon={<>Rp</>}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
                       </div>
-                    </div>
-                    {/* Macet - spans both columns */}
-                    <div className="space-y-2 md:col-span-2">
-                      <FormLabel>Macet</FormLabel>
-                      <div className="flex items-center gap-2">
-                        <FormField
-                          control={form.control}
-                          name="macetDari"
-                          render={({ field }) => (
-                            <FormItem className="flex-1">
-                              <FormControl>
-                                <Input
-                                  type="number"
-                                  placeholder="Contoh: 1"
-                                  value={field.value}
-                                  onChange={(e) =>
-                                    field.onChange(e.target.value)
-                                  }
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <span className="text-muted-foreground">Bulan</span>
-                        <span className="text-muted-foreground">-</span>
-                        <FormField
-                          control={form.control}
-                          name="macetSampai"
-                          render={({ field }) => (
-                            <FormItem className="flex-1">
-                              <FormControl>
-                                <Input
-                                  type="number"
-                                  placeholder="Contoh: 1"
-                                  value={field.value}
-                                  onChange={(e) =>
-                                    field.onChange(e.target.value)
-                                  }
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <span className="text-muted-foreground">Bulan</span>
+                      <div className="space-y-2">
+                        <FormLabel>Macet</FormLabel>
+                        <div className="flex items-center gap-2">
+                          <FormField
+                            control={form.control}
+                            name="macetDari"
+                            render={({ field }) => (
+                              <FormItem className="flex-1">
+                                <FormControl>
+                                  <Input
+                                    type="number"
+                                    placeholder="Contoh: 1"
+                                    suffix="Bulan"
+                                    value={field.value}
+                                    onChange={(e) =>
+                                      field.onChange(e.target.value)
+                                    }
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <span className="text-muted-foreground">-</span>
+                          <FormField
+                            control={form.control}
+                            name="macetSampai"
+                            render={({ field }) => (
+                              <FormItem className="flex-1">
+                                <FormControl>
+                                  <Input
+                                    type="number"
+                                    placeholder="Contoh: 1"
+                                    suffix="Bulan"
+                                    value={field.value}
+                                    onChange={(e) =>
+                                      field.onChange(e.target.value)
+                                    }
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
                       </div>
                     </div>
                     <FormField
@@ -349,6 +342,7 @@ export default function TambahMasterSyaratMataPage() {
                             <Input
                               type="number"
                               placeholder="Contoh: 10"
+                              suffix="Hari Terakhir"
                               {...field}
                             />
                           </FormControl>
@@ -363,19 +357,14 @@ export default function TambahMasterSyaratMataPage() {
                         <FormItem>
                           <FormLabel>Persentase</FormLabel>
                           <FormControl>
-                            <div className="flex items-center gap-2">
-                              <Input
-                                type="number"
-                                placeholder="Contoh: 10"
-                                value={field.value}
-                                onChange={(e) => field.onChange(e.target.value)}
-                                className="flex-1"
-                              />
-                              <span className="text-muted-foreground">%</span>
-                              <span className="text-muted-foreground">
-                                Hari Terakhir
-                              </span>
-                            </div>
+                            <Input
+                              type="number"
+                              placeholder="Contoh: 10"
+                              icon={<Percent className="size-4" />}
+                              value={field.value}
+                              onChange={(e) => field.onChange(e.target.value)}
+                              className="flex-1"
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -383,7 +372,7 @@ export default function TambahMasterSyaratMataPage() {
                     />
                     <FormField
                       control={form.control}
-                      name="kondisiBarang"
+                      name="itemCondition"
                       render={({ field }) => (
                         <FormItem className="md:col-span-2">
                           <FormLabel>Kondisi Barang</FormLabel>
@@ -397,7 +386,7 @@ export default function TambahMasterSyaratMataPage() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              {kondisiBarangOptions.map((opt) => (
+                              {ITEM_CONDITION_OPTIONS.map((opt) => (
                                 <SelectItem key={opt.value} value={opt.value}>
                                   {opt.label}
                                 </SelectItem>

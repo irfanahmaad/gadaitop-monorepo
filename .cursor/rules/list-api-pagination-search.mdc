@@ -1,0 +1,51 @@
+---
+description: Use API-side pagination and search for list/table pages (default page size 10)
+globs: "**/app/(dashboard)/**/page.tsx"
+alwaysApply: false
+---
+
+# List Pages: API Pagination and Search
+
+List/table pages that load paginated data MUST use **API-side pagination and search** for better performance. Avoid fetching large datasets and filtering or paginating only on the client.
+
+## Requirements
+
+### 1. API-Side Pagination and Search
+
+- Send `page` (1-based), `pageSize`, and search/filter params to the API.
+- Use the API response `data` and `meta` (e.g. `meta.count`, `meta.pageCount`) for the table.
+- Do not fetch a large slice (e.g. 200 items) and then filter or paginate only on the client.
+
+### 2. Default Page Size
+
+- Prefer a **default page size of 10** unless the feature explicitly requires otherwise (e.g. 25, 50, 100 as user options).
+
+### 3. DataTable Server-Side Mode
+
+- When the list is backed by an API that returns paginated results and meta, use the DataTable’s **server-side pagination** support:
+  - Pass `serverSidePagination={{ totalRowCount: meta.count, pageIndex: page - 1, onPageIndexChange: (idx) => setPage(idx + 1) }}`.
+  - Pass current page `data` from the API as the table `data`.
+  - Reset `page` to 1 when search or relevant filters change.
+
+### 4. Search and Filters
+
+- Send the search term (and other filters) as query/filter params so the API can apply them. Use response `data` as the single source for table rows; do not duplicate search or filter logic client-side for the same fields.
+
+### 5. Debounce Search Input
+
+- **Debounce the search value** used for the API request (e.g. 500ms). Keep the input value in sync on every keystroke for responsive typing; use a separate debounced value (updated in a `useEffect` with `setTimeout` and cleanup) for `listOptions` and for resetting `page` to 1. This avoids calling the API on every keystroke and reduces unnecessary requests.
+
+### 6. Table-Only Loading (No Full-Page Skeleton on Refetch)
+
+- When the query key changes (search, filters, page), **do not replace the entire view** (header, search field, filters, table) with a full-page skeleton. The search field and controls must stay visible.
+- Use **`placeholderData: keepPreviousData`** (TanStack Query) on the list query so that when the key changes, the previous result is shown until the new one loads. Show the full-page skeleton only on **initial load** when there is no data (`isLoading` with no cached/placeholder data). After the first load, refetches should only update the table body; the table and header remain visible with previous data until new data arrives.
+- Reference: list hooks (e.g. `usePawnTerms`) can set `placeholderData: keepPreviousData` so list pages get this behavior by default.
+
+## Summary
+
+- Use API for pagination (`page`, `pageSize`) and search/filters.
+- Default `pageSize` 10; allow user to change (e.g. 10, 25, 50, 100).
+- Use `serverSidePagination` on DataTable when the list is API-driven.
+- **Debounce search** (e.g. 500ms) for the value sent to the API; keep input value immediate.
+- **Table-only loading:** use `keepPreviousData` so refetches do not show a full-page skeleton; only the table content updates. Show full skeleton only on initial load.
+- Avoid client-only filtering/pagination of large API payloads.

@@ -28,6 +28,7 @@ import {
   useDeletePawnTerm,
   usePawnTerm,
 } from "@/lib/react-query/hooks/use-pawn-terms"
+import { getItemConditionLabel } from "@/lib/constants/item-condition"
 
 // Syarat Mata detail type
 type SyaratMataDetail = {
@@ -40,7 +41,7 @@ type SyaratMataDetail = {
   macetSampai: number
   baru: number
   persentase: number
-  kondisiBarang: string
+  itemCondition: string
   lastUpdatedAt: Date
 }
 
@@ -52,7 +53,7 @@ function DataSyaratMataSkeleton() {
         <Skeleton className="h-6 w-48" />
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[250px_1fr]">
+        <div className="grid grid-cols-1 gap-8">
           <div className="flex justify-center"></div>
           <div className="space-y-8">
             <div className="space-y-4">
@@ -96,7 +97,7 @@ export default function MasterSyaratMataDetailPage() {
       macetSampai: Number(pawnTermData.tenor ?? pawnTermData.tenorDefault ?? 0),
       baru: Number(pawnTermData.adminFee ?? 0),
       persentase: Number(pawnTermData.interestRate ?? 0),
-      kondisiBarang: "Ada & Kondisi Sesuai",
+      itemCondition: getItemConditionLabel(pawnTermData.itemCondition),
       lastUpdatedAt: new Date(pawnTermData.updatedAt),
     }
   }, [pawnTermData])
@@ -162,7 +163,7 @@ export default function MasterSyaratMataDetailPage() {
               {loading ? (
                 <Skeleton className="h-8 w-64" />
               ) : (
-                syaratMata?.namaAturan ?? "—"
+                (syaratMata?.namaAturan ?? "—")
               )}
             </h1>
             <Breadcrumbs
@@ -196,7 +197,7 @@ export default function MasterSyaratMataDetailPage() {
               <CardTitle>Detail Syarat &quot;Mata&quot;</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 gap-8 lg:grid-cols-[250px_1fr]">
+              <div className="grid grid-cols-1">
                 {/* Empty left column (no avatar) */}
                 <div className="flex justify-center"></div>
 
@@ -243,7 +244,7 @@ export default function MasterSyaratMataDetailPage() {
                         <label className="text-muted-foreground text-sm font-medium">
                           Kondisi Barang
                         </label>
-                        <p className="text-base">{syaratMata.kondisiBarang}</p>
+                        <p className="text-base">{syaratMata.itemCondition}</p>
                       </div>
                       <div className="space-y-2">
                         <label className="text-muted-foreground text-sm font-medium">

@@ -25,6 +25,7 @@ import { useFilterParams, FilterConfig } from "@/hooks/use-filter-params"
 import { Skeleton } from "@workspace/ui/components/skeleton"
 import { Card, CardContent, CardHeader } from "@workspace/ui/components/card"
 import type { PawnTerm } from "@/lib/api/types"
+import { getItemConditionLabel } from "@/lib/constants/item-condition"
 import { useAuth } from "@/lib/react-query/hooks/use-auth"
 import { usePawnTerms, useDeletePawnTerm } from "@/lib/react-query/hooks/use-pawn-terms"
 import { useCompanies } from "@/lib/react-query/hooks/use-companies"
@@ -38,7 +39,7 @@ type SyaratMataRow = {
   tipeBarang: string
   hargaDari: number
   hargaSampai: number
-  kondisiBarang: string
+  itemCondition: string
   lastUpdatedAt: string
 }
 
@@ -50,7 +51,7 @@ function mapPawnTermToRow(term: PawnTerm): SyaratMataRow {
     tipeBarang: typeName,
     hargaDari: Number(term.loanLimitMin),
     hargaSampai: Number(term.loanLimitMax),
-    kondisiBarang: "-",
+    itemCondition: getItemConditionLabel(term.itemCondition),
     lastUpdatedAt: term.updatedAt
       ? format(new Date(term.updatedAt), "d MMMM yyyy HH:mm:ss", {
           locale: id,
@@ -58,23 +59,6 @@ function mapPawnTermToRow(term: PawnTerm): SyaratMataRow {
       : "-",
   }
 }
-
-// Filter configuration
-const filterConfig: FilterConfig[] = [
-  {
-    key: "lastUpdate",
-    label: "",
-    type: "daterange",
-    labelFrom: "Last Update Mulai Dari",
-    labelTo: "Sampai Dengan",
-  },
-  {
-    key: "itemTypeId",
-    label: "Tipe Barang",
-    type: "multiselect",
-    placeholder: "Pilih Tipe Barang...",
-  },
-]
 
 // Column definitions for Syarat Mata
 const syaratMataColumns: ColumnDef<SyaratMataRow>[] = [
@@ -128,7 +112,7 @@ const syaratMataColumns: ColumnDef<SyaratMataRow>[] = [
     },
   },
   {
-    accessorKey: "kondisiBarang",
+    accessorKey: "itemCondition",
     header: "Kondisi Barang",
   },
   {
@@ -193,8 +177,16 @@ function MasterSyaratMataPageContent() {
 
   const companyFilterId = isSuperAdmin ? selectedPT : effectiveCompanyId
 
-  const [pageSize, setPageSize] = useState(100)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
   const [searchValue, setSearchValue] = useState("")
+  const [debouncedSearchValue, setDebouncedSearchValue] = useState("")
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearchValue(searchValue), 500)
+    return () => clearTimeout(t)
+  }, [searchValue])
+
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
   const [itemToDelete, setItemToDelete] = useState<SyaratMataRow | null>(null)
   const [filterDialogOpen, setFilterDialogOpen] = useState(false)
@@ -235,57 +227,47 @@ function MasterSyaratMataPageContent() {
     if (companyFilterId) filter.ptId = companyFilterId
     const itemTypeIds = (filterValues.itemTypeId as string[] | undefined) ?? []
     if (itemTypeIds.length > 0) filter.itemTypeId = itemTypeIds[0] as string
-    return { page: 1, pageSize: 200, filter }
-  }, [companyFilterId, filterValues.itemTypeId])
+    if (debouncedSearchValue.trim()) filter.search = debouncedSearchValue.trim()
+    return { page, pageSize, filter }
+  }, [page, pageSize, companyFilterId, filterValues.itemTypeId, debouncedSearchValue])
 
   const { data, isLoading, isError } = usePawnTerms(listOptions)
   const deletePawnTermMutation = useDeletePawnTerm()
 
-  const termsFromApi = data?.data ?? []
   const rows = React.useMemo(
-    () => termsFromApi.map(mapPawnTermToRow),
-    [termsFromApi]
+    () => (data?.data ?? []).map(mapPawnTermToRow),
+    [data?.data]
   )
 
-  const filteredSyaratMata = React.useMemo(() => {
-    let result = [...rows]
+  // Reset to page 1 when search or filters change
+  useEffect(() => {
+    setPage(1)
+  }, [debouncedSearchValue, companyFilterId, filterValues.itemTypeId])
 
+  // Last-update filter applied client-side on current page only
+  const tableData = React.useMemo(() => {
     const lastUpdateRange = (filterValues.lastUpdate as {
       from: string | null
       to: string | null
     }) || { from: null, to: null }
-
-    if (searchValue) {
-      const searchLower = searchValue.toLowerCase()
-      result = result.filter(
-        (item) =>
-          item.namaAturan.toLowerCase().includes(searchLower) ||
-          item.tipeBarang.toLowerCase().includes(searchLower)
-      )
-    }
-
-    if (lastUpdateRange.from || lastUpdateRange.to) {
-      result = result.filter((item) => {
-        const itemDate = new Date(item.lastUpdatedAt)
-        if (!Number.isNaN(itemDate.getTime())) {
-          itemDate.setHours(0, 0, 0, 0)
-          if (lastUpdateRange.from) {
-            const fromDate = new Date(lastUpdateRange.from)
-            fromDate.setHours(0, 0, 0, 0)
-            if (itemDate < fromDate) return false
-          }
-          if (lastUpdateRange.to) {
-            const toDate = new Date(lastUpdateRange.to)
-            toDate.setHours(23, 59, 59, 999)
-            if (itemDate > toDate) return false
-          }
-        }
-        return true
-      })
-    }
-
-    return result
-  }, [rows, searchValue, filterValues.lastUpdate])
+    if (!lastUpdateRange.from && !lastUpdateRange.to) return rows
+    return rows.filter((item) => {
+      const itemDate = new Date(item.lastUpdatedAt)
+      if (Number.isNaN(itemDate.getTime())) return true
+      itemDate.setHours(0, 0, 0, 0)
+      if (lastUpdateRange.from) {
+        const fromDate = new Date(lastUpdateRange.from)
+        fromDate.setHours(0, 0, 0, 0)
+        if (itemDate < fromDate) return false
+      }
+      if (lastUpdateRange.to) {
+        const toDate = new Date(lastUpdateRange.to)
+        toDate.setHours(23, 59, 59, 999)
+        if (itemDate > toDate) return false
+      }
+      return true
+    })
+  }, [rows, filterValues.lastUpdate])
 
   const handleDetail = (row: SyaratMataRow) => {
     router.push(`/master-syarat-mata/${row.id}`)
@@ -370,14 +352,17 @@ function MasterSyaratMataPageContent() {
         ) : (
           <DataTable
             columns={syaratMataColumns}
-            data={filteredSyaratMata}
+            data={tableData}
             title="Daftar Katalog"
             searchPlaceholder="Cari..."
             headerRight={
               <div className="flex w-full items-center gap-2 sm:w-auto">
                 <Select
                   value={pageSize.toString()}
-                  onValueChange={(value) => setPageSize(Number(value))}
+                  onValueChange={(value) => {
+                    setPageSize(Number(value))
+                    setPage(1)
+                  }}
                 >
                   <SelectTrigger className="w-[100px]">
                     <SelectValue />
@@ -409,12 +394,20 @@ function MasterSyaratMataPageContent() {
               </div>
             }
             initialPageSize={pageSize}
-            onPageSizeChange={setPageSize}
+            onPageSizeChange={(size) => {
+              setPageSize(size)
+              setPage(1)
+            }}
             searchValue={searchValue}
             onSearchChange={setSearchValue}
             onDetail={handleDetail}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            serverSidePagination={{
+              totalRowCount: data?.meta?.count ?? 0,
+              pageIndex: page - 1,
+              onPageIndexChange: (idx) => setPage(idx + 1),
+            }}
           />
         )}
       </div>

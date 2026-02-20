@@ -39,4 +39,8 @@ export class PawnTermEntity extends AbstractEntity {
 
   @Column({ type: 'decimal', precision: 15, scale: 2, default: 0 })
   adminFee: string;
+
+  /** Item condition rule: present_and_matching | present_but_mismatch */
+  @Column({ type: 'varchar', length: 64, default: 'present_and_matching' })
+  itemCondition: string;
 }

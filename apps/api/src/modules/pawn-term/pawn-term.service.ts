@@ -25,6 +25,12 @@ export class PawnTermService {
     queryDto: QueryPawnTermDto,
     userPtId?: string,
   ): Promise<{ data: PawnTermDto[]; meta: PageMetaDto }> {
+    const search = queryDto.search?.trim();
+
+    if (search) {
+      return this.findAllWithSearch(queryDto, userPtId, search);
+    }
+
     const where: FindOptionsWhere<PawnTermEntity> = {};
 
     if (userPtId) {
@@ -54,6 +60,47 @@ export class PawnTermService {
       PawnTermEntity.createQueryBuilder('pawn_term'),
       qbOptions,
     );
+
+    const data = terms.map((t) => new PawnTermDto(t));
+    const meta = new PageMetaDto({
+      pageOptionsDto: queryDto,
+      itemCount: count,
+    });
+
+    return { data, meta };
+  }
+
+  private async findAllWithSearch(
+    queryDto: QueryPawnTermDto,
+    userPtId: string | undefined,
+    search: string,
+  ): Promise<{ data: PawnTermDto[]; meta: PageMetaDto }> {
+    const qb = this.pawnTermRepository
+      .createQueryBuilder('pawn_term')
+      .leftJoinAndSelect('pawn_term.itemType', 'itemType')
+      .leftJoinAndSelect('pawn_term.pt', 'pt')
+      .where('itemType.typeName ILIKE :search', { search: `%${search}%` });
+
+    if (userPtId) {
+      qb.andWhere('pawn_term.ptId = :userPtId', { userPtId });
+    }
+    if (queryDto.ptId) {
+      qb.andWhere('pawn_term.ptId = :ptId', { ptId: queryDto.ptId });
+    }
+    if (queryDto.itemTypeId) {
+      qb.andWhere('pawn_term.itemTypeId = :itemTypeId', { itemTypeId: queryDto.itemTypeId });
+    }
+
+    qb.orderBy('pawn_term.createdAt', 'DESC');
+
+    const skip = queryDto.getSkip();
+    const take = queryDto.getTake();
+    if (take !== undefined) {
+      qb.take(take);
+    }
+    qb.skip(skip);
+
+    const [terms, count] = await qb.getManyAndCount();
 
     const data = terms.map((t) => new PawnTermDto(t));
     const meta = new PageMetaDto({
@@ -100,6 +147,7 @@ export class PawnTermService {
       tenorDefault: createDto.tenorDefault,
       interestRate: String(createDto.interestRate),
       adminFee: String(createDto.adminFee ?? 0),
+      itemCondition: createDto.itemCondition ?? 'present_and_matching',
       createdBy,
     });
 
@@ -130,6 +178,7 @@ export class PawnTermService {
       loanLimitMax: updateDto.loanLimitMax !== undefined ? String(updateDto.loanLimitMax) : term.loanLimitMax,
       interestRate: updateDto.interestRate !== undefined ? String(updateDto.interestRate) : term.interestRate,
       adminFee: updateDto.adminFee !== undefined ? String(updateDto.adminFee) : term.adminFee,
+      ...(updateDto.itemCondition !== undefined && { itemCondition: updateDto.itemCondition }),
     });
 
     const updated = await this.pawnTermRepository.save(term);

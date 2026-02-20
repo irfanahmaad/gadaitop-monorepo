@@ -1,5 +1,6 @@
-import { IsNumber, IsOptional, Min } from 'class-validator';
+import { IsIn, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 import { Type } from 'class-transformer';
+import { PAWN_TERM_ITEM_CONDITION_VALUES } from './create-pawn-term.dto';
 
 export class UpdatePawnTermDto {
   @IsOptional()
@@ -31,4 +32,9 @@ export class UpdatePawnTermDto {
   @Min(0)
   @Type(() => Number)
   adminFee?: number;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(PAWN_TERM_ITEM_CONDITION_VALUES)
+  itemCondition?: string;
 }
