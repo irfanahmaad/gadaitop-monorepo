@@ -42,10 +42,8 @@ async function proxyRequest(
           fetchOptions.body = body
         }
       } else if (contentType?.includes("multipart/form-data")) {
-        // For file uploads, pass the body as-is
+        // For file uploads, pass the raw body and keep original content-type with boundary
         fetchOptions.body = await request.arrayBuffer()
-        // Remove content-type to let fetch set it with boundary
-        headers.delete("content-type")
       }
     }
 

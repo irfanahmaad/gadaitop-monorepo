@@ -27,7 +27,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@workspace/ui/components/alert-dialog"
-import { useUser, useDeleteSuperAdmin } from "@/lib/react-query/hooks"
+import { useUser, useDeleteSuperAdmin, usePublicUrl } from "@/lib/react-query/hooks"
 
 export default function DetailSuperAdminPage() {
   const params = useParams()
@@ -38,6 +38,10 @@ export default function DetailSuperAdminPage() {
   // Fetch user data
   const { data: superAdmin, isLoading, isError } = useUser(slug)
   const deleteMutation = useDeleteSuperAdmin()
+
+  // Resolve S3 key to displayable URL
+  const imageKey = superAdmin?.imageUrl ?? ""
+  const { data: publicUrlData } = usePublicUrl(imageKey)
 
   const handleEdit = () => {
     router.push(`/super-admin/${slug}/edit`)
@@ -114,7 +118,7 @@ export default function DetailSuperAdminPage() {
               {/* Profile Picture */}
               <div className="flex justify-center">
                 <Avatar className="size-48">
-                  <AvatarImage src="" alt={superAdmin.fullName} />
+                  <AvatarImage src={publicUrlData?.url || ""} alt={superAdmin.fullName} />
                   <AvatarFallback>
                     <UserIcon className="text-muted-foreground size-24" />
                   </AvatarFallback>

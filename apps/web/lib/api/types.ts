@@ -69,6 +69,7 @@ export interface User {
   email: string
   fullName: string
   phoneNumber?: string
+  imageUrl?: string
   activeStatus: ActiveStatus
   isEmailVerified: boolean
   isPhoneVerified: boolean
@@ -97,6 +98,7 @@ export interface UpdateUserDto {
   email?: string
   fullName?: string
   phoneNumber?: string
+  imageUrl?: string
   activeStatus?: ActiveStatus
 }
 

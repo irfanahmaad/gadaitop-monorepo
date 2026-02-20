@@ -39,6 +39,8 @@ import {
   useUser,
   useUpdateSuperAdmin,
   useResetUserPassword,
+  useUploadFile,
+  usePublicUrl,
 } from "@/lib/react-query/hooks"
 
 const superAdminEditSchema = z
@@ -85,6 +87,11 @@ export default function EditSuperAdminPage() {
   const { data: superAdmin, isLoading: isLoadingUser, isError } = useUser(slug)
   const updateMutation = useUpdateSuperAdmin()
   const resetPasswordMutation = useResetUserPassword()
+  const presignedUrlMutation = useUploadFile()
+
+  // Resolve existing imageUrl to a displayable public URL
+  const existingImageKey = superAdmin?.imageUrl ?? ""
+  const { data: publicUrlData } = usePublicUrl(existingImageKey)
 
   const form = useForm<SuperAdminEditFormValues>({
     resolver: zodResolver(superAdminEditSchema),
@@ -102,15 +109,19 @@ export default function EditSuperAdminPage() {
   useEffect(() => {
     if (superAdmin) {
       form.reset({
-        image: undefined,
+        image: superAdmin.imageUrl || undefined,
         fullName: superAdmin.fullName,
         email: superAdmin.email,
         phoneNumber: superAdmin.phoneNumber || "",
         password: "",
         confirmPassword: "",
       })
+      // Show existing image as preview
+      if (superAdmin.imageUrl && publicUrlData?.url) {
+        setPreviewImage(publicUrlData.url)
+      }
     }
-  }, [superAdmin, form])
+  }, [superAdmin, form, publicUrlData])
 
   const handleImageChange = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -136,6 +147,22 @@ export default function EditSuperAdminPage() {
 
   const onSubmit = async (values: SuperAdminEditFormValues) => {
     try {
+      let imageUrl: string | undefined
+
+      // Upload image to S3 via backend if a new file was selected
+      if (values.image instanceof File) {
+        const file = values.image
+        const ext = file.name.split(".").pop() || "jpg"
+        const key = `users/${slug}/avatar-${Date.now()}.${ext}`
+
+        const { key: s3Key } = await presignedUrlMutation.mutateAsync({
+          file,
+          key,
+        })
+
+        imageUrl = s3Key
+      }
+
       // Update user info
       await updateMutation.mutateAsync({
         id: slug,
@@ -143,6 +170,7 @@ export default function EditSuperAdminPage() {
           fullName: values.fullName,
           email: values.email,
           phoneNumber: values.phoneNumber,
+          ...(imageUrl && { imageUrl }),
         },
       })
 
@@ -180,7 +208,7 @@ export default function EditSuperAdminPage() {
     )
   }
 
-  const isSubmitting = updateMutation.isPending || resetPasswordMutation.isPending
+  const isSubmitting = updateMutation.isPending || resetPasswordMutation.isPending || presignedUrlMutation.isPending
 
   return (
     <>

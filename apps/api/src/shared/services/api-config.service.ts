@@ -99,10 +99,12 @@ export class ApiConfigService {
     bucket: string;
     region: string;
     keyPrefix: string;
+    accessKeyId?: string;
+    secretAccessKey?: string;
     endpoint?: string;
   } | null {
-    const bucket = this.configService.get<string>('S3_BUCKET');
-    const region = this.configService.get<string>('S3_REGION');
+    const bucket = this.configService.get<string>('AWS_S3_BUCKET_NAME');
+    const region = this.configService.get<string>('AWS_S3_BUCKET_REGION');
     if (!bucket || !region) {
       return null;
     }
@@ -110,6 +112,8 @@ export class ApiConfigService {
       bucket,
       region,
       keyPrefix: this.configService.get<string>('S3_KEY_PREFIX') ?? '',
+      accessKeyId: this.configService.get<string>('AWS_S3_ACCESS_KEY_ID'),
+      secretAccessKey: this.configService.get<string>('AWS_S3_SECRET_ACCESS_KEY'),
       endpoint: this.configService.get<string>('S3_ENDPOINT'),
     };
   }

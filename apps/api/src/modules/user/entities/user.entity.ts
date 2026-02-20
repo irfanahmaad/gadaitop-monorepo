@@ -30,6 +30,9 @@ export class UserEntity extends AbstractEntity {
   @Column({ type: 'varchar', length: 20, nullable: true })
   phoneNumber: string | null;
 
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  imageUrl: string | null;
+
   // ============================================
   // ROLES: Many-to-Many with RoleEntity
   // ============================================

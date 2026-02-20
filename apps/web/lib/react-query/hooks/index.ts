@@ -230,6 +230,7 @@ export {
   uploadKeys,
   usePresignedUrl,
   usePublicUrl,
+  useUploadFile,
 } from "./use-upload"
 
 // Link hooks

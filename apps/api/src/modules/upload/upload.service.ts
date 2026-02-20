@@ -3,9 +3,8 @@ import {
   Injectable,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { PutObjectCommand } from '@aws-sdk/client-s3';
+import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { S3Client } from '@aws-sdk/client-s3';
 
 import { ApiConfigService } from '../../shared/services/api-config.service';
 import { PresignedUrlResponseDto } from './dto/presigned-url-response.dto';
@@ -30,6 +29,14 @@ export class UploadService {
       this.keyPrefix = (config.keyPrefix ?? '').replace(/\/$/, '');
       this.s3Client = new S3Client({
         region: config.region,
+        requestChecksumCalculation: 'WHEN_REQUIRED',
+        responseChecksumValidation: 'WHEN_REQUIRED',
+        ...(config.accessKeyId && config.secretAccessKey && {
+          credentials: {
+            accessKeyId: config.accessKeyId,
+            secretAccessKey: config.secretAccessKey,
+          },
+        }),
         ...(config.endpoint && { endpoint: config.endpoint }),
         forcePathStyle: !!config.endpoint,
       });
@@ -80,22 +87,58 @@ export class UploadService {
   }
 
   /**
-   * Build a public URL for a stored key (if bucket has public read or CDN).
-   * Override in subclass or use custom domain env (e.g. S3_PUBLIC_BASE_URL).
+   * Upload a file directly to S3 from the server.
+   * Returns the full S3 key (with prefix).
    */
-  getPublicUrl(key: string): string {
-    if (!this.bucket) {
+  async uploadFile(
+    key: string,
+    body: Buffer,
+    contentType: string,
+  ): Promise<{ key: string; url: string }> {
+    if (!this.s3Client || !this.bucket) {
+      throw new ServiceUnavailableException(
+        'S3 is not configured. Set AWS_S3_BUCKET_NAME and AWS_S3_BUCKET_REGION.',
+      );
+    }
+
+    const fullKey = this.keyPrefix ? `${this.keyPrefix}/${key}` : key;
+
+    const command = new PutObjectCommand({
+      Bucket: this.bucket,
+      Key: fullKey,
+      Body: body,
+      ContentType: contentType,
+    });
+
+    await this.s3Client.send(command);
+
+    return {
+      key: fullKey,
+      url: await this.getPublicUrl(fullKey),
+    };
+  }
+
+  /**
+   * Build a presigned GET URL for a stored key.
+   * Works with private buckets — returns a time-limited signed URL.
+   */
+  async getPublicUrl(key: string): Promise<string> {
+    if (!this.s3Client || !this.bucket) {
       throw new BadRequestException('S3 is not configured.');
     }
+
+    // If a public base URL is configured (e.g. CDN), use it directly
     const base = this.configService.getOptional('S3_PUBLIC_BASE_URL');
     if (base) {
       return `${base.replace(/\/$/, '')}/${key}`;
     }
-    const config = this.configService.s3Config;
-    const endpoint = config?.endpoint;
-    if (endpoint) {
-      return `${endpoint}/${this.bucket}/${key}`;
-    }
-    return `https://${this.bucket}.s3.${config?.region ?? 'us-east-1'}.amazonaws.com/${key}`;
+
+    // Otherwise generate a presigned GET URL (1 hour)
+    const command = new GetObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+    });
+
+    return getSignedUrl(this.s3Client, command, { expiresIn: 3600 });
   }
 }
