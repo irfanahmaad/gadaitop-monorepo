@@ -3,6 +3,7 @@ import { NestFactory, Reflector } from '@nestjs/core';
 
 import { AppModule } from './app.module';
 import { ApiConfigService } from './shared/services/api-config.service';
+import { QueryFailedErrorFilter } from './common/filters/query-failed-error.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -27,6 +28,8 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
     }),
   );
+
+  app.useGlobalFilters(new QueryFailedErrorFilter());
 
   app.useGlobalInterceptors(new ClassSerializerInterceptor(reflector));
 

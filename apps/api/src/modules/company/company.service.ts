@@ -243,11 +243,11 @@ export class CompanyService {
 
     try {
       // Remove company
-      await queryRunner.manager.remove(company);
+      await queryRunner.manager.softRemove(company);
 
-      // Optionally remove the owner if they only own this company
+      // Optionally soft-remove the owner if they only own this company
       if (company.owner) {
-        await queryRunner.manager.remove(company.owner);
+        await queryRunner.manager.softRemove(company.owner);
       }
 
       await queryRunner.commitTransaction();

@@ -283,6 +283,6 @@ export class UserService {
       throw new NotFoundException(`User with UUID ${uuid} not found`);
     }
 
-    await this.userRepository.remove(user);
+    await this.userRepository.softDelete({ uuid });
   }
 }
