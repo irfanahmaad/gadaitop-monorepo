@@ -54,15 +54,15 @@ export class UserService {
 
   /**
    * Lightweight method for JWT strategy validation.
-   * Only selects id and accessToken — no relations join.
+   * Selects id, uuid and accessToken — no relations join.
    * Used on every authenticated request, so performance is critical.
    */
   async findOneTokenStatus(
     userId: number,
-  ): Promise<{ id: number; accessToken: string | null } | null> {
+  ): Promise<{ id: number; uuid: string; accessToken: string | null } | null> {
     return this.userRepository.findOne({
       where: { id: userId },
-      select: ['id', 'accessToken'],
+      select: ['id', 'uuid', 'accessToken'],
     });
   }
 

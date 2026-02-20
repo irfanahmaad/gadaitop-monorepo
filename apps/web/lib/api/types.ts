@@ -970,15 +970,20 @@ export type NotificationType =
   | "system"
 
 export interface Notification {
-  id: string
+  id?: string
   uuid: string
   title: string
-  description: string
-  type: NotificationType
-  isRead: boolean
-  relatedEntityType?: string
-  relatedEntityId?: string
-  userId: string
+  /** API returns `body`; frontend may use `description` as alias */
+  body?: string
+  description?: string
+  type: NotificationType | string
+  /** API returns `readAt`; derived `isRead` = !!readAt */
+  readAt?: string | null
+  isRead?: boolean
+  relatedEntityType?: string | null
+  relatedEntityId?: string | null
+  recipientId?: string
+  userId?: string
   user?: User
   createdAt: string
 }

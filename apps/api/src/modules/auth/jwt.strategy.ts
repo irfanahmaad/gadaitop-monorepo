@@ -53,6 +53,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     const roles = await this.roleService.findByids(args.rolesIds);
 
-    return new LogedUserDto(user.id, roles);
+    return new LogedUserDto(user.id, user.uuid, roles);
   }
 }

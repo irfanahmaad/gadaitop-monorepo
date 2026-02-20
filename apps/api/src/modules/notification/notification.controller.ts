@@ -7,6 +7,7 @@ import {
   Query,
   Req,
   ParseUUIDPipe,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { Request } from 'express';
 
@@ -27,7 +28,10 @@ export class NotificationController {
     @Req() req: Request,
   ): Promise<{ data: NotificationDto[]; meta: PageMetaDto }> {
     const user = (req as any).user;
-    const recipientId = user?.uuid ?? '';
+    const recipientId = user?.uuid;
+    if (!recipientId) {
+      throw new UnauthorizedException('User UUID is required for notifications');
+    }
     return this.notificationService.findAll(queryDto, recipientId);
   }
 
@@ -35,7 +39,10 @@ export class NotificationController {
   @Auth([])
   async getUnreadCount(@Req() req: Request): Promise<{ count: number }> {
     const user = (req as any).user;
-    const recipientId = user?.uuid ?? '';
+    const recipientId = user?.uuid;
+    if (!recipientId) {
+      throw new UnauthorizedException('User UUID is required for notifications');
+    }
     return this.notificationService.getUnreadCount(recipientId);
   }
 
@@ -46,7 +53,10 @@ export class NotificationController {
     @Req() req: Request,
   ): Promise<NotificationDto> {
     const user = (req as any).user;
-    const recipientId = user?.uuid ?? '';
+    const recipientId = user?.uuid;
+    if (!recipientId) {
+      throw new UnauthorizedException('User UUID is required for notifications');
+    }
     return this.notificationService.findOne(id, recipientId);
   }
 
@@ -57,7 +67,10 @@ export class NotificationController {
     @Req() req: Request,
   ): Promise<NotificationDto> {
     const user = (req as any).user;
-    const recipientId = user?.uuid ?? '';
+    const recipientId = user?.uuid;
+    if (!recipientId) {
+      throw new UnauthorizedException('User UUID is required for notifications');
+    }
     return this.notificationService.markAsRead(id, recipientId);
   }
 
@@ -65,7 +78,10 @@ export class NotificationController {
   @Auth([])
   async markAllAsRead(@Req() req: Request): Promise<{ count: number }> {
     const user = (req as any).user;
-    const recipientId = user?.uuid ?? '';
+    const recipientId = user?.uuid;
+    if (!recipientId) {
+      throw new UnauthorizedException('User UUID is required for notifications');
+    }
     return this.notificationService.markAllAsRead(recipientId);
   }
 }

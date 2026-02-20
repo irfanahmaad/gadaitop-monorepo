@@ -1,6 +1,11 @@
 "use client"
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query"
 
 import { apiClient } from "@/lib/api/client"
 import { endpoints } from "@/lib/api/endpoints"
@@ -27,6 +32,7 @@ export function useNotifications(options?: PageOptions) {
     queryKey: notificationKeys.list(options),
     queryFn: () =>
       apiClient.getList<Notification>(endpoints.notifications.list, options),
+    placeholderData: keepPreviousData,
   })
 }
 

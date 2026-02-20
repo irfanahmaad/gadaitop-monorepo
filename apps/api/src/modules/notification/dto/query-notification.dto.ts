@@ -7,4 +7,9 @@ export class QueryNotificationDto extends PageOptionsDto {
   @IsOptional()
   @IsString()
   read?: 'read' | 'unread';
+
+  /** Search by title or body */
+  @IsOptional()
+  @IsString()
+  search?: string;
 }

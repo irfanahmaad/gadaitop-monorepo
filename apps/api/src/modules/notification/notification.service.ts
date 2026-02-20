@@ -47,6 +47,14 @@ export class NotificationService {
       qb.andWhere('n.readAt IS NULL');
     }
 
+    const search = queryDto.search?.trim();
+    if (search) {
+      qb.andWhere(
+        '(n.title ILIKE :search OR n.body ILIKE :search)',
+        { search: `%${search}%` },
+      );
+    }
+
     const qbOptions: QueryBuilderOptionsType<NotificationEntity> = {
       ...queryDto,
       orderBy: sortAttribute(queryDto.sortBy, {
