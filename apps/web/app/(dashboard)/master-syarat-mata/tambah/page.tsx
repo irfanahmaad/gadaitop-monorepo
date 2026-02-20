@@ -130,13 +130,14 @@ export default function TambahMasterSyaratMataPage() {
       await createPawnTerm({
         ptId: companyId,
         itemTypeId: values.tipeBarang,
+        ruleName: values.namaAturan.trim() || undefined,
         loanLimitMin,
         loanLimitMax,
         tenorMin,
         tenorMax,
         interestRate,
         adminFee: Number.isNaN(adminFee) ? undefined : adminFee,
-        itemCondition: values.itemCondition as "present_and_matching" | "present_but_mismatch",
+        itemCondition: values.itemCondition as "present_and_matching" | "present_but_mismatch" | "none",
       })
       toast.success("Data Syarat Mata berhasil ditambahkan")
       setConfirmOpen(false)

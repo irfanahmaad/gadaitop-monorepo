@@ -27,7 +27,10 @@ import { Card, CardContent, CardHeader } from "@workspace/ui/components/card"
 import type { PawnTerm } from "@/lib/api/types"
 import { getItemConditionLabel } from "@/lib/constants/item-condition"
 import { useAuth } from "@/lib/react-query/hooks/use-auth"
-import { usePawnTerms, useDeletePawnTerm } from "@/lib/react-query/hooks/use-pawn-terms"
+import {
+  usePawnTerms,
+  useDeletePawnTerm,
+} from "@/lib/react-query/hooks/use-pawn-terms"
 import { useCompanies } from "@/lib/react-query/hooks/use-companies"
 import { useItemTypes } from "@/lib/react-query/hooks/use-item-types"
 import { toast } from "sonner"
@@ -45,9 +48,10 @@ type SyaratMataRow = {
 
 function mapPawnTermToRow(term: PawnTerm): SyaratMataRow {
   const typeName = term.itemType?.typeName ?? "-"
+  const ruleName = term.ruleName?.trim() || typeName
   return {
     id: term.uuid,
-    namaAturan: `${typeName} (Tenor ${term.tenorMin ?? 0}-${term.tenorMax ?? 0} bln)`,
+    namaAturan: ruleName,
     tipeBarang: typeName,
     hargaDari: Number(term.loanLimitMin),
     hargaSampai: Number(term.loanLimitMax),
@@ -157,7 +161,7 @@ function MasterSyaratMataPageContent() {
     user?.roles?.some((r) => r.code === "company_admin") ?? false
   const isSuperAdmin = user?.roles?.some((r) => r.code === "owner") ?? false
 
-  const effectiveCompanyId = isCompanyAdmin ? user?.companyId ?? null : null
+  const effectiveCompanyId = isCompanyAdmin ? (user?.companyId ?? null) : null
 
   const { data: companiesData } = useCompanies(
     isSuperAdmin ? { pageSize: 100 } : undefined
@@ -229,7 +233,13 @@ function MasterSyaratMataPageContent() {
     if (itemTypeIds.length > 0) filter.itemTypeId = itemTypeIds[0] as string
     if (debouncedSearchValue.trim()) filter.search = debouncedSearchValue.trim()
     return { page, pageSize, filter }
-  }, [page, pageSize, companyFilterId, filterValues.itemTypeId, debouncedSearchValue])
+  }, [
+    page,
+    pageSize,
+    companyFilterId,
+    filterValues.itemTypeId,
+    debouncedSearchValue,
+  ])
 
   const { data, isLoading, isError } = usePawnTerms(listOptions)
   const deletePawnTermMutation = useDeletePawnTerm()
@@ -305,7 +315,9 @@ function MasterSyaratMataPageContent() {
         {/* Header Section */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex flex-col gap-2">
-            <h1 className="text-2xl font-bold">Master Syarat &quot;Mata&quot;</h1>
+            <h1 className="text-2xl font-bold">
+              Master Syarat &quot;Mata&quot;
+            </h1>
             <Breadcrumbs
               items={[
                 { label: "Pages", href: "/" },

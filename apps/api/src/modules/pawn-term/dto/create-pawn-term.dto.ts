@@ -9,7 +9,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
-export const PAWN_TERM_ITEM_CONDITION_VALUES = ['present_and_matching', 'present_but_mismatch'] as const;
+export const PAWN_TERM_ITEM_CONDITION_VALUES = ['present_and_matching', 'present_but_mismatch', 'none'] as const;
 export type PawnTermItemCondition = (typeof PAWN_TERM_ITEM_CONDITION_VALUES)[number];
 
 export class CreatePawnTermDto {
@@ -20,6 +20,10 @@ export class CreatePawnTermDto {
   @IsNotEmpty()
   @IsUUID()
   itemTypeId: string;
+
+  @IsOptional()
+  @IsString()
+  ruleName?: string;
 
   @IsNotEmpty()
   @IsNumber()

@@ -79,7 +79,10 @@ export class PawnTermService {
       .createQueryBuilder('pawn_term')
       .leftJoinAndSelect('pawn_term.itemType', 'itemType')
       .leftJoinAndSelect('pawn_term.pt', 'pt')
-      .where('itemType.typeName ILIKE :search', { search: `%${search}%` });
+      .where(
+        '(itemType.typeName ILIKE :search OR pawn_term.rule_name ILIKE :search)',
+        { search: `%${search}%` },
+      );
 
     if (userPtId) {
       qb.andWhere('pawn_term.ptId = :userPtId', { userPtId });
@@ -146,6 +149,7 @@ export class PawnTermService {
     const term = this.pawnTermRepository.create({
       ptId: createDto.ptId,
       itemTypeId: createDto.itemTypeId,
+      ruleName: createDto.ruleName?.trim() || null,
       loanLimitMin: String(createDto.loanLimitMin),
       loanLimitMax: String(createDto.loanLimitMax),
       tenorMin: createDto.tenorMin,
@@ -187,6 +191,7 @@ export class PawnTermService {
 
     Object.assign(term, {
       ...updateDto,
+      ruleName: updateDto.ruleName !== undefined ? (updateDto.ruleName?.trim() || null) : term.ruleName,
       loanLimitMin: updateDto.loanLimitMin !== undefined ? String(updateDto.loanLimitMin) : term.loanLimitMin,
       loanLimitMax: updateDto.loanLimitMax !== undefined ? String(updateDto.loanLimitMax) : term.loanLimitMax,
       interestRate: updateDto.interestRate !== undefined ? String(updateDto.interestRate) : term.interestRate,

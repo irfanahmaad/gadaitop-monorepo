@@ -154,13 +154,17 @@ function EditSyaratMataForm({
       await updatePawnTerm({
         id,
         data: {
+          ruleName: values.namaAturan.trim() || undefined,
           loanLimitMin,
           loanLimitMax,
           tenorMin,
           tenorMax,
           interestRate,
           adminFee: Number.isNaN(adminFee) ? undefined : adminFee,
-          itemCondition: values.itemCondition as "present_and_matching" | "present_but_mismatch",
+          itemCondition: values.itemCondition as
+            | "present_and_matching"
+            | "present_but_mismatch"
+            | "none",
         },
       })
       toast.success("Data Syarat Mata berhasil diperbarui")
@@ -490,8 +494,12 @@ export default function EditMasterSyaratMataPage() {
       (opt) => opt.value === tipeBarangValue
     )
     if (!hasMatchingOption) return null
+    const ruleName =
+      pawnTermData.ruleName?.trim() ||
+      pawnTermData.itemType?.typeName ||
+      "-"
     return {
-      namaAturan: `${pawnTermData.itemType?.typeName ?? "-"} (Tenor ${tenorMinVal}-${tenorMaxVal})`,
+      namaAturan: ruleName,
       tipeBarang: tipeBarangValue,
       hargaDari: formatCurrencyInput(Number(pawnTermData.loanLimitMin ?? 0)),
       hargaSampai: formatCurrencyInput(Number(pawnTermData.loanLimitMax ?? 0)),

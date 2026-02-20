@@ -87,10 +87,12 @@ export default function MasterSyaratMataDetailPage() {
     useDeletePawnTerm()
   const syaratMata = useMemo<SyaratMataDetail | null>(() => {
     if (!pawnTermData) return null
+    const typeName = pawnTermData.itemType?.typeName ?? "-"
+    const ruleName = pawnTermData.ruleName?.trim() || typeName
     return {
       id: pawnTermData.uuid,
-      namaAturan: `${pawnTermData.itemType?.typeName ?? "-"} (Tenor ${pawnTermData.tenorMin ?? 0}-${pawnTermData.tenorMax ?? 0})`,
-      tipeBarang: pawnTermData.itemType?.typeName ?? "-",
+      namaAturan: ruleName,
+      tipeBarang: typeName,
       hargaDari: Number(pawnTermData.loanLimitMin ?? 0),
       hargaSampai: Number(pawnTermData.loanLimitMax ?? 0),
       macetDari: Number(pawnTermData.tenorMin ?? 0),

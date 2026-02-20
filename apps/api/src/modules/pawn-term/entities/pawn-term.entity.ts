@@ -25,6 +25,10 @@ export class PawnTermEntity extends AbstractEntity {
   @JoinColumn({ name: 'item_type_id', referencedColumnName: 'uuid' })
   itemType: Relation<any>;
 
+  /** Display name for the rule (e.g. "Handphone 6–12 bulan"); distinct from item type name. */
+  @Column({ name: 'rule_name', type: 'varchar', length: 255, nullable: true })
+  ruleName: string | null;
+
   @Column({ type: 'decimal', precision: 15, scale: 2 })
   loanLimitMin: string;
 

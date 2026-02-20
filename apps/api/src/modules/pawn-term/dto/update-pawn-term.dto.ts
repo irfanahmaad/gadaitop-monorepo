@@ -4,6 +4,10 @@ import { PAWN_TERM_ITEM_CONDITION_VALUES } from './create-pawn-term.dto';
 
 export class UpdatePawnTermDto {
   @IsOptional()
+  @IsString()
+  ruleName?: string;
+
+  @IsOptional()
   @IsNumber()
   @Min(0)
   @Type(() => Number)
