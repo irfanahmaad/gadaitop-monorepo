@@ -32,6 +32,7 @@ import {
 } from "@workspace/ui/components/form"
 import { Card, CardContent } from "@workspace/ui/components/card"
 import { Skeleton } from "@workspace/ui/components/skeleton"
+import type { Company } from "@/lib/api/types"
 import {
   useCompany,
   useUpdateCompany,
@@ -137,7 +138,8 @@ export default function EditPTPage() {
   const { data: company, isLoading, isError } = useCompany(slug)
   const updateCompanyMutation = useUpdateCompany()
   const uploadFileMutation = useUploadFile()
-  const existingImageKey = company?.imageUrl ?? ""
+  const companyWithImage = company as Company & { imageUrl?: string | null }
+  const existingImageKey = companyWithImage?.imageUrl ?? ""
   const { data: publicUrlData } = usePublicUrl(existingImageKey)
 
   const form = useForm<PTEditFormValues>({
@@ -160,7 +162,7 @@ export default function EditPTPage() {
   useEffect(() => {
     if (company) {
       form.reset({
-        image: company.imageUrl || undefined,
+        image: companyWithImage.imageUrl || undefined,
         code: company.companyCode,
         name: company.companyName,
         phone: company.phoneNumber || "",
@@ -171,11 +173,11 @@ export default function EditPTPage() {
         password: "",
         confirmPassword: "",
       })
-      if (company.imageUrl && publicUrlData?.url) {
+      if (companyWithImage.imageUrl && publicUrlData?.url) {
         setPreviewImage(publicUrlData.url)
       }
     }
-  }, [company, form, publicUrlData?.url])
+  }, [company, form, publicUrlData?.url, companyWithImage?.imageUrl])
 
   const handleImageChange = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -213,7 +215,7 @@ export default function EditPTPage() {
           key,
         })
         imageUrl = s3Key
-      } else if (company?.imageUrl && !values.image) {
+      } else if (companyWithImage?.imageUrl && !values.image) {
         imageUrl = null
       }
 
