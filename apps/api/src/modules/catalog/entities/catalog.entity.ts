@@ -49,6 +49,21 @@ export class CatalogEntity extends AbstractEntity {
   @Column({ type: 'text', nullable: true })
   description: string | null;
 
+  @Column({ name: 'image_url', type: 'varchar', length: 500, nullable: true })
+  imageUrl: string | null;
+
+  @Column({ name: 'discount_name', type: 'varchar', length: 255, nullable: true })
+  discountName: string | null;
+
+  @Column({
+    name: 'discount_amount',
+    type: 'decimal',
+    precision: 15,
+    scale: 2,
+    default: 0,
+  })
+  discountAmount: string;
+
   @OneToMany('CatalogPriceHistoryEntity', 'catalog')
   priceHistory: Relation<any[]>;
 }

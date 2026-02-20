@@ -46,11 +46,13 @@ import {
 } from "@workspace/ui/components/select"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import {
-  getUserById,
-  updateUser as updateUserInStore,
-  assignRolesToUser,
-  dummyRoles,
-} from "../../dummy-data"
+  useUser,
+  useUpdateUser,
+  useAssignRoles,
+  useResetUserPassword,
+} from "@/lib/react-query/hooks/use-users"
+import { useRoles } from "@/lib/react-query/hooks/use-roles"
+import { usePublicUrl, useUploadFile } from "@/lib/react-query/hooks/use-upload"
 
 const userSchema = z
   .object({
@@ -149,19 +151,31 @@ function FormSkeleton() {
 export default function EditMasterPenggunaPage() {
   const router = useRouter()
   const params = useParams()
-  const userId = params.id as string
+  const userId = typeof params?.id === "string" ? params.id : ""
 
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [previewImage, setPreviewImage] = useState<string | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [formInitialized, setFormInitialized] = useState(false)
+  const [userRemovedImage, setUserRemovedImage] = useState(false)
 
-  // Get user data from dummy store
-  const userData = getUserById(userId)
-  const isLoadingUser = false
-  const isLoadingRoles = false
-  const rolesData = { data: dummyRoles }
+  const { data: userData, isLoading: isLoadingUser } = useUser(userId)
+  const presignedUrlMutation = useUploadFile()
+  const existingImageKey = userData?.imageUrl ?? ""
+  const { data: publicUrlData } = usePublicUrl(existingImageKey)
+  const { data: rolesData, isLoading: isLoadingRoles } = useRoles({
+    pageSize: 100,
+  })
+  const updateUserMutation = useUpdateUser()
+  const assignRolesMutation = useAssignRoles()
+  const resetPasswordMutation = useResetUserPassword()
+
+  const isSubmitting =
+    updateUserMutation.isPending ||
+    assignRolesMutation.isPending ||
+    resetPasswordMutation.isPending ||
+    presignedUrlMutation.isPending
 
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userSchema),
@@ -176,21 +190,31 @@ export default function EditMasterPenggunaPage() {
     },
   })
 
-  // Pre-fill form when user data is loaded
+  // Pre-fill form when user data is loaded; only run once to avoid overwriting user's image change
   useEffect(() => {
-    if (userData) {
-      const user = userData
-      form.reset({
-        fullName: user.fullName || "",
-        email: user.email || "",
-        phoneNumber: user.phoneNumber || "",
-        roleId: user.roles?.[0]?.uuid || "",
-        password: "",
-        confirmPassword: "",
-      })
-      // Set preview image if user has a photo (if available in future)
+    if (!userData || formInitialized) return
+    const user = userData
+    const roleId = user.roles?.[0]?.uuid || ""
+    form.reset({
+      fullName: user.fullName || "",
+      email: user.email || "",
+      phoneNumber: user.phoneNumber || "",
+      roleId,
+      password: "",
+      confirmPassword: "",
+    })
+    setFormInitialized(true)
+  }, [userData, form, formInitialized])
+
+  // Set preview from existing S3 image (public URL)
+  useEffect(() => {
+    if (userRemovedImage || form.getValues("image") instanceof File) return
+    if (existingImageKey && publicUrlData?.url) {
+      setPreviewImage(publicUrlData.url)
+    } else if (!existingImageKey) {
+      setPreviewImage(null)
     }
-  }, [userData, form])
+  }, [existingImageKey, publicUrlData?.url, userRemovedImage, form])
 
   const handleImageChange = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -199,6 +223,7 @@ export default function EditMasterPenggunaPage() {
     const file = e.target.files?.[0]
     if (file) {
       field.onChange(file)
+      setUserRemovedImage(false)
       const reader = new FileReader()
       reader.onloadend = () => {
         setPreviewImage(reader.result as string)
@@ -211,6 +236,7 @@ export default function EditMasterPenggunaPage() {
     onChange: (value: undefined) => void
   }) => {
     field.onChange(undefined)
+    setUserRemovedImage(true)
     setPreviewImage(null)
   }
 
@@ -224,39 +250,57 @@ export default function EditMasterPenggunaPage() {
 
   const handleConfirmSubmit = async () => {
     const values = form.getValues()
-    setIsSubmitting(true)
 
     try {
-      // Update basic user info
-      const updatedUser = updateUserInStore(userId, {
-        fullName: values.fullName,
-        email: values.email,
-        phoneNumber: values.phoneNumber || undefined,
-      })
-
-      if (!updatedUser) {
-        toast.error("Pengguna tidak ditemukan")
-        setIsSubmitting(false)
-        return
+      let imageUrl: string | null | undefined = undefined
+      if (values.image instanceof File) {
+        const file = values.image
+        const ext = file.name.split(".").pop() || "jpg"
+        const key = `users/${userId}/image-${Date.now()}.${ext}`
+        const { key: s3Key } = await presignedUrlMutation.mutateAsync({
+          file,
+          key,
+        })
+        imageUrl = s3Key
+      } else if (userRemovedImage && existingImageKey) {
+        imageUrl = null
       }
+
+      // Update basic user info (including image)
+      await updateUserMutation.mutateAsync({
+        id: userId,
+        data: {
+          fullName: values.fullName,
+          email: values.email,
+          phoneNumber: values.phoneNumber || undefined,
+          ...(imageUrl !== undefined && { imageUrl }),
+        },
+      })
 
       // Update role if changed
       if (values.roleId) {
-        assignRolesToUser(userId, [values.roleId])
+        await assignRolesMutation.mutateAsync({
+          id: userId,
+          data: { roleIds: [values.roleId] },
+        })
       }
 
-      // Note: Password reset is not implemented in dummy data
-      // In a real app, this would call an API to reset the password
+      // Reset password if provided
+      if (values.password && values.password.length >= 8) {
+        await resetPasswordMutation.mutateAsync({
+          id: userId,
+          data: { newPassword: values.password },
+        })
+      }
 
       toast.success("Pengguna berhasil diperbarui")
       setConfirmOpen(false)
       router.push("/master-pengguna")
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as { message?: string; errorMessage?: string }
       toast.error(
-        error?.errorMessage || error?.message || "Gagal memperbarui pengguna"
+        err?.errorMessage || err?.message || "Gagal memperbarui pengguna"
       )
-    } finally {
-      setIsSubmitting(false)
     }
   }
 
@@ -293,6 +337,19 @@ export default function EditMasterPenggunaPage() {
     )
   }
 
+  // Keep skeleton until form is initialized with user + role data
+  if (!formInitialized) {
+    return (
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-2">
+          <Skeleton className="h-8 w-32" />
+          <Skeleton className="h-4 w-64" />
+        </div>
+        <FormSkeleton />
+      </div>
+    )
+  }
+
   return (
     <>
       <div className="flex flex-col gap-6">
@@ -325,27 +382,32 @@ export default function EditMasterPenggunaPage() {
                         <FormControl>
                           <div className="relative">
                             {previewImage ? (
-                              <div className="border-input bg-muted/50 relative aspect-square w-48 overflow-hidden rounded-full border-2 border-dashed">
+                              <div className="border-input bg-muted/50 relative aspect-square w-48 rounded-full border-2 border-dashed">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
                                   src={previewImage}
                                   alt="Preview"
-                                  className="size-full object-cover"
+                                  className="size-full overflow-hidden rounded-full object-cover"
                                 />
-                                <label
-                                  htmlFor="image-upload-edit"
-                                  className="bg-destructive hover:bg-destructive/90 absolute right-0 bottom-0 z-10 flex size-10 cursor-pointer items-center justify-center rounded-full text-white shadow-sm transition-colors"
-                                  aria-label="Ubah gambar"
-                                >
-                                  <Pencil className="size-4" />
-                                  <input
-                                    id="image-upload-edit"
-                                    type="file"
-                                    accept="image/*"
-                                    className="hidden"
-                                    onChange={(e) => handleImageChange(e, field)}
-                                  />
-                                </label>
+                                <div className="absolute right-0 bottom-0 left-0 z-10 flex justify-between gap-2 p-1">
+                                  <div></div>
+                                  <label
+                                    htmlFor="image-upload-edit"
+                                    className="bg-destructive hover:bg-destructive/90 flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-white shadow-sm transition-colors"
+                                    aria-label="Ubah gambar"
+                                  >
+                                    <Pencil className="size-4" />
+                                    <input
+                                      id="image-upload-edit"
+                                      type="file"
+                                      accept="image/*"
+                                      className="hidden"
+                                      onChange={(e) =>
+                                        handleImageChange(e, field)
+                                      }
+                                    />
+                                  </label>
+                                </div>
                               </div>
                             ) : (
                               <label

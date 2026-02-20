@@ -21,11 +21,22 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "@workspace/ui/components/avatar"
-import { SearchIcon, SlidersHorizontal, Plus, UserIcon } from "lucide-react"
+import {
+  SearchIcon,
+  SlidersHorizontal,
+  Plus,
+  Trash2,
+  UserIcon,
+} from "lucide-react"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { toast } from "sonner"
 import { Skeleton } from "@workspace/ui/components/skeleton"
-import { Card, CardContent, CardHeader } from "@workspace/ui/components/card"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@workspace/ui/components/card"
 import type { User } from "@/lib/api/types"
 import { useFilterParams } from "@/hooks/use-filter-params"
 import type { FilterConfig } from "@/hooks/use-filter-params"
@@ -33,6 +44,27 @@ import { useAuth } from "@/lib/react-query/hooks/use-auth"
 import { useUsers, useDeleteUser } from "@/lib/react-query/hooks/use-users"
 import { useCompanies } from "@/lib/react-query/hooks/use-companies"
 import { useRoles } from "@/lib/react-query/hooks/use-roles"
+import { usePublicUrl } from "@/lib/react-query/hooks/use-upload"
+
+function UserImageCell({ imageKey, fullName }: { imageKey: string; fullName: string }) {
+  const { data: publicUrlData } = usePublicUrl(imageKey)
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2)
+  }
+  return (
+    <Avatar className="h-10 w-10">
+      <AvatarImage src={imageKey ? publicUrlData?.url : undefined} alt={fullName} />
+      <AvatarFallback>
+        {fullName ? getInitials(fullName) : <UserIcon className="size-5" />}
+      </AvatarFallback>
+    </Avatar>
+  )
+}
 
 // Filter configuration
 const filterConfig: FilterConfig[] = [
@@ -44,7 +76,7 @@ const filterConfig: FilterConfig[] = [
   },
 ]
 
-// Role badge configuration
+// Role badge configuration (matches API role codes from role.seed)
 const getRoleBadgeConfig = (role: { code: string; name: string }) => {
   const configs: Record<string, { label: string; className: string }> = {
     owner: {
@@ -57,17 +89,17 @@ const getRoleBadgeConfig = (role: { code: string; name: string }) => {
       className:
         "border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-400",
     },
-    "staf-toko": {
-      label: "Staf Toko",
+    branch_staff: {
+      label: "Staf Cabang",
       className:
         "border-yellow-500/20 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400",
     },
-    "stock-opname": {
+    stock_auditor: {
       label: "Stock Opname",
       className:
         "border-green-500/20 bg-green-500/10 text-green-700 dark:text-green-400",
     },
-    lelang: {
+    auction_staff: {
       label: "Lelang",
       className:
         "border-purple-500/20 bg-purple-500/10 text-purple-700 dark:text-purple-400",
@@ -120,26 +152,11 @@ const columns: ColumnDef<User>[] = [
     header: "Foto",
     cell: ({ row }) => {
       const user = row.original
-      // Get initials from full name
-      const getInitials = (name: string) => {
-        return name
-          .split(" ")
-          .map((n) => n[0])
-          .join("")
-          .toUpperCase()
-          .slice(0, 2)
-      }
       return (
-        <Avatar className="h-10 w-10">
-          <AvatarImage src="" alt={user.fullName} />
-          <AvatarFallback>
-            {user.fullName ? (
-              getInitials(user.fullName)
-            ) : (
-              <UserIcon className="size-5" />
-            )}
-          </AvatarFallback>
-        </Avatar>
+        <UserImageCell
+          imageKey={user.imageUrl ?? ""}
+          fullName={user.fullName ?? ""}
+        />
       )
     },
   },
@@ -248,11 +265,22 @@ function MasterPenggunaPageContent() {
 
   const companyFilterId = isSuperAdmin ? selectedPT : effectiveCompanyId
 
-  const [pageSize, setPageSize] = useState(100)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
   const [searchValue, setSearchValue] = useState("")
+  const [debouncedSearchValue, setDebouncedSearchValue] = useState("")
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearchValue(searchValue), 500)
+    return () => clearTimeout(t)
+  }, [searchValue])
+
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [filterDialogOpen, setFilterDialogOpen] = useState(false)
+  const [selectedRows, setSelectedRows] = useState<User[]>([])
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false)
+  const [resetSelectionKey, setResetSelectionKey] = useState(0)
 
   const { data: rolesData } = useRoles({ pageSize: 100 })
   const roleOptions = React.useMemo(() => {
@@ -286,40 +314,21 @@ function MasterPenggunaPageContent() {
 
   const listOptions = React.useMemo(() => {
     const filter: Record<string, string> = {}
+    if (companyFilterId) filter.companyId = companyFilterId
     if (selectedRoles.length > 0) filter.roleCode = selectedRoles[0] as string
-    return { page: 1, pageSize: 200, filter }
-  }, [selectedRoles])
+    if (debouncedSearchValue.trim()) filter.search = debouncedSearchValue.trim()
+    return { page, pageSize, filter }
+  }, [page, pageSize, companyFilterId, selectedRoles, debouncedSearchValue])
 
   const { data, isLoading, isError } = useUsers(listOptions)
   const deleteUserMutation = useDeleteUser()
 
   const usersFromApi = data?.data ?? []
 
-  const filteredUsers = React.useMemo(() => {
-    let result = [...usersFromApi]
-
-    if (companyFilterId) {
-      result = result.filter((u) => u.companyId === companyFilterId)
-    }
-
-    if (searchValue) {
-      const searchLower = searchValue.toLowerCase()
-      result = result.filter((user) =>
-        user.email.toLowerCase().includes(searchLower)
-      )
-    }
-
-    if (selectedRoles.length > 0) {
-      result = result.filter((user) => {
-        const userRoleCodes = user.roles?.map((r) => r.code) || []
-        return selectedRoles.some((roleCode) =>
-          userRoleCodes.includes(roleCode)
-        )
-      })
-    }
-
-    return result
-  }, [usersFromApi, companyFilterId, searchValue, selectedRoles])
+  // Reset to page 1 when search or filters change
+  useEffect(() => {
+    setPage(1)
+  }, [debouncedSearchValue, companyFilterId, selectedRoles])
 
   const handleDetail = (row: User) => {
     router.push(`/master-pengguna/${row.uuid}`)
@@ -349,6 +358,24 @@ function MasterPenggunaPageContent() {
 
   const handleTambahData = () => {
     router.push("/master-pengguna/tambah")
+  }
+
+  const handleBulkDelete = () => {
+    setIsBulkDeleteDialogOpen(true)
+  }
+
+  const handleConfirmBulkDelete = async () => {
+    try {
+      await Promise.all(
+        selectedRows.map((row) => deleteUserMutation.mutateAsync(row.uuid))
+      )
+      toast.success(`${selectedRows.length} Pengguna berhasil dihapus`)
+      setIsBulkDeleteDialogOpen(false)
+      setSelectedRows([])
+      setResetSelectionKey((k) => k + 1)
+    } catch {
+      toast.error("Gagal menghapus Pengguna")
+    }
   }
 
   return (
@@ -404,19 +431,31 @@ function MasterPenggunaPageContent() {
         ) : (
           <DataTable
             columns={columns}
-            data={filteredUsers}
-            title="Daftar Pengguna"
-            searchPlaceholder="Search"
+            data={usersFromApi}
+            searchPlaceholder="Cari..."
             filterConfig={filterConfigWithOptions}
             filterValues={filterValues}
             onFilterChange={setFilters}
             filterDialogOpen={filterDialogOpen}
             onFilterDialogOpenChange={setFilterDialogOpen}
+            headerLeft={
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-xl">Daftar Pengguna</CardTitle>
+                {selectedRows.length > 0 && (
+                  <span className="text-destructive font-semibold">
+                    &middot; {selectedRows.length} Selected
+                  </span>
+                )}
+              </div>
+            }
             headerRight={
               <div className="flex w-full items-center gap-2 sm:w-auto">
                 <Select
                   value={pageSize.toString()}
-                  onValueChange={(value) => setPageSize(Number(value))}
+                  onValueChange={(value) => {
+                    setPageSize(Number(value))
+                    setPage(1)
+                  }}
                 >
                   <SelectTrigger className="w-[100px]">
                     <SelectValue />
@@ -430,7 +469,7 @@ function MasterPenggunaPageContent() {
                 </Select>
                 <div className="w-full sm:w-auto sm:max-w-sm">
                   <Input
-                    placeholder="Search"
+                    placeholder="Cari..."
                     value={searchValue}
                     onChange={(e) => setSearchValue(e.target.value)}
                     icon={<SearchIcon className="size-4" />}
@@ -445,25 +484,58 @@ function MasterPenggunaPageContent() {
                   <SlidersHorizontal className="h-4 w-4" />
                   Filter
                 </Button>
+                {selectedRows.length > 0 && (
+                  <Button
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90 flex items-center gap-2"
+                    onClick={handleBulkDelete}
+                  >
+                    <Trash2 className="size-4" />
+                    Hapus
+                  </Button>
+                )}
               </div>
             }
             initialPageSize={pageSize}
-            onPageSizeChange={setPageSize}
+            onPageSizeChange={(size) => {
+              setPageSize(size)
+              setPage(1)
+            }}
             searchValue={searchValue}
             onSearchChange={setSearchValue}
             onDetail={handleDetail}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            onSelectionChange={setSelectedRows}
+            resetSelectionKey={resetSelectionKey}
+            serverSidePagination={{
+              totalRowCount: data?.meta?.count ?? 0,
+              pageIndex: page - 1,
+              onPageIndexChange: (idx) => setPage(idx + 1),
+            }}
           />
         )}
       </div>
 
-      {/* Confirmation Dialog for Delete */}
+      {/* Confirmation Dialog for Single Delete */}
       <ConfirmationDialog
         open={isConfirmDialogOpen}
         onOpenChange={setIsConfirmDialogOpen}
         onConfirm={handleConfirmDelete}
-        description="Anda akan menghapus data Pengguna dari dalam sistem."
+        title="Hapus Pengguna"
+        description="Apakah Anda yakin ingin menghapus pengguna ini? Tindakan ini tidak dapat dibatalkan."
+        confirmLabel="Hapus"
+        variant="destructive"
+      />
+
+      {/* Confirmation Dialog for Bulk Delete */}
+      <ConfirmationDialog
+        open={isBulkDeleteDialogOpen}
+        onOpenChange={setIsBulkDeleteDialogOpen}
+        onConfirm={handleConfirmBulkDelete}
+        title="Hapus Pengguna"
+        description={`Anda akan menghapus ${selectedRows.length} data Pengguna dari dalam sistem.`}
+        confirmLabel="Hapus"
+        variant="destructive"
       />
     </>
   )

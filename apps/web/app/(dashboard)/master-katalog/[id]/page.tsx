@@ -30,6 +30,7 @@ import {
 } from "@workspace/ui/components/alert-dialog"
 import { formatCurrencyDisplay } from "@/lib/format-currency"
 import { useCatalog, useDeleteCatalog } from "@/lib/react-query/hooks/use-catalogs"
+import { usePublicUrl } from "@/lib/react-query/hooks/use-upload"
 
 // Katalog detail type for view model
 type KatalogDetail = {
@@ -99,20 +100,23 @@ export default function MasterKatalogDetailPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const { data: catalogData, isLoading: loading, isError } = useCatalog(id)
   const { mutateAsync: deleteCatalog, isPending: isDeleting } = useDeleteCatalog()
+  const imageKey = catalogData?.imageUrl ?? ""
+  const { data: publicUrlData } = usePublicUrl(imageKey)
+  const imageUrl = imageKey && publicUrlData?.url ? publicUrlData.url : ""
   const katalog = useMemo<KatalogDetail | null>(() => {
     if (!catalogData) return null
     return {
       id: catalogData.uuid,
-      foto: "/placeholder-avatar.jpg",
+      foto: imageUrl,
       idKatalog: catalogData.code ?? catalogData.uuid.slice(0, 8),
       namaKatalog: catalogData.name ?? catalogData.itemName ?? "-",
       tipeBarang: catalogData.itemType?.typeName ?? "-",
       harga: Number(catalogData.basePrice ?? 0),
-      namaPotongan: "-",
-      jumlahPotongan: 0,
+      namaPotongan: catalogData.discountName ?? "-",
+      jumlahPotongan: Number(catalogData.discountAmount ?? 0),
       keterangan: catalogData.description ?? "",
     }
-  }, [catalogData])
+  }, [catalogData, imageUrl])
 
   const handleEdit = () => {
     router.push(`/master-katalog/${id}/edit`)

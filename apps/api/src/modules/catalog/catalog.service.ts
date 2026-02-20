@@ -29,6 +29,19 @@ export class CatalogService {
     queryDto: QueryCatalogDto,
     userPtId?: string,
   ): Promise<{ data: CatalogDto[]; meta: PageMetaDto }> {
+    const search = queryDto.search?.trim();
+    const hasPriceFilter =
+      queryDto.basePriceMin != null ||
+      queryDto.basePriceMax != null;
+
+    if (search || hasPriceFilter) {
+      return this.findAllWithSearchAndFilters(
+        queryDto,
+        userPtId,
+        search ?? undefined,
+      );
+    }
+
     const where: FindOptionsWhere<CatalogEntity> = {};
 
     if (userPtId) {
@@ -59,6 +72,64 @@ export class CatalogService {
       CatalogEntity.createQueryBuilder('catalog'),
       qbOptions,
     );
+
+    const data = catalogs.map((c) => new CatalogDto(c));
+    const meta = new PageMetaDto({
+      pageOptionsDto: queryDto,
+      itemCount: count,
+    });
+
+    return { data, meta };
+  }
+
+  private async findAllWithSearchAndFilters(
+    queryDto: QueryCatalogDto,
+    userPtId: string | undefined,
+    search: string | undefined,
+  ): Promise<{ data: CatalogDto[]; meta: PageMetaDto }> {
+    const qb = this.catalogRepository
+      .createQueryBuilder('catalog')
+      .leftJoinAndSelect('catalog.itemType', 'itemType');
+
+    if (search) {
+      qb.andWhere(
+        '(catalog.code ILIKE :search OR catalog.name ILIKE :search OR itemType.typeName ILIKE :search)',
+        { search: `%${search}%` },
+      );
+    }
+
+    if (userPtId) {
+      qb.andWhere('catalog.ptId = :userPtId', { userPtId });
+    }
+    if (queryDto.ptId) {
+      qb.andWhere('catalog.ptId = :ptId', { ptId: queryDto.ptId });
+    }
+    if (queryDto.itemTypeId) {
+      qb.andWhere('catalog.itemTypeId = :itemTypeId', {
+        itemTypeId: queryDto.itemTypeId,
+      });
+    }
+    if (queryDto.basePriceMin != null) {
+      qb.andWhere('CAST(catalog.base_price AS DECIMAL) >= :basePriceMin', {
+        basePriceMin: queryDto.basePriceMin,
+      });
+    }
+    if (queryDto.basePriceMax != null) {
+      qb.andWhere('CAST(catalog.base_price AS DECIMAL) <= :basePriceMax', {
+        basePriceMax: queryDto.basePriceMax,
+      });
+    }
+
+    qb.orderBy('catalog.createdAt', 'DESC');
+
+    const skip = queryDto.getSkip();
+    const take = queryDto.getTake();
+    if (take !== undefined) {
+      qb.take(take);
+    }
+    qb.skip(skip);
+
+    const [catalogs, count] = await qb.getManyAndCount();
 
     const data = catalogs.map((c) => new CatalogDto(c));
     const meta = new PageMetaDto({
@@ -184,6 +255,12 @@ export class CatalogService {
         updateDto.pawnValueMax !== undefined
           ? String(updateDto.pawnValueMax)
           : catalog.pawnValueMax,
+      imageUrl: updateDto.imageUrl !== undefined ? updateDto.imageUrl : catalog.imageUrl,
+      discountName: updateDto.discountName !== undefined ? updateDto.discountName : catalog.discountName,
+      discountAmount:
+        updateDto.discountAmount !== undefined
+          ? String(updateDto.discountAmount)
+          : catalog.discountAmount,
       updatedBy,
     });
 

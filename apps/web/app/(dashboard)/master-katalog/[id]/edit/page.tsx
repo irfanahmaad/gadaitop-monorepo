@@ -43,8 +43,12 @@ import {
 } from "@workspace/ui/components/select"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { formatCurrencyInput, parseCurrencyInput } from "@/lib/format-currency"
-import { useCatalog, useUpdateCatalog } from "@/lib/react-query/hooks/use-catalogs"
+import {
+  useCatalog,
+  useUpdateCatalog,
+} from "@/lib/react-query/hooks/use-catalogs"
 import { useItemTypes } from "@/lib/react-query/hooks/use-item-types"
+import { usePublicUrl, useUploadFile } from "@/lib/react-query/hooks/use-upload"
 
 const katalogSchema = z.object({
   image: z.union([z.instanceof(File), z.string()]).optional(),
@@ -71,7 +75,11 @@ const katalogSchema = z.object({
       const parsed = parseCurrencyInput(val)
       return parsed !== null && parsed >= 0
     }, "Jumlah Potongan harus valid"),
-  keterangan: z.string().max(500, "Keterangan maksimal 500 karakter").optional().or(z.literal("")),
+  keterangan: z
+    .string()
+    .max(500, "Keterangan maksimal 500 karakter")
+    .optional()
+    .or(z.literal("")),
 })
 
 type KatalogFormValues = z.infer<typeof katalogSchema>
@@ -121,9 +129,14 @@ export default function EditMasterKatalogPage() {
   const params = useParams()
   const id = params.id as string
   const [previewImage, setPreviewImage] = useState<string | null>(null)
+  const [userRemovedImage, setUserRemovedImage] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const { data: catalogData, isLoading } = useCatalog(id)
-  const { mutateAsync: updateCatalog, isPending: isSubmitting } = useUpdateCatalog()
+  const { mutateAsync: updateCatalog, isPending: isSubmitting } =
+    useUpdateCatalog()
+  const presignedUrlMutation = useUploadFile()
+  const existingImageKey = catalogData?.imageUrl ?? ""
+  const { data: publicUrlData } = usePublicUrl(existingImageKey)
   const { data: itemTypesData } = useItemTypes({ pageSize: 100 })
   const tipeBarangOptions = React.useMemo(() => {
     const list = itemTypesData?.data ?? []
@@ -146,22 +159,29 @@ export default function EditMasterKatalogPage() {
     },
   })
 
-  // Load katalog data
+  // Load katalog data and set image preview
   useEffect(() => {
     if (!id) return
     if (!catalogData) return
 
-    setPreviewImage("/placeholder-avatar.jpg")
+    if (catalogData.imageUrl && publicUrlData?.url) {
+      setPreviewImage(publicUrlData.url)
+    } else {
+      setPreviewImage(null)
+    }
+    setUserRemovedImage(false)
     form.reset({
-      image: "/placeholder-avatar.jpg",
+      image: undefined,
       namaKatalog: catalogData.name ?? catalogData.itemName ?? "",
       tipeBarang: catalogData.itemTypeId ?? "",
       harga: formatCurrencyInput(Number(catalogData.basePrice ?? 0)),
-      namaPotongan: "",
-      jumlahPotongan: formatCurrencyInput(0),
+      namaPotongan: catalogData.discountName ?? "",
+      jumlahPotongan: formatCurrencyInput(
+        Number(catalogData.discountAmount ?? 0)
+      ),
       keterangan: catalogData.description || "",
     })
-  }, [id, catalogData, form])
+  }, [id, catalogData, form, publicUrlData?.url])
 
   useEffect(() => {
     if (!isLoading && id && !catalogData) {
@@ -177,6 +197,7 @@ export default function EditMasterKatalogPage() {
     const file = e.target.files?.[0]
     if (file) {
       field.onChange(file)
+      setUserRemovedImage(false)
       const reader = new FileReader()
       reader.onloadend = () => {
         setPreviewImage(reader.result as string)
@@ -200,13 +221,34 @@ export default function EditMasterKatalogPage() {
       if (parsedPrice === null || parsedPrice <= 0) {
         throw new Error("Harga harus lebih dari 0")
       }
+      const parsedPotongan = parseCurrencyInput(values.jumlahPotongan)
+      const jumlahPotonganNum =
+        parsedPotongan !== null && parsedPotongan >= 0 ? parsedPotongan : 0
+
+      let imageUrl: string | null | undefined = undefined
+      if (values.image instanceof File) {
+        const file = values.image
+        const ext = file.name.split(".").pop() || "jpg"
+        const key = `catalogs/${id}/image-${Date.now()}.${ext}`
+        const { key: s3Key } = await presignedUrlMutation.mutateAsync({
+          file,
+          key,
+        })
+        imageUrl = s3Key
+      } else if (userRemovedImage && existingImageKey) {
+        imageUrl = null
+      }
 
       await updateCatalog({
         id,
         data: {
-          itemName: values.namaKatalog,
+          name: values.namaKatalog.trim(),
+          itemTypeId: values.tipeBarang || undefined,
           basePrice: parsedPrice,
           description: values.keterangan?.trim() || undefined,
+          discountName: values.namaPotongan.trim() || null,
+          discountAmount: jumlahPotonganNum,
+          ...(imageUrl !== undefined && { imageUrl }),
         },
       })
       toast.success("Data Katalog berhasil diupdate")
@@ -268,27 +310,31 @@ export default function EditMasterKatalogPage() {
                       <FormControl>
                         <div className="relative">
                           {previewImage ? (
-                            <div className="border-input bg-muted/50 relative aspect-square w-48 overflow-hidden rounded-full border-2 border-dashed">
+                            <div className="border-input bg-muted/50 relative aspect-square w-48 rounded-full border-2 border-dashed">
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img
                                 src={previewImage}
                                 alt="Preview"
-                                className="size-full object-cover"
+                                className="size-full overflow-hidden rounded-full object-cover"
                               />
-                              <label
-                                htmlFor="image-upload-edit"
-                                className="bg-destructive hover:bg-destructive/90 absolute right-0 bottom-0 z-10 flex size-10 cursor-pointer items-center justify-center rounded-full text-white shadow-sm transition-colors"
-                                aria-label="Ubah gambar"
-                              >
-                                <Pencil className="size-4" />
-                                <input
-                                  id="image-upload-edit"
-                                  type="file"
-                                  accept="image/*"
-                                  className="hidden"
-                                  onChange={(e) => handleImageChange(e, field)}
-                                />
-                              </label>
+                              <div className="absolute right-0 bottom-0 z-10 flex gap-1">
+                                <label
+                                  htmlFor="image-upload-edit"
+                                  className="bg-destructive hover:bg-destructive/90 flex size-10 cursor-pointer items-center justify-center rounded-full text-white shadow-sm transition-colors"
+                                  aria-label="Ubah gambar"
+                                >
+                                  <Pencil className="size-4" />
+                                  <input
+                                    id="image-upload-edit"
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) =>
+                                      handleImageChange(e, field)
+                                    }
+                                  />
+                                </label>
+                              </div>
                             </div>
                           ) : (
                             <label
@@ -389,17 +435,17 @@ export default function EditMasterKatalogPage() {
                             <Input
                               type="text"
                               placeholder="Contoh: 17.500.000"
-                              icon={<span className="text-sm">Rp</span>}
+                              icon={<>Rp</>}
                               value={field.value}
                               onChange={(e) => {
-                                const value = e.target.value
-                                field.onChange(value)
-                              }}
-                              onBlur={(e) => {
-                                const parsed = parseCurrencyInput(e.target.value)
-                                if (parsed !== null) {
-                                  field.onChange(formatCurrencyInput(parsed))
-                                }
+                                const parsed = parseCurrencyInput(
+                                  e.target.value
+                                )
+                                field.onChange(
+                                  parsed !== null
+                                    ? formatCurrencyInput(parsed)
+                                    : ""
+                                )
                               }}
                             />
                           </FormControl>
@@ -446,24 +492,24 @@ export default function EditMasterKatalogPage() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>
-                            Jumlah Potongan{" "}
+                            Jumlah Potongan (Rp){" "}
                             <span className="text-destructive">*</span>
                           </FormLabel>
                           <FormControl>
                             <Input
                               type="text"
                               placeholder="Contoh: 200.000"
-                              icon={<span className="text-sm">Rp</span>}
+                              icon={<>Rp</>}
                               value={field.value}
                               onChange={(e) => {
-                                const value = e.target.value
-                                field.onChange(value)
-                              }}
-                              onBlur={(e) => {
-                                const parsed = parseCurrencyInput(e.target.value)
-                                if (parsed !== null) {
-                                  field.onChange(formatCurrencyInput(parsed))
-                                }
+                                const parsed = parseCurrencyInput(
+                                  e.target.value
+                                )
+                                field.onChange(
+                                  parsed !== null
+                                    ? formatCurrencyInput(parsed)
+                                    : ""
+                                )
                               }}
                             />
                           </FormControl>
@@ -501,7 +547,7 @@ export default function EditMasterKatalogPage() {
                     type="button"
                     variant="outline"
                     onClick={() => router.push("/master-katalog")}
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || presignedUrlMutation.isPending}
                   >
                     <X className="mr-2 size-4" />
                     Batal
@@ -510,9 +556,9 @@ export default function EditMasterKatalogPage() {
                     type="button"
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                     onClick={handleSimpanClick}
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || presignedUrlMutation.isPending}
                   >
-                    {isSubmitting ? (
+                    {isSubmitting || presignedUrlMutation.isPending ? (
                       <>
                         <Loader2 className="mr-2 size-4 animate-spin" />
                         Menyimpan...

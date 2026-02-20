@@ -32,18 +32,28 @@ import {
   Plus,
   Upload,
   CalendarIcon,
+  Trash2,
 } from "lucide-react"
 import { formatCurrencyDisplay } from "@/lib/format-currency"
 import { format } from "date-fns"
 import { id } from "date-fns/locale"
 import { Skeleton } from "@workspace/ui/components/skeleton"
-import { Card, CardContent, CardHeader } from "@workspace/ui/components/card"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@workspace/ui/components/card"
 import { FilterDialog } from "@/components/filter-dialog"
 import { useFilterParams } from "@/hooks/use-filter-params"
 import type { FilterConfig } from "@/hooks/use-filter-params"
 import type { CatalogItem } from "@/lib/api/types"
 import { useAuth } from "@/lib/react-query/hooks/use-auth"
-import { useCatalogs, useDeleteCatalog } from "@/lib/react-query/hooks/use-catalogs"
+import {
+  useCatalogs,
+  useDeleteCatalog,
+} from "@/lib/react-query/hooks/use-catalogs"
+import { usePublicUrl } from "@/lib/react-query/hooks/use-upload"
 import { useCompanies } from "@/lib/react-query/hooks/use-companies"
 import { useItemTypes } from "@/lib/react-query/hooks/use-item-types"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
@@ -52,7 +62,7 @@ import { toast } from "sonner"
 // Map CatalogItem to table row
 type KatalogRow = {
   id: string
-  foto: string
+  imageKey: string
   idKatalog: string
   namaKatalog: string
   tipeBarang: string
@@ -65,7 +75,7 @@ function mapCatalogToRow(catalog: CatalogItem): KatalogRow {
   const typeName = catalog.itemType?.typeName ?? "-"
   return {
     id: catalog.uuid,
-    foto: "/placeholder-avatar.jpg",
+    imageKey: catalog.imageUrl ?? "",
     idKatalog: catalog?.code ?? catalog?.uuid?.slice(0, 8),
     namaKatalog: name,
     tipeBarang: typeName,
@@ -76,6 +86,17 @@ function mapCatalogToRow(catalog: CatalogItem): KatalogRow {
         })
       : "-",
   }
+}
+
+function CatalogImageCell({ imageKey }: { imageKey: string }) {
+  const { data: publicUrlData } = usePublicUrl(imageKey)
+  const url = imageKey ? publicUrlData?.url : undefined
+  return (
+    <Avatar className="h-10 w-10">
+      <AvatarImage src={url} alt="Katalog photo" />
+      <AvatarFallback>IMG</AvatarFallback>
+    </Avatar>
+  )
 }
 
 // Column definitions
@@ -106,14 +127,9 @@ const columns: ColumnDef<KatalogRow>[] = [
     enableHiding: false,
   },
   {
-    accessorKey: "foto",
+    accessorKey: "imageKey",
     header: "Foto",
-    cell: ({ row }) => (
-      <Avatar className="h-10 w-10">
-        <AvatarImage src={row.getValue("foto")} alt="Katalog photo" />
-        <AvatarFallback>IMG</AvatarFallback>
-      </Avatar>
-    ),
+    cell: ({ row }) => <CatalogImageCell imageKey={row.getValue("imageKey")} />,
   },
   {
     accessorKey: "idKatalog",
@@ -138,29 +154,6 @@ const columns: ColumnDef<KatalogRow>[] = [
   {
     accessorKey: "lastUpdatedAt",
     header: "Last Updated At",
-  },
-]
-
-// Filter configuration
-const filterConfig: FilterConfig[] = [
-  {
-    key: "lastUpdate",
-    label: "",
-    type: "daterange",
-    labelFrom: "Mulai Dari",
-    labelTo: "Sampai Dengan",
-  },
-  {
-    key: "harga",
-    label: "Harga",
-    type: "currencyrange",
-    currency: "Rp",
-  },
-  {
-    key: "itemTypeId",
-    label: "Tipe Barang",
-    type: "multiselect",
-    placeholder: "Pilih Tipe Barang...",
   },
 ]
 
@@ -204,7 +197,7 @@ function MasterKatalogPageContent() {
     user?.roles?.some((r) => r.code === "company_admin") ?? false
   const isSuperAdmin = user?.roles?.some((r) => r.code === "owner") ?? false
 
-  const effectiveCompanyId = isCompanyAdmin ? user?.companyId ?? null : null
+  const effectiveCompanyId = isCompanyAdmin ? (user?.companyId ?? null) : null
 
   const { data: companiesData } = useCompanies(
     isSuperAdmin ? { pageSize: 100 } : undefined
@@ -224,12 +217,23 @@ function MasterKatalogPageContent() {
 
   const companyFilterId = isSuperAdmin ? selectedPT : effectiveCompanyId
 
-  const [pageSize, setPageSize] = useState(100)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
   const [searchValue, setSearchValue] = useState("")
+  const [debouncedSearchValue, setDebouncedSearchValue] = useState("")
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearchValue(searchValue), 500)
+    return () => clearTimeout(t)
+  }, [searchValue])
+
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
   const [filterDialogOpen, setFilterDialogOpen] = useState(false)
   const [selectedRow, setSelectedRow] = useState<KatalogRow | null>(null)
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
+  const [selectedRows, setSelectedRows] = useState<KatalogRow[]>([])
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false)
+  const [resetSelectionKey, setResetSelectionKey] = useState(0)
 
   const { data: itemTypesData } = useItemTypes({ pageSize: 100 })
   const itemTypeOptions = React.useMemo(() => {
@@ -243,15 +247,8 @@ function MasterKatalogPageContent() {
   const filterConfigWithOptions: FilterConfig[] = React.useMemo(
     () => [
       {
-        key: "lastUpdate",
-        label: "",
-        type: "daterange",
-        labelFrom: "Mulai Dari",
-        labelTo: "Sampai Dengan",
-      },
-      {
         key: "harga",
-        label: "Harga",
+        label: "",
         type: "currencyrange",
         currency: "Rp",
       },
@@ -269,66 +266,36 @@ function MasterKatalogPageContent() {
   const { filterValues, setFilters } = useFilterParams(filterConfigWithOptions)
 
   const listOptions = React.useMemo(() => {
-    const filter: Record<string, string> = {}
+    const filter: Record<string, string | number> = {}
     if (companyFilterId) filter.ptId = companyFilterId
-    if (searchValue) filter.search = searchValue
+    if (debouncedSearchValue.trim()) filter.search = debouncedSearchValue.trim()
     const itemTypeIds = (filterValues.itemTypeId as string[] | undefined) ?? []
     if (itemTypeIds.length > 0) filter.itemTypeId = itemTypeIds[0] as string
-    return { page: 1, pageSize: 500, filter }
-  }, [companyFilterId, searchValue, filterValues.itemTypeId])
+    const hargaRange = (filterValues.harga as { from: number | null; to: number | null }) ?? { from: null, to: null }
+    if (hargaRange.from != null) filter.basePriceMin = hargaRange.from
+    if (hargaRange.to != null) filter.basePriceMax = hargaRange.to
+    return { page, pageSize, filter }
+  }, [
+    page,
+    pageSize,
+    companyFilterId,
+    debouncedSearchValue,
+    filterValues.itemTypeId,
+    filterValues.harga,
+  ])
 
   const { data, isLoading, isError } = useCatalogs(listOptions)
   const deleteCatalogMutation = useDeleteCatalog()
 
-  const catalogsFromApi = data?.data ?? []
   const rows = React.useMemo(
-    () => catalogsFromApi.map(mapCatalogToRow),
-    [catalogsFromApi]
+    () => (data?.data ?? []).map(mapCatalogToRow),
+    [data?.data]
   )
 
-  const filteredKatalog = React.useMemo(() => {
-    let result = [...rows]
-
-    const lastUpdateRange = (filterValues.lastUpdate as {
-      from: string | null
-      to: string | null
-    }) || { from: null, to: null }
-
-    const hargaRange = (filterValues.harga as {
-      from: number | null
-      to: number | null
-    }) || { from: null, to: null }
-
-    if (lastUpdateRange.from || lastUpdateRange.to) {
-      result = result.filter((item) => {
-        const itemDate = new Date(item.lastUpdatedAt)
-        if (
-          lastUpdateRange.from &&
-          itemDate < new Date(lastUpdateRange.from)
-        ) {
-          return false
-        }
-        if (lastUpdateRange.to && itemDate > new Date(lastUpdateRange.to)) {
-          return false
-        }
-        return true
-      })
-    }
-
-    if (hargaRange.from !== null || hargaRange.to !== null) {
-      result = result.filter((item) => {
-        if (hargaRange.from !== null && item.harga < hargaRange.from) {
-          return false
-        }
-        if (hargaRange.to !== null && item.harga > hargaRange.to) {
-          return false
-        }
-        return true
-      })
-    }
-
-    return result
-  }, [rows, filterValues.lastUpdate, filterValues.harga])
+  // Reset to page 1 when search or filters change
+  useEffect(() => {
+    setPage(1)
+  }, [debouncedSearchValue, companyFilterId, filterValues.itemTypeId, filterValues.harga])
 
   const handleDetail = (row: KatalogRow) => {
     router.push(`/master-katalog/${row.id}`)
@@ -360,6 +327,24 @@ function MasterKatalogPageContent() {
     router.push("/master-katalog/tambah")
   }
 
+  const handleBulkDelete = () => {
+    setIsBulkDeleteDialogOpen(true)
+  }
+
+  const handleConfirmBulkDelete = async () => {
+    try {
+      await Promise.all(
+        selectedRows.map((row) => deleteCatalogMutation.mutateAsync(row.id))
+      )
+      toast.success(`${selectedRows.length} Katalog berhasil dihapus`)
+      setIsBulkDeleteDialogOpen(false)
+      setSelectedRows([])
+      setResetSelectionKey((k) => k + 1)
+    } catch {
+      toast.error("Gagal menghapus Katalog")
+    }
+  }
+
   const handleImportData = () => {
     toast.info("Fitur import katalog akan segera tersedia")
   }
@@ -370,14 +355,14 @@ function MasterKatalogPageContent() {
   }
 
   const lastUpdatedDisplay = React.useMemo(() => {
-    if (filteredKatalog.length === 0) return "-"
-    const dates = filteredKatalog
+    if (rows.length === 0) return "-"
+    const dates = rows
       .map((r) => new Date(r.lastUpdatedAt).getTime())
       .filter((t) => !Number.isNaN(t))
     if (dates.length === 0) return "-"
     const latest = new Date(Math.max(...dates))
     return format(latest, "d MMMM yyyy HH:mm:ss", { locale: id })
-  }, [filteredKatalog])
+  }, [rows])
 
   return (
     <>
@@ -411,7 +396,7 @@ function MasterKatalogPageContent() {
             )}
 
             <div className="flex items-center gap-2">
-              <label className="whitespace-nowrap text-sm font-medium">
+              <label className="text-sm font-medium whitespace-nowrap">
                 Tanggal Katalog :
               </label>
               <Popover>
@@ -470,22 +455,32 @@ function MasterKatalogPageContent() {
         ) : (
           <DataTable
             columns={columns}
-            data={filteredKatalog}
+            data={rows}
+            searchPlaceholder="Cari..."
             headerLeft={
-              <div className="flex items-center gap-2">
-                <span className="text-xl font-semibold">Daftar Katalog</span>
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-xl">Daftar Katalog</CardTitle>
+                  {selectedRows.length > 0 && (
+                    <span className="text-destructive font-semibold">
+                      &middot; {selectedRows.length} Selected
+                    </span>
+                  )}
+                </div>
                 <span className="text-muted-foreground flex items-center gap-1 text-sm font-normal">
                   <span className="h-2 w-2 rounded-full bg-red-500" />
                   Last Updated At: {lastUpdatedDisplay}
                 </span>
               </div>
             }
-            searchPlaceholder="Cari..."
             headerRight={
               <div className="flex w-full items-center gap-2 sm:w-auto">
                 <Select
                   value={pageSize.toString()}
-                  onValueChange={(value) => setPageSize(Number(value))}
+                  onValueChange={(value) => {
+                    setPageSize(Number(value))
+                    setPage(1)
+                  }}
                 >
                   <SelectTrigger className="w-[100px]">
                     <SelectValue />
@@ -514,15 +509,34 @@ function MasterKatalogPageContent() {
                   <SlidersHorizontal className="size-4" />
                   Filter
                 </Button>
+                {selectedRows.length > 0 && (
+                  <Button
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90 flex items-center gap-2"
+                    onClick={handleBulkDelete}
+                  >
+                    <Trash2 className="size-4" />
+                    Hapus
+                  </Button>
+                )}
               </div>
             }
             initialPageSize={pageSize}
-            onPageSizeChange={setPageSize}
+            onPageSizeChange={(size) => {
+              setPageSize(size)
+              setPage(1)
+            }}
             searchValue={searchValue}
             onSearchChange={setSearchValue}
             onDetail={handleDetail}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            onSelectionChange={setSelectedRows}
+            resetSelectionKey={resetSelectionKey}
+            serverSidePagination={{
+              totalRowCount: data?.meta?.count ?? 0,
+              pageIndex: page - 1,
+              onPageIndexChange: (idx) => setPage(idx + 1),
+            }}
           />
         )}
       </div>
@@ -541,6 +555,16 @@ function MasterKatalogPageContent() {
         onConfirm={handleConfirmDelete}
         title="Hapus Katalog"
         description="Apakah Anda yakin ingin menghapus katalog ini? Tindakan ini tidak dapat dibatalkan."
+        confirmLabel="Hapus"
+        variant="destructive"
+      />
+
+      <ConfirmationDialog
+        open={isBulkDeleteDialogOpen}
+        onOpenChange={setIsBulkDeleteDialogOpen}
+        onConfirm={handleConfirmBulkDelete}
+        title="Hapus Katalog"
+        description={`Anda akan menghapus ${selectedRows.length} data Katalog dari dalam sistem.`}
         confirmLabel="Hapus"
         variant="destructive"
       />

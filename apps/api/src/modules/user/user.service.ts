@@ -72,6 +72,7 @@ export class UserService {
   }> {
     const qbOptions: QueryBuilderOptionsType<UserEntity> = {
       ...options,
+      relation: { roles: true },
       orderBy: sortAttribute(options.sortBy, {
         fullName: { fullName: true },
         email: { email: true },
@@ -82,9 +83,28 @@ export class UserService {
     const qb = UserEntity.createQueryBuilder('users');
 
     // roleCode requires a ManyToMany join that DynamicQueryBuilder can't handle
+    // Use 'filterRoles' alias to avoid conflict with relation: { roles: true }
     if (options.roleCode) {
-      qb.innerJoin('users.roles', 'roles')
-        .andWhere('roles.code = :roleCode', { roleCode: options.roleCode });
+      qb.innerJoin('users.roles', 'filterRoles')
+        .andWhere('filterRoles.code = :roleCode', {
+          roleCode: options.roleCode,
+        });
+    }
+
+    // Search by email or fullName (ILIKE)
+    if (options.search?.trim()) {
+      const searchPattern = `%${options.search.trim()}%`;
+      qb.andWhere(
+        '(users.email ILIKE :search OR users.fullName ILIKE :search)',
+        { search: searchPattern },
+      );
+    }
+
+    // Filter by company
+    if (options.companyId) {
+      qb.andWhere('users.companyId = :companyId', {
+        companyId: options.companyId,
+      });
     }
 
     const dynamicQueryBuilder = new DynamicQueryBuilder(this.userRepository.metadata);

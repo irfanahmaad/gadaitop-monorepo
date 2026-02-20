@@ -1,6 +1,11 @@
 "use client"
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query"
 
 import { apiClient } from "@/lib/api/client"
 import { endpoints } from "@/lib/api/endpoints"
@@ -30,6 +35,7 @@ export function useCatalogs(options?: PageOptions) {
     queryKey: catalogKeys.list(options),
     queryFn: () =>
       apiClient.getList<CatalogItem>(endpoints.catalogs.list, options),
+    placeholderData: keepPreviousData,
   })
 }
 

@@ -99,7 +99,7 @@ export interface UpdateUserDto {
   email?: string
   fullName?: string
   phoneNumber?: string
-  imageUrl?: string
+  imageUrl?: string | null
   activeStatus?: ActiveStatus
   companyId?: string
   branchId?: string
@@ -615,6 +615,9 @@ export interface CatalogItem {
   basePrice: number
   ptId?: string
   description?: string
+  imageUrl?: string | null
+  discountName?: string | null
+  discountAmount?: number
   isActive?: boolean
   itemType?: ItemType
   company?: Company
@@ -638,11 +641,18 @@ export interface CreateCatalogDto {
   description?: string
 }
 
+/** Matches API UpdateCatalogDto */
 export interface UpdateCatalogDto {
-  itemName?: string
+  name?: string
+  itemTypeId?: string
   basePrice?: number
+  pawnValueMin?: number
+  pawnValueMax?: number
+  tenorOptions?: number[]
   description?: string
-  isActive?: boolean
+  imageUrl?: string | null
+  discountName?: string | null
+  discountAmount?: number
 }
 
 export interface ImportCatalogDto {

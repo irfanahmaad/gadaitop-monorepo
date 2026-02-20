@@ -29,7 +29,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@workspace/ui/components/alert-dialog"
-import { getUserById, deleteUser as deleteUserFromStore } from "../dummy-data"
+import { useUser, useDeleteUser } from "@/lib/react-query/hooks/use-users"
+import { usePublicUrl } from "@/lib/react-query/hooks/use-upload"
 
 // Role badge configuration (same as list page)
 const getRoleBadgeConfig = (role: { code: string; name: string }) => {
@@ -116,12 +117,11 @@ export default function MasterPenggunaDetailPage() {
   const router = useRouter()
   const id = typeof params.id === "string" ? params.id : ""
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
 
-  // Get user data from dummy store
-  const user = getUserById(id)
-  const isLoading = false
-  const isError = !user
+  const { data: user, isLoading, isError } = useUser(id)
+  const imageKey = user?.imageUrl ?? ""
+  const { data: publicUrlData } = usePublicUrl(imageKey)
+  const deleteUserMutation = useDeleteUser()
 
   const handleEdit = () => {
     router.push(`/master-pengguna/${id}/edit`)
@@ -132,19 +132,13 @@ export default function MasterPenggunaDetailPage() {
   }
 
   const confirmDelete = async () => {
-    setIsDeleting(true)
     try {
-      const success = deleteUserFromStore(id)
-      if (success) {
-        toast.success("Pengguna berhasil dihapus")
-        router.push("/master-pengguna")
-      } else {
-        toast.error("Gagal menghapus Pengguna")
-      }
-    } catch (error) {
+      await deleteUserMutation.mutateAsync(id)
+      toast.success("Pengguna berhasil dihapus")
+      setDeleteDialogOpen(false)
+      router.push("/master-pengguna")
+    } catch {
       toast.error("Gagal menghapus Pengguna")
-    } finally {
-      setIsDeleting(false)
     }
   }
 
@@ -246,7 +240,10 @@ export default function MasterPenggunaDetailPage() {
               {/* Profile Picture */}
               <div className="flex justify-center">
                 <Avatar className="size-48">
-                  <AvatarImage src="" alt={user.fullName} />
+                  <AvatarImage
+                    src={imageKey ? publicUrlData?.url : undefined}
+                    alt={user.fullName}
+                  />
                   <AvatarFallback>
                     <UserIcon className="text-muted-foreground size-24" />
                   </AvatarFallback>
@@ -337,9 +334,9 @@ export default function MasterPenggunaDetailPage() {
             <AlertDialogAction
               onClick={confirmDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              disabled={isDeleting}
+              disabled={deleteUserMutation.isPending}
             >
-              {isDeleting ? (
+              {deleteUserMutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 size-4 animate-spin" />
                   Menghapus...

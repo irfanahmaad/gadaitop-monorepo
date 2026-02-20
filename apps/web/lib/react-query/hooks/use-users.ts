@@ -1,6 +1,11 @@
 "use client"
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query"
 
 import { apiClient } from "@/lib/api/client"
 import { endpoints } from "@/lib/api/endpoints"
@@ -27,6 +32,7 @@ export function useUsers(options?: PageOptions) {
   return useQuery({
     queryKey: userKeys.list(options),
     queryFn: () => apiClient.getList<User>(endpoints.users.list, options),
+    placeholderData: keepPreviousData,
   })
 }
 
