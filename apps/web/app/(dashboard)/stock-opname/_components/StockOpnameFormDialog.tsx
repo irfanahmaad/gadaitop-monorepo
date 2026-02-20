@@ -119,7 +119,7 @@ export function StockOpnameFormDialog({
     () =>
       (pawnTermsData?.data ?? []).map((term) => {
         const typeName = term.itemType?.typeName ?? "—"
-        const label = `${typeName} (Tenor ${term.tenor ?? term.tenorDefault ?? 0} bln)`
+        const label = `${typeName} (Tenor ${term.tenorMin ?? 0}-${term.tenorMax ?? 0} bln)`
         return { label, value: term.uuid }
       }),
     [pawnTermsData?.data]

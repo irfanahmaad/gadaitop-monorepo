@@ -19,7 +19,13 @@ export class UpdatePawnTermDto {
   @IsNumber()
   @Min(1)
   @Type(() => Number)
-  tenorDefault?: number;
+  tenorMin?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Type(() => Number)
+  tenorMax?: number;
 
   @IsOptional()
   @IsNumber()

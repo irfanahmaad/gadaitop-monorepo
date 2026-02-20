@@ -306,7 +306,7 @@ The following Lelangan flows are wired in the web app as of February 2026:
    - Confirm whether these fields should be persisted in backend; if yes, extend create/update/detail DTO and response.
 
 2. **Pawn term (Syarat Mata) contract parity (`/v1/pawn-terms`):**
-   - Current DTO supports `itemTypeId`, `loanLimitMin`, `loanLimitMax`, `tenorDefault`, `interestRate`, `adminFee`.
+   - Current DTO supports `itemTypeId`, `loanLimitMin`, `loanLimitMax`, `tenorMin`, `tenorMax`, `interestRate`, `adminFee`, `itemCondition`.
    - Admin PT form still has business fields not explicitly represented: `namaAturan`, `kondisiBarang`, and separate `macetDari` semantics.
    - Define canonical mapping or extend DTO so frontend does not rely on inferred mapping.
 

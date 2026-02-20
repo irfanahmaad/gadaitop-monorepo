@@ -139,12 +139,17 @@ export class PawnTermService {
       throw new BadRequestException('loanLimitMin must be less than or equal to loanLimitMax');
     }
 
+    if (createDto.tenorMin > createDto.tenorMax) {
+      throw new BadRequestException('tenorMin must be less than or equal to tenorMax');
+    }
+
     const term = this.pawnTermRepository.create({
       ptId: createDto.ptId,
       itemTypeId: createDto.itemTypeId,
       loanLimitMin: String(createDto.loanLimitMin),
       loanLimitMax: String(createDto.loanLimitMax),
-      tenorDefault: createDto.tenorDefault,
+      tenorMin: createDto.tenorMin,
+      tenorMax: createDto.tenorMax,
       interestRate: String(createDto.interestRate),
       adminFee: String(createDto.adminFee ?? 0),
       itemCondition: createDto.itemCondition ?? 'present_and_matching',
@@ -170,6 +175,14 @@ export class PawnTermService {
       updateDto.loanLimitMin > updateDto.loanLimitMax
     ) {
       throw new BadRequestException('loanLimitMin must be less than or equal to loanLimitMax');
+    }
+
+    if (
+      updateDto.tenorMin !== undefined &&
+      updateDto.tenorMax !== undefined &&
+      updateDto.tenorMin > updateDto.tenorMax
+    ) {
+      throw new BadRequestException('tenorMin must be less than or equal to tenorMax');
     }
 
     Object.assign(term, {

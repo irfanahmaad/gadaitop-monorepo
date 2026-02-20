@@ -103,7 +103,8 @@ export default function TambahMasterSyaratMataPage() {
 
       const loanLimitMin = parseCurrencyInput(values.hargaDari) ?? 0
       const loanLimitMax = parseCurrencyInput(values.hargaSampai) ?? 0
-      const tenor = Number(values.macetSampai)
+      const tenorMin = Number(values.macetDari)
+      const tenorMax = Number(values.macetSampai)
       const interestRate = Number(values.persentase)
       const adminFee = Number(values.baru)
 
@@ -113,8 +114,14 @@ export default function TambahMasterSyaratMataPage() {
       if (loanLimitMax < loanLimitMin) {
         throw new Error("Harga Sampai tidak boleh lebih kecil dari Harga Dari")
       }
-      if (Number.isNaN(tenor) || tenor <= 0) {
+      if (Number.isNaN(tenorMin) || tenorMin <= 0) {
+        throw new Error("Macet Dari harus berupa angka lebih dari 0")
+      }
+      if (Number.isNaN(tenorMax) || tenorMax <= 0) {
         throw new Error("Macet Sampai harus berupa angka lebih dari 0")
+      }
+      if (tenorMin > tenorMax) {
+        throw new Error("Macet Dari tidak boleh lebih besar dari Macet Sampai")
       }
       if (Number.isNaN(interestRate)) {
         throw new Error("Persentase harus berupa angka")
@@ -125,7 +132,8 @@ export default function TambahMasterSyaratMataPage() {
         itemTypeId: values.tipeBarang,
         loanLimitMin,
         loanLimitMax,
-        tenorDefault: tenor,
+        tenorMin,
+        tenorMax,
         interestRate,
         adminFee: Number.isNaN(adminFee) ? undefined : adminFee,
         itemCondition: values.itemCondition as "present_and_matching" | "present_but_mismatch",

@@ -37,7 +37,13 @@ export class CreatePawnTermDto {
   @IsNumber()
   @Min(1)
   @Type(() => Number)
-  tenorDefault: number;
+  tenorMin: number;
+
+  @IsNotEmpty()
+  @IsNumber()
+  @Min(1)
+  @Type(() => Number)
+  tenorMax: number;
 
   @IsNotEmpty()
   @IsNumber()

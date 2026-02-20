@@ -31,8 +31,11 @@ export class PawnTermEntity extends AbstractEntity {
   @Column({ type: 'decimal', precision: 15, scale: 2 })
   loanLimitMax: string;
 
-  @Column({ type: 'int' })
-  tenorDefault: number;
+  @Column({ type: 'int', nullable: true })
+  tenorMin: number;
+
+  @Column({ type: 'int', nullable: true })
+  tenorMax: number;
 
   @Column({ type: 'decimal', precision: 5, scale: 2 })
   interestRate: string;

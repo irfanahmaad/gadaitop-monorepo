@@ -1025,9 +1025,8 @@ export interface PawnTerm {
   ptId: string
   itemTypeId?: string
   itemType?: ItemType
-  tenor: number
-  /** @deprecated Use `tenor` instead */
-  tenorDefault?: number
+  tenorMin?: number
+  tenorMax?: number
   loanLimitMin?: number
   loanLimitMax?: number
   interestRate: number
@@ -1045,7 +1044,8 @@ export interface CreatePawnTermDto {
   itemTypeId: string
   loanLimitMin: number
   loanLimitMax: number
-  tenorDefault: number
+  tenorMin: number
+  tenorMax: number
   interestRate: number
   adminFee?: number
   storageFee?: number
@@ -1053,7 +1053,8 @@ export interface CreatePawnTermDto {
 }
 
 export interface UpdatePawnTermDto {
-  tenorDefault?: number
+  tenorMin?: number
+  tenorMax?: number
   interestRate?: number
   adminFee?: number
   storageFee?: number

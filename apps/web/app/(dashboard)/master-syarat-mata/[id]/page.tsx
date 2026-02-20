@@ -89,12 +89,12 @@ export default function MasterSyaratMataDetailPage() {
     if (!pawnTermData) return null
     return {
       id: pawnTermData.uuid,
-      namaAturan: `${pawnTermData.itemType?.typeName ?? "-"} (Tenor ${pawnTermData.tenor ?? pawnTermData.tenorDefault ?? 0})`,
+      namaAturan: `${pawnTermData.itemType?.typeName ?? "-"} (Tenor ${pawnTermData.tenorMin ?? 0}-${pawnTermData.tenorMax ?? 0})`,
       tipeBarang: pawnTermData.itemType?.typeName ?? "-",
       hargaDari: Number(pawnTermData.loanLimitMin ?? 0),
       hargaSampai: Number(pawnTermData.loanLimitMax ?? 0),
-      macetDari: Number(pawnTermData.tenor ?? pawnTermData.tenorDefault ?? 0),
-      macetSampai: Number(pawnTermData.tenor ?? pawnTermData.tenorDefault ?? 0),
+      macetDari: Number(pawnTermData.tenorMin ?? 0),
+      macetSampai: Number(pawnTermData.tenorMax ?? 0),
       baru: Number(pawnTermData.adminFee ?? 0),
       persentase: Number(pawnTermData.interestRate ?? 0),
       itemCondition: getItemConditionLabel(pawnTermData.itemCondition),

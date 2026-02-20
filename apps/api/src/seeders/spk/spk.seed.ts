@@ -116,7 +116,7 @@ export class SpkSeed extends Seeder {
 
         // Dates
         const createdDate = addDays(new Date(), scenario.offsetDays);
-        const dueDate = addDays(createdDate, term.tenorDefault);
+        const dueDate = addDays(createdDate, term.tenorMax);
         
         // Calculate visuals
         const principal = catalog.pawnValueMin; // Use min value for simplicity
@@ -148,7 +148,7 @@ export class SpkSeed extends Seeder {
           storeId: branch.uuid,
           ptId: ptId,
           principalAmount: principal,
-          tenor: term.tenorDefault,
+          tenor: term.tenorMax,
           interestRate: term.interestRate,
           adminFee: term.adminFee,
           totalAmount: total,

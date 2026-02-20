@@ -127,7 +127,8 @@ function EditSyaratMataForm({
     try {
       const loanLimitMin = parseCurrencyInput(values.hargaDari) ?? 0
       const loanLimitMax = parseCurrencyInput(values.hargaSampai) ?? 0
-      const tenor = Number(values.macetSampai)
+      const tenorMin = Number(values.macetDari)
+      const tenorMax = Number(values.macetSampai)
       const interestRate = Number(values.persentase)
       const adminFee = Number(values.baru)
 
@@ -137,8 +138,14 @@ function EditSyaratMataForm({
       if (loanLimitMax < loanLimitMin) {
         throw new Error("Harga Sampai tidak boleh lebih kecil dari Harga Dari")
       }
-      if (Number.isNaN(tenor) || tenor <= 0) {
+      if (Number.isNaN(tenorMin) || tenorMin <= 0) {
+        throw new Error("Macet Dari harus berupa angka lebih dari 0")
+      }
+      if (Number.isNaN(tenorMax) || tenorMax <= 0) {
         throw new Error("Macet Sampai harus berupa angka lebih dari 0")
+      }
+      if (tenorMin > tenorMax) {
+        throw new Error("Macet Dari tidak boleh lebih besar dari Macet Sampai")
       }
       if (Number.isNaN(interestRate)) {
         throw new Error("Persentase harus berupa angka")
@@ -149,7 +156,8 @@ function EditSyaratMataForm({
         data: {
           loanLimitMin,
           loanLimitMax,
-          tenorDefault: tenor,
+          tenorMin,
+          tenorMax,
           interestRate,
           adminFee: Number.isNaN(adminFee) ? undefined : adminFee,
           itemCondition: values.itemCondition as "present_and_matching" | "present_but_mismatch",
@@ -474,11 +482,8 @@ export default function EditMasterSyaratMataPage() {
 
   const initialFormValues = useMemo((): SyaratMataFormValues | null => {
     if (!id || !pawnTermData || tipeBarangOptions.length === 0) return null
-    // API returns tenorDefault; tenor may be absent. ?? does not treat NaN as nullish, so resolve explicitly.
-    const rawTenor =
-      pawnTermData.tenor ?? pawnTermData.tenorDefault ?? undefined
-    const tenorValue =
-      typeof rawTenor === "number" && !Number.isNaN(rawTenor) ? rawTenor : 0
+    const tenorMinVal = Number(pawnTermData.tenorMin ?? 0)
+    const tenorMaxVal = Number(pawnTermData.tenorMax ?? 0)
     const tipeBarangValue =
       pawnTermData.itemTypeId ?? pawnTermData.itemType?.uuid ?? ""
     const hasMatchingOption = tipeBarangOptions.some(
@@ -486,12 +491,12 @@ export default function EditMasterSyaratMataPage() {
     )
     if (!hasMatchingOption) return null
     return {
-      namaAturan: `${pawnTermData.itemType?.typeName ?? "-"} (Tenor ${tenorValue})`,
+      namaAturan: `${pawnTermData.itemType?.typeName ?? "-"} (Tenor ${tenorMinVal}-${tenorMaxVal})`,
       tipeBarang: tipeBarangValue,
       hargaDari: formatCurrencyInput(Number(pawnTermData.loanLimitMin ?? 0)),
       hargaSampai: formatCurrencyInput(Number(pawnTermData.loanLimitMax ?? 0)),
-      macetDari: String(tenorValue),
-      macetSampai: String(tenorValue),
+      macetDari: String(tenorMinVal),
+      macetSampai: String(tenorMaxVal),
       baru: String(pawnTermData.adminFee ?? 0),
       persentase: String(pawnTermData.interestRate ?? 0),
       itemCondition: pawnTermData.itemCondition ?? "present_and_matching",
