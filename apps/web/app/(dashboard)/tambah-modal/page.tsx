@@ -1,6 +1,12 @@
 "use client"
 
-import React, { useMemo, useState, Suspense, useEffect } from "react"
+import React, {
+  useMemo,
+  useState,
+  Suspense,
+  useEffect,
+  useCallback,
+} from "react"
 import { Breadcrumbs } from "@/components/breadcrumbs"
 import { Badge } from "@workspace/ui/components/badge"
 import { Button } from "@workspace/ui/components/button"
@@ -137,17 +143,16 @@ function TambahModalPageContent() {
     return list.map((c) => ({ value: c.uuid, label: c.companyName }))
   }, [companiesData])
 
-  useEffect(() => {
-    if (isSuperAdmin && ptOptions.length > 0 && !selectedPT) {
-      setSelectedPT(ptOptions[0]!.value)
-    }
-  }, [isSuperAdmin, ptOptions, selectedPT])
+  const defaultPT =
+    (isSuperAdmin && ptOptions[0]?.value) || effectiveCompanyId || ""
+  const effectivePT = selectedPT || defaultPT
 
-  const branchQueryCompanyId = isSuperAdmin ? selectedPT : effectiveCompanyId
+  const branchQueryCompanyId = isSuperAdmin ? effectivePT : effectiveCompanyId
   const { data: branchesData } = useBranches(
     branchQueryCompanyId
       ? { companyId: branchQueryCompanyId, pageSize: 100 }
-      : undefined
+      : undefined,
+    { enabled: !!branchQueryCompanyId }
   )
 
   const branchOptions = useMemo(() => {
@@ -159,15 +164,14 @@ function TambahModalPageContent() {
   }, [branchesData])
 
   const [selectedBranch, setSelectedBranch] = useState<string>("")
+  const validBranch =
+    selectedBranch && branchOptions.some((b) => b.value === selectedBranch)
+  const effectiveBranch =
+    (validBranch ? selectedBranch : null) ?? branchOptions[0]?.value ?? ""
+
   useEffect(() => {
-    if (branchOptions.length > 0) {
-      setSelectedBranch((prev) => {
-        const first = branchOptions[0]!.value
-        if (!prev || !branchOptions.some((b) => b.value === prev)) return first
-        return prev
-      })
-    }
-  }, [branchOptions])
+    setSelectedBranch("")
+  }, [branchQueryCompanyId])
 
   const { filterValues, setFilters } = useFilterParams(
     TAMBAH_MODAL_FILTER_CONFIG
@@ -188,15 +192,15 @@ function TambahModalPageContent() {
 
   const requestListOptions = useMemo(() => {
     const filter: Record<string, string> = { status: "pending" }
-    if (selectedBranch) filter.storeId = selectedBranch
-    return { page: 1, pageSize: 200, filter }
-  }, [selectedBranch])
+    if (effectiveBranch) filter.storeId = effectiveBranch
+    return { page: 1, pageSize, filter }
+  }, [effectiveBranch, pageSize])
 
   const historyListOptions = useMemo(() => {
     const filter: Record<string, string> = {}
-    if (selectedBranch) filter.storeId = selectedBranch
-    return { page: 1, pageSize: 200, filter }
-  }, [selectedBranch])
+    if (effectiveBranch) filter.storeId = effectiveBranch
+    return { page: 1, pageSize: historyPageSize, filter }
+  }, [effectiveBranch, historyPageSize])
 
   const { data: requestData, isLoading: isLoadingRequest } =
     useCapitalTopups(requestListOptions)
@@ -233,105 +237,109 @@ function TambahModalPageContent() {
 
   const pendingCount = requestRows.length
 
-  const handleApprove = (row: RequestTambahModal) => {
+  const handleApprove = useCallback((row: RequestTambahModal) => {
     setSetujuiRow(row)
     setSetujuiDialogOpen(true)
-  }
+  }, [])
 
-  const handleReject = (row: RequestTambahModal) => {
+  const handleReject = useCallback((row: RequestTambahModal) => {
     setTolakRow(row)
     setTolakDialogOpen(true)
-  }
+  }, [])
 
-  const handleSetujuiConfirm = async (
-    row: RequestTambahModal,
-    _data: { buktiTransfer?: File; catatan: string }
-  ) => {
-    try {
-      await approveMutation.mutateAsync(row.uuid)
-      toast.success("Request berhasil disetujui")
-      setSetujuiDialogOpen(false)
-      setSetujuiRow(null)
-    } catch {
-      toast.error("Gagal menyetujui request")
-      throw new Error("Approve failed")
-    }
-  }
+  const handleSetujuiConfirm = useCallback(
+    async (
+      row: RequestTambahModal,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      _data: { buktiTransfer?: File; catatan: string }
+    ) => {
+      try {
+        await approveMutation.mutateAsync(row.uuid)
+        toast.success("Request berhasil disetujui")
+        setSetujuiDialogOpen(false)
+        setSetujuiRow(null)
+      } catch {
+        toast.error("Gagal menyetujui request")
+        throw new Error("Approve failed")
+      }
+    },
+    [approveMutation]
+  )
 
-  const handleTolakConfirm = async (
-    row: RequestTambahModal,
-    data: { catatan: string }
-  ) => {
-    try {
-      await rejectMutation.mutateAsync({
-        id: row.uuid,
-        data: { reason: data.catatan || "Ditolak" },
-      })
-      toast.success("Request berhasil ditolak")
-      setTolakDialogOpen(false)
-      setTolakRow(null)
-    } catch {
-      toast.error("Gagal menolak request")
-      throw new Error("Reject failed")
-    }
-  }
+  const handleTolakConfirm = useCallback(
+    async (row: RequestTambahModal, data: { catatan: string }) => {
+      try {
+        await rejectMutation.mutateAsync({
+          id: row.uuid,
+          data: { reason: data.catatan || "Ditolak" },
+        })
+        toast.success("Request berhasil ditolak")
+        setTolakDialogOpen(false)
+        setTolakRow(null)
+      } catch {
+        toast.error("Gagal menolak request")
+        throw new Error("Reject failed")
+      }
+    },
+    [rejectMutation]
+  )
 
-  const handleDetail = (row: RequestTambahModal) => {
+  const handleDetail = useCallback((row: RequestTambahModal) => {
     console.log("Detail:", row)
-  }
+  }, [])
 
-  const handleEdit = (row: RequestTambahModal) => {
+  const handleEdit = useCallback((row: RequestTambahModal) => {
     setEditRow(row)
     setEditDialogOpen(true)
-  }
+  }, [])
 
-  const handleTambahData = () => {
+  const handleTambahData = useCallback(() => {
     setTambahDataDialogOpen(true)
-  }
+  }, [])
 
-  const handleTambahDataConfirm = async (data: {
-    nominal: number
-    storeId?: string
-  }) => {
-    const storeId = data.storeId ?? selectedBranch ?? branchOptions[0]?.value
-    if (!storeId) {
-      toast.error("Pilih toko terlebih dahulu")
-      return
-    }
-    try {
-      await createMutation.mutateAsync({
-        storeId,
-        amount: data.nominal,
-      })
-      toast.success("Request tambah modal berhasil dibuat")
-      setTambahDataDialogOpen(false)
-    } catch {
-      toast.error("Gagal membuat request")
-      throw new Error("Create failed")
-    }
-  }
+  const handleTambahDataConfirm = useCallback(
+    async (data: { nominal: number; storeId?: string }) => {
+      const storeId = data.storeId ?? effectiveBranch ?? branchOptions[0]?.value
+      if (!storeId) {
+        toast.error("Pilih toko terlebih dahulu")
+        return
+      }
+      try {
+        await createMutation.mutateAsync({
+          storeId,
+          amount: data.nominal,
+        })
+        toast.success("Request tambah modal berhasil dibuat")
+        setTambahDataDialogOpen(false)
+      } catch {
+        toast.error("Gagal membuat request")
+        throw new Error("Create failed")
+      }
+    },
+    [effectiveBranch, branchOptions, createMutation]
+  )
 
-  const handleEditConfirm = async (
-    row: RequestTambahModal,
-    data: { nominal: number }
-  ) => {
-    try {
-      await updateMutation.mutateAsync({
-        id: row.uuid,
-        data: { amount: data.nominal },
-      })
-      toast.success("Request berhasil diubah")
-      setEditDialogOpen(false)
-      setEditRow(null)
-    } catch {
-      toast.error("Gagal mengubah request")
-      throw new Error("Update failed")
-    }
-  }
+  const handleEditConfirm = useCallback(
+    async (row: RequestTambahModal, data: { nominal: number }) => {
+      try {
+        await updateMutation.mutateAsync({
+          id: row.uuid,
+          data: { amount: data.nominal },
+        })
+        toast.success("Request berhasil diubah")
+        setEditDialogOpen(false)
+        setEditRow(null)
+      } catch {
+        toast.error("Gagal mengubah request")
+        throw new Error("Update failed")
+      }
+    },
+    [updateMutation]
+  )
 
-  const handleDelete = (row: RequestTambahModal) => {
+  const handleDelete = useCallback((row: RequestTambahModal) => {
     console.log("Delete:", row)
-  }
+  }, [])
 
   const filterConfigWithBranches = useMemo(() => {
     const base = [...TAMBAH_MODAL_FILTER_CONFIG]
@@ -360,7 +368,7 @@ function TambahModalPageContent() {
 
         <div className="flex flex-wrap items-center gap-2">
           {isSuperAdmin && ptOptions.length > 0 && (
-            <Select value={selectedPT} onValueChange={setSelectedPT}>
+            <Select value={effectivePT} onValueChange={setSelectedPT}>
               <SelectTrigger className="w-[200px]">
                 <SelectValue placeholder="Pilih PT" />
               </SelectTrigger>
@@ -374,7 +382,7 @@ function TambahModalPageContent() {
             </Select>
           )}
           {isSuperAdmin && branchOptions.length > 0 && (
-            <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+            <Select value={effectiveBranch} onValueChange={setSelectedBranch}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Pilih Toko" />
               </SelectTrigger>
@@ -479,7 +487,7 @@ function TambahModalPageContent() {
         onConfirm={handleTambahDataConfirm}
         isSubmitting={createMutation.isPending}
         branchOptions={branchOptions}
-        selectedBranch={selectedBranch}
+        selectedBranch={effectiveBranch}
       />
 
       <EditRequestDialog

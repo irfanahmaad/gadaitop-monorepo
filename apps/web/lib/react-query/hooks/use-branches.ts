@@ -21,10 +21,14 @@ export const branchKeys = {
 }
 
 // Get branches list
-export function useBranches(options?: QueryBranchDto) {
+export function useBranches(
+  options?: QueryBranchDto,
+  queryOptions?: { enabled?: boolean }
+) {
   return useQuery({
     queryKey: branchKeys.list(options),
     queryFn: () => apiClient.getList<Branch>(endpoints.branches.list, options),
+    enabled: queryOptions?.enabled ?? true,
   })
 }
 

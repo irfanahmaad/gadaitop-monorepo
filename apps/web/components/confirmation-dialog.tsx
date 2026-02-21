@@ -1,6 +1,6 @@
 "use client"
 
-import React from "react"
+import React, { useCallback } from "react"
 import { Info } from "lucide-react"
 import {
   Dialog,
@@ -37,9 +37,13 @@ export function ConfirmationDialog({
   cancelLabel = "Batal",
   variant = "destructive",
 }: ConfirmationDialogProps) {
-  const handleConfirm = () => {
+  const handleConfirm = useCallback(() => {
     onConfirm()
-  }
+  }, [onConfirm])
+
+  const handleCancel = useCallback(() => {
+    onOpenChange(false)
+  }, [onOpenChange])
 
   const isInfo = variant === "info"
 
@@ -73,7 +77,7 @@ export function ConfirmationDialog({
             <>
               <Button
                 variant="outline"
-                onClick={() => onOpenChange(false)}
+                onClick={handleCancel}
                 className="flex-1 sm:flex-initial"
               >
                 {cancelLabel}
@@ -89,7 +93,7 @@ export function ConfirmationDialog({
             <>
               <Button
                 variant="outline"
-                onClick={() => onOpenChange(false)}
+                onClick={handleCancel}
                 className="flex-1 sm:flex-initial"
               >
                 {cancelLabel}

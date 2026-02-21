@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useMemo, useState, useEffect } from "react"
+import React, { useMemo, useState, useEffect, useCallback } from "react"
 import { Breadcrumbs } from "@/components/breadcrumbs"
 import { DataTable } from "@/components/data-table"
 import { Button } from "@workspace/ui/components/button"
@@ -257,17 +257,16 @@ export default function SetorUangPage() {
     return list.map((c) => ({ value: c.uuid, label: c.companyName }))
   }, [companiesData])
 
-  useEffect(() => {
-    if (isSuperAdmin && ptOptions.length > 0 && !selectedPT) {
-      setSelectedPT(ptOptions[0]!.value)
-    }
-  }, [isSuperAdmin, ptOptions, selectedPT])
+  const defaultPT =
+    (isSuperAdmin && ptOptions[0]?.value) || effectiveCompanyId || ""
+  const effectivePT = selectedPT || defaultPT
 
-  const branchQueryCompanyId = isSuperAdmin ? selectedPT : effectiveCompanyId
+  const branchQueryCompanyId = isSuperAdmin ? effectivePT : effectiveCompanyId
   const { data: branchesData } = useBranches(
     branchQueryCompanyId
       ? { companyId: branchQueryCompanyId, pageSize: 100 }
-      : undefined
+      : undefined,
+    { enabled: !!branchQueryCompanyId }
   )
 
   const branchOptions = useMemo(() => {
@@ -279,15 +278,14 @@ export default function SetorUangPage() {
   }, [branchesData])
 
   const [selectedBranch, setSelectedBranch] = useState<string>("")
+  const validBranch =
+    selectedBranch && branchOptions.some((b) => b.value === selectedBranch)
+  const effectiveBranch =
+    (validBranch ? selectedBranch : null) ?? branchOptions[0]?.value ?? ""
+
   useEffect(() => {
-    if (branchOptions.length > 0) {
-      setSelectedBranch((prev) => {
-        const first = branchOptions[0]!.value
-        if (!prev || !branchOptions.some((b) => b.value === prev)) return first
-        return prev
-      })
-    }
-  }, [branchOptions])
+    setSelectedBranch("")
+  }, [branchQueryCompanyId])
 
   const [pageSize, setPageSize] = useState(10)
   const [searchValue, setSearchValue] = useState("")
@@ -299,9 +297,9 @@ export default function SetorUangPage() {
 
   const listOptions = useMemo(() => {
     const filter: Record<string, string> = {}
-    if (selectedBranch) filter.storeId = selectedBranch
-    return { page: 1, pageSize: 200, filter }
-  }, [selectedBranch])
+    if (effectiveBranch) filter.storeId = effectiveBranch
+    return { page: 1, pageSize, filter }
+  }, [effectiveBranch, pageSize])
 
   const { data, isLoading, isError } = useCashDeposits(listOptions)
   const approveMutation = useApproveCashDeposit()
@@ -313,11 +311,11 @@ export default function SetorUangPage() {
     [data]
   )
 
-  const handleCreate = () => {
+  const handleCreate = useCallback(() => {
     setCreateDialogOpen(true)
-  }
+  }, [])
 
-  const handleCreateConfirm = async (data: {
+  const handleCreateConfirm = useCallback(async (data: {
     storeId: string
     amount: number
   }) => {
@@ -332,14 +330,14 @@ export default function SetorUangPage() {
       toast.error("Gagal membuat request")
       throw new Error("Create failed")
     }
-  }
+  }, [createMutation])
 
-  const handleBayar = (row: SetorUang) => {
+  const handleBayar = useCallback((row: SetorUang) => {
     setRowToBayar(row)
     setIsBayarConfirmOpen(true)
-  }
+  }, [])
 
-  const handleConfirmBayar = async () => {
+  const handleConfirmBayar = useCallback(async () => {
     if (rowToBayar) {
       try {
         await approveMutation.mutateAsync(rowToBayar.uuid)
@@ -351,14 +349,14 @@ export default function SetorUangPage() {
         throw new Error("Approve failed")
       }
     }
-  }
+  }, [rowToBayar, approveMutation])
 
-  const handleTolak = (row: SetorUang) => {
+  const handleTolak = useCallback((row: SetorUang) => {
     setSelectedRow(row)
     setIsTolakDialogOpen(true)
-  }
+  }, [])
 
-  const handleConfirmTolak = async (
+  const handleConfirmTolak = useCallback(async (
     row: SetorUang,
     data: { alasan: string }
   ) => {
@@ -374,7 +372,7 @@ export default function SetorUangPage() {
       toast.error("Gagal menolak setor uang")
       throw new Error("Reject failed")
     }
-  }
+  }, [rejectMutation])
 
   const columns = [
     ...getBaseColumns(),
@@ -393,7 +391,7 @@ export default function SetorUangPage() {
 
         <div className="flex flex-wrap items-center gap-2">
           {isSuperAdmin && ptOptions.length > 0 && (
-            <Select value={selectedPT} onValueChange={setSelectedPT}>
+            <Select value={effectivePT} onValueChange={setSelectedPT}>
               <SelectTrigger className="w-[200px]">
                 <SelectValue placeholder="Pilih PT" />
               </SelectTrigger>
@@ -407,7 +405,7 @@ export default function SetorUangPage() {
             </Select>
           )}
           {isSuperAdmin && branchOptions.length > 0 && (
-            <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+            <Select value={effectiveBranch} onValueChange={setSelectedBranch}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Pilih Toko" />
               </SelectTrigger>
@@ -525,7 +523,7 @@ export default function SetorUangPage() {
         onConfirm={handleCreateConfirm}
         isSubmitting={createMutation.isPending}
         branchOptions={branchOptions}
-        selectedBranch={selectedBranch}
+        selectedBranch={effectiveBranch}
       />
     </div>
   )

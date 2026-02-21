@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { ColumnDef } from "@tanstack/react-table"
 import { toast } from "sonner"
@@ -109,20 +109,26 @@ export default function PTListPage() {
   const { data, isLoading, isError } = useCompanies()
   const deleteMutation = useDeleteCompany()
 
-  const handleDetail = (row: Company) => {
-    router.push(`/pt/${row.uuid}`)
-  }
+  const handleDetail = useCallback(
+    (row: Company) => {
+      router.push(`/pt/${row.uuid}`)
+    },
+    [router]
+  )
 
-  const handleEdit = (row: Company) => {
-    router.push(`/pt/${row.uuid}/edit`)
-  }
+  const handleEdit = useCallback(
+    (row: Company) => {
+      router.push(`/pt/${row.uuid}/edit`)
+    },
+    [router]
+  )
 
-  const handleDelete = (row: Company) => {
+  const handleDelete = useCallback((row: Company) => {
     setSelectedCompany(row)
     setIsConfirmDialogOpen(true)
-  }
+  }, [])
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = useCallback(() => {
     if (selectedCompany) {
       deleteMutation.mutate(selectedCompany.uuid, {
         onSuccess: () => {
@@ -135,11 +141,11 @@ export default function PTListPage() {
         },
       })
     }
-  }
+  }, [selectedCompany, deleteMutation])
 
-  const handleCreate = () => {
+  const handleCreate = useCallback(() => {
     router.push("/pt/create")
-  }
+  }, [router])
 
   return (
     <>

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useCallback } from "react"
 import { ColumnDef } from "@tanstack/react-table"
 import { toast } from "sonner"
 import { Breadcrumbs } from "@/components/breadcrumbs"
@@ -96,17 +96,17 @@ export default function TipeBarangListPage() {
 
   const itemTypes = itemTypesResponse?.data ?? []
 
-  const handleEdit = (row: ItemType) => {
+  const handleEdit = useCallback((row: ItemType) => {
     setEditingItem(row)
     setIsDialogOpen(true)
-  }
+  }, [])
 
-  const handleDelete = (row: ItemType) => {
+  const handleDelete = useCallback((row: ItemType) => {
     setItemToDelete(row)
     setIsConfirmDialogOpen(true)
-  }
+  }, [])
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = useCallback(() => {
     if (itemToDelete) {
       deleteItemType.mutate(itemToDelete.uuid, {
         onSuccess: () => {
@@ -119,17 +119,17 @@ export default function TipeBarangListPage() {
         },
       })
     }
-  }
+  }, [itemToDelete, deleteItemType])
 
-  const handleCreate = () => {
+  const handleCreate = useCallback(() => {
     setEditingItem(null)
     setIsDialogOpen(true)
-  }
+  }, [])
 
-  const handleDialogClose = () => {
+  const handleDialogClose = useCallback(() => {
     setIsDialogOpen(false)
     setEditingItem(null)
-  }
+  }, [])
 
   return (
     <>

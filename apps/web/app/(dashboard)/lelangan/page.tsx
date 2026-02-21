@@ -341,7 +341,10 @@ function LelangPageContent() {
   const companyFilterId = isSuperAdmin ? selectedPT : effectiveCompanyId
 
   const { data: branchesData } = useBranches(
-    companyFilterId ? { pageSize: 200 } : undefined
+    companyFilterId
+      ? { companyId: companyFilterId, pageSize: 100 }
+      : undefined,
+    { enabled: !!companyFilterId }
   )
 
   const [selectedBranch, setSelectedBranch] = useState<string>("all")
@@ -433,8 +436,8 @@ function LelangPageContent() {
     if (companyFilterId) filter.ptId = companyFilterId
     if (selectedBranch && selectedBranch !== "all")
       filter.storeId = selectedBranch
-    return { page: 1, pageSize: 200, filter }
-  }, [companyFilterId, selectedBranch])
+    return { page: 1, pageSize, filter }
+  }, [companyFilterId, selectedBranch, pageSize])
 
   const { data, isLoading, isError } = useAuctionBatches(listOptions)
   const cancelBatchMutation = useCancelAuctionBatch()

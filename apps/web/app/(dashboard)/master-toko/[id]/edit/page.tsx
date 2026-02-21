@@ -36,7 +36,10 @@ import {
   CardTitle,
 } from "@workspace/ui/components/card"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
-import { useBranch, useUpdateBranch } from "@/lib/react-query/hooks/use-branches"
+import {
+  useBranch,
+  useUpdateBranch,
+} from "@/lib/react-query/hooks/use-branches"
 import type { Branch } from "@/lib/api/types"
 
 const tokoSchema = z.object({
@@ -295,12 +298,12 @@ export default function EditMasterTokoPage() {
                       <FormControl>
                         <div className="relative">
                           {previewImage ? (
-                            <div className="border-input bg-muted/50 relative aspect-square w-48 overflow-hidden rounded-full border-2 border-dashed">
+                            <div className="border-input bg-muted/50 relative aspect-square w-48 rounded-full border-2 border-dashed">
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img
                                 src={previewImage}
                                 alt="Preview"
-                                className="size-full object-cover"
+                                className="size-full overflow-hidden rounded-full object-cover"
                               />
                               <label
                                 htmlFor="image-upload-edit"

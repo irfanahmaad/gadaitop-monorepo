@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, Suspense, useEffect } from "react"
+import React, { useState, Suspense, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { ColumnDef } from "@tanstack/react-table"
 import { Breadcrumbs } from "@/components/breadcrumbs"
@@ -209,13 +209,11 @@ function MasterKatalogPageContent() {
     return list.map((c) => ({ value: c.uuid, label: c.companyName }))
   }, [companiesData])
 
-  useEffect(() => {
-    if (isSuperAdmin && ptOptions.length > 0 && !selectedPT) {
-      setSelectedPT(ptOptions[0]!.value)
-    }
-  }, [isSuperAdmin, ptOptions, selectedPT])
+  const defaultPT =
+    (isSuperAdmin && ptOptions[0]?.value) || effectiveCompanyId || ""
+  const effectivePT = selectedPT || defaultPT
 
-  const companyFilterId = isSuperAdmin ? selectedPT : effectiveCompanyId
+  const companyFilterId = isSuperAdmin ? effectivePT : effectiveCompanyId
 
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
@@ -303,20 +301,26 @@ function MasterKatalogPageContent() {
     setPage(1)
   }, [debouncedSearchValue, companyFilterId, filterValues.itemTypeId, filterValues.harga, priceDateStr])
 
-  const handleDetail = (row: KatalogRow) => {
-    router.push(`/master-katalog/${row.id}`)
-  }
+  const handleDetail = useCallback(
+    (row: KatalogRow) => {
+      router.push(`/master-katalog/${row.id}`)
+    },
+    [router]
+  )
 
-  const handleEdit = (row: KatalogRow) => {
-    router.push(`/master-katalog/${row.id}/edit`)
-  }
+  const handleEdit = useCallback(
+    (row: KatalogRow) => {
+      router.push(`/master-katalog/${row.id}/edit`)
+    },
+    [router]
+  )
 
-  const handleDelete = (row: KatalogRow) => {
+  const handleDelete = useCallback((row: KatalogRow) => {
     setSelectedRow(row)
     setIsConfirmDialogOpen(true)
-  }
+  }, [])
 
-  const handleConfirmDelete = async () => {
+  const handleConfirmDelete = useCallback(async () => {
     if (selectedRow) {
       try {
         await deleteCatalogMutation.mutateAsync(selectedRow.id)
@@ -327,17 +331,17 @@ function MasterKatalogPageContent() {
         toast.error("Gagal menghapus katalog")
       }
     }
-  }
+  }, [selectedRow, deleteCatalogMutation])
 
-  const handleTambahData = () => {
+  const handleTambahData = useCallback(() => {
     router.push("/master-katalog/tambah")
-  }
+  }, [router])
 
-  const handleBulkDelete = () => {
+  const handleBulkDelete = useCallback(() => {
     setIsBulkDeleteDialogOpen(true)
-  }
+  }, [])
 
-  const handleConfirmBulkDelete = async () => {
+  const handleConfirmBulkDelete = useCallback(async () => {
     try {
       await Promise.all(
         selectedRows.map((row) => deleteCatalogMutation.mutateAsync(row.id))
@@ -349,16 +353,16 @@ function MasterKatalogPageContent() {
     } catch {
       toast.error("Gagal menghapus Katalog")
     }
-  }
+  }, [selectedRows, deleteCatalogMutation])
 
-  const handleImportData = () => {
+  const handleImportData = useCallback(() => {
     toast.info("Fitur import katalog akan segera tersedia")
-  }
+  }, [])
 
-  const formatDateDisplay = (date: Date | undefined): string => {
+  const formatDateDisplay = useCallback((date: Date | undefined): string => {
     if (!date) return ""
     return format(date, "d MMMM yyyy", { locale: id })
-  }
+  }, [])
 
   const lastUpdatedDisplay = React.useMemo(() => {
     if (rows.length === 0) return "-"
@@ -387,7 +391,7 @@ function MasterKatalogPageContent() {
 
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-end">
             {isSuperAdmin && ptOptions.length > 0 && (
-              <Select value={selectedPT} onValueChange={setSelectedPT}>
+              <Select value={effectivePT} onValueChange={setSelectedPT}>
                 <SelectTrigger className="w-[200px]">
                   <SelectValue placeholder="Pilih PT" />
                 </SelectTrigger>

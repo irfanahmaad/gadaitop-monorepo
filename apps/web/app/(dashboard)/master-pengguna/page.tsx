@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, Suspense, useEffect } from "react"
+import React, { useState, Suspense, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { ColumnDef } from "@tanstack/react-table"
 import { Breadcrumbs } from "@/components/breadcrumbs"
@@ -257,13 +257,11 @@ function MasterPenggunaPageContent() {
     return list.map((c) => ({ value: c.uuid, label: c.companyName }))
   }, [companiesData])
 
-  useEffect(() => {
-    if (isSuperAdmin && ptOptions.length > 0 && !selectedPT) {
-      setSelectedPT(ptOptions[0]!.value)
-    }
-  }, [isSuperAdmin, ptOptions, selectedPT])
+  const defaultPT =
+    (isSuperAdmin && ptOptions[0]?.value) || effectiveCompanyId || ""
+  const effectivePT = selectedPT || defaultPT
 
-  const companyFilterId = isSuperAdmin ? selectedPT : effectiveCompanyId
+  const companyFilterId = isSuperAdmin ? effectivePT : effectiveCompanyId
 
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
@@ -330,20 +328,26 @@ function MasterPenggunaPageContent() {
     setPage(1)
   }, [debouncedSearchValue, companyFilterId, selectedRoles])
 
-  const handleDetail = (row: User) => {
-    router.push(`/master-pengguna/${row.uuid}`)
-  }
+  const handleDetail = useCallback(
+    (row: User) => {
+      router.push(`/master-pengguna/${row.uuid}`)
+    },
+    [router]
+  )
 
-  const handleEdit = (row: User) => {
-    router.push(`/master-pengguna/${row.uuid}/edit`)
-  }
+  const handleEdit = useCallback(
+    (row: User) => {
+      router.push(`/master-pengguna/${row.uuid}/edit`)
+    },
+    [router]
+  )
 
-  const handleDelete = (row: User) => {
+  const handleDelete = useCallback((row: User) => {
     setSelectedUser(row)
     setIsConfirmDialogOpen(true)
-  }
+  }, [])
 
-  const handleConfirmDelete = async () => {
+  const handleConfirmDelete = useCallback(async () => {
     if (selectedUser) {
       try {
         await deleteUserMutation.mutateAsync(selectedUser.uuid)
@@ -354,17 +358,17 @@ function MasterPenggunaPageContent() {
         toast.error("Gagal menghapus pengguna")
       }
     }
-  }
+  }, [selectedUser, deleteUserMutation])
 
-  const handleTambahData = () => {
+  const handleTambahData = useCallback(() => {
     router.push("/master-pengguna/tambah")
-  }
+  }, [router])
 
-  const handleBulkDelete = () => {
+  const handleBulkDelete = useCallback(() => {
     setIsBulkDeleteDialogOpen(true)
-  }
+  }, [])
 
-  const handleConfirmBulkDelete = async () => {
+  const handleConfirmBulkDelete = useCallback(async () => {
     try {
       await Promise.all(
         selectedRows.map((row) => deleteUserMutation.mutateAsync(row.uuid))
@@ -376,7 +380,7 @@ function MasterPenggunaPageContent() {
     } catch {
       toast.error("Gagal menghapus Pengguna")
     }
-  }
+  }, [selectedRows, deleteUserMutation])
 
   return (
     <>
@@ -395,7 +399,7 @@ function MasterPenggunaPageContent() {
 
           <div className="flex flex-wrap items-center gap-2">
             {isSuperAdmin && ptOptions.length > 0 && (
-              <Select value={selectedPT} onValueChange={setSelectedPT}>
+              <Select value={effectivePT} onValueChange={setSelectedPT}>
                 <SelectTrigger className="w-[200px]">
                   <SelectValue placeholder="Pilih PT" />
                 </SelectTrigger>

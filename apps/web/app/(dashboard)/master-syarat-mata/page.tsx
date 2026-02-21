@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, Suspense, useEffect } from "react"
+import React, { useState, Suspense, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { ColumnDef } from "@tanstack/react-table"
 import { Breadcrumbs } from "@/components/breadcrumbs"
@@ -178,13 +178,11 @@ function MasterSyaratMataPageContent() {
     return list.map((c) => ({ value: c.uuid, label: c.companyName }))
   }, [companiesData])
 
-  useEffect(() => {
-    if (isSuperAdmin && ptOptions.length > 0 && !selectedPT) {
-      setSelectedPT(ptOptions[0]!.value)
-    }
-  }, [isSuperAdmin, ptOptions, selectedPT])
+  const defaultPT =
+    (isSuperAdmin && ptOptions[0]?.value) || effectiveCompanyId || ""
+  const effectivePT = selectedPT || defaultPT
 
-  const companyFilterId = isSuperAdmin ? selectedPT : effectiveCompanyId
+  const companyFilterId = isSuperAdmin ? effectivePT : effectiveCompanyId
 
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
@@ -287,20 +285,26 @@ function MasterSyaratMataPageContent() {
     })
   }, [rows, filterValues.lastUpdate])
 
-  const handleDetail = (row: SyaratMataRow) => {
-    router.push(`/master-syarat-mata/${row.id}`)
-  }
+  const handleDetail = useCallback(
+    (row: SyaratMataRow) => {
+      router.push(`/master-syarat-mata/${row.id}`)
+    },
+    [router]
+  )
 
-  const handleEdit = (row: SyaratMataRow) => {
-    router.push(`/master-syarat-mata/${row.id}/edit`)
-  }
+  const handleEdit = useCallback(
+    (row: SyaratMataRow) => {
+      router.push(`/master-syarat-mata/${row.id}/edit`)
+    },
+    [router]
+  )
 
-  const handleDelete = (row: SyaratMataRow) => {
+  const handleDelete = useCallback((row: SyaratMataRow) => {
     setItemToDelete(row)
     setIsConfirmDialogOpen(true)
-  }
+  }, [])
 
-  const handleConfirmDelete = async () => {
+  const handleConfirmDelete = useCallback(async () => {
     if (itemToDelete) {
       try {
         await deletePawnTermMutation.mutateAsync(itemToDelete.id)
@@ -311,17 +315,17 @@ function MasterSyaratMataPageContent() {
         toast.error("Gagal menghapus Syarat Mata")
       }
     }
-  }
+  }, [itemToDelete, deletePawnTermMutation])
 
-  const handleTambahData = () => {
+  const handleTambahData = useCallback(() => {
     router.push("/master-syarat-mata/tambah")
-  }
+  }, [router])
 
-  const handleBulkDelete = () => {
+  const handleBulkDelete = useCallback(() => {
     setIsBulkDeleteDialogOpen(true)
-  }
+  }, [])
 
-  const handleConfirmBulkDelete = async () => {
+  const handleConfirmBulkDelete = useCallback(async () => {
     try {
       await Promise.all(
         selectedRows.map((row) => deletePawnTermMutation.mutateAsync(row.id))
@@ -333,7 +337,7 @@ function MasterSyaratMataPageContent() {
     } catch {
       toast.error("Gagal menghapus Syarat Mata")
     }
-  }
+  }, [selectedRows, deletePawnTermMutation])
 
   return (
     <>
@@ -354,7 +358,7 @@ function MasterSyaratMataPageContent() {
 
           <div className="flex items-center gap-2">
             {isSuperAdmin && ptOptions.length > 0 && (
-              <Select value={selectedPT} onValueChange={setSelectedPT}>
+              <Select value={effectivePT} onValueChange={setSelectedPT}>
                 <SelectTrigger className="w-[200px]">
                   <SelectValue placeholder="Pilih PT" />
                 </SelectTrigger>

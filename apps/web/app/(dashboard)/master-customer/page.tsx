@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useMemo, useState, useEffect } from "react"
+import React, { useMemo, useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { ColumnDef } from "@tanstack/react-table"
 import { Breadcrumbs } from "@/components/breadcrumbs"
@@ -185,23 +185,19 @@ export default function MasterCustomerPage() {
     return list.map((c) => ({ value: c.uuid, label: c.companyName }))
   }, [companiesData])
 
-  useEffect(() => {
-    if (isSuperAdmin && ptOptions.length > 0 && !selectedPT) {
-      setSelectedPT(ptOptions[0]!.value)
-    }
-  }, [isSuperAdmin, ptOptions, selectedPT])
+  const defaultPT =
+    (isSuperAdmin && ptOptions[0]?.value) ||
+    (isCompanyAdmin ? effectiveCompanyId ?? null : null) ||
+    ""
+  const effectivePT = selectedPT || defaultPT
 
-  useEffect(() => {
-    if (isCompanyAdmin && effectiveCompanyId && !selectedPT) {
-      setSelectedPT(effectiveCompanyId)
-    }
-  }, [isCompanyAdmin, effectiveCompanyId, selectedPT])
-
-  const branchQueryCompanyId = isSuperAdmin ? selectedPT : effectiveCompanyId
-  const { data: branchesData } = useBranches(
+  const branchQueryCompanyId = isSuperAdmin ? effectivePT : effectiveCompanyId
+  const needsBranchFilter = isSuperAdmin || isCompanyAdmin
+  const { data: branchesData, isFetched: branchesFetched } = useBranches(
     branchQueryCompanyId
-      ? { companyId: branchQueryCompanyId, pageSize: 200, status: "active" }
-      : undefined
+      ? { companyId: branchQueryCompanyId, pageSize: 100, status: "active" }
+      : undefined,
+    { enabled: !!branchQueryCompanyId }
   )
 
   const branchOptions = useMemo(() => {
@@ -213,17 +209,14 @@ export default function MasterCustomerPage() {
   }, [branchesData])
 
   const [selectedBranch, setSelectedBranch] = useState<string>("")
+  const validBranch =
+    selectedBranch && branchOptions.some((b) => b.value === selectedBranch)
+  const effectiveBranch =
+    (validBranch ? selectedBranch : null) ?? branchOptions[0]?.value ?? ""
+
   useEffect(() => {
-    if (branchOptions.length > 0) {
-      setSelectedBranch((prev) => {
-        const first = branchOptions[0]!.value
-        if (!prev || !branchOptions.some((b) => b.value === prev)) return first
-        return prev
-      })
-    } else {
-      setSelectedBranch("")
-    }
-  }, [branchOptions])
+    setSelectedBranch("")
+  }, [branchQueryCompanyId])
 
   const [pageSize, setPageSize] = useState(10)
   const [searchValue, setSearchValue] = useState("")
@@ -236,12 +229,16 @@ export default function MasterCustomerPage() {
   const listOptions = useMemo(() => {
     const filter: Record<string, string> = {}
     if (branchQueryCompanyId) filter.ptId = branchQueryCompanyId
-    if (selectedBranch) filter.branchId = selectedBranch
+    if (effectiveBranch) filter.branchId = effectiveBranch
     if (searchValue?.trim()) filter.search = searchValue.trim()
-    return { page: 1, pageSize: 200, filter }
-  }, [branchQueryCompanyId, selectedBranch, searchValue])
+    return { page: 1, pageSize, filter }
+  }, [branchQueryCompanyId, effectiveBranch, searchValue, pageSize])
 
-  const { data, isLoading, isError } = useCustomers(listOptions)
+  const customersReady =
+    !needsBranchFilter || (!!branchQueryCompanyId && branchesFetched)
+  const { data, isLoading, isError } = useCustomers(listOptions, {
+    enabled: customersReady,
+  })
   const changePinMutation = useChangeCustomerPin()
 
   const rows = useMemo(
@@ -249,35 +246,52 @@ export default function MasterCustomerPage() {
     [data]
   )
 
-  const handleDetail = (row: CustomerRow) => {
-    router.push(`/master-customer/${row.id}`)
-  }
+  const handleDetail = useCallback(
+    (row: CustomerRow) => {
+      router.push(`/master-customer/${row.id}`)
+    },
+    [router]
+  )
 
-  const handleGantiPin = (row: CustomerRow) => {
+  const handleGantiPin = useCallback((row: CustomerRow) => {
     setGantiPinCustomerId(row.id)
     setGantiPinOpen(true)
-  }
+  }, [])
 
-  const handleGantiPinConfirm = async (pinBaru: string) => {
-    if (!gantiPinCustomerId) return
-    try {
-      await changePinMutation.mutateAsync({
-        id: gantiPinCustomerId,
-        data: { newPin: pinBaru },
-      })
-      toast.success("PIN berhasil diubah")
-      queryClient.invalidateQueries({ queryKey: customerKeys.detail(gantiPinCustomerId) })
-      queryClient.invalidateQueries({ queryKey: customerKeys.lists() })
-      setGantiPinOpen(false)
-      setGantiPinCustomerId(null)
-    } catch {
-      toast.error("Gagal mengubah PIN. Periksa kembali data dan coba lagi.")
-    }
-  }
+  const handleGantiPinConfirm = useCallback(
+    async (pinBaru: string) => {
+      if (!gantiPinCustomerId) return
+      try {
+        await changePinMutation.mutateAsync({
+          id: gantiPinCustomerId,
+          data: { newPin: pinBaru },
+        })
+        toast.success("PIN berhasil diubah")
+        queryClient.invalidateQueries({
+          queryKey: customerKeys.detail(gantiPinCustomerId),
+        })
+        queryClient.invalidateQueries({ queryKey: customerKeys.lists() })
+        setGantiPinOpen(false)
+        setGantiPinCustomerId(null)
+      } catch {
+        toast.error("Gagal mengubah PIN. Periksa kembali data dan coba lagi.")
+      }
+    },
+    [
+      gantiPinCustomerId,
+      changePinMutation,
+      queryClient,
+    ]
+  )
 
-  const handleTambahData = () => {
+  const handleTambahData = useCallback(() => {
     router.push("/master-customer/tambah")
-  }
+  }, [router])
+
+  const handleGantiPinOpenChange = useCallback((open: boolean) => {
+    setGantiPinOpen(open)
+    if (!open) setGantiPinCustomerId(null)
+  }, [])
 
   return (
     <div className="flex flex-col gap-6">
@@ -306,7 +320,7 @@ export default function MasterCustomerPage() {
         </div>
       </div>
 
-      {isLoading ? (
+      {!customersReady || isLoading ? (
         <TableSkeleton />
       ) : isError ? (
         <Card>
@@ -321,7 +335,7 @@ export default function MasterCustomerPage() {
           headerLeft={
             <div className="flex flex-wrap items-center gap-4">
               {isSuperAdmin && ptOptions.length > 0 && (
-                <Select value={selectedPT} onValueChange={setSelectedPT}>
+                <Select value={effectivePT} onValueChange={setSelectedPT}>
                   <SelectTrigger className="w-[200px]">
                     <SelectValue placeholder="Pilih PT" />
                   </SelectTrigger>
@@ -336,7 +350,7 @@ export default function MasterCustomerPage() {
               )}
               {(isSuperAdmin || isCompanyAdmin) && branchOptions.length > 0 && (
                 <Select
-                  value={selectedBranch}
+                  value={effectiveBranch}
                   onValueChange={setSelectedBranch}
                 >
                   <SelectTrigger className="w-[200px]">
@@ -398,10 +412,7 @@ export default function MasterCustomerPage() {
 
       <GantiPinDialog
         open={gantiPinOpen}
-        onOpenChange={(open) => {
-          setGantiPinOpen(open)
-          if (!open) setGantiPinCustomerId(null)
-        }}
+        onOpenChange={handleGantiPinOpenChange}
         onConfirm={handleGantiPinConfirm}
         isSubmitting={changePinMutation.isPending}
       />

@@ -300,6 +300,7 @@ export interface BorrowRequest {
   requester?: User
   processor?: User
   targetCompany?: Company
+  branch?: Branch
   createdAt: string
   updatedAt: string
 }

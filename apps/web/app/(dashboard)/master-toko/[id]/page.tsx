@@ -44,6 +44,10 @@ import {
 } from "@workspace/ui/components/select"
 import { Label } from "@workspace/ui/components/label"
 import { useBranch, useDeleteBranch } from "@/lib/react-query/hooks/use-branches"
+import {
+  useCreateBorrowRequest,
+} from "@/lib/react-query/hooks/use-borrow-requests"
+import { useCompanies } from "@/lib/react-query/hooks/use-companies"
 import type { Branch } from "@/lib/api/types"
 
 // Toko detail type (UI shape)
@@ -73,13 +77,6 @@ function mapBranchToTokoDetail(branch: Branch): TokoDetail {
     alamat: branch.address ?? "",
   }
 }
-
-// PT options for Pindah Toko dialog (static until transfer API exists)
-const ptOptions = [
-  { value: "pt1", label: "PT Gadai Top Indonesia" },
-  { value: "pt2", label: "PT Gadai Top Premium" },
-  { value: "pt3", label: "PT Gadai Top Sukses Jaya" },
-]
 
 // Loading skeleton for Data Toko card
 function DataTokoSkeleton() {
@@ -131,6 +128,13 @@ export default function MasterTokoDetailPage() {
 
   const { data: branchData, isLoading, isError } = useBranch(id)
   const deleteBranchMutation = useDeleteBranch()
+  const createBorrowRequestMutation = useCreateBorrowRequest()
+  const { data: companiesData } = useCompanies({ pageSize: 100 })
+
+  const ptOptions = useMemo(() => {
+    const list = companiesData?.data ?? []
+    return list.map((c) => ({ value: c.uuid, label: c.companyName }))
+  }, [companiesData])
 
   const toko = useMemo(
     () => (branchData ? mapBranchToTokoDetail(branchData) : null),
@@ -151,11 +155,22 @@ export default function MasterTokoDetailPage() {
       toast.error("Pilih PT terlebih dahulu")
       return
     }
-    // Backend transfer endpoint not yet available
-    toast.info("Fitur pindah kepemilikan belum tersedia")
-    setPindahTokoDialogOpen(false)
-    setSelectedPT("")
-    setIsSubmittingPindahToko(false)
+    setIsSubmittingPindahToko(true)
+    try {
+      await createBorrowRequestMutation.mutateAsync({
+        branchId: id,
+        targetCompanyId: selectedPT,
+      })
+      setPindahTokoDialogOpen(false)
+      setSelectedPT("")
+      toast.success("Permintaan pinjam PT berhasil diajukan")
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Gagal mengajukan permintaan"
+      toast.error(message)
+    } finally {
+      setIsSubmittingPindahToko(false)
+    }
   }
 
   const handleDelete = () => {

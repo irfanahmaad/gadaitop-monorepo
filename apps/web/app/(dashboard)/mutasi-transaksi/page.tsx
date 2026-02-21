@@ -236,7 +236,8 @@ export default function MutasiTransaksiPage() {
   const { data: branchesData } = useBranches(
     branchQueryCompanyId
       ? { companyId: branchQueryCompanyId, pageSize: 100 }
-      : undefined
+      : undefined,
+    { enabled: !!branchQueryCompanyId }
   )
 
   const branchOptions = useMemo(() => {
@@ -265,8 +266,8 @@ export default function MutasiTransaksiPage() {
   const listOptions = useMemo(() => {
     const filter: Record<string, string> = {}
     if (selectedToko) filter.storeId = selectedToko
-    return { page: 1, pageSize: 200, filter }
-  }, [selectedToko])
+    return { page: 1, pageSize, filter }
+  }, [selectedToko, pageSize])
 
   const { data, isLoading, isError } = useCashMutations(listOptions)
   const createMutation = useCreateCashMutation()

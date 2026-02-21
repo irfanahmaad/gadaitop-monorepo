@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { ColumnDef } from "@tanstack/react-table"
 import { Breadcrumbs } from "@/components/breadcrumbs"
@@ -108,20 +108,26 @@ export default function SuperAdminPage() {
   const { data, isLoading, isError } = useSuperAdmins()
   const deleteMutation = useDeleteSuperAdmin()
 
-  const handleDetail = (row: User) => {
-    router.push(`/super-admin/${row.uuid}`)
-  }
+  const handleDetail = useCallback(
+    (row: User) => {
+      router.push(`/super-admin/${row.uuid}`)
+    },
+    [router]
+  )
 
-  const handleEdit = (row: User) => {
-    router.push(`/super-admin/${row.uuid}/edit`)
-  }
+  const handleEdit = useCallback(
+    (row: User) => {
+      router.push(`/super-admin/${row.uuid}/edit`)
+    },
+    [router]
+  )
 
-  const handleDelete = (row: User) => {
+  const handleDelete = useCallback((row: User) => {
     setSelectedUser(row)
     setIsConfirmDialogOpen(true)
-  }
+  }, [])
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = useCallback(() => {
     if (selectedUser) {
       deleteMutation.mutate(selectedUser.uuid, {
         onSuccess: () => {
@@ -134,7 +140,11 @@ export default function SuperAdminPage() {
         },
       })
     }
-  }
+  }, [selectedUser, deleteMutation])
+
+  const handleCreate = useCallback(() => {
+    router.push("/super-admin/create")
+  }, [router])
 
   return (
     <>
@@ -152,7 +162,7 @@ export default function SuperAdminPage() {
           </div>
 
           <div>
-            <Button onClick={() => router.push("/super-admin/create")}>
+            <Button onClick={handleCreate}>
               <PlusIcon className="h-4 w-4" />
               Tambah Data
             </Button>

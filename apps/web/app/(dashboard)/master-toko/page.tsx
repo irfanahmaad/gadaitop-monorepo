@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useMemo, useState, useEffect, useCallback } from "react"
+import React, { useMemo, useState, useCallback } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useRouter } from "next/navigation"
 import { ColumnDef } from "@tanstack/react-table"
@@ -96,18 +96,27 @@ function mapBranchToToko(b: Branch): Toko {
 }
 
 function mapBorrowRequestToRequestToko(r: BorrowRequest): RequestToko {
-  const company = r.targetCompany as { companyName?: string } | undefined
+  const company = r.targetCompany as { companyName?: string; imageUrl?: string } | undefined
   const requester = r.requester as { fullName?: string } | undefined
+  const branch = r.branch as
+    | {
+        branchCode?: string
+        shortName?: string
+        phone?: string
+        city?: string
+      }
+    | undefined
+
   return {
     id: r.uuid,
-    foto: "",
-    kodeLokasi: "-",
+    foto: company?.imageUrl ?? "",
+    kodeLokasi: branch?.branchCode ?? "-",
     namaPT: company?.companyName ?? "-",
     adminPrimary: requester?.fullName ?? "-",
     namaToko: company?.companyName ?? "-",
-    alias: "-",
-    noTelpToko: "",
-    kota: "",
+    alias: branch?.shortName ?? "-",
+    noTelpToko: branch?.phone ?? "-",
+    kota: branch?.city ?? "-",
     tipe: "Pinjam PT",
   }
 }
@@ -298,19 +307,18 @@ export default function MasterTokoPage() {
     return list.map((c) => ({ value: c.uuid, label: c.companyName }))
   }, [companiesData])
 
-  useEffect(() => {
-    if (isSuperAdmin && ptOptions.length > 0 && !selectedPT) {
-      setSelectedPT(ptOptions[0]!.value)
-    }
-  }, [isSuperAdmin, ptOptions, selectedPT])
+  const defaultPT =
+    (isSuperAdmin && ptOptions[0]?.value) || effectiveCompanyId || ""
+  const effectivePT = selectedPT || defaultPT
 
-  const branchQueryCompanyId = isSuperAdmin ? selectedPT : effectiveCompanyId
-  const { data: branchesData, isLoading: branchesLoading } = useBranches({
-    ...(branchQueryCompanyId
-      ? { companyId: branchQueryCompanyId, pageSize: 200, status: "active" }
-      : {}),
-    relation: { company: true },
-    select: {
+  const branchQueryCompanyId = isSuperAdmin ? effectivePT : effectiveCompanyId
+  const { data: branchesData, isLoading: branchesLoading } = useBranches(
+    {
+      ...(branchQueryCompanyId
+        ? { companyId: branchQueryCompanyId, pageSize: 100, status: "active" }
+        : {}),
+      relation: { company: true },
+      select: {
       uuid: true,
       branchCode: true,
       shortName: true,
@@ -326,11 +334,15 @@ export default function MasterTokoPage() {
         companyName: true,
       },
     },
-  })
+  },
+    { enabled: !!branchQueryCompanyId }
+  )
 
-  const { data: borrowRequestsData } = useBorrowRequests({
-    pageSize: 100,
-  })
+  const { data: borrowRequestsData, isLoading: borrowRequestsLoading } =
+    useBorrowRequests({
+      pageSize: 10,
+      relation: { branch: true, requester: true, targetCompany: true },
+    })
 
   const deleteBranchMutation = useDeleteBranch()
   const approveBorrowRequestMutation = useApproveBorrowRequest()
@@ -367,20 +379,26 @@ export default function MasterTokoPage() {
   const [revokeRow, setRevokeRow] = useState<Toko | null>(null)
   const [isRevokeConfirmOpen, setIsRevokeConfirmOpen] = useState(false)
 
-  const handleDetail = (row: Toko | RequestToko) => {
-    router.push(`/master-toko/${row.id}`)
-  }
+  const handleDetail = useCallback(
+    (row: Toko | RequestToko) => {
+      router.push(`/master-toko/${row.id}`)
+    },
+    [router]
+  )
 
-  const handleEdit = (row: Toko | RequestToko) => {
-    router.push(`/master-toko/${row.id}/edit`)
-  }
+  const handleEdit = useCallback(
+    (row: Toko | RequestToko) => {
+      router.push(`/master-toko/${row.id}/edit`)
+    },
+    [router]
+  )
 
-  const handleDelete = (row: Toko) => {
+  const handleDelete = useCallback((row: Toko) => {
     setItemToDelete(row)
     setIsConfirmDialogOpen(true)
-  }
+  }, [])
 
-  const handleConfirmDelete = async () => {
+  const handleConfirmDelete = useCallback(async () => {
     if (itemToDelete) {
       try {
         await deleteBranchMutation.mutateAsync(itemToDelete.id)
@@ -393,31 +411,31 @@ export default function MasterTokoPage() {
         toast.error(message)
       }
     }
-  }
+  }, [itemToDelete, deleteBranchMutation])
 
-  const handleTambahData = () => {
+  const handleTambahData = useCallback(() => {
     router.push("/master-toko/tambah")
-  }
+  }, [router])
 
   const handleRevoke = useCallback((row: Toko) => {
     setRevokeRow(row)
     setIsRevokeConfirmOpen(true)
   }, [])
 
-  const handleRevokeConfirm = async () => {
+  const handleRevokeConfirm = useCallback(async () => {
     if (!revokeRow) return
     // TODO: Wire to revoke API when backend implements PATCH branches/:id/revoke
     toast.info("Fitur Revoke akan segera tersedia")
     setIsRevokeConfirmOpen(false)
     setRevokeRow(null)
-  }
+  }, [revokeRow])
 
   const handleSetujui = useCallback((row: RequestToko) => {
     setSetujuiRow(row)
     setIsSetujuiConfirmOpen(true)
   }, [])
 
-  const handleSetujuiConfirm = async () => {
+  const handleSetujuiConfirm = useCallback(async () => {
     if (!setujuiRow) return
     try {
       await approveBorrowRequestMutation.mutateAsync(setujuiRow.id)
@@ -432,14 +450,14 @@ export default function MasterTokoPage() {
           : "Gagal menyetujui request Pinjam PT"
       toast.error(message)
     }
-  }
+  }, [setujuiRow, approveBorrowRequestMutation, queryClient])
 
   const handleTolak = useCallback((row: RequestToko) => {
     setTolakRow(row)
     setIsTolakDialogOpen(true)
   }, [])
 
-  const handleTolakConfirm = async (
+  const handleTolakConfirm = useCallback(async (
     row: RequestToko,
     data: { rejectionReason: string }
   ) => {
@@ -460,7 +478,7 @@ export default function MasterTokoPage() {
       toast.error(message)
       throw error
     }
-  }
+  }, [rejectBorrowRequestMutation, queryClient])
 
   const tokoPinjamanCustomActions = useMemo(
     () => [
@@ -504,7 +522,7 @@ export default function MasterTokoPage() {
 
         <div className="flex flex-wrap items-center gap-2">
           {isSuperAdmin && ptOptions.length > 0 && (
-            <Select value={selectedPT} onValueChange={setSelectedPT}>
+            <Select value={effectivePT} onValueChange={setSelectedPT}>
               <SelectTrigger className="w-[200px]">
                 <SelectValue placeholder="Pilih PT" />
               </SelectTrigger>
@@ -655,9 +673,12 @@ export default function MasterTokoPage() {
 
         {/* Request Tab */}
         <TabsContent value="request" className="mt-0">
-          <DataTable
-            columns={requestColumns}
-            data={requestRows}
+          {borrowRequestsLoading ? (
+            <TableSkeleton />
+          ) : (
+            <DataTable
+              columns={requestColumns}
+              data={requestRows}
             title="Daftar Request"
             searchPlaceholder="Search"
             headerRight={
@@ -697,6 +718,7 @@ export default function MasterTokoPage() {
             onSearchChange={setSearchValue}
             customActions={requestCustomActions}
           />
+          )}
         </TabsContent>
       </Tabs>
 

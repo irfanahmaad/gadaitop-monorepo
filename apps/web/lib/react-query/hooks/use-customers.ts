@@ -25,11 +25,15 @@ export const customerKeys = {
 }
 
 // Get customers list
-export function useCustomers(options?: PageOptions) {
+export function useCustomers(
+  options?: PageOptions,
+  queryOptions?: { enabled?: boolean }
+) {
   return useQuery({
     queryKey: customerKeys.list(options),
     queryFn: () =>
       apiClient.getList<Customer>(endpoints.customers.list, options),
+    enabled: queryOptions?.enabled ?? true,
   })
 }
 

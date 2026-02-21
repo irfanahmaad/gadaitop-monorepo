@@ -63,7 +63,10 @@ function LaporanPageContent() {
   const companyFilterId = isSuperAdmin ? selectedPT : effectiveCompanyId
 
   const { data: branchesData } = useBranches(
-    companyFilterId ? { pageSize: 200 } : undefined
+    companyFilterId
+      ? { companyId: companyFilterId, pageSize: 100 }
+      : undefined,
+    { enabled: !!companyFilterId }
   )
 
   const branchOptions = React.useMemo(() => {

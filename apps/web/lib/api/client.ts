@@ -1,6 +1,6 @@
 import { getSession } from "next-auth/react"
 
-import type { ApiError, ApiResponse, PageOptions, PaginatedResponse } from "./types"
+import type { ApiError, PageOptions, PaginatedResponse } from "./types"
 
 // Build query string from PageOptions
 function buildQueryString(options?: PageOptions): string {
@@ -9,7 +9,8 @@ function buildQueryString(options?: PageOptions): string {
   const params = new URLSearchParams()
 
   if (options.page !== undefined) params.set("page", String(options.page))
-  if (options.pageSize !== undefined) params.set("pageSize", String(options.pageSize))
+  if (options.pageSize !== undefined)
+    params.set("pageSize", String(options.pageSize))
   if (options.order) params.set("order", options.order)
   if (options.sortBy) params.set("sortBy", options.sortBy)
   if (options.query) params.set("query", options.query)
@@ -23,12 +24,12 @@ function buildQueryString(options?: PageOptions): string {
 
   // Handle relation object
   if (options.relation) {
-    params.set('relation', JSON.stringify(options.relation));
+    params.set("relation", JSON.stringify(options.relation))
   }
 
   // Handle select object
   if (options.select) {
-    params.set('select', JSON.stringify(options.select));
+    params.set("select", JSON.stringify(options.select))
   }
 
   const queryString = params.toString()
@@ -107,7 +108,13 @@ async function request<TResponse, TBody = unknown>(
   url: string,
   options: RequestOptions<TBody> = {}
 ): Promise<TResponse> {
-  const { method = "GET", body, headers = {}, requireAuth = true, accessToken: providedToken } = options
+  const {
+    method = "GET",
+    body,
+    headers = {},
+    requireAuth = true,
+    accessToken: providedToken,
+  } = options
 
   const requestHeaders: Record<string, string> = {
     "Content-Type": "application/json",
@@ -163,8 +170,12 @@ async function request<TResponse, TBody = unknown>(
   if (!response.ok) {
     const error: ApiError = {
       statusCode: response.status,
-      message: (data && typeof data === "object" && "message" in data ? data.message : "An error occurred") as string,
-      error: (data && typeof data === "object" && "error" in data ? data.error : undefined) as string | undefined,
+      message: (data && typeof data === "object" && "message" in data
+        ? data.message
+        : "An error occurred") as string,
+      error: (data && typeof data === "object" && "error" in data
+        ? data.error
+        : undefined) as string | undefined,
     }
     throw ApiClientError.fromApiError(error)
   }
@@ -175,33 +186,58 @@ async function request<TResponse, TBody = unknown>(
 // API client methods
 export const apiClient = {
   // GET request
-  get<TResponse>(url: string, options?: Omit<RequestOptions, "method" | "body">) {
+  get<TResponse>(
+    url: string,
+    options?: Omit<RequestOptions, "method" | "body">
+  ) {
     return request<TResponse>(url, { ...options, method: "GET" })
   },
 
   // GET with pagination
-  getList<TData>(url: string, pageOptions?: PageOptions, options?: Omit<RequestOptions, "method" | "body">) {
+  getList<TData>(
+    url: string,
+    pageOptions?: PageOptions,
+    options?: Omit<RequestOptions, "method" | "body">
+  ) {
     const queryString = buildQueryString(pageOptions)
-    return request<PaginatedResponse<TData>>(`${url}${queryString}`, { ...options, method: "GET" })
+    return request<PaginatedResponse<TData>>(`${url}${queryString}`, {
+      ...options,
+      method: "GET",
+    })
   },
 
   // POST request
-  post<TResponse, TBody = unknown>(url: string, body?: TBody, options?: Omit<RequestOptions<TBody>, "method">) {
+  post<TResponse, TBody = unknown>(
+    url: string,
+    body?: TBody,
+    options?: Omit<RequestOptions<TBody>, "method">
+  ) {
     return request<TResponse, TBody>(url, { ...options, method: "POST", body })
   },
 
   // PUT request
-  put<TResponse, TBody = unknown>(url: string, body?: TBody, options?: Omit<RequestOptions<TBody>, "method">) {
+  put<TResponse, TBody = unknown>(
+    url: string,
+    body?: TBody,
+    options?: Omit<RequestOptions<TBody>, "method">
+  ) {
     return request<TResponse, TBody>(url, { ...options, method: "PUT", body })
   },
 
   // PATCH request
-  patch<TResponse, TBody = unknown>(url: string, body?: TBody, options?: Omit<RequestOptions<TBody>, "method">) {
+  patch<TResponse, TBody = unknown>(
+    url: string,
+    body?: TBody,
+    options?: Omit<RequestOptions<TBody>, "method">
+  ) {
     return request<TResponse, TBody>(url, { ...options, method: "PATCH", body })
   },
 
   // DELETE request
-  delete<TResponse>(url: string, options?: Omit<RequestOptions, "method" | "body">) {
+  delete<TResponse>(
+    url: string,
+    options?: Omit<RequestOptions, "method" | "body">
+  ) {
     return request<TResponse>(url, { ...options, method: "DELETE" })
   },
 }
@@ -210,29 +246,74 @@ export const apiClient = {
 // Use this in server components or API routes
 export function createServerApiClient(accessToken: string) {
   return {
-    get<TResponse>(url: string, options?: Omit<RequestOptions, "method" | "body" | "accessToken">) {
+    get<TResponse>(
+      url: string,
+      options?: Omit<RequestOptions, "method" | "body" | "accessToken">
+    ) {
       return request<TResponse>(url, { ...options, method: "GET", accessToken })
     },
 
-    getList<TData>(url: string, pageOptions?: PageOptions, options?: Omit<RequestOptions, "method" | "body" | "accessToken">) {
+    getList<TData>(
+      url: string,
+      pageOptions?: PageOptions,
+      options?: Omit<RequestOptions, "method" | "body" | "accessToken">
+    ) {
       const queryString = buildQueryString(pageOptions)
-      return request<PaginatedResponse<TData>>(`${url}${queryString}`, { ...options, method: "GET", accessToken })
+      return request<PaginatedResponse<TData>>(`${url}${queryString}`, {
+        ...options,
+        method: "GET",
+        accessToken,
+      })
     },
 
-    post<TResponse, TBody = unknown>(url: string, body?: TBody, options?: Omit<RequestOptions<TBody>, "method" | "accessToken">) {
-      return request<TResponse, TBody>(url, { ...options, method: "POST", body, accessToken })
+    post<TResponse, TBody = unknown>(
+      url: string,
+      body?: TBody,
+      options?: Omit<RequestOptions<TBody>, "method" | "accessToken">
+    ) {
+      return request<TResponse, TBody>(url, {
+        ...options,
+        method: "POST",
+        body,
+        accessToken,
+      })
     },
 
-    put<TResponse, TBody = unknown>(url: string, body?: TBody, options?: Omit<RequestOptions<TBody>, "method" | "accessToken">) {
-      return request<TResponse, TBody>(url, { ...options, method: "PUT", body, accessToken })
+    put<TResponse, TBody = unknown>(
+      url: string,
+      body?: TBody,
+      options?: Omit<RequestOptions<TBody>, "method" | "accessToken">
+    ) {
+      return request<TResponse, TBody>(url, {
+        ...options,
+        method: "PUT",
+        body,
+        accessToken,
+      })
     },
 
-    patch<TResponse, TBody = unknown>(url: string, body?: TBody, options?: Omit<RequestOptions<TBody>, "method" | "accessToken">) {
-      return request<TResponse, TBody>(url, { ...options, method: "PATCH", body, accessToken })
+    patch<TResponse, TBody = unknown>(
+      url: string,
+      body?: TBody,
+      options?: Omit<RequestOptions<TBody>, "method" | "accessToken">
+    ) {
+      return request<TResponse, TBody>(url, {
+        ...options,
+        method: "PATCH",
+        body,
+        accessToken,
+      })
     },
 
-    delete<TResponse>(url: string, options?: Omit<RequestOptions, "method" | "body" | "accessToken">) {
-      return request<TResponse>(url, { ...options, method: "DELETE", accessToken })
+    delete<TResponse>(
+      url: string,
+      options?: Omit<RequestOptions, "method" | "body" | "accessToken">
+    ) {
+      return request<TResponse>(url, {
+        ...options,
+        method: "DELETE",
+        accessToken,
+      })
     },
   }
 }
