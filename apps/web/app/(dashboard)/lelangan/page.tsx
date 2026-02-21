@@ -414,7 +414,7 @@ function LelangPageContent() {
     segmentasi: null,
   }
 
-  const [pageSize, setPageSize] = useState(100)
+  const [pageSize, setPageSize] = useState(10)
   const [searchValue, setSearchValue] = useState("")
   const [activeTab, setActiveTab] = useState("spk-jatuh-tempo")
   const [filterDialogOpen, setFilterDialogOpen] = useState(false)

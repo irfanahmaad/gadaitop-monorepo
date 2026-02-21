@@ -355,7 +355,7 @@ export default function MasterTokoPage() {
 
   const requestCount = requestRows.length
 
-  const [pageSize, setPageSize] = useState(100)
+  const [pageSize, setPageSize] = useState(10)
   const [searchValue, setSearchValue] = useState("")
   const [activeTab, setActiveTab] = useState("toko-utama")
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)

@@ -1,4 +1,4 @@
-import { IsNumber, IsOptional, IsString, IsUUID, Min } from 'class-validator';
+import { IsDateString, IsNumber, IsOptional, IsString, IsUUID, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 import { PageOptionsDto } from '../../../common/dtos/page-options.dto';
@@ -27,4 +27,9 @@ export class QueryCatalogDto extends PageOptionsDto {
   @IsNumber()
   @Min(0)
   basePriceMax?: number;
+
+  /** ISO date string (YYYY-MM-DD) to look up historical prices */
+  @IsOptional()
+  @IsDateString()
+  priceDate?: string;
 }

@@ -40,6 +40,14 @@ export class CustomerService {
       where.ptId = queryDto.ptId;
     }
 
+    const qb = CustomerEntity.createQueryBuilder('customer');
+    if (queryDto.branchId) {
+      qb.andWhere(
+        'customer.uuid IN (SELECT DISTINCT sr.customer_id FROM spk_records sr WHERE sr.store_id = :branchId)',
+        { branchId: queryDto.branchId },
+      );
+    }
+
     const qbOptions: QueryBuilderOptionsType<CustomerEntity> = {
       ...queryDto,
       select: {
@@ -60,7 +68,7 @@ export class CustomerService {
 
     const dynamicQueryBuilder = new DynamicQueryBuilder(this.customerRepository.metadata);
     const [customers, count] = await dynamicQueryBuilder.buildDynamicQuery(
-      CustomerEntity.createQueryBuilder('customer'),
+      qb,
       qbOptions,
     );
 

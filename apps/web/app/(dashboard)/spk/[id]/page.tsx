@@ -237,7 +237,7 @@ export default function SPKDetailPage() {
   const params = useParams()
   const router = useRouter()
   const id = typeof params.id === "string" ? params.id : ""
-  const [pageSize, setPageSize] = useState(100)
+  const [pageSize, setPageSize] = useState(10)
   const [searchValue, setSearchValue] = useState("")
   const [qrDialogOpen, setQrDialogOpen] = useState(false)
 

@@ -289,7 +289,7 @@ export default function SetorUangPage() {
     }
   }, [branchOptions])
 
-  const [pageSize, setPageSize] = useState(100)
+  const [pageSize, setPageSize] = useState(10)
   const [searchValue, setSearchValue] = useState("")
   const [isTolakDialogOpen, setIsTolakDialogOpen] = useState(false)
   const [selectedRow, setSelectedRow] = useState<SetorUang | null>(null)

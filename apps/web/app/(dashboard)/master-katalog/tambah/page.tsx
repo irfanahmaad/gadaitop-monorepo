@@ -306,18 +306,15 @@ export default function TambahMasterKatalogPage() {
                             <Input
                               type="text"
                               placeholder="Contoh: 17.500.000"
-                              icon={<span className="text-sm">Rp</span>}
+                              icon={<>Rp</>}
                               value={field.value}
                               onChange={(e) => {
-                                const value = e.target.value
-                                // Allow user to type, then format on blur
-                                field.onChange(value)
-                              }}
-                              onBlur={(e) => {
                                 const parsed = parseCurrencyInput(e.target.value)
-                                if (parsed !== null) {
-                                  field.onChange(formatCurrencyInput(parsed))
-                                }
+                                field.onChange(
+                                  parsed !== null
+                                    ? formatCurrencyInput(parsed)
+                                    : ""
+                                )
                               }}
                             />
                           </FormControl>
@@ -371,17 +368,15 @@ export default function TambahMasterKatalogPage() {
                             <Input
                               type="text"
                               placeholder="Contoh: 200.000"
-                              icon={<span className="text-sm">Rp</span>}
+                              icon={<>Rp</>}
                               value={field.value}
                               onChange={(e) => {
-                                const value = e.target.value
-                                field.onChange(value)
-                              }}
-                              onBlur={(e) => {
                                 const parsed = parseCurrencyInput(e.target.value)
-                                if (parsed !== null) {
-                                  field.onChange(formatCurrencyInput(parsed))
-                                }
+                                field.onChange(
+                                  parsed !== null
+                                    ? formatCurrencyInput(parsed)
+                                    : ""
+                                )
                               }}
                             />
                           </FormControl>

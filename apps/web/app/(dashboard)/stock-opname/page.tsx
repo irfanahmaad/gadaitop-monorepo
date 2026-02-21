@@ -222,7 +222,7 @@ export default function StockOpnamePage() {
     [user]
   )
 
-  const [pageSize, setPageSize] = useState(100)
+  const [pageSize, setPageSize] = useState(10)
   const [page] = useState(1)
   const [searchValue, setSearchValue] = useState("")
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)

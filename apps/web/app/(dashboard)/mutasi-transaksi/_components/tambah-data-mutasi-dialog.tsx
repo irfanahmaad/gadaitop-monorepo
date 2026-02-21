@@ -191,16 +191,15 @@ export function TambahDataMutasiDialog({
                         <FormControl>
                           <Input
                             placeholder="Masukkan nominal"
-                            icon={<span className="text-sm">Rp</span>}
-                            {...field}
+                            icon={<>Rp</>}
+                            value={field.value}
                             onChange={(e) => {
-                              const value = e.target.value
-                              const parsed = parseCurrencyInput(value)
-                              if (parsed !== null) {
-                                field.onChange(formatCurrencyInput(parsed))
-                              } else if (value === "") {
-                                field.onChange("")
-                              }
+                              const parsed = parseCurrencyInput(e.target.value)
+                              field.onChange(
+                                parsed !== null
+                                  ? formatCurrencyInput(parsed)
+                                  : ""
+                              )
                             }}
                           />
                         </FormControl>

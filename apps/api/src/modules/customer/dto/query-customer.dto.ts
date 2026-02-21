@@ -9,6 +9,10 @@ export class QueryCustomerDto extends PageOptionsDto {
   ptId?: string;
 
   @IsOptional()
+  @IsUUID()
+  branchId?: string;
+
+  @IsOptional()
   @IsString()
   search?: string;
 }

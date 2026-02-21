@@ -161,20 +161,19 @@ export function CreateSetorUangDialog({
                       Nominal <span className="text-destructive">*</span>
                     </FormLabel>
                     <FormControl>
-                      <Input
-                        placeholder="Masukkan nominal"
-                        icon={<span className="text-sm">Rp</span>}
-                        {...field}
-                        onChange={(e) => {
-                          const value = e.target.value
-                          const parsed = parseCurrencyInput(value)
-                          if (parsed !== null) {
-                            field.onChange(formatCurrencyInput(parsed))
-                          } else if (value === "") {
-                            field.onChange("")
-                          }
-                        }}
-                      />
+                          <Input
+                            placeholder="Masukkan nominal"
+                            icon={<>Rp</>}
+                            value={field.value}
+                            onChange={(e) => {
+                              const parsed = parseCurrencyInput(e.target.value)
+                              field.onChange(
+                                parsed !== null
+                                  ? formatCurrencyInput(parsed)
+                                  : ""
+                              )
+                            }}
+                          />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

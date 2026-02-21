@@ -249,7 +249,7 @@ export default function MasterCustomerDetailPage() {
   const router = useRouter()
   const queryClient = useQueryClient()
   const id = typeof params.id === "string" ? params.id : ""
-  const [pageSize, setPageSize] = useState(100)
+  const [pageSize, setPageSize] = useState(10)
   const [searchValue, setSearchValue] = useState("")
   const [gantiPinOpen, setGantiPinOpen] = useState(false)
 

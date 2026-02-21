@@ -258,7 +258,7 @@ export default function MutasiTransaksiPage() {
     }
   }, [branchOptions])
 
-  const [pageSize, setPageSize] = useState(100)
+  const [pageSize, setPageSize] = useState(10)
   const [searchValue, setSearchValue] = useState("")
   const [tambahDataDialogOpen, setTambahDataDialogOpen] = useState(false)
 

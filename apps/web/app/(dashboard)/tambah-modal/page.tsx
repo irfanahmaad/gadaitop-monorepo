@@ -175,7 +175,7 @@ function TambahModalPageContent() {
   const [activeTab, setActiveTab] = useState("request")
   const [pageSize, setPageSize] = useState(10)
   const [searchValue, setSearchValue] = useState("")
-  const [historyPageSize, setHistoryPageSize] = useState(100)
+  const [historyPageSize, setHistoryPageSize] = useState(10)
   const [historySearchValue, setHistorySearchValue] = useState("")
   const [filterDialogOpen, setFilterDialogOpen] = useState(false)
   const [setujuiDialogOpen, setSetujuiDialogOpen] = useState(false)

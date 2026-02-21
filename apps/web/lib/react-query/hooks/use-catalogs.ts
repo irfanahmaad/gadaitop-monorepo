@@ -31,8 +31,9 @@ export const catalogKeys = {
 
 // Get catalogs list
 export function useCatalogs(options?: PageOptions) {
+  const priceDate = options?.filter?.priceDate
   return useQuery({
-    queryKey: catalogKeys.list(options),
+    queryKey: [...catalogKeys.lists(), options, String(priceDate ?? "")],
     queryFn: () =>
       apiClient.getList<CatalogItem>(endpoints.catalogs.list, options),
     placeholderData: keepPreviousData,

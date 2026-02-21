@@ -79,6 +79,10 @@ export class CatalogService {
       itemCount: count,
     });
 
+    if (queryDto.priceDate) {
+      await this.overlayHistoricalPrices(data, queryDto.priceDate);
+    }
+
     return { data, meta };
   }
 
@@ -136,6 +140,10 @@ export class CatalogService {
       pageOptionsDto: queryDto,
       itemCount: count,
     });
+
+    if (queryDto.priceDate) {
+      await this.overlayHistoricalPrices(data, queryDto.priceDate);
+    }
 
     return { data, meta };
   }
@@ -303,5 +311,41 @@ export class CatalogService {
       where: { uuid },
       relations: ['itemType'],
     });
+  }
+
+  /**
+   * Replaces basePrice/pawnValueMin/pawnValueMax on each DTO
+   * with the values from catalog_price_history that were effective on `priceDate`.
+   */
+  private async overlayHistoricalPrices(
+    data: CatalogDto[],
+    priceDate: string,
+  ): Promise<void> {
+    const catalogIds = data.map((d) => d.uuid);
+    if (catalogIds.length === 0) return;
+
+    const historicalPrices = await this.priceHistoryRepository
+      .createQueryBuilder('ph')
+      .where('ph.catalogId IN (:...catalogIds)', { catalogIds })
+      .andWhere('ph.effectiveFrom <= :priceDate', { priceDate })
+      .andWhere(
+        '(ph.effectiveUntil IS NULL OR ph.effectiveUntil > :priceDate)',
+        { priceDate },
+      )
+      .getMany();
+
+    const priceMap = new Map<string, CatalogPriceHistoryEntity>();
+    for (const ph of historicalPrices) {
+      priceMap.set(ph.catalogId, ph);
+    }
+
+    for (const catalog of data) {
+      const historical = priceMap.get(catalog.uuid);
+      if (historical) {
+        catalog.basePrice = historical.basePrice;
+        catalog.pawnValueMin = historical.pawnValueMin;
+        catalog.pawnValueMax = historical.pawnValueMax;
+      }
+    }
   }
 }

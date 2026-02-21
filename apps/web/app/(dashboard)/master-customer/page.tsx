@@ -31,6 +31,7 @@ import {
   customerKeys,
 } from "@/lib/react-query/hooks/use-customers"
 import { useCompanies } from "@/lib/react-query/hooks/use-companies"
+import { useBranches } from "@/lib/react-query/hooks/use-branches"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { GantiPinDialog } from "./[id]/_components/ganti-pin-dialog"
@@ -174,13 +175,14 @@ export default function MasterCustomerPage() {
 
   const effectiveCompanyId = isCompanyAdmin ? (user?.companyId ?? null) : null
 
-  const { data: companiesData } = useCompanies({ pageSize: 100 })
+  const { data: companiesData } = useCompanies(
+    isSuperAdmin ? { pageSize: 100 } : undefined
+  )
 
   const [selectedPT, setSelectedPT] = useState<string>("")
   const ptOptions = useMemo(() => {
     const list = companiesData?.data ?? []
-    const mapped = list.map((c) => ({ value: c.uuid, label: c.companyName }))
-    return mapped
+    return list.map((c) => ({ value: c.uuid, label: c.companyName }))
   }, [companiesData])
 
   useEffect(() => {
@@ -196,8 +198,34 @@ export default function MasterCustomerPage() {
   }, [isCompanyAdmin, effectiveCompanyId, selectedPT])
 
   const branchQueryCompanyId = isSuperAdmin ? selectedPT : effectiveCompanyId
+  const { data: branchesData } = useBranches(
+    branchQueryCompanyId
+      ? { companyId: branchQueryCompanyId, pageSize: 200, status: "active" }
+      : undefined
+  )
 
-  const [pageSize, setPageSize] = useState(100)
+  const branchOptions = useMemo(() => {
+    const list = branchesData?.data ?? []
+    return list.map((b) => ({
+      value: b.uuid,
+      label: b.shortName ?? b.branchCode ?? b.uuid,
+    }))
+  }, [branchesData])
+
+  const [selectedBranch, setSelectedBranch] = useState<string>("")
+  useEffect(() => {
+    if (branchOptions.length > 0) {
+      setSelectedBranch((prev) => {
+        const first = branchOptions[0]!.value
+        if (!prev || !branchOptions.some((b) => b.value === prev)) return first
+        return prev
+      })
+    } else {
+      setSelectedBranch("")
+    }
+  }, [branchOptions])
+
+  const [pageSize, setPageSize] = useState(10)
   const [searchValue, setSearchValue] = useState("")
   const [gantiPinOpen, setGantiPinOpen] = useState(false)
   const [gantiPinCustomerId, setGantiPinCustomerId] = useState<string | null>(
@@ -208,9 +236,10 @@ export default function MasterCustomerPage() {
   const listOptions = useMemo(() => {
     const filter: Record<string, string> = {}
     if (branchQueryCompanyId) filter.ptId = branchQueryCompanyId
+    if (selectedBranch) filter.branchId = selectedBranch
     if (searchValue?.trim()) filter.search = searchValue.trim()
     return { page: 1, pageSize: 200, filter }
-  }, [branchQueryCompanyId, searchValue])
+  }, [branchQueryCompanyId, selectedBranch, searchValue])
 
   const { data, isLoading, isError } = useCustomers(listOptions)
   const changePinMutation = useChangeCustomerPin()
@@ -291,7 +320,7 @@ export default function MasterCustomerPage() {
           data={rows}
           headerLeft={
             <div className="flex flex-wrap items-center gap-4">
-              {(isSuperAdmin || isCompanyAdmin) && ptOptions.length > 0 && (
+              {isSuperAdmin && ptOptions.length > 0 && (
                 <Select value={selectedPT} onValueChange={setSelectedPT}>
                   <SelectTrigger className="w-[200px]">
                     <SelectValue placeholder="Pilih PT" />
@@ -300,6 +329,23 @@ export default function MasterCustomerPage() {
                     {ptOptions.map((pt) => (
                       <SelectItem key={pt.value} value={pt.value}>
                         {pt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              {(isSuperAdmin || isCompanyAdmin) && branchOptions.length > 0 && (
+                <Select
+                  value={selectedBranch}
+                  onValueChange={setSelectedBranch}
+                >
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Pilih Cabang" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {branchOptions.map((b) => (
+                      <SelectItem key={b.value} value={b.value}>
+                        {b.label}
                       </SelectItem>
                     ))}
                   </SelectContent>

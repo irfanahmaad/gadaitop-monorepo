@@ -164,7 +164,7 @@ function TableSkeleton() {
 
 function PortalCustomerPageContent() {
   const router = useRouter()
-  const [pageSize, setPageSize] = React.useState("100")
+  const [pageSize, setPageSize] = React.useState("10")
   const { filterValues, setFilters } = useFilterParams(filterConfig)
 
   // Bayar dialog state

@@ -323,7 +323,7 @@ function NKBPageContent() {
   const router = useRouter()
   const { data: session, status } = useSession()
   const [activeTab, setActiveTab] = useState("nkb-baru")
-  const [pageSize, setPageSize] = useState("100")
+  const [pageSize, setPageSize] = useState("10")
   const { filterValues, setFilters } = useFilterParams(filterConfig)
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
   const [itemToDelete, setItemToDelete] = useState<NKB | null>(null)

@@ -227,7 +227,7 @@ function MasterKatalogPageContent() {
     return () => clearTimeout(t)
   }, [searchValue])
 
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
   const [filterDialogOpen, setFilterDialogOpen] = useState(false)
   const [selectedRow, setSelectedRow] = useState<KatalogRow | null>(null)
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
@@ -265,6 +265,11 @@ function MasterKatalogPageContent() {
 
   const { filterValues, setFilters } = useFilterParams(filterConfigWithOptions)
 
+  const priceDateStr = React.useMemo(
+    () => (selectedDate ? format(selectedDate, "yyyy-MM-dd") : undefined),
+    [selectedDate]
+  )
+
   const listOptions = React.useMemo(() => {
     const filter: Record<string, string | number> = {}
     if (companyFilterId) filter.ptId = companyFilterId
@@ -274,6 +279,7 @@ function MasterKatalogPageContent() {
     const hargaRange = (filterValues.harga as { from: number | null; to: number | null }) ?? { from: null, to: null }
     if (hargaRange.from != null) filter.basePriceMin = hargaRange.from
     if (hargaRange.to != null) filter.basePriceMax = hargaRange.to
+    if (priceDateStr) filter.priceDate = priceDateStr
     return { page, pageSize, filter }
   }, [
     page,
@@ -282,6 +288,7 @@ function MasterKatalogPageContent() {
     debouncedSearchValue,
     filterValues.itemTypeId,
     filterValues.harga,
+    priceDateStr,
   ])
 
   const { data, isLoading, isError } = useCatalogs(listOptions)
@@ -292,10 +299,9 @@ function MasterKatalogPageContent() {
     [data?.data]
   )
 
-  // Reset to page 1 when search or filters change
   useEffect(() => {
     setPage(1)
-  }, [debouncedSearchValue, companyFilterId, filterValues.itemTypeId, filterValues.harga])
+  }, [debouncedSearchValue, companyFilterId, filterValues.itemTypeId, filterValues.harga, priceDateStr])
 
   const handleDetail = (row: KatalogRow) => {
     router.push(`/master-katalog/${row.id}`)
