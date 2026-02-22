@@ -65,3 +65,10 @@ Acceptance Criteria:
 Clicking “Kembali” returns the user to the prior page or a configured default (e.g., Dashboard) without losing authentication state.
 
 Browser Back continues to work as expected, and no duplicate navigation entries are created when opening or closing the notifications list.
+---
+## Data Scoping & Multi-Tenancy (Admin PT)
+
+Acceptance Criteria:
+- All data queries **must** be securely filtered by the logged-in Admin PT's `ptId` (company UUID) to prevent cross-tenant data leakage.
+- Where a branch selector/context is applicable, an optional **branch filter (`storeId` or `branchId`)** further narrows results to the selected subset.
+- Backend API endpoints must enforce Role-Based Access Control (RBAC) and strictly reject any requests attempting to read or mutate data outside the Admin PT's authorized PT scope.

@@ -18,10 +18,19 @@ import { CashMutationTypeEnum } from '../../../constants/cash-mutation-type';
  * Created automatically by SPK/NKB/deposit/topup or manually (adjustment/expense).
  */
 @Entity({ name: 'cash_mutations' })
-@Index(['storeId', 'mutationDate', 'id'])
+@Index(['ptId', 'storeId', 'mutationDate', 'id'])
 export class CashMutationEntity extends BaseEntity {
   @PrimaryGeneratedColumn('increment')
   id: number;
+
+  @Column({ type: 'uuid', nullable: true })
+  @Index()
+  ptId: string;
+
+  @ManyToOne('CompanyEntity', { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'pt_id', referencedColumnName: 'uuid' })
+  pt: Relation<any>;
+
 
   @Column({ type: 'uuid' })
   @Index()

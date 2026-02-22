@@ -48,6 +48,7 @@ import {
   useCreateBorrowRequest,
 } from "@/lib/react-query/hooks/use-borrow-requests"
 import { useCompanies } from "@/lib/react-query/hooks/use-companies"
+import { useAuth } from "@/lib/react-query/hooks/use-auth"
 import type { Branch } from "@/lib/api/types"
 
 // Toko detail type (UI shape)
@@ -126,6 +127,9 @@ export default function MasterTokoDetailPage() {
   const [selectedPT, setSelectedPT] = useState<string>("")
   const [isSubmittingPindahToko, setIsSubmittingPindahToko] = useState(false)
 
+  const { user } = useAuth()
+  const isSuperAdmin = user?.roles?.some((r) => r.code === "owner") ?? false
+
   const { data: branchData, isLoading, isError } = useBranch(id)
   const deleteBranchMutation = useDeleteBranch()
   const createBorrowRequestMutation = useCreateBorrowRequest()
@@ -188,6 +192,31 @@ export default function MasterTokoDetailPage() {
         error instanceof Error ? error.message : "Gagal menghapus data Toko"
       toast.error(message)
     }
+  }
+
+  if (!isLoading && branchData && !isSuperAdmin && branchData.companyId !== user?.companyId) {
+    return (
+      <div className="flex flex-col gap-6">
+        <Breadcrumbs
+          items={[
+            { label: "Master Toko", href: "/master-toko" },
+            { label: "Detail", className: "text-destructive" },
+          ]}
+        />
+        <Card>
+          <CardContent className="py-10 text-center">
+            <p className="text-destructive">Anda tidak memiliki akses ke Toko ini.</p>
+            <Button
+              variant="outline"
+              className="mt-4"
+              onClick={() => router.push("/master-toko")}
+            >
+              Kembali ke Master Toko
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   if (!id) {

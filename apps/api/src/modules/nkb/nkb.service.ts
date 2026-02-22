@@ -76,16 +76,16 @@ export class NkbService {
       }) ?? { createdAt: 'DESC' } as any,
     };
 
-    // Apply ptId filter on the spk relation via raw where since it's a nested join
+    // Apply ptId and storeId directly to nkb entity
     const qb = NkbRecordEntity.createQueryBuilder('nkb');
     if (userPtId) {
-      qb.andWhere('spk.ptId = :ptId', { ptId: userPtId });
+      qb.andWhere('nkb.ptId = :ptId', { ptId: userPtId });
     }
     if (queryDto.ptId) {
-      qb.andWhere('spk.ptId = :ptId', { ptId: queryDto.ptId });
+      qb.andWhere('nkb.ptId = :ptId', { ptId: queryDto.ptId });
     }
     if (queryDto.branchId) {
-      qb.andWhere('spk.storeId = :storeId', { storeId: queryDto.branchId });
+      qb.andWhere('nkb.storeId = :storeId', { storeId: queryDto.branchId });
     }
 
     const dynamicQueryBuilder = new DynamicQueryBuilder(this.nkbRepository.metadata);
@@ -130,6 +130,8 @@ export class NkbService {
     const nkbNumber = await this.generateNkbNumber();
     const nkb = this.nkbRepository.create({
       nkbNumber,
+      ptId: createDto.ptId,
+      storeId: createDto.storeId,
       spkId: createDto.spkId,
       amountPaid: String(createDto.amountPaid),
       paymentType: createDto.paymentType,

@@ -291,11 +291,9 @@ export default function MasterTokoPage() {
   const router = useRouter()
   const queryClient = useQueryClient()
   const { user } = useAuth()
-  const isCompanyAdmin =
-    user?.roles?.some((r) => r.code === "company_admin") ?? false
   const isSuperAdmin = user?.roles?.some((r) => r.code === "owner") ?? false
 
-  const effectiveCompanyId = isCompanyAdmin ? (user?.companyId ?? null) : null
+  const effectiveCompanyId = !isSuperAdmin ? (user?.companyId ?? null) : null
 
   const { data: companiesData } = useCompanies(
     isSuperAdmin ? { pageSize: 100 } : undefined

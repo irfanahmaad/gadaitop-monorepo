@@ -6,6 +6,8 @@ import { NkbRecordEntity } from '../entities/nkb-record.entity';
 export class NkbDto {
   uuid: string;
   nkbNumber: string;
+  ptId: string;
+  storeId: string;
   spkId: string;
   amountPaid: string;
   paymentType: NkbPaymentTypeEnum;

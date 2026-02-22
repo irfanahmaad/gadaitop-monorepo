@@ -63,6 +63,15 @@ export class CustomerEntity extends AbstractEntity {
   @JoinColumn({ name: 'pt_id', referencedColumnName: 'uuid' })
   pt: Relation<any>;
 
+  @Column({ type: 'uuid', nullable: true })
+  @Index()
+  branchId: string | null;
+
+  @ManyToOne('BranchEntity', { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'branch_id', referencedColumnName: 'uuid' })
+  branch: Relation<any> | null;
+
+
   @ManyToOne('UserEntity', { nullable: true, onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'created_by', referencedColumnName: 'uuid' })
   creator: Relation<any> | null;

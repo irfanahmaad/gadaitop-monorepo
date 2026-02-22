@@ -9,6 +9,14 @@ import { AbstractEntity } from '../../../common/abstract.entity';
 @Index(['recipientId', 'readAt'])
 @Index(['recipientId', 'createdAt'])
 export class NotificationEntity extends AbstractEntity {
+  @Column({ type: 'uuid', nullable: true })
+  @Index()
+  ptId: string | null;
+
+  @ManyToOne('CompanyEntity', { nullable: true, onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'pt_id', referencedColumnName: 'uuid' })
+  pt: Relation<any> | null;
+
   @Column({ type: 'uuid' })
   @Index()
   recipientId: string;

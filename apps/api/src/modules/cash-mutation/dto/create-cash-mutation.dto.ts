@@ -13,6 +13,9 @@ import { CashMutationTypeEnum } from '../../../constants/cash-mutation-type';
 
 export class CreateCashMutationDto {
   @IsUUID()
+  ptId: string;
+
+  @IsUUID()
   storeId: string;
 
   @IsEnum(CashMutationTypeEnum)

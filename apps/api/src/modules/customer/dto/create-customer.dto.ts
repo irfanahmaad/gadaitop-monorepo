@@ -70,4 +70,8 @@ export class CreateCustomerDto {
   @IsNotEmpty()
   @IsUUID()
   ptId: string;
+
+  @IsOptional()
+  @IsUUID()
+  branchId?: string;
 }

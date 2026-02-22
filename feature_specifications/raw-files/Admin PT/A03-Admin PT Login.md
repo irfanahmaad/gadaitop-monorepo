@@ -71,3 +71,10 @@ Choosing “Logout” anywhere in the Admin PT interface invalidates the session
 When a session expires due to inactivity, accessing any Admin PT page redirects to the login screen with an optional “session expired” message.
 
 Using browser Back after logout/expiry does not restore access to Admin PT pages unless the user logs in again.
+---
+## Data Scoping & Multi-Tenancy (Admin PT)
+
+Acceptance Criteria:
+- All data queries **must** be securely filtered by the logged-in Admin PT's `ptId` (company UUID) to prevent cross-tenant data leakage.
+- Where a branch selector/context is applicable, an optional **branch filter (`storeId` or `branchId`)** further narrows results to the selected subset.
+- Backend API endpoints must enforce Role-Based Access Control (RBAC) and strictly reject any requests attempting to read or mutate data outside the Admin PT's authorized PT scope.

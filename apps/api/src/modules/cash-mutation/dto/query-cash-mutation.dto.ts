@@ -7,6 +7,10 @@ import { CashMutationTypeEnum } from '../../../constants/cash-mutation-type';
 export class QueryCashMutationDto extends PageOptionsDto {
   @IsOptional()
   @IsUUID()
+  ptId?: string;
+
+  @IsOptional()
+  @IsUUID()
   storeId?: string;
 
   @IsOptional()

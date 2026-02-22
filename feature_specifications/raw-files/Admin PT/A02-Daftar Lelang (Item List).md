@@ -120,3 +120,10 @@ Acceptance Criteria:
 Clicking on an item in the auction list or batch detail opens the same “Detail Item” screen used elsewhere, showing SPK details, item specs, condition, location, and evidence photos.
 
 From this item detail, Admin PT can see whether the item is in auction, sold, or still in inventory, and navigate back to the auction list/batch while preserving filters and pagination.
+---
+## Data Scoping & Multi-Tenancy (Admin PT)
+
+Acceptance Criteria:
+- All data queries **must** be securely filtered by the logged-in Admin PT's `ptId` (company UUID) to prevent cross-tenant data leakage.
+- Where a branch selector/context is applicable, an optional **branch filter (`storeId` or `branchId`)** further narrows results to the selected subset.
+- Backend API endpoints must enforce Role-Based Access Control (RBAC) and strictly reject any requests attempting to read or mutate data outside the Admin PT's authorized PT scope.

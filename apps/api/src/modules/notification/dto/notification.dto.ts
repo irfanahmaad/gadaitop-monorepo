@@ -2,6 +2,7 @@ import { NotificationEntity } from '../entities/notification.entity';
 
 export class NotificationDto {
   uuid: string;
+  ptId: string | null;
   recipientId: string;
   title: string;
   body: string;
@@ -13,6 +14,7 @@ export class NotificationDto {
 
   constructor(notification: NotificationEntity) {
     this.uuid = notification.uuid;
+    this.ptId = notification.ptId ?? null;
     this.recipientId = notification.recipientId;
     this.title = notification.title;
     this.body = notification.body;

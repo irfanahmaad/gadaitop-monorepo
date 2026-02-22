@@ -6,6 +6,12 @@ import { NkbPaymentTypeEnum } from '../../../constants/nkb-payment-type';
 
 export class CreateNkbDto {
   @IsUUID()
+  ptId: string;
+
+  @IsUUID()
+  storeId: string;
+
+  @IsUUID()
   spkId: string;
 
   @IsNumber()

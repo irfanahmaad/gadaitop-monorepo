@@ -12,7 +12,25 @@ import { NkbStatusEnum } from '../../../constants/nkb-status';
 @Entity({ name: 'nkb_records' })
 @Index(['spkId', 'status'])
 @Index(['spkId', 'createdAt'])
+@Index(['ptId', 'storeId', 'status'])
+@Index(['ptId', 'createdAt'])
 export class NkbRecordEntity extends AbstractEntity {
+  @Column({ type: 'uuid', nullable: true })
+  @Index()
+  ptId: string;
+
+  @ManyToOne('CompanyEntity', { onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'pt_id', referencedColumnName: 'uuid' })
+  pt: Relation<any>;
+
+  @Column({ type: 'uuid', nullable: true })
+  @Index()
+  storeId: string;
+
+  @ManyToOne('BranchEntity', { onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'store_id', referencedColumnName: 'uuid' })
+  store: Relation<any>;
+
   @Column({ type: 'varchar', length: 50, unique: true })
   @Index()
   nkbNumber: string;
