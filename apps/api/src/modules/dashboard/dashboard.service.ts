@@ -25,10 +25,12 @@ export class DashboardService {
     private branchRepository: Repository<BranchEntity>,
   ) {}
 
-  async getKpis(ptId?: string): Promise<DashboardKpisDto> {
-    const storeIds = ptId
-      ? await this.getStoreIdsByPtId(ptId)
-      : await this.getAllStoreIds();
+  async getKpis(ptId?: string, branchId?: string): Promise<DashboardKpisDto> {
+    const storeIds = branchId
+      ? [branchId]
+      : ptId
+        ? await this.getStoreIdsByPtId(ptId)
+        : await this.getAllStoreIds();
 
     const [activeSpkCount, overdueSpkCount, nkbCountThisMonth] = await Promise.all([
       this.spkRepository.count({
@@ -63,10 +65,12 @@ export class DashboardService {
     };
   }
 
-  async getSpkByStatus(ptId?: string): Promise<SpkByStatusDto[]> {
-    const storeIds = ptId
-      ? await this.getStoreIdsByPtId(ptId)
-      : await this.getAllStoreIds();
+  async getSpkByStatus(ptId?: string, branchId?: string): Promise<SpkByStatusDto[]> {
+    const storeIds = branchId
+      ? [branchId]
+      : ptId
+        ? await this.getStoreIdsByPtId(ptId)
+        : await this.getAllStoreIds();
 
     const qb = this.spkRepository
       .createQueryBuilder('spk')
@@ -82,11 +86,12 @@ export class DashboardService {
 
   async getMutationTrends(
     ptId?: string,
-    storeId?: string,
+    branchId?: string,
     days: number = 30,
+    date?: string,
   ): Promise<MutationTrendsDto[]> {
-    const storeIds = storeId
-      ? [storeId]
+    const storeIds = branchId
+      ? [branchId]
       : ptId
         ? await this.getStoreIdsByPtId(ptId)
         : await this.getAllStoreIds();
@@ -95,8 +100,8 @@ export class DashboardService {
       return [];
     }
 
-    const end = new Date();
-    const start = new Date();
+    const end = date ? new Date(date) : new Date();
+    const start = date ? new Date(date) : new Date();
     start.setDate(start.getDate() - days);
     start.setHours(0, 0, 0, 0);
     end.setHours(23, 59, 59, 999);

@@ -1,7 +1,7 @@
 import { Controller, Get, Query, Req } from '@nestjs/common';
 import { Request } from 'express';
 
-import { Auth } from '../../decorators';
+import { Auth, RequestCompanyId } from '../../decorators';
 import { DashboardService } from './dashboard.service';
 import { DashboardKpisDto } from './dto/kpis.dto';
 import { SpkByStatusDto } from './dto/spk-by-status.dto';
@@ -13,30 +13,37 @@ export class DashboardController {
 
   @Get('kpis')
   @Auth([])
-  async getKpis(@Req() req: Request): Promise<DashboardKpisDto> {
-    const user = (req as any).user;
-    const ptId = user?.companyId ?? user?.ownedCompanyId ?? undefined;
-    return this.dashboardService.getKpis(ptId);
+  async getKpis(
+    @RequestCompanyId() targetCompanyId: string | undefined,
+    @Query('companyId') companyId?: string,
+    @Query('branchId') branchId?: string,
+  ): Promise<DashboardKpisDto> {
+    const ptId = targetCompanyId || companyId;
+    return this.dashboardService.getKpis(ptId, branchId);
   }
 
   @Get('charts/spk-by-status')
   @Auth([])
-  async getSpkByStatus(@Req() req: Request): Promise<SpkByStatusDto[]> {
-    const user = (req as any).user;
-    const ptId = user?.companyId ?? user?.ownedCompanyId ?? undefined;
-    return this.dashboardService.getSpkByStatus(ptId);
+  async getSpkByStatus(
+    @RequestCompanyId() targetCompanyId: string | undefined,
+    @Query('companyId') companyId?: string,
+    @Query('branchId') branchId?: string,
+  ): Promise<SpkByStatusDto[]> {
+    const ptId = targetCompanyId || companyId;
+    return this.dashboardService.getSpkByStatus(ptId, branchId);
   }
 
   @Get('charts/mutation-trends')
   @Auth([])
   async getMutationTrends(
-    @Query('storeId') storeId?: string,
+    @RequestCompanyId() targetCompanyId: string | undefined,
+    @Query('companyId') companyId?: string,
+    @Query('branchId') branchId?: string,
     @Query('days') days?: string,
-    @Req() req?: Request,
+    @Query('date') date?: string,
   ): Promise<MutationTrendsDto[]> {
-    const user = (req as any)?.user;
-    const ptId = user?.companyId ?? user?.ownedCompanyId ?? undefined;
+    const ptId = targetCompanyId || companyId;
     const daysNum = days ? parseInt(days, 10) : 30;
-    return this.dashboardService.getMutationTrends(ptId, storeId, daysNum);
+    return this.dashboardService.getMutationTrends(ptId, branchId, daysNum, date);
   }
 }
