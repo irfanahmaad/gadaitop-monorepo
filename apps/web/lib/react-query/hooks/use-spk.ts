@@ -27,10 +27,14 @@ export const spkKeys = {
 }
 
 // Get SPK list
-export function useSpkList(options?: QuerySpkDto) {
+export function useSpkList(
+  options?: QuerySpkDto,
+  queryOptions?: { enabled?: boolean }
+) {
   return useQuery({
     queryKey: spkKeys.list(options),
     queryFn: () => apiClient.getList<Spk>(endpoints.spk.list, options),
+    enabled: queryOptions?.enabled ?? true,
   })
 }
 

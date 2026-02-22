@@ -96,7 +96,9 @@ function mapBranchToToko(b: Branch): Toko {
 }
 
 function mapBorrowRequestToRequestToko(r: BorrowRequest): RequestToko {
-  const company = r.targetCompany as { companyName?: string; imageUrl?: string } | undefined
+  const company = r.targetCompany as
+    | { companyName?: string; imageUrl?: string }
+    | undefined
   const requester = r.requester as { fullName?: string } | undefined
   const branch = r.branch as
     | {
@@ -319,22 +321,22 @@ export default function MasterTokoPage() {
         : {}),
       relation: { company: true },
       select: {
-      uuid: true,
-      branchCode: true,
-      shortName: true,
-      fullName: true,
-      city: true,
-      phone: true,
-      status: true,
-      isBorrowed: true,
-      companyId: true,
-      company: {
-        id: true,
         uuid: true,
-        companyName: true,
+        branchCode: true,
+        shortName: true,
+        fullName: true,
+        city: true,
+        phone: true,
+        status: true,
+        isBorrowed: true,
+        companyId: true,
+        company: {
+          id: true,
+          uuid: true,
+          companyName: true,
+        },
       },
     },
-  },
     { enabled: !!branchQueryCompanyId }
   )
 
@@ -457,28 +459,28 @@ export default function MasterTokoPage() {
     setIsTolakDialogOpen(true)
   }, [])
 
-  const handleTolakConfirm = useCallback(async (
-    row: RequestToko,
-    data: { rejectionReason: string }
-  ) => {
-    try {
-      await rejectBorrowRequestMutation.mutateAsync({
-        id: row.id,
-        data: { rejectionReason: data.rejectionReason },
-      })
-      queryClient.invalidateQueries({ queryKey: branchKeys.lists() })
-      toast.success("Request Pinjam PT berhasil ditolak")
-      setIsTolakDialogOpen(false)
-      setTolakRow(null)
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Gagal menolak request Pinjam PT"
-      toast.error(message)
-      throw error
-    }
-  }, [rejectBorrowRequestMutation, queryClient])
+  const handleTolakConfirm = useCallback(
+    async (row: RequestToko, data: { rejectionReason: string }) => {
+      try {
+        await rejectBorrowRequestMutation.mutateAsync({
+          id: row.id,
+          data: { rejectionReason: data.rejectionReason },
+        })
+        queryClient.invalidateQueries({ queryKey: branchKeys.lists() })
+        toast.success("Request Pinjam PT berhasil ditolak")
+        setIsTolakDialogOpen(false)
+        setTolakRow(null)
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Gagal menolak request Pinjam PT"
+        toast.error(message)
+        throw error
+      }
+    },
+    [rejectBorrowRequestMutation, queryClient]
+  )
 
   const tokoPinjamanCustomActions = useMemo(
     () => [
@@ -604,10 +606,6 @@ export default function MasterTokoPage() {
                       className="w-full"
                     />
                   </div>
-                  <Button variant="outline" className="flex items-center gap-2">
-                    <SlidersHorizontal className="h-4 w-4" />
-                    Filter
-                  </Button>
                 </div>
               }
               initialPageSize={pageSize}
@@ -656,10 +654,6 @@ export default function MasterTokoPage() {
                       className="w-full"
                     />
                   </div>
-                  <Button variant="outline" className="flex items-center gap-2">
-                    <SlidersHorizontal className="h-4 w-4" />
-                    Filter
-                  </Button>
                 </div>
               }
               initialPageSize={pageSize}
@@ -679,45 +673,41 @@ export default function MasterTokoPage() {
             <DataTable
               columns={requestColumns}
               data={requestRows}
-            title="Daftar Request"
-            searchPlaceholder="Search"
-            headerRight={
-              <div className="flex w-full items-center gap-2 sm:w-auto">
-                <Select
-                  value={pageSize.toString()}
-                  onValueChange={(value) => setPageSize(Number(value))}
-                >
-                  <SelectTrigger className="w-[100px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="10">10</SelectItem>
-                    <SelectItem value="25">25</SelectItem>
-                    <SelectItem value="50">50</SelectItem>
-                    <SelectItem value="100">100</SelectItem>
-                  </SelectContent>
-                </Select>
-                <div className="w-full sm:w-auto sm:max-w-sm">
-                  <Input
-                    placeholder="Search"
-                    value={searchValue}
-                    onChange={(e) => setSearchValue(e.target.value)}
-                    icon={<SearchIcon className="size-4" />}
-                    className="w-full"
-                  />
+              title="Daftar Request"
+              searchPlaceholder="Search"
+              headerRight={
+                <div className="flex w-full items-center gap-2 sm:w-auto">
+                  <Select
+                    value={pageSize.toString()}
+                    onValueChange={(value) => setPageSize(Number(value))}
+                  >
+                    <SelectTrigger className="w-[100px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="25">25</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <div className="w-full sm:w-auto sm:max-w-sm">
+                    <Input
+                      placeholder="Search"
+                      value={searchValue}
+                      onChange={(e) => setSearchValue(e.target.value)}
+                      icon={<SearchIcon className="size-4" />}
+                      className="w-full"
+                    />
+                  </div>
                 </div>
-                <Button variant="outline" className="flex items-center gap-2">
-                  <SlidersHorizontal className="h-4 w-4" />
-                  Filter
-                </Button>
-              </div>
-            }
-            initialPageSize={pageSize}
-            onPageSizeChange={setPageSize}
-            searchValue={searchValue}
-            onSearchChange={setSearchValue}
-            customActions={requestCustomActions}
-          />
+              }
+              initialPageSize={pageSize}
+              onPageSizeChange={setPageSize}
+              searchValue={searchValue}
+              onSearchChange={setSearchValue}
+              customActions={requestCustomActions}
+            />
           )}
         </TabsContent>
       </Tabs>

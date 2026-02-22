@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useMemo } from "react"
+import React, { useMemo, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { ColumnDef } from "@tanstack/react-table"
 import { Breadcrumbs } from "@/components/breadcrumbs"
@@ -36,12 +36,32 @@ import {
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
 import {
+  useCustomer,
   useChangeCustomerPin,
   customerKeys,
 } from "@/lib/react-query/hooks/use-customers"
+import { useSpkList } from "@/lib/react-query/hooks/use-spk"
+import { useFilterParams, type FilterConfig } from "@/hooks/use-filter-params"
+import type { Customer, Spk } from "@/lib/api/types"
 import { GantiPinDialog } from "./_components/ganti-pin-dialog"
 
-// Customer detail type (matches image layout)
+const daftarSPKFilterConfig: FilterConfig[] = [
+  {
+    key: "spkRange",
+    label: "",
+    type: "currencyrange",
+    currency: "Rp",
+  },
+  {
+    key: "tanggalRange",
+    label: "",
+    type: "daterange",
+    labelFrom: "Mulai Dari",
+    labelTo: "Sampai Dengan",
+  },
+]
+
+// Display shape for Data Customer card (mapped from API Customer)
 type CustomerDetail = {
   id: string
   foto: string
@@ -59,7 +79,38 @@ type CustomerDetail = {
   email: string
 }
 
-// SPK row type for Daftar SPK table
+function mapCustomerToDetail(c: Customer | null | undefined): CustomerDetail | null {
+  if (!c) return null
+  const id = String(c.id ?? c.uuid ?? "")
+  const namaLengkap = c.fullName ?? c.name ?? "—"
+  const foto = c.ktpPhotoUrl ?? c.selfiePhotoUrl ?? ""
+  const rawDob = c.dateOfBirth ?? c.dob
+  const tanggalLahir = rawDob
+    ? new Date(rawDob).toLocaleDateString("id-ID", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : "—"
+  return {
+    id,
+    foto,
+    namaLengkap,
+    nik: c.nik ?? "—",
+    tanggalLahir,
+    jenisKelamin: c.gender ?? "—",
+    tempatLahir: "—",
+    kota: c.city ?? "—",
+    kelurahan: "—",
+    kecamatan: "—",
+    alamat: c.address ?? "—",
+    telepon1: c.phone ?? c.phoneNumber ?? "—",
+    telepon2: "—",
+    email: c.email ?? "—",
+  }
+}
+
+// SPK row type for Daftar SPK table (mapped from API Spk)
 type SPKRow = {
   id: string
   nomorSPK: string
@@ -69,62 +120,33 @@ type SPKRow = {
   tanggalWaktuSPK: string
 }
 
-// Mock: fetch customer by id (replace with API later)
-function getCustomerById(id: string): CustomerDetail | null {
-  const mock: CustomerDetail = {
-    id: "1",
-    foto: "/placeholder-avatar.jpg",
-    namaLengkap: "Andi Pratama Nugroho",
-    nik: "9999011501010001",
-    tanggalLahir: "20 November 1990",
-    jenisKelamin: "Laki-laki",
-    tempatLahir: "Jakarta",
-    kota: "Jakarta Timur",
-    kelurahan: "Batu Ampar",
-    kecamatan: "Kramatjati",
-    alamat: "Kota Jakarta Timur, Daerah Khusus Ibukota Jakarta",
-    telepon1: "0812345678910",
-    telepon2: "-",
-    email: "andi.pra@mail.com",
-  }
-  if (id === "1") return mock
-  // Second customer for id 2
-  if (id === "2") {
-    return {
-      ...mock,
-      id: "2",
-      namaLengkap: "Siti Rahmawati Putri",
-      nik: "9999011501010002",
-      email: "siti.rahmawati@mail.com",
-      telepon1: "0812345678911",
-    }
-  }
-  return mock
+function formatSpkDateTime(iso: string): string {
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return "—"
+  const date = d.toLocaleDateString("id-ID", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  })
+  const time = d.toLocaleTimeString("id-ID", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  })
+  return `${date}\n${time}`
 }
 
-// Mock: SPK list for customer (replace with API later)
-function getSPKByCustomerId(customerId: string): SPKRow[] {
-  return [
-    {
-      id: "1",
-      nomorSPK: "SPK/001/20112025",
-      namaCustomer: "Andi Pratama Nugroho",
-      jumlahSPK: 10_000_000,
-      sisaSPK: 10,
-      tanggalWaktuSPK: "20 November 2025\n18:33:45",
-    },
-    {
-      id: "2",
-      nomorSPK: "SPK/002/20112025",
-      namaCustomer: "Siti Rahmawati Putri",
-      jumlahSPK: 17_500_000,
-      sisaSPK: 10,
-      tanggalWaktuSPK: "20 November 2025\n18:33:45",
-    },
-  ].filter(
-    (spk) =>
-      spk.namaCustomer === getCustomerById(customerId)?.namaLengkap || true
-  )
+function mapSpkToRow(spk: Spk): SPKRow {
+  const namaCustomer =
+    spk.customer?.fullName ?? spk.customer?.name ?? "—"
+  return {
+    id: String(spk.id ?? spk.uuid),
+    nomorSPK: spk.spkNumber ?? "—",
+    namaCustomer,
+    jumlahSPK: spk.principalAmount ?? spk.totalAmount ?? 0,
+    sisaSPK: spk.tenor ?? 0,
+    tanggalWaktuSPK: formatSpkDateTime(spk.createdAt ?? spk.dueDate ?? ""),
+  }
 }
 
 const formatCurrency = (amount: number): string =>
@@ -252,28 +274,80 @@ export default function MasterCustomerDetailPage() {
   const [pageSize, setPageSize] = useState(10)
   const [searchValue, setSearchValue] = useState("")
   const [gantiPinOpen, setGantiPinOpen] = useState(false)
+  const [filterDialogOpen, setFilterDialogOpen] = useState(false)
 
+  const { filterValues, setFilters } = useFilterParams(daftarSPKFilterConfig)
   const changePinMutation = useChangeCustomerPin()
 
-  // Simulate async fetch (replace with useQuery + API)
-  const [loading, setLoading] = useState(true)
-  React.useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 400)
-    return () => clearTimeout(t)
-  }, [id])
+  const {
+    data: customerData,
+    isLoading: customerLoading,
+    isError: customerError,
+  } = useCustomer(id)
+  const customerUuid = customerData?.uuid
+  const { data: spkData } = useSpkList(
+    customerUuid ? { filter: { customerId: customerUuid } } : undefined,
+    { enabled: !!customerUuid }
+  )
 
-  const customer = useMemo(() => (id ? getCustomerById(id) : null), [id])
-  const spkList = useMemo(() => (id ? getSPKByCustomerId(id) : []), [id])
+  const customer = useMemo(
+    () => mapCustomerToDetail(customerData),
+    [customerData]
+  )
+  const spkList = useMemo(() => {
+    const list = spkData?.data ?? []
+    return list.map(mapSpkToRow)
+  }, [spkData])
 
   const filteredSPK = useMemo(() => {
-    if (!searchValue.trim()) return spkList
-    const q = searchValue.toLowerCase()
-    return spkList.filter(
-      (row) =>
-        row.nomorSPK.toLowerCase().includes(q) ||
-        row.namaCustomer.toLowerCase().includes(q)
-    )
-  }, [spkList, searchValue])
+    let result = spkList
+
+    // Search filter
+    if (searchValue.trim()) {
+      const q = searchValue.toLowerCase()
+      result = result.filter(
+        (row) =>
+          row.nomorSPK.toLowerCase().includes(q) ||
+          row.namaCustomer.toLowerCase().includes(q)
+      )
+    }
+
+    // SPK amount range filter
+    const spkRange = filterValues.spkRange as
+      | { from?: number | string | null; to?: number | string | null }
+      | undefined
+    if (spkRange?.from != null && spkRange.from !== "") {
+      const fromVal = Number(spkRange.from)
+      if (!isNaN(fromVal)) {
+        result = result.filter((row) => row.jumlahSPK >= fromVal)
+      }
+    }
+    if (spkRange?.to != null && spkRange.to !== "") {
+      const toVal = Number(spkRange.to)
+      if (!isNaN(toVal)) {
+        result = result.filter((row) => row.jumlahSPK <= toVal)
+      }
+    }
+
+    // Date range filter (tanggalWaktuSPK format: "20 November 2025\n18:33:45")
+    const tanggalRange = filterValues.tanggalRange as
+      | { from?: string | null; to?: string | null }
+      | undefined
+    if (tanggalRange?.from || tanggalRange?.to) {
+      result = result.filter((row) => {
+        const dateStr = row.tanggalWaktuSPK.split("\n")[0]?.trim() ?? ""
+        if (!dateStr) return false
+        const rowDate = new Date(dateStr)
+        if (isNaN(rowDate.getTime())) return false
+        const rowYmd = rowDate.toISOString().slice(0, 10)
+        if (tanggalRange.from && rowYmd < tanggalRange.from) return false
+        if (tanggalRange.to && rowYmd > tanggalRange.to) return false
+        return true
+      })
+    }
+
+    return result
+  }, [spkList, searchValue, filterValues])
 
   const handleDetail = (row: SPKRow) => {
     console.log("SPK Detail:", row)
@@ -323,7 +397,7 @@ export default function MasterCustomerDetailPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex flex-col gap-2">
           <h1 className="text-2xl font-bold">
-            {loading ? (
+            {customerLoading ? (
               <Skeleton className="h-8 w-64" />
             ) : (
               (customer?.namaLengkap ?? "—")
@@ -336,7 +410,7 @@ export default function MasterCustomerDetailPage() {
             ]}
           />
         </div>
-        {!loading && customer && (
+        {!customerLoading && customer && (
           <Button
             variant="outline"
             className="shrink-0 gap-2"
@@ -356,8 +430,21 @@ export default function MasterCustomerDetailPage() {
       />
 
       {/* Data Customer card */}
-      {loading ? (
+      {customerLoading ? (
         <DataCustomerSkeleton />
+      ) : customerError ? (
+        <Card>
+          <CardContent className="py-10 text-center">
+            <p className="text-destructive">Gagal memuat data customer.</p>
+            <Button
+              variant="outline"
+              className="mt-4"
+              onClick={() => router.push("/master-customer")}
+            >
+              Kembali ke Master Customer
+            </Button>
+          </CardContent>
+        </Card>
       ) : customer ? (
         <Card>
           <CardHeader>
@@ -492,7 +579,7 @@ export default function MasterCustomerDetailPage() {
       )}
 
       {/* Daftar SPK card */}
-      {loading ? (
+      {customerLoading ? (
         <DaftarSPKSkeleton />
       ) : customer ? (
         <DataTable<SPKRow, unknown>
@@ -525,12 +612,21 @@ export default function MasterCustomerDetailPage() {
                   className="w-full"
                 />
               </div>
-              <Button variant="outline" className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                className="flex items-center gap-2"
+                onClick={() => setFilterDialogOpen(true)}
+              >
                 <SlidersHorizontal className="h-4 w-4" />
                 Filter
               </Button>
             </div>
           }
+          filterConfig={daftarSPKFilterConfig}
+          filterValues={filterValues}
+          onFilterChange={setFilters}
+          filterDialogOpen={filterDialogOpen}
+          onFilterDialogOpenChange={setFilterDialogOpen}
           initialPageSize={pageSize}
           onPageSizeChange={setPageSize}
           searchValue={searchValue}

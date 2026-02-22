@@ -1,14 +1,7 @@
 "use client"
 
 import * as React from "react"
-import {
-  User,
-  Settings,
-  LogOut,
-  Bell,
-  HelpCircle,
-  Loader2,
-} from "lucide-react"
+import { User, Settings, LogOut, Bell, HelpCircle, Loader2 } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -77,16 +70,7 @@ export function ProfileDropdown() {
             <Bell className="mr-2 size-4" />
             <span>Notifications</span>
           </DropdownMenuItem>
-          <DropdownMenuItem>
-            <Settings className="mr-2 size-4" />
-            <span>Settings</span>
-          </DropdownMenuItem>
         </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem>
-          <HelpCircle className="mr-2 size-4" />
-          <span>Support</span>
-        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
           className="text-destructive focus:text-destructive"
