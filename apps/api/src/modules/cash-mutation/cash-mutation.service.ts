@@ -36,6 +36,9 @@ export class CashMutationService {
     if (effectiveStoreId) {
       where.storeId = effectiveStoreId;
     }
+    if (queryDto.ptId) {
+      where.ptId = queryDto.ptId;
+    }
     if (queryDto.mutationType) {
       where.mutationType = queryDto.mutationType;
     }
@@ -109,6 +112,7 @@ export class CashMutationService {
     }
 
     const mutation = this.cashMutationRepository.create({
+      ptId: createDto.ptId,
       storeId: createDto.storeId,
       mutationDate: new Date(),
       mutationType: createDto.mutationType,
@@ -126,6 +130,7 @@ export class CashMutationService {
   }
 
   async createFromSpkDisbursement(
+    ptId: string,
     storeId: string,
     amount: number,
     referenceId: string,
@@ -140,6 +145,7 @@ export class CashMutationService {
       );
     }
     const mutation = this.cashMutationRepository.create({
+      ptId,
       storeId,
       mutationDate: new Date(),
       mutationType: CashMutationTypeEnum.Debit,
@@ -156,6 +162,7 @@ export class CashMutationService {
   }
 
   async createFromNkbPayment(
+    ptId: string,
     storeId: string,
     amount: number,
     referenceId: string,
@@ -165,6 +172,7 @@ export class CashMutationService {
     const balanceBefore = balance;
     const balanceAfter = balanceBefore + amount;
     const mutation = this.cashMutationRepository.create({
+      ptId,
       storeId,
       mutationDate: new Date(),
       mutationType: CashMutationTypeEnum.Credit,

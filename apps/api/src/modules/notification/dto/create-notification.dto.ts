@@ -19,6 +19,10 @@ export class CreateNotificationDto {
   type?: string;
 
   @IsOptional()
+  @IsUUID()
+  ptId?: string;
+
+  @IsOptional()
   @IsString()
   @MaxLength(100)
   relatedEntityType?: string;

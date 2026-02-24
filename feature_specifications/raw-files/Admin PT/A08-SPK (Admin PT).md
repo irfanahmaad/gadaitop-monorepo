@@ -84,3 +84,10 @@ Admin PT can only view SPK and SPK Detail for branches under their PT; attempts 
 All SPK and NKB data displayed in this feature is consistent with the underlying loan management module (amounts, statuses, dates).
 
 SPK actions that change financial state (e.g., renewal, redemption, forfeiture) are not performed from this list/detail view unless explicit flows are later defined; in this version, the screen is read‑only for monitoring and audit.
+---
+## Data Scoping & Multi-Tenancy (Admin PT)
+
+Acceptance Criteria:
+- All data queries **must** be securely filtered by the logged-in Admin PT's `ptId` (company UUID) to prevent cross-tenant data leakage.
+- Where a branch selector/context is applicable, an optional **branch filter (`storeId` or `branchId`)** further narrows results to the selected subset.
+- Backend API endpoints must enforce Role-Based Access Control (RBAC) and strictly reject any requests attempting to read or mutate data outside the Admin PT's authorized PT scope.

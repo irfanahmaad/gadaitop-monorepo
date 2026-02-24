@@ -44,6 +44,7 @@ import {
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { useCreateBranch } from "@/lib/react-query/hooks/use-branches"
 import { useAuth } from "@/lib/react-query/hooks/use-auth"
+import { useCompanies } from "@/lib/react-query/hooks/use-companies"
 
 const tokoSchema = z.object({
   image: z.union([z.instanceof(File), z.string()]).optional(),
@@ -75,22 +76,27 @@ const tokoSchema = z.object({
     .max(500, "Alamat maksimal 500 karakter")
     .optional()
     .or(z.literal("")),
+  companyId: z.string().optional(),
 })
 
 type TokoFormValues = z.infer<typeof tokoSchema>
-
-// Mock PT options for Pinjam PT (replace with API later)
-const ptOptions = [
-  { value: "pt1", label: "PT Gadai Top Indonesia" },
-  { value: "pt2", label: "PT Gadai Top Premium" },
-  { value: "pt3", label: "PT Gadai Top Sukses Jaya" },
-]
 
 export default function TambahMasterTokoPage() {
   const router = useRouter()
   const [previewImage, setPreviewImage] = useState<string | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const { user } = useAuth()
+  const isSuperAdmin = user?.roles?.some((r) => r.code === "owner") ?? false
+
+  const { data: companiesData } = useCompanies(
+    isSuperAdmin ? { pageSize: 100 } : undefined
+  )
+
+  const ptOptions = React.useMemo(() => {
+    const list = companiesData?.data ?? []
+    return list.map((c) => ({ value: c.uuid, label: c.companyName }))
+  }, [companiesData])
+
   const { mutateAsync: createBranch, isPending: isSubmitting } = useCreateBranch()
 
   const form = useForm<TokoFormValues>({
@@ -104,6 +110,7 @@ export default function TambahMasterTokoPage() {
       kota: "",
       pinjamPT: "",
       alamat: "",
+      companyId: "",
     },
   })
 
@@ -133,9 +140,9 @@ export default function TambahMasterTokoPage() {
   const handleConfirmSubmit = async () => {
     const values = form.getValues()
     try {
-      const companyId = user?.companyId
+      const companyId = isSuperAdmin ? values.companyId : user?.companyId
       if (!companyId) {
-        throw new Error("Company ID Admin PT tidak ditemukan")
+        throw new Error("Company ID PT belum dipilih atau tidak ditemukan")
       }
       await createBranch({
         branchCode: values.kodeLokasi,
@@ -252,6 +259,37 @@ export default function TambahMasterTokoPage() {
                     </h2>
                   </div>
                   <div className="grid gap-6 md:grid-cols-2">
+                    {isSuperAdmin && (
+                      <FormField
+                        control={form.control}
+                        name="companyId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>
+                              PT <span className="text-destructive">*</span>
+                            </FormLabel>
+                            <Select
+                              value={field.value || ""}
+                              onValueChange={field.onChange}
+                            >
+                              <FormControl>
+                                <SelectTrigger className="w-full">
+                                  <SelectValue placeholder="Pilih PT" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {ptOptions.map((opt) => (
+                                  <SelectItem key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
                     <FormField
                       control={form.control}
                       name="kodeLokasi"

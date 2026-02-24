@@ -300,6 +300,10 @@ export default function MutasiTransaksiPage() {
       toast.error("Pilih toko terlebih dahulu")
       return
     }
+    if (!branchQueryCompanyId) {
+      toast.error("Pilih PT terlebih dahulu")
+      return
+    }
 
     const mapping: Record<
       string,
@@ -327,6 +331,7 @@ export default function MutasiTransaksiPage() {
 
     try {
       await createMutation.mutateAsync({
+        ptId: branchQueryCompanyId,
         storeId,
         mutationType,
         category,

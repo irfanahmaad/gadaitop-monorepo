@@ -4,6 +4,7 @@ import { CashMutationEntity } from '../entities/cash-mutation.entity';
 
 export class CashMutationDto {
   id: number;
+  ptId: string;
   storeId: string;
   mutationDate: Date;
   mutationType: CashMutationTypeEnum;
@@ -19,6 +20,7 @@ export class CashMutationDto {
 
   constructor(record: CashMutationEntity) {
     this.id = record.id;
+    this.ptId = record.ptId;
     this.storeId = record.storeId;
     this.mutationDate = record.mutationDate;
     this.mutationType = record.mutationType;

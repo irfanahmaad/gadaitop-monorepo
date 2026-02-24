@@ -59,10 +59,10 @@ export class UserService {
    */
   async findOneTokenStatus(
     userId: number,
-  ): Promise<{ id: number; uuid: string; accessToken: string | null } | null> {
+  ): Promise<{ id: number; uuid: string; accessToken: string | null; companyId: string | null; ownedCompanyId: string | null; branchId: string | null } | null> {
     return this.userRepository.findOne({
       where: { id: userId },
-      select: ['id', 'uuid', 'accessToken'],
+      select: ['id', 'uuid', 'accessToken', 'companyId', 'ownedCompanyId', 'branchId'],
     });
   }
 

@@ -22,6 +22,7 @@ export class NotificationService {
 
   async create(dto: CreateNotificationDto): Promise<NotificationDto> {
     const notification = this.notificationRepository.create({
+      ptId: dto.ptId ?? null,
       recipientId: dto.recipientId,
       title: dto.title,
       body: dto.body,

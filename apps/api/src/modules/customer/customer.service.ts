@@ -43,7 +43,7 @@ export class CustomerService {
     const qb = CustomerEntity.createQueryBuilder('customer');
     if (queryDto.branchId) {
       qb.andWhere(
-        'customer.uuid IN (SELECT DISTINCT sr.customer_id FROM spk_records sr WHERE sr.store_id = :branchId)',
+        '(customer.branchId = :branchId OR customer.uuid IN (SELECT DISTINCT sr.customer_id FROM spk_records sr WHERE sr.store_id = :branchId))',
         { branchId: queryDto.branchId },
       );
     }
@@ -127,6 +127,7 @@ export class CustomerService {
       ktpPhotoUrl: createDto.ktpPhotoUrl ?? null,
       selfiePhotoUrl: createDto.selfiePhotoUrl ?? null,
       ptId: createDto.ptId,
+      branchId: createDto.branchId ?? null,
       createdBy,
       isBlacklisted: false,
     });

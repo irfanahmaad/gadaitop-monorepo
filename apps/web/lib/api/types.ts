@@ -500,6 +500,7 @@ export interface Customer {
   selfiePhotoUrl?: string | null
   companyId?: string
   ptId?: string
+  branchId?: string
   company?: Company
   createdAt: string
   updatedAt: string
@@ -521,6 +522,7 @@ export interface CreateCustomerDto {
   gender?: "male" | "female"
   city?: string
   ptId?: string
+  branchId?: string
   ktpPhotoUrl?: string
   selfiePhotoUrl?: string
 }
@@ -564,6 +566,8 @@ export interface Nkb {
   id: string
   uuid: string
   nkbNumber: string
+  ptId: string
+  storeId: string
   spkId: string
   paymentType: NkbType
   amount: number
@@ -579,6 +583,8 @@ export interface Nkb {
 }
 
 export interface CreateNkbDto {
+  ptId: string
+  storeId: string
   spkId: string
   transactionType: string
   amount: number
@@ -872,6 +878,7 @@ export type CashMutationCategory =
 export interface CashMutation {
   id: string
   uuid: string
+  ptId: string
   storeId: string
   type?: CashMutationType
   mutationType?: CashMutationTypeBackend
@@ -893,6 +900,7 @@ export interface CashBalance {
 }
 
 export interface CreateCashMutationDto {
+  ptId: string
   storeId: string
   mutationType: CashMutationTypeBackend
   category: CashMutationCategory
@@ -901,6 +909,7 @@ export interface CreateCashMutationDto {
 }
 
 export interface QueryCashMutationDto extends PageOptions {
+  ptId?: string
   storeId?: string
   mutationType?: CashMutationTypeBackend
   category?: CashMutationCategory
@@ -978,6 +987,7 @@ export interface Notification {
   body?: string
   description?: string
   type: NotificationType | string
+  ptId?: string | null
   /** API returns `readAt`; derived `isRead` = !!readAt */
   readAt?: string | null
   isRead?: boolean

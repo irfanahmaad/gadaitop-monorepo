@@ -40,6 +40,7 @@ import {
   useBranch,
   useUpdateBranch,
 } from "@/lib/react-query/hooks/use-branches"
+import { useAuth } from "@/lib/react-query/hooks/use-auth"
 import type { Branch } from "@/lib/api/types"
 
 const tokoSchema = z.object({
@@ -140,6 +141,9 @@ export default function EditMasterTokoPage() {
   const [previewImage, setPreviewImage] = useState<string | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
 
+  const { user } = useAuth()
+  const isSuperAdmin = user?.roles?.some((r) => r.code === "owner") ?? false
+
   const { data: branchData, isLoading, isError } = useBranch(id)
   const updateBranchMutation = useUpdateBranch()
 
@@ -212,6 +216,31 @@ export default function EditMasterTokoPage() {
         error instanceof Error ? error.message : "Gagal memperbarui data Toko"
       toast.error(message)
     }
+  }
+
+  if (!isLoading && branchData && !isSuperAdmin && branchData.companyId !== user?.companyId) {
+    return (
+      <div className="flex flex-col gap-6">
+        <Breadcrumbs
+          items={[
+            { label: "Master Toko", href: "/master-toko" },
+            { label: "Edit", className: "text-destructive" },
+          ]}
+        />
+        <Card>
+          <CardContent className="py-10 text-center">
+            <p className="text-destructive">Anda tidak memiliki akses ke Toko ini.</p>
+            <Button
+              variant="outline"
+              className="mt-4"
+              onClick={() => router.push("/master-toko")}
+            >
+              Kembali ke Master Toko
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   if (!id) {

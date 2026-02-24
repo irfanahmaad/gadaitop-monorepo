@@ -11,7 +11,8 @@ import {
 } from '@nestjs/common';
 import { Request } from 'express';
 
-import { Auth } from '../../decorators';
+import { Auth, AuthUser, RequestCompanyId } from '../../decorators';
+import { UserEntity } from '../user/entities/user.entity';
 import { BorrowRequestService } from './borrow-request.service';
 import { BorrowRequestDto } from './dto/borrow-request.dto';
 import { CreateBorrowRequestDto } from './dto/create-borrow-request.dto';
@@ -27,14 +28,14 @@ export class BorrowRequestController {
   @Auth([])
   async findAll(
     @Query() query: PageOptionsDto,
-    @Req() req: Request,
+    @AuthUser() user: UserEntity,
+    @RequestCompanyId() targetCompanyId: string | undefined,
   ): Promise<{
     data: BorrowRequestDto[];
     meta: PageMetaDto;
   }> {
-    const user = (req as any).user;
+    console.log('targetCompanyId', targetCompanyId);
     const requesterId = user?.uuid ?? undefined;
-    const targetCompanyId = user?.companyId ?? user?.ownedCompanyId ?? undefined;
     return this.borrowRequestService.findAll(query, requesterId, targetCompanyId);
   }
 
@@ -48,9 +49,8 @@ export class BorrowRequestController {
   @Auth([])
   async create(
     @Body() createDto: CreateBorrowRequestDto,
-    @Req() req: Request,
+    @AuthUser() user: UserEntity,
   ): Promise<BorrowRequestDto> {
-    const user = (req as any).user;
     const requesterId = user?.uuid ?? '';
     return this.borrowRequestService.create(createDto, requesterId);
   }
@@ -59,9 +59,8 @@ export class BorrowRequestController {
   @Auth([])
   async approve(
     @Param('id', ParseUUIDPipe) id: string,
-    @Req() req: Request,
+    @AuthUser() user: UserEntity,
   ): Promise<BorrowRequestDto> {
-    const user = (req as any).user;
     const processorId = user?.uuid ?? '';
     return this.borrowRequestService.approve(id, processorId);
   }
@@ -71,9 +70,8 @@ export class BorrowRequestController {
   async reject(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() rejectDto: RejectBorrowRequestDto,
-    @Req() req: Request,
+    @AuthUser() user: UserEntity,
   ): Promise<BorrowRequestDto> {
-    const user = (req as any).user;
     const processorId = user?.uuid ?? '';
     return this.borrowRequestService.reject(id, processorId, rejectDto.rejectionReason);
   }

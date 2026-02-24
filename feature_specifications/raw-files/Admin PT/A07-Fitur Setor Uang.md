@@ -86,3 +86,10 @@ Only users with the Admin PT role (and any configured permissions) can access th
 For each request, the system logs who created it, who changed its status, what the new status is, and timestamps for each event.
 
 Audit data is retained and viewable in either the request detail view or a separate log section, according to compliance needs.
+---
+## Data Scoping & Multi-Tenancy (Admin PT)
+
+Acceptance Criteria:
+- All data queries **must** be securely filtered by the logged-in Admin PT's `ptId` (company UUID) to prevent cross-tenant data leakage.
+- Where a branch selector/context is applicable, an optional **branch filter (`storeId` or `branchId`)** further narrows results to the selected subset.
+- Backend API endpoints must enforce Role-Based Access Control (RBAC) and strictly reject any requests attempting to read or mutate data outside the Admin PT's authorized PT scope.
