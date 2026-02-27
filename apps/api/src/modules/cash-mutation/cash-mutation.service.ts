@@ -49,10 +49,11 @@ export class CashMutationService {
     const qbOptions: QueryBuilderOptionsType<CashMutationEntity> = {
       ...queryDto,
       where,
-      orderBy: sortAttribute(queryDto.sortBy, {
-        mutationDate: { mutationDate: true },
-        createdAt: { createdAt: true },
-      }) ?? { mutationDate: 'DESC' } as any,
+      orderBy:
+        sortAttribute(queryDto.sortBy, {
+          mutationDate: { mutationDate: true },
+          createdAt: { createdAt: true },
+        }) ?? ({ mutationDate: 'DESC' } as any),
     };
 
     // Apply date range filters via raw where (Between operator not easily declarative)
@@ -68,7 +69,9 @@ export class CashMutationService {
       });
     }
 
-    const dynamicQueryBuilder = new DynamicQueryBuilder(this.cashMutationRepository.metadata);
+    const dynamicQueryBuilder = new DynamicQueryBuilder(
+      this.cashMutationRepository.metadata,
+    );
     const [records, count] = await dynamicQueryBuilder.buildDynamicQuery(
       qb,
       qbOptions,

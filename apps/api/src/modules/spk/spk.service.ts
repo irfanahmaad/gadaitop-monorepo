@@ -75,34 +75,42 @@ export class SpkService {
       where.status = queryDto.status;
     }
 
+    const isOverdue = queryDto.status === SpkStatusEnum.Overdue;
     const qbOptions: QueryBuilderOptionsType<SpkRecordEntity> = {
       ...queryDto,
-      select: {
-        spkNumber: true,
-        internalSpkNumber: true,
-        customerSpkNumber: true,
-        principalAmount: true,
-        tenor: true,
-        interestRate: true,
-        totalAmount: true,
-        remainingBalance: true,
-        dueDate: true,
-        status: true,
-        customer: {
-          id: true,
-          name: true,
-        },
-        store: {
-          id: true,
-        },
-        pt: {
-          id: true,
-        },
-      } as any,
+      // When loading overdue SPKs we need items + itemType; a restrictive select
+      // would override leftJoinAndSelect and leave items empty, so omit select.
+      ...(!isOverdue && {
+        select: {
+          spkNumber: true,
+          internalSpkNumber: true,
+          customerSpkNumber: true,
+          principalAmount: true,
+          tenor: true,
+          interestRate: true,
+          totalAmount: true,
+          remainingBalance: true,
+          dueDate: true,
+          status: true,
+          customer: {
+            id: true,
+            name: true,
+          },
+          store: {
+            id: true,
+          },
+          pt: {
+            id: true,
+          },
+        } as any,
+      }),
       relation: {
         customer: true,
         store: true,
         pt: true,
+        ...(isOverdue && {
+          items: { itemType: true },
+        }),
       },
       where,
       orderBy: sortAttribute(queryDto.sortBy, {

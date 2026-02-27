@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, Suspense, useEffect } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import { ColumnDef } from "@tanstack/react-table"
 import { Breadcrumbs } from "@/components/breadcrumbs"
 import { DataTable } from "@/components/data-table"
@@ -26,27 +27,33 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "@workspace/ui/components/avatar"
-import { SearchIcon, SlidersHorizontal, Eye, Plus } from "lucide-react"
+import { SearchIcon, SlidersHorizontal, Plus, QrCode } from "lucide-react"
 import { format } from "date-fns"
 import { id } from "date-fns/locale"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { Skeleton } from "@workspace/ui/components/skeleton"
 import { Card, CardContent, CardHeader } from "@workspace/ui/components/card"
-import type { AuctionBatch } from "@/lib/api/types"
+import type { AuctionBatch, Spk } from "@/lib/api/types"
 import type { FilterConfig } from "@/hooks/use-filter-params"
 import { useAuth } from "@/lib/react-query/hooks/use-auth"
 import {
   useAuctionBatches,
   useCancelAuctionBatch,
+  useCreateAuctionBatch,
 } from "@/lib/react-query/hooks/use-auction-batches"
 import { useCompanies } from "@/lib/react-query/hooks/use-companies"
+import { useSpkList, spkKeys } from "@/lib/react-query/hooks/use-spk"
 import { useBranches } from "@/lib/react-query/hooks/use-branches"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+import { QRCodeDialog } from "@/app/(dashboard)/_components/QRCodeDialog"
 
-// Types for SPK Jatuh Tempo (items - from batch detail, list doesn't include items)
+// Types for SPK Jatuh Tempo (flattened from overdue SPK items)
 type ItemLelang = {
   id: string
+  spkItemId: string
+  storeId: string
+  ptId: string
   foto: string
   noSPK: string
   namaBarang: string
@@ -101,6 +108,42 @@ function mapAuctionBatchToBatchLelang(batch: AuctionBatch): BatchLelang {
     toko: batch.store?.shortName,
     updatedAtRaw: updatedAt ?? undefined,
   }
+}
+
+function flattenOverdueSpkToItemLelang(spkList: Spk[]): ItemLelang[] {
+  const rows: ItemLelang[] = []
+  for (const spk of spkList) {
+    const items = spk.items ?? []
+    const storeShortName =
+      (spk.store as { shortName?: string })?.shortName ?? "-"
+    const ptId = spk.ptId ?? ""
+    const storeId = spk.storeId ?? ""
+
+    for (const item of items) {
+      if (item.status !== "in_storage") continue
+
+      const photoUrl =
+        item.evidencePhotos?.[0] ??
+        (item as { photoUrl?: string }).photoUrl ??
+        ""
+      const typeName = (item.itemType as { typeName?: string })?.typeName ?? "-"
+
+      rows.push({
+        id: item.uuid,
+        spkItemId: item.uuid,
+        storeId,
+        ptId,
+        foto: photoUrl,
+        noSPK: spk.spkNumber,
+        namaBarang: item.description,
+        tipeBarang: typeName,
+        toko: storeShortName,
+        petugas: "-",
+        lastUpdatedAt: "Belum Terscan",
+      })
+    }
+  }
+  return rows
 }
 
 // Status badge component for Batch Lelang
@@ -187,10 +230,8 @@ const itemLelangColumns: ColumnDef<ItemLelang>[] = [
     header: "No.SPK",
     cell: ({ row }) => (
       <div className="flex items-center gap-2">
-        <span className="cursor-pointer text-blue-600 hover:underline">
-          {row.getValue("noSPK")}
-        </span>
-        <Eye className="size-3 text-gray-400" />
+        <span className="font-medium">{row.getValue("noSPK")}</span>
+        <QrCode className="text-muted-foreground size-4" />
       </div>
     ),
   },
@@ -282,9 +323,6 @@ const batchLelangColumns: ColumnDef<BatchLelang>[] = [
   },
 ]
 
-// Placeholder for SPK Jatuh Tempo (list API doesn't include items)
-const placeholderItemLelang: ItemLelang[] = []
-
 function TableSkeleton() {
   return (
     <Card>
@@ -315,6 +353,7 @@ function TableSkeleton() {
 
 function LelangPageContent() {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const { user } = useAuth()
   const isCompanyAdmin =
     user?.roles?.some((r) => r.code === "company_admin") ?? false
@@ -340,30 +379,38 @@ function LelangPageContent() {
 
   const companyFilterId = isSuperAdmin ? selectedPT : effectiveCompanyId
 
+  const overdueSpkOptions = React.useMemo(
+    () => ({
+      page: 1,
+      pageSize: 200,
+      filter: { status: "overdue" } as Record<string, string>,
+    }),
+    []
+  )
+
+  const {
+    data: overdueSpkData,
+    isLoading: isOverdueSpkLoading,
+    isError: isOverdueSpkError,
+  } = useSpkList(overdueSpkOptions)
+
+  const itemLelangRows = React.useMemo(() => {
+    const list = overdueSpkData?.data ?? []
+    return flattenOverdueSpkToItemLelang(list)
+  }, [overdueSpkData])
+
   const { data: branchesData } = useBranches(
-    companyFilterId
-      ? { companyId: companyFilterId, pageSize: 100 }
-      : undefined,
+    companyFilterId ? { companyId: companyFilterId, pageSize: 100 } : undefined,
     { enabled: !!companyFilterId }
   )
 
-  const [selectedBranch, setSelectedBranch] = useState<string>("all")
   const branchOptions = React.useMemo(() => {
     const list = branchesData?.data ?? []
     const filtered = companyFilterId
       ? list.filter((b) => b.companyId === companyFilterId)
       : list
-    return [
-      { value: "all", label: "Semua Toko" },
-      ...filtered.map((b) => ({ value: b.uuid, label: b.shortName })),
-    ]
+    return filtered.map((b) => ({ value: b.uuid, label: b.shortName }))
   }, [branchesData, companyFilterId])
-
-  useEffect(() => {
-    if (branchOptions.length > 1 && selectedBranch === "all") {
-      setSelectedBranch(branchOptions[1]?.value ?? "all")
-    }
-  }, [branchOptions, selectedBranch])
 
   const lelanganFilterConfig: FilterConfig[] = React.useMemo(
     () => [
@@ -393,9 +440,7 @@ function LelangPageContent() {
         label: "Toko",
         type: "multiselect",
         placeholder: "Pilih toko...",
-        options: branchOptions
-          .filter((b) => b.value !== "all")
-          .map((b) => ({ label: b.label, value: b.label })),
+        options: branchOptions.map((b) => ({ label: b.label, value: b.label })),
       },
       {
         key: "segmentasi",
@@ -424,20 +469,81 @@ function LelangPageContent() {
   const [filterValues, setFilterValues] =
     useState<Record<string, unknown>>(defaultFilterValues)
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
+  const [isBuatBatchDialogOpen, setIsBuatBatchDialogOpen] = useState(false)
   const [itemToDelete, setItemToDelete] = useState<
     ItemLelang | BatchLelang | null
   >(null)
   const [selectedItemLelangRows, setSelectedItemLelangRows] = useState<
     ItemLelang[]
   >([])
+  const [qrDialog, setQrDialog] = useState<{ open: boolean; value: string }>({
+    open: false,
+    value: "",
+  })
+
+  const handleShowQr = React.useCallback((noSPK: string) => {
+    setQrDialog({ open: true, value: noSPK })
+  }, [])
+
+  const itemLelangColumnsWithQr = React.useMemo((): ColumnDef<ItemLelang>[] => {
+    return itemLelangColumns.map((col) => {
+      if ("accessorKey" in col && col.accessorKey === "noSPK") {
+        const noSpkColumn: ColumnDef<ItemLelang> = {
+          ...col,
+          cell: ({ row }) => (
+            <div className="flex items-center gap-2">
+              <span className="font-medium">{row.getValue("noSPK")}</span>
+              <Button
+                variant="outline"
+                size="icon"
+                className="border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive size-8 shrink-0"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleShowQr(row.original.noSPK)
+                }}
+                aria-label="Tampilkan QR Code"
+              >
+                <QrCode className="size-4" />
+              </Button>
+            </div>
+          ),
+        }
+        return noSpkColumn
+      }
+      return col
+    })
+  }, [handleShowQr])
+
+  const createBatchMutation = useCreateAuctionBatch()
+
+  const filteredItemLelang = React.useMemo(() => {
+    let result = [...itemLelangRows]
+    if (searchValue) {
+      const s = searchValue.toLowerCase()
+      result = result.filter(
+        (r) =>
+          r.noSPK.toLowerCase().includes(s) ||
+          r.namaBarang.toLowerCase().includes(s) ||
+          r.tipeBarang.toLowerCase().includes(s) ||
+          r.toko.toLowerCase().includes(s)
+      )
+    }
+    const tipeBarang = (filterValues.tipeBarang as string[] | undefined) ?? []
+    if (tipeBarang.length) {
+      result = result.filter((r) => tipeBarang.includes(r.tipeBarang))
+    }
+    const toko = (filterValues.toko as string[] | undefined) ?? []
+    if (toko.length) {
+      result = result.filter((r) => toko.includes(r.toko))
+    }
+    return result
+  }, [itemLelangRows, searchValue, filterValues])
 
   const listOptions = React.useMemo(() => {
     const filter: Record<string, string> = {}
     if (companyFilterId) filter.ptId = companyFilterId
-    if (selectedBranch && selectedBranch !== "all")
-      filter.storeId = selectedBranch
     return { page: 1, pageSize, filter }
-  }, [companyFilterId, selectedBranch, pageSize])
+  }, [companyFilterId, pageSize])
 
   const { data, isLoading, isError } = useAuctionBatches(listOptions)
   const cancelBatchMutation = useCancelAuctionBatch()
@@ -474,8 +580,7 @@ function LelangPageContent() {
           const spkItems = item.spk?.items ?? []
           return spkItems.some(
             (si) =>
-              si.itemType?.typeName &&
-              tipeBarang.includes(si.itemType.typeName)
+              si.itemType?.typeName && tipeBarang.includes(si.itemType.typeName)
           )
         })
       })
@@ -526,6 +631,47 @@ function LelangPageContent() {
     setIsConfirmDialogOpen(true)
   }
 
+  const handleBuatBatchClick = () => {
+    if (selectedItemLelangRows.length === 0) return
+    const first = selectedItemLelangRows[0]!
+    const allSameStore = selectedItemLelangRows.every(
+      (r) => r.storeId === first.storeId && r.ptId === first.ptId
+    )
+    if (!allSameStore) {
+      toast.error(
+        "Semua item yang dipilih harus dari toko yang sama. Silakan pilih item dari satu toko."
+      )
+      return
+    }
+    setIsBuatBatchDialogOpen(true)
+  }
+
+  const handleConfirmBuatBatch = () => {
+    if (selectedItemLelangRows.length === 0) return
+    const first = selectedItemLelangRows[0]!
+    const spkItemIds = selectedItemLelangRows.map((r) => r.spkItemId)
+
+    createBatchMutation.mutate(
+      {
+        storeId: first.storeId,
+        ptId: first.ptId,
+        spkItemIds,
+      },
+      {
+        onSuccess: () => {
+          toast.success("Batch lelang berhasil dibuat")
+          setIsBuatBatchDialogOpen(false)
+          setSelectedItemLelangRows([])
+          setActiveTab("batch-lelang-spk")
+          queryClient.invalidateQueries({ queryKey: spkKeys.lists() })
+        },
+        onError: (err) => {
+          toast.error(err?.message ?? "Gagal membuat batch lelang")
+        },
+      }
+    )
+  }
+
   const handleConfirmDelete = () => {
     if (!itemToDelete) return
     if (!("idBatch" in itemToDelete)) {
@@ -540,9 +686,7 @@ function LelangPageContent() {
         setItemToDelete(null)
       },
       onError: (err) => {
-        toast.error(
-          err?.message ?? "Gagal membatalkan batch lelang"
-        )
+        toast.error(err?.message ?? "Gagal membatalkan batch lelang")
       },
     })
   }
@@ -573,22 +717,6 @@ function LelangPageContent() {
               </SelectContent>
             </Select>
           )}
-
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">Toko :</span>
-            <Select value={selectedBranch} onValueChange={setSelectedBranch}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Pilih Toko" />
-              </SelectTrigger>
-              <SelectContent>
-                {branchOptions.map((b) => (
-                  <SelectItem key={b.value} value={b.value}>
-                    {b.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
         </div>
       </div>
 
@@ -603,75 +731,84 @@ function LelangPageContent() {
           <TabsTrigger value="batch-lelang-spk">Batch Lelang SPK</TabsTrigger>
         </TabsList>
 
-        {/* SPK Jatuh Tempo Tab - Items from batches (list API doesn't include items) */}
+        {/* SPK Jatuh Tempo Tab */}
         <TabsContent value="spk-jatuh-tempo" className="mt-0">
-          <DataTable
-            columns={itemLelangColumns}
-            data={placeholderItemLelang}
-            title="Item Lelang"
-            searchPlaceholder="Cari..."
-            headerRight={
-              <div className="flex w-full items-center gap-2 sm:w-auto">
-                <Select
-                  value={pageSize.toString()}
-                  onValueChange={(value) => setPageSize(Number(value))}
-                >
-                  <SelectTrigger className="w-[100px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="10">10</SelectItem>
-                    <SelectItem value="25">25</SelectItem>
-                    <SelectItem value="50">50</SelectItem>
-                    <SelectItem value="100">100</SelectItem>
-                  </SelectContent>
-                </Select>
-                <div className="w-full sm:w-auto sm:max-w-sm">
-                  <Input
-                    placeholder="Cari..."
-                    value={searchValue}
-                    onChange={(e) => setSearchValue(e.target.value)}
-                    icon={<SearchIcon className="size-4" />}
-                    className="w-full"
-                  />
-                </div>
-                <Button
-                  variant="outline"
-                  className="flex items-center gap-2"
-                  onClick={() => setFilterDialogOpen(true)}
-                >
-                  <SlidersHorizontal className="size-4" />
-                  Filter
-                </Button>
-                {selectedItemLelangRows.length > 0 && (
-                  <Button
-                    type="button"
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90 flex items-center gap-2"
+          {isOverdueSpkLoading ? (
+            <TableSkeleton />
+          ) : isOverdueSpkError ? (
+            <Card>
+              <CardContent className="py-10 text-center">
+                <p className="text-destructive">
+                  Gagal memuat data SPK Jatuh Tempo
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <DataTable
+              columns={itemLelangColumnsWithQr}
+              data={filteredItemLelang}
+              title="Item Lelang"
+              searchPlaceholder="Cari..."
+              headerRight={
+                <div className="flex w-full items-center gap-2 sm:w-auto">
+                  <Select
+                    value={pageSize.toString()}
+                    onValueChange={(value) => setPageSize(Number(value))}
                   >
-                    <Plus className="size-4" />
-                    Buat Batch
+                    <SelectTrigger className="w-[100px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="25">25</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <div className="w-full sm:w-auto sm:max-w-sm">
+                    <Input
+                      placeholder="Cari..."
+                      value={searchValue}
+                      onChange={(e) => setSearchValue(e.target.value)}
+                      icon={<SearchIcon className="size-4" />}
+                      className="w-full"
+                    />
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="flex items-center gap-2"
+                    onClick={() => setFilterDialogOpen(true)}
+                  >
+                    <SlidersHorizontal className="size-4" />
+                    Filter
                   </Button>
-                )}
-              </div>
-            }
-            filterConfig={lelanganFilterConfig}
-            filterValues={filterValues}
-            onFilterChange={setFilterValues}
-            filterDialogOpen={filterDialogOpen}
-            onFilterDialogOpenChange={setFilterDialogOpen}
-            initialPageSize={pageSize}
-            onPageSizeChange={setPageSize}
-            searchValue={searchValue}
-            onSearchChange={setSearchValue}
-            onDetail={handleDetail}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onSelectionChange={(rows) => setSelectedItemLelangRows(rows)}
-          />
-          {placeholderItemLelang.length === 0 && (
-            <p className="text-muted-foreground py-4 text-center text-sm">
-              Buka tab Batch Lelang SPK dan pilih batch untuk melihat item.
-            </p>
+                  {selectedItemLelangRows.length > 0 && (
+                    <Button
+                      type="button"
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90 flex items-center gap-2"
+                      onClick={handleBuatBatchClick}
+                      disabled={createBatchMutation.isPending}
+                    >
+                      <Plus className="size-4" />
+                      Buat Batch
+                    </Button>
+                  )}
+                </div>
+              }
+              filterConfig={lelanganFilterConfig}
+              filterValues={filterValues}
+              onFilterChange={setFilterValues}
+              filterDialogOpen={filterDialogOpen}
+              onFilterDialogOpenChange={setFilterDialogOpen}
+              initialPageSize={pageSize}
+              onPageSizeChange={setPageSize}
+              searchValue={searchValue}
+              onSearchChange={setSearchValue}
+              onDetail={handleDetail}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onSelectionChange={(rows) => setSelectedItemLelangRows(rows)}
+            />
           )}
         </TabsContent>
 
@@ -753,6 +890,23 @@ function LelangPageContent() {
         description="Anda akan menghapus data Lelang dari dalam sistem."
         confirmLabel="Hapus"
         variant="destructive"
+      />
+
+      <ConfirmationDialog
+        open={isBuatBatchDialogOpen}
+        onOpenChange={setIsBuatBatchDialogOpen}
+        onConfirm={handleConfirmBuatBatch}
+        title="Buat Batch Lelang"
+        description={`Anda akan membuat batch lelang dengan ${selectedItemLelangRows.length} item yang dipilih.`}
+        confirmLabel="Buat Batch"
+        variant="info"
+      />
+
+      <QRCodeDialog
+        open={qrDialog.open}
+        onOpenChange={(open) => setQrDialog((prev) => ({ ...prev, open }))}
+        value={qrDialog.value}
+        title="QR Code SPK"
       />
     </div>
   )

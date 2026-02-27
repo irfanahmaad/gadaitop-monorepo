@@ -59,17 +59,13 @@ export class SpkController {
 
   @Get(':id/history')
   @Auth([{ action: AclAction.READ, subject: AclSubject.SPK }])
-  async getHistory(
-    @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<unknown[]> {
+  async getHistory(@Param('id', ParseUUIDPipe) id: string): Promise<unknown[]> {
     return this.spkService.getHistory(id);
   }
 
   @Get(':id/nkb')
   @Auth([{ action: AclAction.READ, subject: AclSubject.SPK }])
-  async getNkb(
-    @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<unknown[]> {
+  async getNkb(@Param('id', ParseUUIDPipe) id: string): Promise<unknown[]> {
     return this.spkService.getNkb(id);
   }
 

@@ -17,9 +17,15 @@ import { UserSeed } from './user/user.seed';
 
 import { PawnTermSeed } from './pawn-term/pawn-term.seed';
 import { SpkSeed } from './spk/spk.seed';
+import { OverdueSpkSeed } from './spk/overdue-spk.seed';
 import { NkbSeed } from './nkb/nkb.seed';
 import { StockOpnameSeed } from './stock-opname/stock-opname.seed';
 import { AuctionBatchSeed } from './auction-batch/auction-batch.seed';
+import { CapitalTopupSeed } from './capital-topup/capital-topup.seed';
+import { CashDepositSeed } from './cash-deposit/cash-deposit.seed';
+import { CashMutationSeed } from './cash-mutation/cash-mutation.seed';
+import { SoPriorityRuleSeed } from './so-priority-rule/so-priority-rule.seed';
+import { NotificationSeed } from './notification/notification.seed';
 
 dotenv.config();
 
@@ -50,9 +56,15 @@ export const dataSource = new DataSource({
  * 9. CatalogSeed - Sample products
  * 10. PawnTermSeed - Lending terms
  * 11. SpkSeed - Pawn contracts
- * 12. NkbSeed - Payments
- * 13. StockOpnameSeed - Inventory sessions
- * 14. AuctionBatchSeed - Auction batches
+ * 12. OverdueSpkSeed - Supplemental overdue SPKs for Lelangan (Admin PT)
+ * 13. NkbSeed - Payments
+ * 14. StockOpnameSeed - Inventory sessions
+ * 15. AuctionBatchSeed - Auction batches
+ * 16. CapitalTopupSeed - Tambah Modal requests
+ * 17. CashDepositSeed - Setor Uang deposits
+ * 18. CashMutationSeed - Mutasi Transaksi history
+ * 19. SoPriorityRuleSeed - Master Syarat Mata rules
+ * 20. NotificationSeed - In-app notifications
  */
 export default new SeedingSource({
   dataSource,
@@ -67,8 +79,14 @@ export default new SeedingSource({
     CatalogSeed,
     PawnTermSeed,
     SpkSeed,
+    OverdueSpkSeed,
     NkbSeed,
     StockOpnameSeed,
     AuctionBatchSeed,
+    CapitalTopupSeed,
+    CashDepositSeed,
+    CashMutationSeed,
+    SoPriorityRuleSeed,
+    NotificationSeed,
   ],
 });

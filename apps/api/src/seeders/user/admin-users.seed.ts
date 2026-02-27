@@ -57,11 +57,17 @@ export class AdminUsersSeed extends Seeder {
       { email: 'admin.pt002@test.com', fullName: 'Admin PT002', roleCode: 'company_admin', companyCode: 'PT002' },
       { email: 'staff.jks001@test.com', fullName: 'Staff Jakarta Selatan', roleCode: 'branch_staff', companyCode: 'PT002', branchCode: 'JKS001' },
       { email: 'staff.tng001@test.com', fullName: 'Staff Tangerang', roleCode: 'branch_staff', companyCode: 'PT002', branchCode: 'TNG001' },
+      { email: 'so.pt002@test.com', fullName: 'Stock Opname PT002', roleCode: 'stock_auditor', companyCode: 'PT002', branchCode: 'JKS001' },
+      { email: 'lelang.pt002@test.com', fullName: 'Lelang PT002', roleCode: 'auction_staff', companyCode: 'PT002' },
+      { email: 'marketing.pt002@test.com', fullName: 'Marketing PT002', roleCode: 'marketing', companyCode: 'PT002' },
 
       // PT003 - PT Gadai Makmur Jaya
       { email: 'admin.pt003@test.com', fullName: 'Admin PT003', roleCode: 'company_admin', companyCode: 'PT003' },
       { email: 'staff.bdg002@test.com', fullName: 'Staff Bandung Timur', roleCode: 'branch_staff', companyCode: 'PT003', branchCode: 'BDG002' },
       { email: 'staff.crb001@test.com', fullName: 'Staff Cirebon', roleCode: 'branch_staff', companyCode: 'PT003', branchCode: 'CRB001' },
+      { email: 'so.pt003@test.com', fullName: 'Stock Opname PT003', roleCode: 'stock_auditor', companyCode: 'PT003', branchCode: 'BDG002' },
+      { email: 'lelang.pt003@test.com', fullName: 'Lelang PT003', roleCode: 'auction_staff', companyCode: 'PT003' },
+      { email: 'marketing.pt003@test.com', fullName: 'Marketing PT003', roleCode: 'marketing', companyCode: 'PT003' },
     ];
 
     let created = 0;

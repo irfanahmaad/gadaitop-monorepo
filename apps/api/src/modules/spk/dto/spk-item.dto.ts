@@ -19,8 +19,9 @@ export class SpkItemDto {
   storageLocation: string | null;
   qrCode: string | null;
   status: SpkItemStatusEnum;
+  itemType?: { uuid: string; typeName: string; typeCode: string };
 
-  constructor(item: SpkItemEntity) {
+  constructor(item: SpkItemEntity & { itemType?: { uuid: string; typeName: string; typeCode: string } }) {
     this.uuid = item.uuid;
     this.spkId = item.spkId;
     this.catalogId = item.catalogId ?? null;
@@ -37,5 +38,12 @@ export class SpkItemDto {
     this.storageLocation = item.storageLocation ?? null;
     this.qrCode = item.qrCode ?? null;
     this.status = item.status;
+    if (item.itemType) {
+      this.itemType = {
+        uuid: item.itemType.uuid,
+        typeName: item.itemType.typeName,
+        typeCode: item.itemType.typeCode,
+      };
+    }
   }
 }

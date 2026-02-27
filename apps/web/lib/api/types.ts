@@ -386,25 +386,36 @@ export type SpkStatus =
   | "auctioned"
   | "closed"
 
+export type SpkItemStatus =
+  | "in_storage"
+  | "in_auction"
+  | "sold"
+  | "returned"
+
 export interface SpkItem {
-  id: string
+  id?: string
   uuid: string
+  spkId?: string
   itemTypeId: string
   description: string
   weight?: number
-  estimatedValue: number
+  estimatedValue?: number
+  appraisedValue?: string
   photoUrl?: string
+  evidencePhotos?: string[] | null
   itemType?: ItemType
-  createdAt: string
-  updatedAt: string
+  status?: SpkItemStatus
+  createdAt?: string
+  updatedAt?: string
 }
 
 export interface Spk {
-  id: string
+  id?: string
   uuid: string
   spkNumber: string
   customerId: string
   storeId: string
+  ptId?: string
   principalAmount: number
   tenor: number
   interestRate: number
@@ -415,7 +426,7 @@ export interface Spk {
   status: SpkStatus
   customer?: Customer
   store?: Branch
-  items: SpkItem[]
+  items?: SpkItem[]
   nkbRecords?: Nkb[]
   createdBy?: User
   createdAt: string
@@ -736,8 +747,9 @@ export interface AuctionBatch {
 
 export interface CreateAuctionBatchDto {
   storeId: string
-  scheduledDate: string
-  spkIds: string[]
+  ptId: string
+  spkItemIds: string[]
+  notes?: string
 }
 
 export interface ItemPickupDto {

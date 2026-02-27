@@ -44,6 +44,11 @@ export class DashboardController {
   ): Promise<MutationTrendsDto[]> {
     const ptId = targetCompanyId || companyId;
     const daysNum = days ? parseInt(days, 10) : 30;
-    return this.dashboardService.getMutationTrends(ptId, branchId, daysNum, date);
+    return this.dashboardService.getMutationTrends(
+      ptId,
+      branchId,
+      daysNum,
+      date,
+    );
   }
 }
