@@ -35,6 +35,7 @@ import {
   RotateCcw,
   Check,
   X,
+  Trash2,
 } from "lucide-react"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { toast } from "sonner"
@@ -51,7 +52,7 @@ import {
 } from "@/lib/react-query/hooks/use-borrow-requests"
 import { useCompanies } from "@/lib/react-query/hooks/use-companies"
 import type { Branch, BorrowRequest } from "@/lib/api/types"
-import { Card, CardContent, CardHeader } from "@workspace/ui/components/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/card"
 import { Skeleton } from "@workspace/ui/components/skeleton"
 import { TolakBorrowRequestDialog } from "./_components/tolak-borrow-request-dialog"
 
@@ -378,6 +379,9 @@ export default function MasterTokoPage() {
   const [isTolakDialogOpen, setIsTolakDialogOpen] = useState(false)
   const [revokeRow, setRevokeRow] = useState<Toko | null>(null)
   const [isRevokeConfirmOpen, setIsRevokeConfirmOpen] = useState(false)
+  const [selectedTokoUtamaRows, setSelectedTokoUtamaRows] = useState<Toko[]>([])
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false)
+  const [resetSelectionKey, setResetSelectionKey] = useState(0)
 
   const handleDetail = useCallback(
     (row: Toko | RequestToko) => {
@@ -416,6 +420,24 @@ export default function MasterTokoPage() {
   const handleTambahData = useCallback(() => {
     router.push("/master-toko/tambah")
   }, [router])
+
+  const handleBulkDelete = useCallback(() => {
+    setIsBulkDeleteDialogOpen(true)
+  }, [])
+
+  const handleConfirmBulkDelete = useCallback(async () => {
+    try {
+      await Promise.all(
+        selectedTokoUtamaRows.map((row) => deleteBranchMutation.mutateAsync(row.id))
+      )
+      toast.success(`${selectedTokoUtamaRows.length} Toko berhasil dihapus`)
+      setIsBulkDeleteDialogOpen(false)
+      setSelectedTokoUtamaRows([])
+      setResetSelectionKey((k) => k + 1)
+    } catch {
+      toast.error("Gagal menghapus Toko")
+    }
+  }, [selectedTokoUtamaRows, deleteBranchMutation])
 
   const handleRevoke = useCallback((row: Toko) => {
     setRevokeRow(row)
@@ -577,8 +599,17 @@ export default function MasterTokoPage() {
             <DataTable
               columns={tokoColumns}
               data={tokoUtamaRows}
-              title="Daftar Toko Utama"
               searchPlaceholder="Search"
+              headerLeft={
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-xl">Daftar Toko Utama</CardTitle>
+                  {selectedTokoUtamaRows.length > 0 && (
+                    <span className="text-destructive font-semibold">
+                      &middot; {selectedTokoUtamaRows.length} Selected
+                    </span>
+                  )}
+                </div>
+              }
               headerRight={
                 <div className="flex w-full items-center gap-2 sm:w-auto">
                   <Select
@@ -604,6 +635,15 @@ export default function MasterTokoPage() {
                       className="w-full"
                     />
                   </div>
+                  {selectedTokoUtamaRows.length > 0 && (
+                    <Button
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90 flex items-center gap-2"
+                      onClick={handleBulkDelete}
+                    >
+                      <Trash2 className="size-4" />
+                      Hapus
+                    </Button>
+                  )}
                 </div>
               }
               initialPageSize={pageSize}
@@ -613,6 +653,8 @@ export default function MasterTokoPage() {
               onDetail={handleDetail}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              onSelectionChange={setSelectedTokoUtamaRows}
+              resetSelectionKey={resetSelectionKey}
             />
           )}
         </TabsContent>
@@ -716,6 +758,17 @@ export default function MasterTokoPage() {
         onOpenChange={setIsConfirmDialogOpen}
         onConfirm={handleConfirmDelete}
         description="Anda akan menghapus data Toko dari dalam sistem."
+      />
+
+      {/* Confirmation Dialog for Bulk Delete */}
+      <ConfirmationDialog
+        open={isBulkDeleteDialogOpen}
+        onOpenChange={setIsBulkDeleteDialogOpen}
+        onConfirm={handleConfirmBulkDelete}
+        title="Hapus Toko"
+        description={`Anda akan menghapus ${selectedTokoUtamaRows.length} data Toko dari dalam sistem.`}
+        confirmLabel="Hapus"
+        variant="destructive"
       />
 
       {/* Confirmation Dialog for Setujui Request */}

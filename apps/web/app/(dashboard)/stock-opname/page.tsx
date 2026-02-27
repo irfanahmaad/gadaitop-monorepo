@@ -24,8 +24,8 @@ import {
 } from "@workspace/ui/components/tabs"
 import { Input } from "@workspace/ui/components/input"
 import { Skeleton } from "@workspace/ui/components/skeleton"
-import { Card, CardContent, CardHeader } from "@workspace/ui/components/card"
-import { Plus, SearchIcon, SlidersHorizontal } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/card"
+import { Plus, SearchIcon, SlidersHorizontal, Trash2 } from "lucide-react"
 import type { FilterConfig } from "@/hooks/use-filter-params"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { StockOpnameFormDialog } from "./_components/StockOpnameFormDialog"
@@ -229,6 +229,9 @@ export default function StockOpnamePage() {
   const [itemToDelete, setItemToDelete] = useState<StockOpnameRow | ScheduleItem | null>(null)
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false)
   const [activeTab, setActiveTab] = useState("list")
+  const [selectedRows, setSelectedRows] = useState<StockOpnameRow[]>([])
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false)
+  const [resetSelectionKey, setResetSelectionKey] = useState(0)
 
   // Branch lookup for store names
   const { data: branchesData } = useBranches({ pageSize: 500 })
@@ -432,6 +435,18 @@ export default function StockOpnamePage() {
     }
   }
 
+  const handleBulkDelete = () => {
+    setIsBulkDeleteDialogOpen(true)
+  }
+
+  const handleConfirmBulkDelete = () => {
+    // TODO: Wire to delete API when available
+    console.log("Bulk delete Stock Opname:", selectedRows)
+    setIsBulkDeleteDialogOpen(false)
+    setSelectedRows([])
+    setResetSelectionKey((k) => k + 1)
+  }
+
   return (
     <div className="flex flex-col gap-6">
       {/* Header Section */}
@@ -525,8 +540,17 @@ export default function StockOpnamePage() {
             <DataTable
               columns={columns}
               data={rows}
-              title="Daftar SO"
               searchPlaceholder="Cari..."
+              headerLeft={
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-xl">Daftar SO</CardTitle>
+                  {selectedRows.length > 0 && (
+                    <span className="text-destructive font-semibold">
+                      &middot; {selectedRows.length} Selected
+                    </span>
+                  )}
+                </div>
+              }
               headerRight={
                 <div className="flex w-full items-center gap-2 sm:w-auto">
                   <Select
@@ -560,6 +584,15 @@ export default function StockOpnamePage() {
                     <SlidersHorizontal className="h-4 w-4" />
                     Filter
                   </Button>
+                  {selectedRows.length > 0 && (
+                    <Button
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90 flex items-center gap-2"
+                      onClick={handleBulkDelete}
+                    >
+                      <Trash2 className="size-4" />
+                      Hapus
+                    </Button>
+                  )}
                 </div>
               }
               filterConfig={filterConfig}
@@ -574,6 +607,8 @@ export default function StockOpnamePage() {
               onDetail={handleDetail}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              onSelectionChange={setSelectedRows}
+              resetSelectionKey={resetSelectionKey}
             />
           )}
         </TabsContent>
@@ -606,8 +641,17 @@ export default function StockOpnamePage() {
             <DataTable
               columns={columns}
               data={rows}
-              title="Daftar SO Dijadwalkan"
               searchPlaceholder="Cari..."
+              headerLeft={
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-xl">Daftar SO Dijadwalkan</CardTitle>
+                  {selectedRows.length > 0 && (
+                    <span className="text-destructive font-semibold">
+                      &middot; {selectedRows.length} Selected
+                    </span>
+                  )}
+                </div>
+              }
               headerRight={
                 <div className="flex w-full items-center gap-2 sm:w-auto">
                   <Select
@@ -641,6 +685,15 @@ export default function StockOpnamePage() {
                     <SlidersHorizontal className="h-4 w-4" />
                     Filter
                   </Button>
+                  {selectedRows.length > 0 && (
+                    <Button
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90 flex items-center gap-2"
+                      onClick={handleBulkDelete}
+                    >
+                      <Trash2 className="size-4" />
+                      Hapus
+                    </Button>
+                  )}
                 </div>
               }
               filterConfig={filterConfig}
@@ -655,6 +708,8 @@ export default function StockOpnamePage() {
               onDetail={handleDetail}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              onSelectionChange={setSelectedRows}
+              resetSelectionKey={resetSelectionKey}
             />
           )}
         </TabsContent>
@@ -673,8 +728,17 @@ export default function StockOpnamePage() {
             <DataTable
               columns={columns}
               data={rows}
-              title="Daftar SO Waiting for Approval"
               searchPlaceholder="Cari..."
+              headerLeft={
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-xl">Daftar SO Waiting for Approval</CardTitle>
+                  {selectedRows.length > 0 && (
+                    <span className="text-destructive font-semibold">
+                      &middot; {selectedRows.length} Selected
+                    </span>
+                  )}
+                </div>
+              }
               headerRight={
                 <div className="flex w-full items-center gap-2 sm:w-auto">
                   <Select
@@ -708,6 +772,15 @@ export default function StockOpnamePage() {
                     <SlidersHorizontal className="h-4 w-4" />
                     Filter
                   </Button>
+                  {selectedRows.length > 0 && (
+                    <Button
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90 flex items-center gap-2"
+                      onClick={handleBulkDelete}
+                    >
+                      <Trash2 className="size-4" />
+                      Hapus
+                    </Button>
+                  )}
                 </div>
               }
               filterConfig={filterConfig}
@@ -722,6 +795,8 @@ export default function StockOpnamePage() {
               onDetail={handleDetail}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              onSelectionChange={setSelectedRows}
+              resetSelectionKey={resetSelectionKey}
             />
           )}
         </TabsContent>
@@ -740,8 +815,17 @@ export default function StockOpnamePage() {
             <DataTable
               columns={columns}
               data={rows}
-              title="Daftar SO Tervalidasi"
               searchPlaceholder="Cari..."
+              headerLeft={
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-xl">Daftar SO Tervalidasi</CardTitle>
+                  {selectedRows.length > 0 && (
+                    <span className="text-destructive font-semibold">
+                      &middot; {selectedRows.length} Selected
+                    </span>
+                  )}
+                </div>
+              }
               headerRight={
                 <div className="flex w-full items-center gap-2 sm:w-auto">
                   <Select
@@ -775,6 +859,15 @@ export default function StockOpnamePage() {
                     <SlidersHorizontal className="h-4 w-4" />
                     Filter
                   </Button>
+                  {selectedRows.length > 0 && (
+                    <Button
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90 flex items-center gap-2"
+                      onClick={handleBulkDelete}
+                    >
+                      <Trash2 className="size-4" />
+                      Hapus
+                    </Button>
+                  )}
                 </div>
               }
               filterConfig={filterConfig}
@@ -789,6 +882,8 @@ export default function StockOpnamePage() {
               onDetail={handleDetail}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              onSelectionChange={setSelectedRows}
+              resetSelectionKey={resetSelectionKey}
             />
           )}
         </TabsContent>
@@ -810,6 +905,17 @@ export default function StockOpnamePage() {
         onOpenChange={setIsConfirmDialogOpen}
         onConfirm={handleConfirmDelete}
         description="Anda akan menghapus data Stock Opname dari dalam sistem."
+      />
+
+      {/* Confirmation Dialog for Bulk Delete */}
+      <ConfirmationDialog
+        open={isBulkDeleteDialogOpen}
+        onOpenChange={setIsBulkDeleteDialogOpen}
+        onConfirm={handleConfirmBulkDelete}
+        title="Hapus Stock Opname"
+        description={`Anda akan menghapus ${selectedRows.length} data Stock Opname dari dalam sistem.`}
+        confirmLabel="Hapus"
+        variant="destructive"
       />
     </div>
   )

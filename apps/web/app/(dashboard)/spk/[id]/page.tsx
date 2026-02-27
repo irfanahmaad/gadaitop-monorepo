@@ -38,6 +38,7 @@ import { Badge } from "@workspace/ui/components/badge"
 import { useSpk, useSpkNkb } from "@/lib/react-query/hooks/use-spk"
 import type { Nkb } from "@/lib/api/types"
 import { QRCodeDialog } from "../../_components/QRCodeDialog"
+import { useAuth } from "../../../../lib/react-query/hooks/use-auth"
 
 const formatCurrency = (amount: number): string =>
   new Intl.NumberFormat("id-ID", {
@@ -240,6 +241,9 @@ export default function SPKDetailPage() {
   const [pageSize, setPageSize] = useState(10)
   const [searchValue, setSearchValue] = useState("")
   const [qrDialogOpen, setQrDialogOpen] = useState(false)
+  const { user } = useAuth()
+  const isCompanyAdmin =
+    user?.roles?.some((r) => r.code === "company_admin") ?? false
 
   const { data: spkData, isLoading: spkLoading, isError: spkError } = useSpk(id)
   const { data: nkbData } = useSpkNkb(id)
@@ -332,7 +336,7 @@ export default function SPKDetailPage() {
             ]}
           />
         </div>
-        {!loading && spk && (
+        {!loading && spk && !isCompanyAdmin && (
           <Button
             variant="outline"
             className="shrink-0 gap-2"
@@ -421,7 +425,7 @@ export default function SPKDetailPage() {
                     </div>
                     <div className="space-y-2">
                       <label className="text-muted-foreground text-sm font-medium">
-                        Sisa SPK (Tenor)
+                        Sisa SPK
                       </label>
                       <p className="text-base">{spk.tenor}</p>
                     </div>
@@ -430,15 +434,14 @@ export default function SPKDetailPage() {
                         Jumlah SPK
                       </label>
                       <div className="flex items-center gap-2">
-                        <p className="text-base">
+                        <p className="text-base text-destructive underline">
                           Rp {formatCurrency(totalAmount)}
                         </p>
-                        <ExternalLink className="text-muted-foreground size-4" />
                       </div>
                     </div>
                     <div className="space-y-2">
                       <label className="text-muted-foreground text-sm font-medium">
-                        Sisa Pokok
+                        Sisa Pokok Bulan Ini
                       </label>
                       <p className="text-base">
                         Rp {formatCurrency(remainingBalanceNum)}

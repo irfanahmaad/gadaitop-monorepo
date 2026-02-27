@@ -196,12 +196,12 @@ export default function TambahMasterTokoPage() {
                       <FormControl>
                         <div className="relative">
                           {previewImage ? (
-                            <div className="border-input bg-muted/50 relative aspect-square w-48 overflow-hidden rounded-full border-2 border-dashed">
+                            <div className="border-input bg-muted/50 relative aspect-square w-48 rounded-full border-2 border-dashed">
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img
                                 src={previewImage}
                                 alt="Preview"
-                                className="size-full object-cover"
+                                className="size-full object-cover rounded-full overflow-hidden"
                               />
                               <label
                                 htmlFor="image-upload-edit"

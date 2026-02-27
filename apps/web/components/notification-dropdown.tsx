@@ -30,29 +30,7 @@ interface NotificationDropdownProps {
   unreadCount?: number
 }
 
-const defaultNotifications: Notification[] = [
-  {
-    id: "1",
-    title: "New message",
-    description: "You have a new message from John Doe",
-    time: "2 minutes ago",
-    unread: true,
-  },
-  {
-    id: "2",
-    title: "System update",
-    description: "System maintenance scheduled for tonight",
-    time: "1 hour ago",
-    unread: true,
-  },
-  {
-    id: "3",
-    title: "Payment received",
-    description: "Your payment has been processed successfully",
-    time: "3 hours ago",
-    unread: false,
-  },
-]
+const defaultNotifications: Notification[] = []
 
 export function NotificationDropdown({
   notifications = defaultNotifications,

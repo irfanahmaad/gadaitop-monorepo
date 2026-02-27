@@ -33,7 +33,7 @@ import {
   DialogTitle,
 } from "@workspace/ui/components/dialog"
 import { Button } from "@workspace/ui/components/button"
-import { X, Hand, Check } from "lucide-react"
+import { X, Hand, Check, Trash2 } from "lucide-react"
 
 // Sample data type
 type NKB = {
@@ -329,6 +329,9 @@ function NKBPageContent() {
   const [itemToDelete, setItemToDelete] = useState<NKB | null>(null)
   const [isNKBInfoDialogOpen, setIsNKBInfoDialogOpen] = useState(false)
   const [selectedNKB, setSelectedNKB] = useState<NKB | null>(null)
+  const [selectedNKBRows, setSelectedNKBRows] = useState<NKB[]>([])
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false)
+  const [resetSelectionKey, setResetSelectionKey] = useState(0)
 
   const isCompanyAdmin =
     session?.user?.roles?.some((r) => r.code === "company_admin") ?? false
@@ -425,6 +428,18 @@ function NKBPageContent() {
     setPageSize(value)
   }
 
+  const handleBulkDelete = () => {
+    setIsBulkDeleteDialogOpen(true)
+  }
+
+  const handleConfirmBulkDelete = () => {
+    // TODO: Wire to delete API when available
+    console.log("Bulk delete NKB:", selectedNKBRows)
+    setIsBulkDeleteDialogOpen(false)
+    setSelectedNKBRows([])
+    setResetSelectionKey((k) => k + 1)
+  }
+
   return (
     <div className="flex flex-col gap-6">
       {/* Header Section */}
@@ -461,18 +476,38 @@ function NKBPageContent() {
             onDetail={handleDetailNKBBaru}
             onDelete={handleDelete}
             headerLeft={
-              <Select value={pageSize} onValueChange={handlePageSizeChange}>
-                <SelectTrigger className="w-[120px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {pageSizeOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-2">
+                <Select value={pageSize} onValueChange={handlePageSizeChange}>
+                  <SelectTrigger className="w-[120px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {pageSizeOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedNKBRows.length > 0 && (
+                  <span className="text-destructive font-semibold">
+                    &middot; {selectedNKBRows.length} Selected
+                  </span>
+                )}
+              </div>
+            }
+            headerRight={
+              selectedNKBRows.length > 0 ? (
+                <div className="flex w-full items-center gap-2 sm:w-auto">
+                  <Button
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90 flex items-center gap-2"
+                    onClick={handleBulkDelete}
+                  >
+                    <Trash2 className="size-4" />
+                    Hapus
+                  </Button>
+                </div>
+              ) : undefined
             }
             filterConfig={filterConfig}
             filterValues={filterValues}
@@ -480,6 +515,8 @@ function NKBPageContent() {
             initialPageSize={parseInt(pageSize)}
             onPageSizeChange={(size) => setPageSize(String(size))}
             searchPlaceholder="Search"
+            onSelectionChange={setSelectedNKBRows}
+            resetSelectionKey={resetSelectionKey}
           />
         </TabsContent>
 
@@ -529,6 +566,17 @@ function NKBPageContent() {
         onOpenChange={setIsConfirmDialogOpen}
         onConfirm={handleConfirmDelete}
         description="Anda akan menghapus data NKB dari dalam sistem."
+      />
+
+      {/* Confirmation Dialog for Bulk Delete */}
+      <ConfirmationDialog
+        open={isBulkDeleteDialogOpen}
+        onOpenChange={setIsBulkDeleteDialogOpen}
+        onConfirm={handleConfirmBulkDelete}
+        title="Hapus NKB"
+        description={`Anda akan menghapus ${selectedNKBRows.length} data NKB dari dalam sistem.`}
+        confirmLabel="Hapus"
+        variant="destructive"
       />
     </div>
   )

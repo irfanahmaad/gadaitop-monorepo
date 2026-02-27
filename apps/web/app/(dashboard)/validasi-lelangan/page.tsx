@@ -22,7 +22,9 @@ import {
   TabsContent,
 } from "@workspace/ui/components/tabs"
 import { Input } from "@workspace/ui/components/input"
-import { SearchIcon, SlidersHorizontal } from "lucide-react"
+import { SearchIcon, SlidersHorizontal, Trash2 } from "lucide-react"
+import { CardTitle } from "@workspace/ui/components/card"
+import { ConfirmationDialog } from "@/components/confirmation-dialog"
 
 // Sample data type
 type ValidasiLelangan = {
@@ -270,6 +272,9 @@ export default function ValidasiLelanganPage() {
   const [pageSize, setPageSize] = useState(10)
   const [searchValue, setSearchValue] = useState("")
   const [activeTab, setActiveTab] = useState("dijadwalkan")
+  const [selectedRows, setSelectedRows] = useState<ValidasiLelangan[]>([])
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false)
+  const [resetSelectionKey, setResetSelectionKey] = useState(0)
 
   // Counts for each tab
   const dijadwalkanCount = dijadwalkanData.length
@@ -288,6 +293,18 @@ export default function ValidasiLelanganPage() {
   const handleDelete = (row: ValidasiLelangan) => {
     console.log("Delete:", row)
     // Implement delete action
+  }
+
+  const handleBulkDelete = () => {
+    setIsBulkDeleteDialogOpen(true)
+  }
+
+  const handleConfirmBulkDelete = () => {
+    // TODO: Wire to delete API when available
+    console.log("Bulk delete Validasi Lelangan:", selectedRows)
+    setIsBulkDeleteDialogOpen(false)
+    setSelectedRows([])
+    setResetSelectionKey((k) => k + 1)
   }
 
   return (
@@ -364,8 +381,17 @@ export default function ValidasiLelanganPage() {
           <DataTable
             columns={baseColumns}
             data={dijadwalkanData}
-            title="Daftar Validasi Lelang"
             searchPlaceholder="Cari..."
+            headerLeft={
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-xl">Daftar Validasi Lelang</CardTitle>
+                {selectedRows.length > 0 && (
+                  <span className="text-destructive font-semibold">
+                    &middot; {selectedRows.length} Selected
+                  </span>
+                )}
+              </div>
+            }
             headerRight={
               <div className="flex w-full items-center gap-2 sm:w-auto">
                 <Select
@@ -395,6 +421,15 @@ export default function ValidasiLelanganPage() {
                   <SlidersHorizontal className="h-4 w-4" />
                   Filter
                 </Button>
+                {selectedRows.length > 0 && (
+                  <Button
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90 flex items-center gap-2"
+                    onClick={handleBulkDelete}
+                  >
+                    <Trash2 className="size-4" />
+                    Hapus
+                  </Button>
+                )}
               </div>
             }
             initialPageSize={pageSize}
@@ -404,6 +439,8 @@ export default function ValidasiLelanganPage() {
             onDetail={handleDetail}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            onSelectionChange={setSelectedRows}
+            resetSelectionKey={resetSelectionKey}
           />
         </TabsContent>
 
@@ -412,8 +449,17 @@ export default function ValidasiLelanganPage() {
           <DataTable
             columns={baseColumns}
             data={waitingForApprovalData}
-            title="Daftar Validasi Lelang"
             searchPlaceholder="Cari..."
+            headerLeft={
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-xl">Daftar Validasi Lelang</CardTitle>
+                {selectedRows.length > 0 && (
+                  <span className="text-destructive font-semibold">
+                    &middot; {selectedRows.length} Selected
+                  </span>
+                )}
+              </div>
+            }
             headerRight={
               <div className="flex w-full items-center gap-2 sm:w-auto">
                 <Select
@@ -443,6 +489,15 @@ export default function ValidasiLelanganPage() {
                   <SlidersHorizontal className="h-4 w-4" />
                   Filter
                 </Button>
+                {selectedRows.length > 0 && (
+                  <Button
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90 flex items-center gap-2"
+                    onClick={handleBulkDelete}
+                  >
+                    <Trash2 className="size-4" />
+                    Hapus
+                  </Button>
+                )}
               </div>
             }
             initialPageSize={pageSize}
@@ -452,6 +507,8 @@ export default function ValidasiLelanganPage() {
             onDetail={handleDetail}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            onSelectionChange={setSelectedRows}
+            resetSelectionKey={resetSelectionKey}
           />
         </TabsContent>
 
@@ -460,8 +517,17 @@ export default function ValidasiLelanganPage() {
           <DataTable
             columns={columnsWithStatus}
             data={tervalidasiData}
-            title="Daftar Batch Lelang"
             searchPlaceholder="Cari..."
+            headerLeft={
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-xl">Daftar Batch Lelang</CardTitle>
+                {selectedRows.length > 0 && (
+                  <span className="text-destructive font-semibold">
+                    &middot; {selectedRows.length} Selected
+                  </span>
+                )}
+              </div>
+            }
             headerRight={
               <div className="flex w-full items-center gap-2 sm:w-auto">
                 <Select
@@ -491,6 +557,15 @@ export default function ValidasiLelanganPage() {
                   <SlidersHorizontal className="h-4 w-4" />
                   Filter
                 </Button>
+                {selectedRows.length > 0 && (
+                  <Button
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90 flex items-center gap-2"
+                    onClick={handleBulkDelete}
+                  >
+                    <Trash2 className="size-4" />
+                    Hapus
+                  </Button>
+                )}
               </div>
             }
             initialPageSize={pageSize}
@@ -500,9 +575,22 @@ export default function ValidasiLelanganPage() {
             onDetail={handleDetail}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            onSelectionChange={setSelectedRows}
+            resetSelectionKey={resetSelectionKey}
           />
         </TabsContent>
       </Tabs>
+
+      {/* Confirmation Dialog for Bulk Delete */}
+      <ConfirmationDialog
+        open={isBulkDeleteDialogOpen}
+        onOpenChange={setIsBulkDeleteDialogOpen}
+        onConfirm={handleConfirmBulkDelete}
+        title="Hapus Validasi Lelangan"
+        description={`Anda akan menghapus ${selectedRows.length} data Validasi Lelangan dari dalam sistem.`}
+        confirmLabel="Hapus"
+        variant="destructive"
+      />
     </div>
   )
 }

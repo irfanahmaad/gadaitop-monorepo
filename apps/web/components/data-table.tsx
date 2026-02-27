@@ -348,7 +348,7 @@ export function DataTable<TData, TValue>({
   }
 
   return (
-    <Card>
+    <Card className="max-w-[1100px]">
       <CardHeader className="border-transparent">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           {/* Left: headerLeft slot or title fallback */}

@@ -23,11 +23,12 @@ import {
 } from "@workspace/ui/components/avatar"
 import { Card, CardContent, CardHeader } from "@workspace/ui/components/card"
 import { Skeleton } from "@workspace/ui/components/skeleton"
-import { SearchIcon, Plus, Lock } from "lucide-react"
+import { SearchIcon, Plus, Lock, Trash2 } from "lucide-react"
 import { useAuth } from "@/lib/react-query/hooks/use-auth"
 import {
   useCustomers,
   useChangeCustomerPin,
+  useDeleteCustomer,
   customerKeys,
 } from "@/lib/react-query/hooks/use-customers"
 import { useCompanies } from "@/lib/react-query/hooks/use-companies"
@@ -35,6 +36,7 @@ import { useBranches } from "@/lib/react-query/hooks/use-branches"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { GantiPinDialog } from "./[id]/_components/ganti-pin-dialog"
+import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import type { Customer as ApiCustomer } from "@/lib/api/types"
 
 type CustomerRow = {
@@ -224,6 +226,9 @@ export default function MasterCustomerPage() {
   const [gantiPinCustomerId, setGantiPinCustomerId] = useState<string | null>(
     null
   )
+  const [selectedRows, setSelectedRows] = useState<CustomerRow[]>([])
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false)
+  const [resetSelectionKey, setResetSelectionKey] = useState(0)
   const queryClient = useQueryClient()
 
   const listOptions = useMemo(() => {
@@ -240,6 +245,7 @@ export default function MasterCustomerPage() {
     enabled: customersReady,
   })
   const changePinMutation = useChangeCustomerPin()
+  const deleteCustomerMutation = useDeleteCustomer()
 
   const rows = useMemo(
     () => (data?.data ?? []).map(mapApiCustomerToRow),
@@ -292,6 +298,24 @@ export default function MasterCustomerPage() {
     setGantiPinOpen(open)
     if (!open) setGantiPinCustomerId(null)
   }, [])
+
+  const handleBulkDelete = useCallback(() => {
+    setIsBulkDeleteDialogOpen(true)
+  }, [])
+
+  const handleConfirmBulkDelete = useCallback(async () => {
+    try {
+      await Promise.all(
+        selectedRows.map((row) => deleteCustomerMutation.mutateAsync(row.id))
+      )
+      toast.success(`${selectedRows.length} Customer berhasil dihapus`)
+      setIsBulkDeleteDialogOpen(false)
+      setSelectedRows([])
+      setResetSelectionKey((k) => k + 1)
+    } catch {
+      toast.error("Gagal menghapus Customer")
+    }
+  }, [selectedRows, deleteCustomerMutation])
 
   return (
     <div className="flex flex-col gap-6">
@@ -365,6 +389,11 @@ export default function MasterCustomerPage() {
                   </SelectContent>
                 </Select>
               )}
+              {selectedRows.length > 0 && (
+                <span className="text-destructive font-semibold">
+                  &middot; {selectedRows.length} Selected
+                </span>
+              )}
             </div>
           }
           searchPlaceholder="Search"
@@ -393,6 +422,15 @@ export default function MasterCustomerPage() {
                   className="w-full"
                 />
               </div>
+              {selectedRows.length > 0 && (
+                <Button
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90 flex items-center gap-2"
+                  onClick={handleBulkDelete}
+                >
+                  <Trash2 className="size-4" />
+                  Hapus
+                </Button>
+              )}
             </div>
           }
           initialPageSize={pageSize}
@@ -407,6 +445,8 @@ export default function MasterCustomerPage() {
               onClick: handleGantiPin,
             },
           ]}
+          onSelectionChange={setSelectedRows}
+          resetSelectionKey={resetSelectionKey}
         />
       )}
 
@@ -415,6 +455,17 @@ export default function MasterCustomerPage() {
         onOpenChange={handleGantiPinOpenChange}
         onConfirm={handleGantiPinConfirm}
         isSubmitting={changePinMutation.isPending}
+      />
+
+      {/* Confirmation Dialog for Bulk Delete */}
+      <ConfirmationDialog
+        open={isBulkDeleteDialogOpen}
+        onOpenChange={setIsBulkDeleteDialogOpen}
+        onConfirm={handleConfirmBulkDelete}
+        title="Hapus Customer"
+        description={`Anda akan menghapus ${selectedRows.length} data Customer dari dalam sistem.`}
+        confirmLabel="Hapus"
+        variant="destructive"
       />
     </div>
   )
