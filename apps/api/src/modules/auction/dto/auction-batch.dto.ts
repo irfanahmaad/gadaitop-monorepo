@@ -12,9 +12,11 @@ export class AuctionBatchDto {
   assignedAt: Date | null;
   notes: string | null;
   createdAt: Date;
+  store?: { shortName: string };
+  assignee?: { fullName?: string; name?: string };
   items?: AuctionBatchItemDto[];
 
-  constructor(batch: AuctionBatchEntity & { items?: any[] }) {
+  constructor(batch: AuctionBatchEntity & { items?: any[]; store?: any; assignee?: any }) {
     this.uuid = batch.uuid;
     this.batchCode = batch.batchCode;
     this.storeId = batch.storeId;
@@ -24,6 +26,8 @@ export class AuctionBatchDto {
     this.assignedAt = batch.assignedAt ?? null;
     this.notes = batch.notes ?? null;
     this.createdAt = batch.createdAt;
+    this.store = batch.store;
+    this.assignee = batch.assignee;
     if (batch.items?.length) {
       this.items = batch.items.map((i) => new AuctionBatchItemDto(i));
     }

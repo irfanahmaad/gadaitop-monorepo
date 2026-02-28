@@ -84,6 +84,8 @@ interface DataTableProps<TData, TValue> {
   searchValue?: string
   onSearchChange?: (value: string) => void
   getRowClassName?: (row: TData) => string
+  /** Optional title/tooltip for each row (e.g. for Mata priority tooltip) */
+  getRowTitle?: (row: TData) => string | undefined
   /** Called when row selection changes; receives selected row data */
   onSelectionChange?: (selectedRows: TData[]) => void
   /** When set, pagination is server-driven: parent controls page and total count */
@@ -117,6 +119,7 @@ export function DataTable<TData, TValue>({
   searchValue: controlledSearchValue,
   onSearchChange,
   getRowClassName,
+  getRowTitle,
   onSelectionChange,
   serverSidePagination,
   resetSelectionKey,
@@ -413,6 +416,7 @@ export function DataTable<TData, TValue>({
                     key={row.id}
                     data-state={row.getIsSelected() && "selected"}
                     className={getRowClassName?.(row.original)}
+                    title={getRowTitle?.(row.original)}
                   >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id}>

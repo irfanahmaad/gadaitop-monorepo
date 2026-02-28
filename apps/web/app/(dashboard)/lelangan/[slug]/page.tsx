@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useMemo } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Breadcrumbs } from "@/components/breadcrumbs"
 import { Button } from "@workspace/ui/components/button"
@@ -11,101 +11,104 @@ import {
   CardTitle,
 } from "@workspace/ui/components/card"
 import { Skeleton } from "@workspace/ui/components/skeleton"
-import { useAuctionBatch } from "@/lib/react-query/hooks/use-auction-batches"
-import type { AuctionItemDetail, SpkItem } from "@/lib/api/types"
-import { Box, Pencil, QrCode } from "lucide-react"
-import Image from "next/image"
+import { Progress } from "@workspace/ui/components/progress"
+import {
+  useAuctionBatch,
+  useFinalizeAuctionBatch,
+  useCancelAuctionBatch,
+  auctionBatchKeys,
+} from "@/lib/react-query/hooks/use-auction-batches"
+import { useQueryClient } from "@tanstack/react-query"
+import type { AuctionBatch } from "@/lib/api/types"
+import { Box, Pencil, QrCode, Trash2, Printer, CheckCircle } from "lucide-react"
 import { QRCodeDialog } from "../../_components/QRCodeDialog"
+import { ConfirmationDialog } from "@/components/confirmation-dialog"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@workspace/ui/components/table"
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@workspace/ui/components/avatar"
+import { Badge } from "@workspace/ui/components/badge"
+import { toast } from "sonner"
 
-// Batch item may come from API as AuctionItemDetail (with spk) or as DTO (spkItemId, pickupStatus, validationVerdict only)
-type BatchItemShape = AuctionItemDetail & {
-  pickedUp?: boolean
-  validated?: boolean
-  validationVerdict?: string
-  pickupStatus?: string
-}
-
-// Derive display data from first batch item (SPK + first SPK item when available)
-function getDetailFromItem(
-  item: BatchItemShape,
-  storeName?: string,
-  batchCode?: string
-): {
+type BatchItemRow = {
+  id: string
+  no: number
+  foto?: string
   noSPK: string
-  namaBarang: string
   tipeBarang: string
-  kondisiBarang: string
-  kelengkapanBarang: string
-  statusBarang: string
-  imei: string
-  toko: string
+  lokasi: string
   statusPengambilan: string
-  statusValidasiMarketing: string
-  photoUrl?: string
-} {
-  const spk = item.spk
-  const firstSpkItem: SpkItem | undefined = spk?.items?.[0]
-  const spkNumber = spk?.spkNumber ?? "-"
-  const itemTypeName = firstSpkItem?.itemType?.typeName ?? "-"
-  const description = firstSpkItem?.description ?? "-"
-  const photoUrl = firstSpkItem?.photoUrl
-
-  const pickedUp =
-    item.pickedUp ??
-    (item.pickupStatus === "picked_up" || item.pickupStatus === "completed")
-  const validated = item.validated ?? !!item.validationVerdict
-  const validationVerdict = item.validationVerdict ?? null
-
-  return {
-    noSPK: spkNumber,
-    namaBarang: description !== "-" ? description : itemTypeName !== "-" ? itemTypeName : batchCode ?? "-",
-    tipeBarang: itemTypeName,
-    kondisiBarang: "-",
-    kelengkapanBarang: "-",
-    statusBarang: "-",
-    imei: "-",
-    toko: storeName ?? "-",
-    statusPengambilan: pickedUp ? "Diambil" : "-",
-    statusValidasiMarketing: validated
-      ? "OK"
-      : validationVerdict
-        ? String(validationVerdict)
-        : "-",
-    photoUrl,
-  }
+  statusValidasi: string
+  isMata?: boolean
 }
 
-function DetailItemSkeleton() {
+function mapBatchToItemRows(batch: AuctionBatch): BatchItemRow[] {
+  const items = batch.items ?? []
+  const storeName = batch.store?.shortName ?? "-"
+  return items.map((item, idx) => {
+    const spk = (item as { spk?: { spkNumber: string } }).spk
+    const spkItem = (item as { spkItem?: { itemType?: { typeName: string }; description: string; photoUrl?: string } }).spkItem
+    const noSPK = spk?.spkNumber ?? "-"
+    const tipeBarang = spkItem?.itemType?.typeName ?? "-"
+    const pickedUp =
+      (item as { pickedUp?: boolean }).pickedUp ??
+      ((item as { pickupStatus?: string }).pickupStatus === "picked_up" ||
+        (item as { pickupStatus?: string }).pickupStatus === "completed")
+    const validationVerdict = (item as { validationVerdict?: string }).validationVerdict
+    const statusValidasi = validationVerdict
+      ? validationVerdict === "ok"
+        ? "OK"
+        : validationVerdict === "return"
+          ? "Return"
+          : validationVerdict === "reject"
+            ? "Reject"
+            : String(validationVerdict)
+      : "-"
+    return {
+      id: item.uuid,
+      no: idx + 1,
+      foto: spkItem?.photoUrl,
+      noSPK,
+      tipeBarang,
+      lokasi: storeName,
+      statusPengambilan: pickedUp ? "Terscan" : "Belum Terscan",
+      statusValidasi,
+      isMata: false,
+    }
+  })
+}
+
+function BatchHeaderSkeleton() {
   return (
     <Card>
       <CardHeader>
-        <div className="flex flex-row items-center justify-between">
-          <Skeleton className="h-6 w-28" />
-          <Skeleton className="h-10 w-[140px]" />
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <Skeleton className="h-6 w-48" />
+          <div className="flex gap-2">
+            <Skeleton className="h-10 w-24" />
+            <Skeleton className="h-10 w-24" />
+          </div>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[250px_1fr]">
-          <div className="flex justify-center">
-            <Skeleton className="size-48 rounded-full" />
-          </div>
-          <div className="space-y-8">
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <Skeleton className="size-6 rounded" />
-                <Skeleton className="h-6 w-32" />
-              </div>
-              <div className="grid gap-6 md:grid-cols-2">
-                {Array.from({ length: 10 }).map((_, i) => (
-                  <div key={i} className="space-y-2">
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-5 w-full" />
-                  </div>
-                ))}
-              </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="space-y-2">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-5 w-32" />
             </div>
-          </div>
+          ))}
         </div>
+        <Skeleton className="mt-4 h-2 w-full" />
       </CardContent>
     </Card>
   )
@@ -114,23 +117,75 @@ function DetailItemSkeleton() {
 export default function LelanganDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const queryClient = useQueryClient()
   const slug = typeof params.slug === "string" ? params.slug : ""
 
   const { data: batch, isLoading, isError } = useAuctionBatch(slug)
-  const firstItem = batch?.items?.[0]
-  const storeName = batch?.store?.shortName
-  const detail =
-    firstItem && getDetailFromItem(firstItem, storeName, batch?.batchCode)
-  const pageTitle = detail?.namaBarang ?? batch?.batchCode ?? "Detail Item"
+  const finalizeMutation = useFinalizeAuctionBatch()
+  const cancelMutation = useCancelAuctionBatch()
+
   const [qrDialogOpen, setQrDialogOpen] = useState(false)
+  const [qrValue, setQrValue] = useState("")
+  const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+
+  const itemRows = useMemo(
+    () => (batch ? mapBatchToItemRows(batch) : []),
+    [batch]
+  )
+
+  const totalItems = batch?.items?.length ?? 0
+  const pickedUpCount = (batch?.items ?? []).filter(
+    (i) =>
+      (i as { pickedUp?: boolean }).pickedUp === true ||
+      (i as { pickupStatus?: string }).pickupStatus === "picked_up" ||
+      (i as { pickupStatus?: string }).pickupStatus === "completed"
+  ).length
+  const validatedCount = (batch?.items ?? []).filter(
+    (i) => !!(i as { validationVerdict?: string }).validationVerdict
+  ).length
+  const progressPct = totalItems > 0 ? (validatedCount / totalItems) * 100 : 0
+  const allValidated = totalItems > 0 && validatedCount === totalItems
+  const canApprove =
+    batch?.status === "validation_pending" && allValidated
+
+  const handleApprove = async () => {
+    if (!slug) return
+    try {
+      await finalizeMutation.mutateAsync(slug)
+      toast.success("Batch disetujui untuk lelang")
+      setIsApproveDialogOpen(false)
+      queryClient.invalidateQueries({ queryKey: auctionBatchKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: auctionBatchKeys.detail(slug) })
+    } catch (err) {
+      toast.error(
+        (err as { message?: string })?.message ?? "Gagal menyetujui batch"
+      )
+    }
+  }
+
+  const handleDelete = () => {
+    if (!slug) return
+    cancelMutation.mutate(slug, {
+      onSuccess: () => {
+        toast.success("Batch berhasil dibatalkan")
+        setIsDeleteDialogOpen(false)
+        router.push("/lelangan")
+      },
+      onError: (err) => {
+        toast.error(err?.message ?? "Gagal membatalkan batch")
+      },
+    })
+  }
 
   if (!slug) {
     return (
       <div className="flex flex-col gap-6">
         <Breadcrumbs
           items={[
-            { label: "Lelangan", href: "/lelangan" },
-            { label: "Detail Item", className: "text-destructive" },
+            { label: "Pages", href: "/" },
+            { label: "Lelang", href: "/lelangan" },
+            { label: "Detail Batch", className: "text-destructive" },
           ]}
         />
         <p className="text-muted-foreground">Batch tidak ditemukan.</p>
@@ -140,41 +195,32 @@ export default function LelanganDetailPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Header: title, breadcrumbs, Edit */}
+      {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex flex-col gap-2">
-          <p className="text-muted-foreground text-sm">
-            Lelangan / Detail Item
-          </p>
           <h1 className="text-2xl font-bold">
             {isLoading ? (
               <Skeleton className="h-8 w-48" />
             ) : (
-              pageTitle
+              `Detail Batch ${batch?.batchCode ?? slug}`
             )}
           </h1>
           <Breadcrumbs
             items={[
-              { label: "Lelangan", href: "/lelangan" },
-              { label: "Detail", className: "text-destructive" },
+              { label: "Pages", href: "/" },
+              { label: "Lelang", href: "/lelangan" },
+              {
+                label: "Detail Batch",
+                className: "text-destructive",
+              },
             ]}
           />
         </div>
-        {!isLoading && batch && (
-          <Button
-            variant="outline"
-            className="shrink-0 gap-2"
-            onClick={() => router.push(`/validasi-lelangan/${slug}`)}
-          >
-            <Pencil className="size-4" />
-            Edit
-          </Button>
-        )}
       </div>
 
-      {/* Detail Item card */}
+      {/* Batch header card */}
       {isLoading ? (
-        <DetailItemSkeleton />
+        <BatchHeaderSkeleton />
       ) : isError ? (
         <Card>
           <CardContent className="py-10 text-center">
@@ -201,145 +247,211 @@ export default function LelanganDetailPage() {
             </Button>
           </CardContent>
         </Card>
-      ) : !firstItem ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Detail Item</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground py-6 text-center">
-              Batch ini belum memiliki item.
-            </p>
-          </CardContent>
-        </Card>
-      ) : detail ? (
-        <Card>
-          <CardHeader>
-            <div className="flex flex-row items-center justify-between">
-              <CardTitle>Detail Item</CardTitle>
-              <Button
-                variant="outline"
-                className="gap-2"
-                onClick={() => setQrDialogOpen(true)}
-              >
-                <QrCode className="size-4" />
-                QR Code SPK
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 gap-8 lg:grid-cols-[250px_1fr]">
-              {/* Item image */}
-              <div className="flex justify-center">
-                {detail.photoUrl ? (
-                  <div className="relative size-48 overflow-hidden rounded-full border-2 border-muted">
-                    <Image
-                      src={detail.photoUrl}
-                      alt={detail.namaBarang}
-                      fill
-                      className="object-cover"
-                      sizes="192px"
-                    />
-                  </div>
-                ) : (
-                  <div className="flex size-48 items-center justify-center rounded-full border-2 border-dashed border-muted bg-muted/30">
-                    <Box className="text-muted-foreground size-24" />
-                  </div>
-                )}
-              </div>
-
-              {/* Detail Barang section */}
-              <div className="space-y-8">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <Box className="text-destructive size-6" />
-                    <h2 className="text-destructive text-lg font-semibold">
-                      Detail Barang
-                    </h2>
-                  </div>
-                  <div className="grid gap-6 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <label className="text-muted-foreground text-sm font-medium">
-                        No. SPK
-                      </label>
-                      <p className="text-base">{detail.noSPK}</p>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-muted-foreground text-sm font-medium">
-                        Nama Barang
-                      </label>
-                      <p className="text-base">{detail.namaBarang}</p>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-muted-foreground text-sm font-medium">
-                        Tipe Barang
-                      </label>
-                      <p className="text-base">{detail.tipeBarang}</p>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-muted-foreground text-sm font-medium">
-                        Kondisi Barang
-                      </label>
-                      <p className="text-base">{detail.kondisiBarang}</p>
-                    </div>
-                    <div className="space-y-2 md:col-span-2">
-                      <label className="text-muted-foreground text-sm font-medium">
-                        Kelengkapan Barang
-                      </label>
-                      <p className="text-base">
-                        {detail.kelengkapanBarang}
-                      </p>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-muted-foreground text-sm font-medium">
-                        Status Barang
-                      </label>
-                      <p className="text-base">{detail.statusBarang}</p>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-muted-foreground text-sm font-medium">
-                        IMEI
-                      </label>
-                      <p className="text-base">{detail.imei}</p>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-muted-foreground text-sm font-medium">
-                        Toko
-                      </label>
-                      <p className="text-base">{detail.toko}</p>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-muted-foreground text-sm font-medium">
-                        Status Pengambilan
-                      </label>
-                      <p className="text-base">
-                        {detail.statusPengambilan}
-                      </p>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-muted-foreground text-sm font-medium">
-                        Status Validasi Marketing
-                      </label>
-                      <p className="text-base">
-                        {detail.statusValidasiMarketing}
-                      </p>
-                    </div>
-                  </div>
+      ) : (
+        <>
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <CardTitle>Data Batch</CardTitle>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    className="gap-2"
+                    onClick={() => router.push(`/validasi-lelangan/${slug}`)}
+                  >
+                    <Pencil className="size-4" />
+                    Edit Batch
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="gap-2"
+                    onClick={() => window.print()}
+                  >
+                    <Printer className="size-4" />
+                    Cetak Daftar
+                  </Button>
+                  {batch.status !== "cancelled" &&
+                    batch.status !== "ready_for_auction" && (
+                      <Button
+                        variant="outline"
+                        className="gap-2 text-destructive hover:bg-destructive/10"
+                        onClick={() => setIsDeleteDialogOpen(true)}
+                      >
+                        <Trash2 className="size-4" />
+                        Hapus Batch
+                      </Button>
+                    )}
+                  {canApprove && (
+                    <Button
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-2"
+                      onClick={() => setIsApproveDialogOpen(true)}
+                      disabled={finalizeMutation.isPending}
+                    >
+                      <CheckCircle className="size-4" />
+                      Approve Batch
+                    </Button>
+                  )}
                 </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-      ) : null}
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <div className="space-y-1">
+                  <p className="text-muted-foreground text-sm">ID Batch</p>
+                  <p className="font-medium">{batch.batchCode}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-muted-foreground text-sm">Toko</p>
+                  <p className="font-medium">{batch.store?.shortName ?? "-"}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-muted-foreground text-sm">Penanggung Jawab</p>
+                  <p className="font-medium">
+                    {(batch as { assignee?: { fullName?: string; name?: string } }).assignee?.fullName ??
+                      (batch as { assignee?: { fullName?: string; name?: string } }).assignee?.name ??
+                      "-"}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-muted-foreground text-sm">Status</p>
+                  <Badge variant="outline">{batch.status}</Badge>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-muted-foreground text-sm">Jumlah Item</p>
+                  <p className="font-medium">{totalItems}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-muted-foreground text-sm">Progress</p>
+                  <p className="text-sm">
+                    Diambil {pickedUpCount}/{totalItems}, Validasi{" "}
+                    {validatedCount}/{totalItems}
+                  </p>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <p className="text-muted-foreground text-sm">Progress Validasi</p>
+                <Progress value={progressPct} className="h-2" />
+              </div>
+            </CardContent>
+          </Card>
 
-      {detail && (
-        <QRCodeDialog
-          open={qrDialogOpen}
-          onOpenChange={setQrDialogOpen}
-          value={detail.noSPK}
-          title="QR Code SPK"
-        />
+          {/* Item list table */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Daftar Item Lelang</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {itemRows.length === 0 ? (
+                <p className="text-muted-foreground py-8 text-center">
+                  Batch ini belum memiliki item.
+                </p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>No</TableHead>
+                      <TableHead>Foto</TableHead>
+                      <TableHead>No. SPK</TableHead>
+                      <TableHead>Tipe</TableHead>
+                      <TableHead>Lokasi</TableHead>
+                      <TableHead>Status Pengambilan</TableHead>
+                      <TableHead>Status Validasi</TableHead>
+                      <TableHead className="w-[80px]">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {itemRows.map((row) => (
+                      <TableRow
+                        key={row.id}
+                        className={row.isMata ? "bg-red-50 dark:bg-red-950/30" : ""}
+                      >
+                        <TableCell>{row.no}</TableCell>
+                        <TableCell>
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={row.foto} alt="" />
+                            <AvatarFallback>
+                              <Box className="text-muted-foreground size-5" />
+                            </AvatarFallback>
+                          </Avatar>
+                        </TableCell>
+                        <TableCell className="font-medium">{row.noSPK}</TableCell>
+                        <TableCell>{row.tipeBarang}</TableCell>
+                        <TableCell>{row.lokasi}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className={
+                              row.statusPengambilan === "Terscan"
+                                ? "border-green-500/20 bg-green-500/10 text-green-700 dark:text-green-400"
+                                : "border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                            }
+                          >
+                            {row.statusPengambilan}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className={
+                              row.statusValidasi === "OK"
+                                ? "border-green-500/20 bg-green-500/10 text-green-700 dark:text-green-400"
+                                : row.statusValidasi === "Reject"
+                                  ? "border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-400"
+                                  : "border-gray-500/20 bg-gray-500/10 text-gray-700 dark:text-gray-400"
+                            }
+                          >
+                            {row.statusValidasi}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-8"
+                            onClick={() => {
+                              setQrValue(row.noSPK)
+                              setQrDialogOpen(true)
+                            }}
+                          >
+                            <QrCode className="size-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </>
       )}
+
+      <QRCodeDialog
+        open={qrDialogOpen}
+        onOpenChange={setQrDialogOpen}
+        value={qrValue}
+        title="QR Code SPK"
+      />
+
+      <ConfirmationDialog
+        open={isApproveDialogOpen}
+        onOpenChange={setIsApproveDialogOpen}
+        onConfirm={handleApprove}
+        title="Approve Batch"
+        description="Semua item telah tervalidasi OK. Approve batch untuk lelang?"
+        confirmLabel="Ya"
+        variant="info"
+      />
+
+      <ConfirmationDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        onConfirm={handleDelete}
+        title="Hapus Batch"
+        description="Anda akan membatalkan batch ini. Tindakan ini tidak dapat dibatalkan."
+        confirmLabel="Hapus"
+        variant="destructive"
+      />
     </div>
   )
 }

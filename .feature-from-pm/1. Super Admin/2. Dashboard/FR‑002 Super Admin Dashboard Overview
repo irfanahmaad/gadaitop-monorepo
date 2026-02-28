@@ -1,0 +1,189 @@
+FR‑002 Super Admin Dashboard Overview
+Feature Name: Super Admin Dashboard
+
+Description:
+The system provides a Dashboard page as the default landing screen after Super Admin login, summarizing SPK and NKB performance, pawn trends, and today’s due SPK list for selected PT, branch, and date.
+
+Actor:
+
+Super Admin (Owner)
+
+Super Admin
+​
+
+Priority: High
+
+Preconditions
+User is authenticated as Super Admin Owner or Super Admin.
+​
+
+At least one PT and branch exist and are accessible to this user.
+​
+
+SPK and NKB transactional data exist for the selected PT/branch (or empty states are handled).
+​
+
+Postconditions
+Dashboard widgets reflect aggregated, read‑only data for the currently selected PT, branch, and date.
+​
+
+No modification of underlying SPK/NKB data occurs from this page; navigation links can lead to detailed modules.
+​
+
+UI Layout & Filters
+The left sidebar shows the Gadai Top logo and menu with at least: Dashboard, Master Super Admin, Master PT, Master Tipe Barang. “Dashboard” is highlighted as the current page.
+
+At the top of the main content, the Dashboard header shows:
+
+Page title “Dashboard” and breadcrumb “Pages / Dashboard”.
+
+Three filter controls aligned to the right:
+
+PT selector (dropdown list of PT Gadai Top entities).
+
+Branch selector (dropdown list of branches for selected PT).
+
+Date selector (single date, default to today).
+
+Changing PT, branch, or date refreshes all widgets below with the new context, without full page reload.
+
+KPI Summary Cards
+Directly under the header, four KPI cards are displayed in a row:
+
+“SPK Jatuh Tempo & Overdue” quick count (e.g., number due today/tomorrow/overdue).
+
+“SPK Jatuh Tempo < 1 Bulan” (or similar) as indicated by the sticky note (exact label can be finalized).
+
+“Total Gadai Aktif” count.
+
+“SPK Sisa Hari” or other business KPI per RS and design note.
+
+Each card shows:
+
+A title.
+
+A numeric value.
+
+Optional colored indicator or icon (green/orange/red) matching the Figma style.
+
+Cards update instantly when filters change; if data is not available, they show zero or “–” instead of breaking the layout.
+
+Widget: SPK Jatuh Tempo & Overdue (Chart)
+Description:
+Bar (or horizontal bar) chart showing counts of SPK in different status segments (On Time, Due Today, Overdue < X days, Overdue ≥ X days) for the selected PT/branch/date.
+
+Acceptance Criteria:
+
+The widget is labeled “SPK Jatuh Tempo & Overdue” and displays a bar chart with a legend for each SPK status segment.
+
+Chart data is aggregated from SPK records based on due date vs selected date and their status flags as defined in RS (Lunas, Berjalan, Terlambat, etc.).
+​
+
+Hovering a bar shows a tooltip with the exact count and label.
+
+When no SPK exist for the period, the chart shows an empty state (e.g., blank axes with “No data for selected period”).
+
+Widget: Tren Barang Gadai (Chart)
+Description:
+Line chart showing trends of pawned items (e.g., count or value) across categories or time buckets.
+
+Acceptance Criteria:
+
+The widget titled “Tren Barang Gadai” displays a line chart with horizontal axis (e.g., time or item type) and vertical axis (e.g., total SPK or amount).
+
+Each plotted point corresponds to aggregated data from SPK for the selected PT/branch/date range; axis semantics must be defined in implementation but follow the Figma pattern.
+
+Hovering a point shows tooltip with label and numeric value.
+
+If no data is available, the widget shows an empty-state message instead of a broken chart.
+
+Widget: SPK Baru (Table)
+Description:
+Table listing the most recent SPK created within the selected date (or recent period) for the chosen PT and branch.
+
+Acceptance Criteria:
+
+The “SPK Baru” panel shows a compact table with columns:
+
+Nomor SPK
+
+Nominal Gadai
+
+Nama Customer
+​
+
+Rows are ordered by creation date/time descending (latest first).
+
+Clicking on a Nomor SPK opens the detailed SPK page in a new view or route (to be defined in SPK module FR).
+​
+
+If there are no new SPK for the selected date, the table shows an empty-state message (e.g., “No new SPK today”).
+
+The number of rows is limited (e.g., top 5–10 SPK) as in Figma; full list is accessible via separate SPK module.
+
+Widget: NKB Baru (Table)
+Description:
+Table listing the most recent NKB (payment) records for the selected PT, branch, and date, including payment type and current SPK status.
+
+Acceptance Criteria:
+
+The “NKB Baru” panel shows columns:
+
+Nomor NKB
+
+Nominal Dibayar
+
+Jenis (payment type: Pelunasan / Perpanjangan)
+
+Status (e.g., Lunas, Berjalan, Terlambat) with colored badges per status.
+
+Rows are ordered by payment date/time descending.
+
+Clicking a Nomor NKB opens detailed payment information in the NKB module.
+​
+
+Status badges (e.g., green for Lunas, blue for Berjalan, red for Terlambat) visually match the Figma design.
+​
+
+Empty state is handled similarly to SPK Baru when no NKB exist for the selected criteria.
+
+Widget: Daftar SPK Jatuh Tempo Hari Ini (Table)
+Description:
+Table listing SPK that are due on the selected date (typically “today”) for the chosen PT and branch.
+
+Acceptance Criteria:
+
+The “Daftar SPK Jatuh Tempo Hari Ini” table shows columns:
+
+No (row number)
+
+Nomor SPK
+
+Nama Customer
+
+Jumlah SPK (or amount / count field as per design)
+
+Sisa SPK (remaining principal)
+
+Tanggal & Waktu SPK or due date/time.
+
+Data is filtered to SPK whose due date equals the selected date and whose status is not yet Lunas or Lelang.
+​
+
+Rows are sorted by due time ascending (earliest due first).
+
+If there are no SPK due today for this PT/branch, an empty state is shown.
+
+Clicking on Nomor SPK navigates to the detailed SPK view.
+​
+
+General Dashboard Behavior
+All widgets reload coherently when PT, branch, or date changes; while loading, a skeleton or spinner is shown per widget to avoid flicker.
+
+All data on this page is read‑only; no inline editing or destructive actions are available here.
+​
+
+The Dashboard respects security constraints: only data belonging to PT/branch that the Super Admin is allowed to see is loaded.
+​
+
+Layout remains stable on standard desktop resolutions; if horizontal overflow occurs, internal scrollbars are used within tables rather than breaking outer layout.

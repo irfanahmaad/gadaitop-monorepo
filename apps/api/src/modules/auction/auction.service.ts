@@ -87,7 +87,14 @@ export class AuctionService {
   async findOne(uuid: string): Promise<AuctionBatchDto> {
     const batch = await this.batchRepository.findOne({
       where: { uuid },
-      relations: ['items', 'items.spkItem'],
+      relations: [
+        'items',
+        'items.spkItem',
+        'items.spkItem.spk',
+        'items.spkItem.itemType',
+        'store',
+        'assignee',
+      ],
     });
     if (!batch) {
       throw new NotFoundException(`Auction batch with UUID ${uuid} not found`);
