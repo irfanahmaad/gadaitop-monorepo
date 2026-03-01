@@ -54,6 +54,7 @@ import {
 } from "@workspace/ui/components/card"
 import { FilterDialog } from "./filter-dialog"
 import { FilterConfig } from "@/hooks/use-filter-params"
+import { cn } from "@workspace/ui/lib/utils"
 
 interface CustomAction<TData> {
   label: string
@@ -86,6 +87,8 @@ interface DataTableProps<TData, TValue> {
   getRowClassName?: (row: TData) => string
   /** Optional title/tooltip for each row (e.g. for Mata priority tooltip) */
   getRowTitle?: (row: TData) => string | undefined
+  /** Called when a row is clicked (e.g. to open detail modal) */
+  onRowClick?: (row: TData) => void
   /** Called when row selection changes; receives selected row data */
   onSelectionChange?: (selectedRows: TData[]) => void
   /** When set, pagination is server-driven: parent controls page and total count */
@@ -120,6 +123,7 @@ export function DataTable<TData, TValue>({
   onSearchChange,
   getRowClassName,
   getRowTitle,
+  onRowClick,
   onSelectionChange,
   serverSidePagination,
   resetSelectionKey,
@@ -415,8 +419,16 @@ export function DataTable<TData, TValue>({
                   <TableRow
                     key={row.id}
                     data-state={row.getIsSelected() && "selected"}
-                    className={getRowClassName?.(row.original)}
+                    className={cn(
+                      getRowClassName?.(row.original),
+                      onRowClick && "cursor-pointer hover:bg-muted/50"
+                    )}
                     title={getRowTitle?.(row.original)}
+                    onClick={
+                      onRowClick
+                        ? () => onRowClick(row.original)
+                        : undefined
+                    }
                   >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id}>

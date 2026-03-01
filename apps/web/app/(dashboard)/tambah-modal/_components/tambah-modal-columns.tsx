@@ -17,38 +17,47 @@ import {
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu"
 import { Button } from "@workspace/ui/components/button"
-import { Check, Ban, MoreHorizontal, Pencil } from "lucide-react"
+import { Check, Ban, MoreHorizontal, Pencil, Eye } from "lucide-react"
 import type { RequestTambahModal } from "./types"
 import { formatTanggalRequest, formatNominal } from "./utils"
 import { StatusBadge } from "./status-badge"
 
-export function getBaseColumns(): ColumnDef<RequestTambahModal>[] {
+const selectColumn: ColumnDef<RequestTambahModal> = {
+  id: "select",
+  header: ({ table }) => (
+    <Checkbox
+      checked={
+        table.getIsAllPageRowsSelected() ||
+        (table.getIsSomePageRowsSelected() && "indeterminate")
+      }
+      onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+      aria-label="Select all"
+    />
+  ),
+  cell: ({ row }) => (
+    <div className="flex items-center gap-2">
+      <Checkbox
+        checked={row.getIsSelected()}
+        onCheckedChange={(value) => row.toggleSelected(!!value)}
+        aria-label="Select row"
+      />
+      <span className="text-sm">{row.index + 1}</span>
+    </div>
+  ),
+  enableSorting: false,
+  enableHiding: false,
+}
+
+const numberColumn: ColumnDef<RequestTambahModal> = {
+  id: "number",
+  header: "No",
+  cell: ({ row }) => <span className="text-sm">{row.index + 1}</span>,
+  enableSorting: false,
+  enableHiding: false,
+}
+
+function getDataColumns(): ColumnDef<RequestTambahModal>[] {
   return [
-    {
-      id: "select",
-      header: ({ table }) => (
-        <Checkbox
-          checked={
-            table.getIsAllPageRowsSelected() ||
-            (table.getIsSomePageRowsSelected() && "indeterminate")
-          }
-          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-          aria-label="Select all"
-        />
-      ),
-      cell: ({ row }) => (
-        <div className="flex items-center gap-2">
-          <Checkbox
-            checked={row.getIsSelected()}
-            onCheckedChange={(value) => row.toggleSelected(!!value)}
-            aria-label="Select row"
-          />
-          <span className="text-sm">{row.index + 1}</span>
-        </div>
-      ),
-      enableSorting: false,
-      enableHiding: false,
-    },
     {
       accessorKey: "tanggalRequest",
       header: "Tanggal Request",
@@ -110,10 +119,21 @@ export function getBaseColumns(): ColumnDef<RequestTambahModal>[] {
   ]
 }
 
+export function getRequestColumns(): ColumnDef<RequestTambahModal>[] {
+  return [selectColumn, ...getDataColumns()]
+}
+
+export function getHistoryColumns(): ColumnDef<RequestTambahModal>[] {
+  return [numberColumn, ...getDataColumns()]
+}
+
 export function getRequestActionColumn(
   onApprove: (row: RequestTambahModal) => void,
   onReject: (row: RequestTambahModal) => void,
-  onEdit: (row: RequestTambahModal) => void
+  options?: {
+    onEdit?: (row: RequestTambahModal) => void
+    onDetail?: (row: RequestTambahModal) => void
+  }
 ): ColumnDef<RequestTambahModal> {
   return {
     id: "actions",
@@ -129,10 +149,6 @@ export function getRequestActionColumn(
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>Action</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => onEdit(row.original)}>
-            <Pencil className="mr-2 h-4 w-4" />
-            Edit
-          </DropdownMenuItem>
           <DropdownMenuItem onClick={() => onApprove(row.original)}>
             <Check className="mr-2 h-4 w-4" />
             Setujui
@@ -143,6 +159,45 @@ export function getRequestActionColumn(
           >
             <Ban className="mr-2 h-4 w-4" />
             Tolak
+          </DropdownMenuItem>
+          {options?.onEdit && (
+            <DropdownMenuItem onClick={() => options.onEdit!(row.original)}>
+              <Pencil className="mr-2 h-4 w-4" />
+              Edit
+            </DropdownMenuItem>
+          )}
+          {options?.onDetail && (
+            <DropdownMenuItem onClick={() => options.onDetail!(row.original)}>
+              <Eye className="mr-2 h-4 w-4" />
+              Detail
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    ),
+  }
+}
+
+export function getHistoryActionColumn(
+  onDetail: (row: RequestTambahModal) => void
+): ColumnDef<RequestTambahModal> {
+  return {
+    id: "actions",
+    enableHiding: false,
+    cell: ({ row }) => (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="h-8 w-8 p-0">
+            <span className="sr-only">Buka menu</span>
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuLabel>Action</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => onDetail(row.original)}>
+            <Eye className="mr-2 h-4 w-4" />
+            Detail
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

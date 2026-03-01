@@ -173,13 +173,13 @@ export function StockOpnameFormDialog({
       setPendingValues(null)
       return
     }
-    const scheduledDate = format(pendingValues.tanggal, "yyyy-MM-dd")
+    const startDate = format(pendingValues.tanggal, "yyyy-MM-dd")
     const notes = pendingValues.catatan?.trim() || undefined
     const payloads: CreateStockOpnameDto[] = pendingValues.toko.map(
       (storeId) => ({
         ptId,
         storeId,
-        scheduledDate,
+        startDate,
         notes,
       })
     )

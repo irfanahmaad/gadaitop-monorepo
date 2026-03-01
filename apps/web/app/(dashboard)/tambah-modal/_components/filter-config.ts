@@ -1,6 +1,6 @@
 import type { FilterConfig } from "@/hooks/use-filter-params"
 
-export const TAMBAH_MODAL_FILTER_CONFIG: FilterConfig[] = [
+const baseFilters: FilterConfig[] = [
   {
     key: "lastUpdate",
     label: "",
@@ -21,12 +21,29 @@ export const TAMBAH_MODAL_FILTER_CONFIG: FilterConfig[] = [
     placeholder: "Semua",
     options: [
       { value: "__all__", label: "Semua" },
-      { value: "gt-jakarta-satu", label: "GT Jakarta Satu" },
-      { value: "gt-jakarta-dua", label: "GT Jakarta Dua" },
-      { value: "gt-bandung", label: "GT Bandung" },
-      { value: "gt-surabaya", label: "GT Surabaya" },
     ],
   },
+]
+
+export const REQUEST_FILTER_CONFIG: FilterConfig[] = [...baseFilters]
+
+export const HISTORY_FILTER_CONFIG: FilterConfig[] = [
+  ...baseFilters,
+  {
+    key: "status",
+    label: "Status",
+    type: "select",
+    placeholder: "Semua",
+    options: [
+      { value: "__all__", label: "Semua" },
+      { value: "Disetujui", label: "Disetujui" },
+      { value: "Ditolak", label: "Ditolak" },
+    ],
+  },
+]
+
+export const TAMBAH_MODAL_FILTER_CONFIG: FilterConfig[] = [
+  ...baseFilters,
   {
     key: "status",
     label: "Status",

@@ -59,6 +59,7 @@ import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { QRCodeDialog } from "@/app/(dashboard)/_components/QRCodeDialog"
 import { CreateBatchDialog } from "@/app/(dashboard)/lelangan/_components/CreateBatchDialog"
+import { cn } from "@workspace/ui/lib/utils"
 
 // Types for SPK Jatuh Tempo (flattened from overdue SPK items)
 type ItemLelang = {
@@ -266,7 +267,7 @@ const BatchStatusBadge = ({ status }: { status: BatchStatus }) => {
   const config = statusConfig[status] ?? statusConfig.Draft
 
   return (
-    <Badge variant="outline" className={config.className}>
+    <Badge variant="outline" className={cn(``, config?.className)}>
       {config.label}
     </Badge>
   )
@@ -720,13 +721,13 @@ function LelangPageContent() {
 
   const itemLelangCustomActions = React.useMemo(
     () => [
-      {
-        label: "Tambah ke Batch",
-        icon: <Plus className="mr-2 size-4" />,
-        onClick: handleTambahKeBatch,
-      },
+      // {
+      //   label: "Tambah ke Batch",
+      //   icon: <Plus className="mr-2 size-4" />,
+      //   onClick: handleTambahKeBatch,
+      // },
     ],
-    [handleTambahKeBatch]
+    []
   )
 
   const getItemLelangRowClassName = React.useCallback((row: ItemLelang) => {

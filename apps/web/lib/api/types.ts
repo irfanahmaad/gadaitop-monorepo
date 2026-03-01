@@ -820,7 +820,7 @@ export interface StockOpnameSession {
 
 export interface CreateStockOpnameDto {
   storeId: string
-  scheduledDate: string
+  startDate: string
   ptId?: string
   notes?: string
 }
@@ -855,6 +855,9 @@ export interface CashDeposit {
   proofUrl?: string
   status: CashDepositStatus
   rejectionReason?: string
+  vaNumber?: string
+  expiresAt?: string
+  notes?: string
   store?: Branch
   createdBy?: User
   approvedBy?: User
@@ -865,6 +868,7 @@ export interface CashDeposit {
 export interface CreateCashDepositDto {
   storeId: string
   amount: number
+  notes?: string
   bankAccountId?: string
   proofUrl?: string
 }
@@ -901,6 +905,7 @@ export interface CashMutation {
   description?: string
   referenceType?: string
   referenceId?: string
+  referenceNumber?: string
   store?: Branch
   createdBy?: User
   createdAt: string

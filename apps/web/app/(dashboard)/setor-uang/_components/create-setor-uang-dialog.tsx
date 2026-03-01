@@ -14,6 +14,7 @@ import {
 } from "@workspace/ui/components/dialog"
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
+import { Textarea } from "@workspace/ui/components/textarea"
 import {
   Form,
   FormControl,
@@ -35,6 +36,7 @@ import { formatCurrencyInput, parseCurrencyInput } from "@/lib/format-currency"
 const createSchema = z.object({
   storeId: z.string().min(1, "Toko wajib dipilih"),
   nominal: z.string().min(1, "Nominal wajib diisi"),
+  catatan: z.string().optional(),
 })
 
 type CreateFormValues = z.infer<typeof createSchema>
@@ -42,7 +44,11 @@ type CreateFormValues = z.infer<typeof createSchema>
 type CreateSetorUangDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onConfirm: (data: { storeId: string; amount: number }) => void | Promise<void>
+  onConfirm: (data: {
+    storeId: string
+    amount: number
+    notes?: string
+  }) => void | Promise<void>
   isSubmitting?: boolean
   branchOptions: { value: string; label: string }[]
   selectedBranch?: string
@@ -58,7 +64,7 @@ export function CreateSetorUangDialog({
 }: CreateSetorUangDialogProps) {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [pendingSubmit, setPendingSubmit] = useState<{
-    data: { storeId: string; amount: number }
+    data: { storeId: string; amount: number; notes?: string }
   } | null>(null)
 
   const form = useForm<CreateFormValues>({
@@ -66,6 +72,7 @@ export function CreateSetorUangDialog({
     defaultValues: {
       storeId: "",
       nominal: "",
+      catatan: "",
     },
   })
 
@@ -74,6 +81,7 @@ export function CreateSetorUangDialog({
       form.reset({
         storeId: selectedBranch || branchOptions[0]?.value || "",
         nominal: "",
+        catatan: "",
       })
     }
   }, [open, form, selectedBranch, branchOptions])
@@ -88,6 +96,7 @@ export function CreateSetorUangDialog({
       data: {
         storeId: values.storeId,
         amount: parsed,
+        notes: values.catatan?.trim() || undefined,
       },
     })
     setConfirmOpen(true)
@@ -112,7 +121,7 @@ export function CreateSetorUangDialog({
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle className="border-b pb-4 text-2xl font-bold">
-              Request Setor Uang
+              Buat Permintaan Setoran
             </DialogTitle>
           </DialogHeader>
 
@@ -174,6 +183,23 @@ export function CreateSetorUangDialog({
                               )
                             }}
                           />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="catatan"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Catatan</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Catatan opsional..."
+                        className="min-h-24 resize-none"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

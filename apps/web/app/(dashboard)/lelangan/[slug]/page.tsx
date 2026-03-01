@@ -56,14 +56,23 @@ function mapBatchToItemRows(batch: AuctionBatch): BatchItemRow[] {
   const storeName = batch.store?.shortName ?? "-"
   return items.map((item, idx) => {
     const spk = (item as { spk?: { spkNumber: string } }).spk
-    const spkItem = (item as { spkItem?: { itemType?: { typeName: string }; description: string; photoUrl?: string } }).spkItem
+    const spkItem = (
+      item as {
+        spkItem?: {
+          itemType?: { typeName: string }
+          description: string
+          photoUrl?: string
+        }
+      }
+    ).spkItem
     const noSPK = spk?.spkNumber ?? "-"
     const tipeBarang = spkItem?.itemType?.typeName ?? "-"
     const pickedUp =
       (item as { pickedUp?: boolean }).pickedUp ??
       ((item as { pickupStatus?: string }).pickupStatus === "picked_up" ||
         (item as { pickupStatus?: string }).pickupStatus === "completed")
-    const validationVerdict = (item as { validationVerdict?: string }).validationVerdict
+    const validationVerdict = (item as { validationVerdict?: string })
+      .validationVerdict
     const statusValidasi = validationVerdict
       ? validationVerdict === "ok"
         ? "OK"
@@ -146,8 +155,7 @@ export default function LelanganDetailPage() {
   ).length
   const progressPct = totalItems > 0 ? (validatedCount / totalItems) * 100 : 0
   const allValidated = totalItems > 0 && validatedCount === totalItems
-  const canApprove =
-    batch?.status === "validation_pending" && allValidated
+  const canApprove = batch?.status === "validation_pending" && allValidated
 
   const handleApprove = async () => {
     if (!slug) return
@@ -262,19 +270,19 @@ export default function LelanganDetailPage() {
                     <Pencil className="size-4" />
                     Edit Batch
                   </Button>
-                  <Button
+                  {/* <Button
                     variant="outline"
                     className="gap-2"
                     onClick={() => window.print()}
                   >
                     <Printer className="size-4" />
                     Cetak Daftar
-                  </Button>
+                  </Button> */}
                   {batch.status !== "cancelled" &&
                     batch.status !== "ready_for_auction" && (
                       <Button
                         variant="outline"
-                        className="gap-2 text-destructive hover:bg-destructive/10"
+                        className="text-destructive hover:bg-destructive/10 gap-2"
                         onClick={() => setIsDeleteDialogOpen(true)}
                       >
                         <Trash2 className="size-4" />
@@ -305,10 +313,20 @@ export default function LelanganDetailPage() {
                   <p className="font-medium">{batch.store?.shortName ?? "-"}</p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-muted-foreground text-sm">Penanggung Jawab</p>
+                  <p className="text-muted-foreground text-sm">
+                    Penanggung Jawab
+                  </p>
                   <p className="font-medium">
-                    {(batch as { assignee?: { fullName?: string; name?: string } }).assignee?.fullName ??
-                      (batch as { assignee?: { fullName?: string; name?: string } }).assignee?.name ??
+                    {(
+                      batch as {
+                        assignee?: { fullName?: string; name?: string }
+                      }
+                    ).assignee?.fullName ??
+                      (
+                        batch as {
+                          assignee?: { fullName?: string; name?: string }
+                        }
+                      ).assignee?.name ??
                       "-"}
                   </p>
                 </div>
@@ -329,7 +347,9 @@ export default function LelanganDetailPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <p className="text-muted-foreground text-sm">Progress Validasi</p>
+                <p className="text-muted-foreground text-sm">
+                  Progress Validasi
+                </p>
                 <Progress value={progressPct} className="h-2" />
               </div>
             </CardContent>
@@ -363,7 +383,9 @@ export default function LelanganDetailPage() {
                     {itemRows.map((row) => (
                       <TableRow
                         key={row.id}
-                        className={row.isMata ? "bg-red-50 dark:bg-red-950/30" : ""}
+                        className={
+                          row.isMata ? "bg-red-50 dark:bg-red-950/30" : ""
+                        }
                       >
                         <TableCell>{row.no}</TableCell>
                         <TableCell>
@@ -374,7 +396,9 @@ export default function LelanganDetailPage() {
                             </AvatarFallback>
                           </Avatar>
                         </TableCell>
-                        <TableCell className="font-medium">{row.noSPK}</TableCell>
+                        <TableCell className="font-medium">
+                          {row.noSPK}
+                        </TableCell>
                         <TableCell>{row.tipeBarang}</TableCell>
                         <TableCell>{row.lokasi}</TableCell>
                         <TableCell>

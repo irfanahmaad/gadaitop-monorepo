@@ -26,13 +26,19 @@ import {
 } from "@workspace/ui/components/tabs"
 import { useFilterParams } from "@/hooks/use-filter-params"
 import { FilterDialog } from "@/components/filter-dialog"
+import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { RequestTambahModalTable } from "./_components/request-tambah-modal-table"
 import { HistoryTambahModalTable } from "./_components/history-tambah-modal-table"
 import { SetujuiRequestDialog } from "./_components/setujui-request-dialog"
 import { TolakRequestDialog } from "./_components/tolak-request-dialog"
 import { TambahDataDialog } from "./_components/tambah-data-dialog"
 import { EditRequestDialog } from "./_components/edit-request-dialog"
-import { TAMBAH_MODAL_FILTER_CONFIG } from "./_components/filter-config"
+import { DetailRequestDialog } from "./_components/detail-request-dialog"
+import {
+  REQUEST_FILTER_CONFIG,
+  HISTORY_FILTER_CONFIG,
+  TAMBAH_MODAL_FILTER_CONFIG,
+} from "./_components/filter-config"
 import type { RequestTambahModal } from "./_components/types"
 import { useAuth } from "@/lib/react-query/hooks/use-auth"
 import {
@@ -41,6 +47,7 @@ import {
   useRejectCapitalTopup,
   useCreateCapitalTopup,
   useUpdateCapitalTopup,
+  useBulkDeleteCapitalTopups,
 } from "@/lib/react-query/hooks/use-capital-topups"
 import { useBranches } from "@/lib/react-query/hooks/use-branches"
 import { useCompanies } from "@/lib/react-query/hooks/use-companies"
@@ -176,6 +183,7 @@ function TambahModalPageContent() {
   const { filterValues, setFilters } = useFilterParams(
     TAMBAH_MODAL_FILTER_CONFIG
   )
+
   const [activeTab, setActiveTab] = useState("request")
   const [pageSize, setPageSize] = useState(10)
   const [searchValue, setSearchValue] = useState("")
@@ -189,6 +197,11 @@ function TambahModalPageContent() {
   const [tambahDataDialogOpen, setTambahDataDialogOpen] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [editRow, setEditRow] = useState<RequestTambahModal | null>(null)
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false)
+  const [detailRow, setDetailRow] = useState<RequestTambahModal | null>(null)
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false)
+  const [bulkDeleteRows, setBulkDeleteRows] = useState<RequestTambahModal[]>([])
+  const [resetSelectionKey, setResetSelectionKey] = useState(0)
 
   const requestListOptions = useMemo(() => {
     const filter: Record<string, string> = { status: "pending" }
@@ -211,6 +224,7 @@ function TambahModalPageContent() {
   const rejectMutation = useRejectCapitalTopup()
   const createMutation = useCreateCapitalTopup()
   const updateMutation = useUpdateCapitalTopup()
+  const bulkDeleteMutation = useBulkDeleteCapitalTopups()
 
   const requestRows = useMemo(() => {
     const list = requestData?.data ?? []
@@ -285,7 +299,8 @@ function TambahModalPageContent() {
   )
 
   const handleDetail = useCallback((row: RequestTambahModal) => {
-    console.log("Detail:", row)
+    setDetailRow(row)
+    setDetailDialogOpen(true)
   }, [])
 
   const handleEdit = useCallback((row: RequestTambahModal) => {
@@ -337,12 +352,37 @@ function TambahModalPageContent() {
     [updateMutation]
   )
 
-  const handleDelete = useCallback((row: RequestTambahModal) => {
-    console.log("Delete:", row)
+  const handleBulkDelete = useCallback((rows: RequestTambahModal[]) => {
+    setBulkDeleteRows(rows)
+    setBulkDeleteDialogOpen(true)
   }, [])
 
+  const handleBulkDeleteConfirm = useCallback(async () => {
+    try {
+      const ids = bulkDeleteRows.map((r) => r.uuid)
+      await bulkDeleteMutation.mutateAsync(ids)
+      toast.success("Sukses! Data berhasil dihapus.")
+      setBulkDeleteDialogOpen(false)
+      setBulkDeleteRows([])
+      setResetSelectionKey((k) => k + 1)
+    } catch {
+      toast.error("Gagal menghapus data")
+    }
+  }, [bulkDeleteRows, bulkDeleteMutation])
+
+  const handleExport = useCallback(() => {
+    window.print()
+  }, [])
+
+  const activeFilterConfigBase = useMemo(() => {
+    if (activeTab === "request") {
+      return isCompanyAdmin ? REQUEST_FILTER_CONFIG : TAMBAH_MODAL_FILTER_CONFIG
+    }
+    return HISTORY_FILTER_CONFIG
+  }, [activeTab, isCompanyAdmin])
+
   const filterConfigWithBranches = useMemo(() => {
-    const base = [...TAMBAH_MODAL_FILTER_CONFIG]
+    const base = [...activeFilterConfigBase]
     const tokoIdx = base.findIndex((f) => f.key === "toko")
     if (tokoIdx >= 0 && branchOptions.length > 0) {
       base[tokoIdx] = {
@@ -354,7 +394,7 @@ function TambahModalPageContent() {
       }
     }
     return base
-  }, [branchOptions])
+  }, [activeFilterConfigBase, branchOptions])
 
   return (
     <div className="flex flex-col gap-6">
@@ -437,7 +477,10 @@ function TambahModalPageContent() {
             onOpenFilter={() => setFilterDialogOpen(true)}
             onApprove={handleApprove}
             onReject={handleReject}
-            onEdit={handleEdit}
+            onDetail={handleDetail}
+            onEdit={isCompanyAdmin ? undefined : handleEdit}
+            onBulkDelete={handleBulkDelete}
+            resetSelectionKey={resetSelectionKey}
           />
         </TabsContent>
 
@@ -451,8 +494,7 @@ function TambahModalPageContent() {
             onSearchChange={setHistorySearchValue}
             onOpenFilter={() => setFilterDialogOpen(true)}
             onDetail={handleDetail}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
+            onExport={handleExport}
           />
         </TabsContent>
       </Tabs>
@@ -496,6 +538,24 @@ function TambahModalPageContent() {
         row={editRow}
         onConfirm={handleEditConfirm}
         isSubmitting={updateMutation.isPending}
+      />
+
+      <DetailRequestDialog
+        open={detailDialogOpen}
+        onOpenChange={setDetailDialogOpen}
+        row={detailRow}
+      />
+
+      <ConfirmationDialog
+        open={bulkDeleteDialogOpen}
+        onOpenChange={setBulkDeleteDialogOpen}
+        onConfirm={handleBulkDeleteConfirm}
+        title="Apakah Anda Yakin?"
+        description={`Anda akan menghapus ${bulkDeleteRows.length} request tambah modal.`}
+        note="Data yang dihapus tidak dapat dikembalikan."
+        confirmLabel="Ya"
+        cancelLabel="Batal"
+        variant="destructive"
       />
     </div>
   )

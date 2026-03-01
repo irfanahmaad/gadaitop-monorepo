@@ -24,18 +24,9 @@ import {
 } from "@workspace/ui/components/form"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 
-type SetorUang = {
-  id: string
+/** Minimal row type - only uuid is required for reject */
+type SetorUangRow = {
   uuid: string
-  tanggalRequest: string
-  dilakukanOleh: {
-    name: string
-    avatar?: string
-  }
-  namaToko: string
-  alias: string
-  nominal: number
-  status: "Pending" | "Transaksi Berhasil" | "Failed" | "Disetujui"
 }
 
 const tolakSchema = z.object({
@@ -49,9 +40,9 @@ const DEFAULT_ALASAN = "Sistem sedang maintenance"
 type TolakSetorUangDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
-  row: SetorUang | null
+  row: SetorUangRow | null
   onConfirm: (
-    row: SetorUang,
+    row: SetorUangRow,
     data: { alasan: string }
   ) => void | Promise<void>
   isSubmitting?: boolean
@@ -66,7 +57,7 @@ export function TolakSetorUangDialog({
 }: TolakSetorUangDialogProps) {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [pendingSubmit, setPendingSubmit] = useState<{
-    row: SetorUang
+    row: SetorUangRow
     data: { alasan: string }
   } | null>(null)
 

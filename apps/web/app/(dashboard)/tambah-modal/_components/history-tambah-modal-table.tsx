@@ -1,6 +1,6 @@
 "use client"
 
-import React from "react"
+import React, { useMemo } from "react"
 import { DataTable } from "@/components/data-table"
 import { Button } from "@workspace/ui/components/button"
 import {
@@ -11,9 +11,9 @@ import {
   SelectValue,
 } from "@workspace/ui/components/select"
 import { Input } from "@workspace/ui/components/input"
-import { SearchIcon, SlidersHorizontal } from "lucide-react"
+import { SearchIcon, SlidersHorizontal, Printer } from "lucide-react"
 import type { RequestTambahModal } from "./types"
-import { getBaseColumns } from "./tambah-modal-columns"
+import { getHistoryColumns, getHistoryActionColumn } from "./tambah-modal-columns"
 import { TambahModalTableSkeleton } from "./tambah-modal-table-skeleton"
 
 type HistoryTambahModalTableProps = {
@@ -24,9 +24,8 @@ type HistoryTambahModalTableProps = {
   searchValue: string
   onSearchChange: (value: string) => void
   onOpenFilter?: () => void
-  onDetail?: (row: RequestTambahModal) => void
-  onEdit?: (row: RequestTambahModal) => void
-  onDelete?: (row: RequestTambahModal) => void
+  onDetail: (row: RequestTambahModal) => void
+  onExport?: () => void
 }
 
 export function HistoryTambahModalTable({
@@ -38,10 +37,12 @@ export function HistoryTambahModalTable({
   onSearchChange,
   onOpenFilter,
   onDetail,
-  onEdit,
-  onDelete,
+  onExport,
 }: HistoryTambahModalTableProps) {
-  const columns = getBaseColumns()
+  const columns = useMemo(
+    () => [...getHistoryColumns(), getHistoryActionColumn(onDetail)],
+    [onDetail]
+  )
 
   if (isLoading) {
     return <TambahModalTableSkeleton />
@@ -51,8 +52,8 @@ export function HistoryTambahModalTable({
     <DataTable
       columns={columns}
       data={data}
-      title="History Tambah Modal"
-      searchPlaceholder="Cari..."
+      title="Daftar History Tambah Modal"
+      searchPlaceholder="Cari berdasarkan toko, nominal, atau catatan"
       headerRight={
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
           <Select
@@ -71,7 +72,7 @@ export function HistoryTambahModalTable({
           </Select>
           <div className="w-full sm:w-auto sm:max-w-sm">
             <Input
-              placeholder="Cari..."
+              placeholder="Cari berdasarkan toko, nominal, atau catatan"
               value={searchValue}
               onChange={(e) => onSearchChange(e.target.value)}
               icon={<SearchIcon className="size-4" />}
@@ -86,15 +87,22 @@ export function HistoryTambahModalTable({
             <SlidersHorizontal className="h-4 w-4" />
             Filter
           </Button>
+          {onExport && (
+            <Button
+              variant="outline"
+              className="flex items-center gap-2"
+              onClick={onExport}
+            >
+              <Printer className="h-4 w-4" />
+              Cetak
+            </Button>
+          )}
         </div>
       }
       initialPageSize={pageSize}
       onPageSizeChange={onPageSizeChange}
       searchValue={searchValue}
       onSearchChange={onSearchChange}
-      onDetail={onDetail}
-      onEdit={onEdit}
-      onDelete={onDelete}
     />
   )
 }

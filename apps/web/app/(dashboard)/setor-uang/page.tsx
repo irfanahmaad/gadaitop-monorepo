@@ -14,11 +14,6 @@ import {
 } from "@workspace/ui/components/select"
 import { Input } from "@workspace/ui/components/input"
 import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@workspace/ui/components/avatar"
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -33,6 +28,9 @@ import {
   Check,
   Ban,
   MoreHorizontal,
+  Eye,
+  Printer,
+  XCircle,
 } from "lucide-react"
 import { formatCurrencyDisplay } from "@/lib/format-currency"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
@@ -40,6 +38,7 @@ import { Card, CardContent, CardHeader } from "@workspace/ui/components/card"
 import { Skeleton } from "@workspace/ui/components/skeleton"
 import { TolakSetorUangDialog } from "./_components/tolak-setor-uang-dialog"
 import { CreateSetorUangDialog } from "./_components/create-setor-uang-dialog"
+import { DetailSetorUangDialog } from "./_components/detail-setor-uang-dialog"
 import { useAuth } from "@/lib/react-query/hooks/use-auth"
 import {
   useCashDeposits,
@@ -50,45 +49,40 @@ import {
 import { useBranches } from "@/lib/react-query/hooks/use-branches"
 import { useCompanies } from "@/lib/react-query/hooks/use-companies"
 import type { CashDeposit } from "@/lib/api/types"
+import type { FilterConfig } from "@/hooks/use-filter-params"
 import { toast } from "sonner"
+import { cn } from "@workspace/ui/lib/utils"
 
 type SetorUang = {
   id: string
   uuid: string
-  tanggalRequest: string
-  dilakukanOleh: {
-    name: string
-    avatar?: string
-  }
+  tanggal: string
   namaToko: string
-  alias: string
   nominal: number
-  status: "Pending" | "Transaksi Berhasil" | "Failed" | "Disetujui"
+  vaNumber: string
+  batasWaktu: string
+  status: "Pending" | "Lunas" | "Expired"
 }
 
 const STATUS_MAP: Record<CashDeposit["status"], SetorUang["status"]> = {
   pending: "Pending",
-  approved: "Disetujui",
-  rejected: "Failed",
+  approved: "Lunas",
+  rejected: "Expired",
 }
 
 function mapCashDepositToSetorUang(c: CashDeposit): SetorUang {
-  const createdBy = c.createdBy as { fullName?: string } | undefined
   const store = c.store as
     | { shortName?: string; branchCode?: string; fullName?: string }
     | undefined
   return {
     id: c.uuid,
     uuid: c.uuid,
-    tanggalRequest: c.createdAt,
-    dilakukanOleh: {
-      name: createdBy?.fullName ?? "-",
-      avatar: undefined,
-    },
+    tanggal: c.createdAt,
     namaToko:
       store?.fullName ?? store?.shortName ?? store?.branchCode ?? c.storeId,
-    alias: store?.shortName ?? store?.branchCode ?? "",
     nominal: c.amount,
+    vaNumber: c.vaNumber ?? "-",
+    batasWaktu: c.expiresAt ?? "-",
     status: STATUS_MAP[c.status],
   }
 }
@@ -98,30 +92,25 @@ const StatusBadge = ({ status }: { status: SetorUang["status"] }) => {
     Pending: {
       label: "Pending",
       className:
-        "bg-gray-500/10 text-gray-700 dark:text-gray-400 border-gray-500/20",
+        "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/20",
     },
-    "Transaksi Berhasil": {
-      label: "Transaksi Berhasil",
+    Lunas: {
+      label: "Lunas",
       className:
         "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20",
     },
-    Failed: {
-      label: "Failed",
+    Expired: {
+      label: "Expired",
       className:
         "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20",
-    },
-    Disetujui: {
-      label: "Disetujui",
-      className:
-        "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20",
     },
   }
 
   const config = statusConfig[status]
 
   return (
-    <Badge variant="outline" className={config.className}>
-      {config.label}
+    <Badge variant="outline" className={cn(config?.className)}>
+      {config?.label ?? ""}
     </Badge>
   )
 }
@@ -146,42 +135,14 @@ const getBaseColumns = (): {
     enableSorting: false,
   },
   {
-    id: "tanggalRequest",
-    accessorKey: "tanggalRequest",
-    header: "Tanggal Request",
-  },
-  {
-    id: "dilakukanOleh",
-    accessorKey: "dilakukanOleh",
-    header: "Dilakukan Oleh",
-    cell: ({ row }) => {
-      const person = row.getValue("dilakukanOleh") as SetorUang["dilakukanOleh"]
-      return (
-        <div className="flex items-center gap-2">
-          <Avatar className="h-8 w-8">
-            <AvatarImage src={person.avatar} alt={person.name} />
-            <AvatarFallback>
-              {person.name
-                .split(" ")
-                .map((n) => n[0])
-                .join("")
-                .toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-          <span className="text-sm">{person.name}</span>
-        </div>
-      )
-    },
+    id: "tanggal",
+    accessorKey: "tanggal",
+    header: "Tanggal",
   },
   {
     id: "namaToko",
     accessorKey: "namaToko",
-    header: "Nama Toko",
-  },
-  {
-    id: "alias",
-    accessorKey: "alias",
-    header: "Alias",
+    header: "Toko",
   },
   {
     id: "nominal",
@@ -193,6 +154,16 @@ const getBaseColumns = (): {
     },
   },
   {
+    id: "vaNumber",
+    accessorKey: "vaNumber",
+    header: "No. VA",
+  },
+  {
+    id: "batasWaktu",
+    accessorKey: "batasWaktu",
+    header: "Batas Waktu",
+  },
+  {
     id: "status",
     accessorKey: "status",
     header: "Status",
@@ -202,7 +173,7 @@ const getBaseColumns = (): {
   },
 ]
 
-const getActionColumn = (
+const getActionColumnSuperAdmin = (
   onBayar: (row: SetorUang) => void,
   onTolak: (row: SetorUang) => void
 ) => ({
@@ -233,6 +204,45 @@ const getActionColumn = (
         >
           <Ban className="mr-2 h-4 w-4" />
           Tolak
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  ),
+})
+
+const getActionColumnCompanyAdmin = (
+  onDetail: (row: SetorUang) => void,
+  onCetak: (row: SetorUang) => void,
+  onBatalkan: (row: SetorUang) => void
+) => ({
+  id: "actions",
+  enableHiding: false as const,
+  cell: ({ row }: { row: { original: SetorUang } }) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="h-8 w-8 p-0">
+          <span className="sr-only">Buka menu</span>
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel>Action</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => onDetail(row.original)}>
+          <Eye className="mr-2 h-4 w-4" />
+          Detail
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onCetak(row.original)}>
+          <Printer className="mr-2 h-4 w-4" />
+          Cetak
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => onBatalkan(row.original)}
+          className="text-destructive focus:text-destructive"
+          disabled={row.original.status !== "Pending"}
+        >
+          <XCircle className="mr-2 h-4 w-4" />
+          Batalkan
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -294,12 +304,61 @@ export default function SetorUangPage() {
   const [isBayarConfirmOpen, setIsBayarConfirmOpen] = useState(false)
   const [rowToBayar, setRowToBayar] = useState<SetorUang | null>(null)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false)
+  const [detailRow, setDetailRow] = useState<SetorUang | null>(null)
+  const [filterDialogOpen, setFilterDialogOpen] = useState(false)
+  const [filterValues, setFilterValues] = useState<Record<string, unknown>>({})
+
+  const setorUangFilterConfig: FilterConfig[] = useMemo(
+    () => [
+      {
+        key: "dateRange",
+        label: "Tanggal",
+        type: "daterange",
+        labelFrom: "Tanggal Mulai",
+        labelTo: "Sampai Dengan",
+      },
+      {
+        key: "storeId",
+        label: "Toko",
+        type: "multiselect",
+        placeholder: "Pilih toko...",
+        options: branchOptions.map((b) => ({ label: b.label, value: b.value })),
+      },
+      {
+        key: "status",
+        label: "Status",
+        type: "select",
+        placeholder: "Semua",
+        options: [
+          { label: "Pending", value: "pending" },
+          { label: "Lunas", value: "approved" },
+          { label: "Expired", value: "rejected" },
+        ],
+      },
+    ],
+    [branchOptions]
+  )
 
   const listOptions = useMemo(() => {
-    const filter: Record<string, string> = {}
-    if (effectiveBranch) filter.storeId = effectiveBranch
+    const filter: Record<string, string | number> = {}
+    const fv = filterValues
+    const storeIds = fv.storeId as string[] | undefined
+    const firstStoreId = storeIds?.[0]
+    if (typeof firstStoreId === "string") {
+      filter.storeId = firstStoreId
+    } else if (effectiveBranch) {
+      filter.storeId = effectiveBranch
+    }
+    const status = fv.status as string | undefined
+    if (status) filter.status = status
+    const dateRange = fv.dateRange as { from?: string; to?: string } | undefined
+    const dateFrom = dateRange?.from
+    const dateTo = dateRange?.to
+    if (dateFrom) filter.dateFrom = dateFrom
+    if (dateTo) filter.dateTo = dateTo
     return { page: 1, pageSize, filter }
-  }, [effectiveBranch, pageSize])
+  }, [effectiveBranch, pageSize, filterValues])
 
   const { data, isLoading, isError } = useCashDeposits(listOptions)
   const approveMutation = useApproveCashDeposit()
@@ -315,22 +374,27 @@ export default function SetorUangPage() {
     setCreateDialogOpen(true)
   }, [])
 
-  const handleCreateConfirm = useCallback(async (data: {
-    storeId: string
-    amount: number
-  }) => {
-    try {
-      await createMutation.mutateAsync({
-        storeId: data.storeId,
-        amount: data.amount,
-      })
-      toast.success("Request setor uang berhasil dibuat")
-      setCreateDialogOpen(false)
-    } catch {
-      toast.error("Gagal membuat request")
-      throw new Error("Create failed")
-    }
-  }, [createMutation])
+  const handleCreateConfirm = useCallback(
+    async (data: {
+      storeId: string
+      amount: number
+      notes?: string
+    }) => {
+      try {
+        await createMutation.mutateAsync({
+          storeId: data.storeId,
+          amount: data.amount,
+          notes: data.notes,
+        })
+        toast.success("Permintaan setoran berhasil dibuat")
+        setCreateDialogOpen(false)
+      } catch {
+        toast.error("Gagal membuat request")
+        throw new Error("Create failed")
+      }
+    },
+    [createMutation]
+  )
 
   const handleBayar = useCallback((row: SetorUang) => {
     setRowToBayar(row)
@@ -356,28 +420,55 @@ export default function SetorUangPage() {
     setIsTolakDialogOpen(true)
   }, [])
 
-  const handleConfirmTolak = useCallback(async (
-    row: SetorUang,
-    data: { alasan: string }
-  ) => {
-    try {
-      await rejectMutation.mutateAsync({
-        id: row.uuid,
-        data: { reason: data.alasan || "Ditolak" },
-      })
-      toast.success("Setor uang berhasil ditolak")
-      setIsTolakDialogOpen(false)
-      setSelectedRow(null)
-    } catch {
-      toast.error("Gagal menolak setor uang")
-      throw new Error("Reject failed")
-    }
-  }, [rejectMutation])
+  const handleConfirmTolak = useCallback(
+    async (row: { uuid: string }, data: { alasan: string }) => {
+      try {
+        await rejectMutation.mutateAsync({
+          id: row.uuid,
+          data: { reason: data.alasan || "Ditolak" },
+        })
+        toast.success("Setor uang berhasil ditolak")
+        setIsTolakDialogOpen(false)
+        setSelectedRow(null)
+      } catch {
+        toast.error("Gagal menolak setor uang")
+        throw new Error("Reject failed")
+      }
+    },
+    [rejectMutation]
+  )
 
-  const columns = [
-    ...getBaseColumns(),
-    getActionColumn(handleBayar, handleTolak),
-  ]
+  const handleDetail = useCallback((row: SetorUang) => {
+    setDetailRow(row)
+    setDetailDialogOpen(true)
+  }, [])
+
+  const handleCetak = useCallback((row: SetorUang) => {
+    setDetailRow(row)
+    setDetailDialogOpen(true)
+    setTimeout(() => window.print(), 300)
+  }, [])
+
+  const handleBatalkan = useCallback((row: SetorUang) => {
+    setSelectedRow(row)
+    setIsTolakDialogOpen(true)
+  }, [])
+
+  const columns = useMemo(() => {
+    const actionColumn =
+      isCompanyAdmin && !isSuperAdmin
+        ? getActionColumnCompanyAdmin(handleDetail, handleCetak, handleBatalkan)
+        : getActionColumnSuperAdmin(handleBayar, handleTolak)
+    return [...getBaseColumns(), actionColumn]
+  }, [
+    isCompanyAdmin,
+    isSuperAdmin,
+    handleDetail,
+    handleCetak,
+    handleBatalkan,
+    handleBayar,
+    handleTolak,
+  ])
 
   return (
     <div className="flex flex-col gap-6">
@@ -404,7 +495,7 @@ export default function SetorUangPage() {
               </SelectContent>
             </Select>
           )}
-          {isSuperAdmin && branchOptions.length > 0 && (
+          {(isSuperAdmin || isCompanyAdmin) && branchOptions.length > 0 && (
             <Select value={effectiveBranch} onValueChange={setSelectedBranch}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Pilih Toko" />
@@ -421,7 +512,7 @@ export default function SetorUangPage() {
 
           <Button onClick={handleCreate} variant="destructive">
             <Plus className="size-5" />
-            Tambah Data
+            Buat Permintaan Setoran
           </Button>
         </div>
       </div>
@@ -457,8 +548,13 @@ export default function SetorUangPage() {
         <DataTable
           columns={columns}
           data={rows}
-          title="Daftar Request Setor Uang"
-          searchPlaceholder="Cari..."
+          title="Daftar Permintaan Setor Uang"
+          searchPlaceholder="Cari berdasarkan toko, VA, atau nominal"
+          filterConfig={setorUangFilterConfig}
+          filterValues={filterValues}
+          onFilterChange={setFilterValues}
+          filterDialogOpen={filterDialogOpen}
+          onFilterDialogOpenChange={setFilterDialogOpen}
           headerRight={
             <div className="flex w-full items-center gap-2 sm:w-auto">
               <Select
@@ -484,7 +580,11 @@ export default function SetorUangPage() {
                   className="w-full"
                 />
               </div>
-              <Button variant="outline" className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                className="flex items-center gap-2"
+                onClick={() => setFilterDialogOpen(true)}
+              >
                 <SlidersHorizontal className="h-4 w-4" />
                 Filter
               </Button>
@@ -524,6 +624,13 @@ export default function SetorUangPage() {
         isSubmitting={createMutation.isPending}
         branchOptions={branchOptions}
         selectedBranch={effectiveBranch}
+      />
+
+      <DetailSetorUangDialog
+        open={detailDialogOpen}
+        onOpenChange={setDetailDialogOpen}
+        row={detailRow}
+        onBatalkan={handleBatalkan}
       />
     </div>
   )

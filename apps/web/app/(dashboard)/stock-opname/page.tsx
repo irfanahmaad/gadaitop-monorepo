@@ -24,7 +24,12 @@ import {
 } from "@workspace/ui/components/tabs"
 import { Input } from "@workspace/ui/components/input"
 import { Skeleton } from "@workspace/ui/components/skeleton"
-import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/card"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@workspace/ui/components/card"
 import { Plus, SearchIcon, SlidersHorizontal, Trash2 } from "lucide-react"
 import type { FilterConfig } from "@/hooks/use-filter-params"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
@@ -49,11 +54,7 @@ export type StockOpnameRow = {
   toko: string
   petugas: string
   lastUpdatedAt: string
-  status:
-    | "Dijadwalkan"
-    | "Berjalan"
-    | "Menunggu Approval"
-    | "Tervalidasi"
+  status: "Dijadwalkan" | "Berjalan" | "Menunggu Approval" | "Tervalidasi"
 }
 
 const STATUS_DISPLAY: Record<
@@ -226,7 +227,9 @@ export default function StockOpnamePage() {
   const [page] = useState(1)
   const [searchValue, setSearchValue] = useState("")
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
-  const [itemToDelete, setItemToDelete] = useState<StockOpnameRow | ScheduleItem | null>(null)
+  const [itemToDelete, setItemToDelete] = useState<
+    StockOpnameRow | ScheduleItem | null
+  >(null)
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false)
   const [activeTab, setActiveTab] = useState("list")
   const [selectedRows, setSelectedRows] = useState<StockOpnameRow[]>([])
@@ -301,9 +304,8 @@ export default function StockOpnamePage() {
   )
 
   const [filterDialogOpen, setFilterDialogOpen] = useState(false)
-  const [filterValues, setFilterValues] = useState<Record<string, unknown>>(
-    defaultFilterValues
-  )
+  const [filterValues, setFilterValues] =
+    useState<Record<string, unknown>>(defaultFilterValues)
 
   // List options by tab: list/calendar = all; other tabs = filter by status
   const listOptions = useMemo(
@@ -321,8 +323,11 @@ export default function StockOpnamePage() {
     [activeTab, page, pageSize]
   )
 
-  const { data: listResponse, isLoading, isError } =
-    useStockOpnameSessions(listOptions)
+  const {
+    data: listResponse,
+    isLoading,
+    isError,
+  } = useStockOpnameSessions(listOptions)
 
   // Counts for status tabs (minimal query to get meta.count)
   const { data: countDraft } = useStockOpnameSessions({
@@ -419,7 +424,7 @@ export default function StockOpnamePage() {
   }
 
   const handleEdit = (row: StockOpnameRow) => {
-    router.push(`/stock-opname/${row.id}`)
+    // router.push(`/stock-opname/${row.id}`)
   }
 
   const handleDelete = (row: StockOpnameRow) => {
@@ -644,7 +649,9 @@ export default function StockOpnamePage() {
               searchPlaceholder="Cari..."
               headerLeft={
                 <div className="flex items-center gap-2">
-                  <CardTitle className="text-xl">Daftar SO Dijadwalkan</CardTitle>
+                  <CardTitle className="text-xl">
+                    Daftar SO Dijadwalkan
+                  </CardTitle>
                   {selectedRows.length > 0 && (
                     <span className="text-destructive font-semibold">
                       &middot; {selectedRows.length} Selected
@@ -731,7 +738,9 @@ export default function StockOpnamePage() {
               searchPlaceholder="Cari..."
               headerLeft={
                 <div className="flex items-center gap-2">
-                  <CardTitle className="text-xl">Daftar SO Waiting for Approval</CardTitle>
+                  <CardTitle className="text-xl">
+                    Daftar SO Waiting for Approval
+                  </CardTitle>
                   {selectedRows.length > 0 && (
                     <span className="text-destructive font-semibold">
                       &middot; {selectedRows.length} Selected
@@ -818,7 +827,9 @@ export default function StockOpnamePage() {
               searchPlaceholder="Cari..."
               headerLeft={
                 <div className="flex items-center gap-2">
-                  <CardTitle className="text-xl">Daftar SO Tervalidasi</CardTitle>
+                  <CardTitle className="text-xl">
+                    Daftar SO Tervalidasi
+                  </CardTitle>
                   {selectedRows.length > 0 && (
                     <span className="text-destructive font-semibold">
                       &middot; {selectedRows.length} Selected

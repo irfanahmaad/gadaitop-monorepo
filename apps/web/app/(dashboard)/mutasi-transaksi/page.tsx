@@ -5,7 +5,6 @@ import { ColumnDef } from "@tanstack/react-table"
 import { Breadcrumbs } from "@/components/breadcrumbs"
 import { DataTable } from "@/components/data-table"
 import { Button } from "@workspace/ui/components/button"
-import { Checkbox } from "@workspace/ui/components/checkbox"
 import {
   Select,
   SelectContent,
@@ -21,9 +20,10 @@ import {
 } from "@workspace/ui/components/avatar"
 import { Card, CardContent, CardHeader } from "@workspace/ui/components/card"
 import { Skeleton } from "@workspace/ui/components/skeleton"
-import { SearchIcon, SlidersHorizontal, ArrowUpDown, Plus } from "lucide-react"
+import { SearchIcon, SlidersHorizontal, Plus } from "lucide-react"
 import { formatCurrencyDisplay } from "@/lib/format-currency"
 import { TambahDataMutasiDialog } from "./_components/tambah-data-mutasi-dialog"
+import { DetailMutasiDialog } from "./_components/detail-mutasi-dialog"
 import { useAuth } from "@/lib/react-query/hooks/use-auth"
 import {
   useCashMutations,
@@ -32,120 +32,106 @@ import {
 import { useBranches } from "@/lib/react-query/hooks/use-branches"
 import { useCompanies } from "@/lib/react-query/hooks/use-companies"
 import type { CashMutation } from "@/lib/api/types"
+import type { FilterConfig } from "@/hooks/use-filter-params"
 import { toast } from "sonner"
 
 type MutasiTransaksi = {
   id: string
   tanggal: string
-  toko: {
+  user: {
     name: string
     avatar?: string
   }
-  tipeMutasi: "SPK1" | "SPK2" | "Operasional" | "Tambah Modal"
+  jenis: string
+  noSpkNkb: string
+  deskripsi: string
   debit: number | null
   kredit: number | null
-  sisaSaldo: number
+  saldo: number
 }
 
-const CATEGORY_DISPLAY: Record<string, MutasiTransaksi["tipeMutasi"]> = {
-  spk_disbursement: "SPK1",
-  nkb_payment: "SPK2",
-  deposit: "Operasional",
+const CATEGORY_DISPLAY: Record<string, string> = {
+  spk_disbursement: "SPK",
+  nkb_payment: "Pembayaran",
+  deposit: "Setor Modal",
   topup: "Tambah Modal",
   expense: "Operasional",
   other: "Operasional",
 }
 
-function mapCashMutationToMutasi(
-  m: CashMutation,
-  storeName: string
-): MutasiTransaksi {
+function mapCashMutationToMutasi(m: CashMutation): MutasiTransaksi {
   const mutationType = m.mutationType ?? (m.type === "out" ? "debit" : "credit")
   const amount = typeof m.amount === "string" ? parseFloat(m.amount) : m.amount
   const balanceAfter =
     m.balanceAfter ??
     (typeof m.balanceAfter === "string" ? parseFloat(m.balanceAfter) : 0)
   const category = m.category ?? "other"
+  const createdBy = m.createdBy as { fullName?: string; imageUrl?: string } | undefined
+  const constructed =
+    m.referenceId ? `${m.referenceType ?? ""}-${m.referenceId}`.trim() : ""
+  const noSpkNkb = (m.referenceNumber ?? constructed) || "-"
 
   const isDebit = mutationType === "debit"
   return {
     id: m.uuid,
     tanggal: m.createdAt,
-    toko: {
-      name: storeName,
-      avatar: undefined,
+    user: {
+      name: createdBy?.fullName ?? "-",
+      avatar: createdBy?.imageUrl,
     },
-    tipeMutasi: CATEGORY_DISPLAY[category] ?? "Operasional",
+    jenis: CATEGORY_DISPLAY[category] ?? "Operasional",
+    noSpkNkb,
+    deskripsi: m.description ?? "-",
     debit: isDebit ? amount : null,
     kredit: !isDebit ? amount : null,
-    sisaSaldo: balanceAfter,
+    saldo: balanceAfter,
   }
 }
 
 const columns: ColumnDef<MutasiTransaksi>[] = [
   {
-    id: "select",
-    header: ({ table }) => (
-      <Checkbox
-        checked={
-          table.getIsAllPageRowsSelected() ||
-          (table.getIsSomePageRowsSelected() && "indeterminate")
-        }
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-        aria-label="Select all"
-      />
-    ),
-    cell: ({ row }) => (
-      <div className="flex items-center gap-2">
-        <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={(value) => row.toggleSelected(!!value)}
-          aria-label="Select row"
-        />
-        <span className="text-sm">{row.index + 1}</span>
-      </div>
-    ),
+    id: "no",
+    header: "No",
+    cell: ({ row }) => <span className="text-sm">{row.index + 1}</span>,
     enableSorting: false,
-    enableHiding: false,
   },
   {
     accessorKey: "tanggal",
     header: "Tanggal",
   },
   {
-    accessorKey: "toko",
-    header: "Toko",
+    accessorKey: "user",
+    header: "User",
     cell: ({ row }) => {
-      const toko = row.getValue("toko") as MutasiTransaksi["toko"]
+      const user = row.getValue("user") as MutasiTransaksi["user"]
       return (
         <div className="flex items-center gap-2">
           <Avatar className="h-8 w-8">
-            <AvatarImage src={toko.avatar} alt={toko.name} />
+            <AvatarImage src={user.avatar} alt={user.name} />
             <AvatarFallback>
-              {toko.name
+              {user.name
                 .split(" ")
                 .map((n) => n[0])
                 .join("")
                 .toUpperCase()}
             </AvatarFallback>
           </Avatar>
-          <span className="text-sm">{toko.name}</span>
+          <span className="text-sm">{user.name}</span>
         </div>
       )
     },
   },
   {
-    accessorKey: "tipeMutasi",
-    header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        className="h-8 px-2 hover:bg-transparent"
-      >
-        Tipe Mutasi
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
-    ),
+    accessorKey: "jenis",
+    header: "Jenis",
+  },
+  {
+    accessorKey: "noSpkNkb",
+    header: "No SPK/NKB",
+  },
+  {
+    accessorKey: "deskripsi",
+    header: "Deskripsi",
   },
   {
     accessorKey: "debit",
@@ -172,12 +158,12 @@ const columns: ColumnDef<MutasiTransaksi>[] = [
     },
   },
   {
-    accessorKey: "sisaSaldo",
-    header: "Sisa Saldo",
+    accessorKey: "saldo",
+    header: "Saldo",
     cell: ({ row }) => {
-      const sisaSaldo = row.getValue("sisaSaldo") as number
+      const saldo = row.getValue("saldo") as number
       return (
-        <span className="text-sm">Rp{formatCurrencyDisplay(sisaSaldo)},-</span>
+        <span className="text-sm">Rp{formatCurrencyDisplay(saldo)},-</span>
       )
     },
   },
@@ -262,28 +248,69 @@ export default function MutasiTransaksiPage() {
   const [pageSize, setPageSize] = useState(10)
   const [searchValue, setSearchValue] = useState("")
   const [tambahDataDialogOpen, setTambahDataDialogOpen] = useState(false)
+  const [filterDialogOpen, setFilterDialogOpen] = useState(false)
+  const [filterValues, setFilterValues] = useState<Record<string, unknown>>({})
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false)
+  const [detailRow, setDetailRow] = useState<MutasiTransaksi | null>(null)
+
+  const mutasiFilterConfig: FilterConfig[] = useMemo(
+    () => [
+      {
+        key: "category",
+        label: "Jenis",
+        type: "select",
+        placeholder: "Semua",
+        options: [
+          { label: "Tambah Modal", value: "topup" },
+          { label: "Setor Modal", value: "deposit" },
+          { label: "SPK", value: "spk_disbursement" },
+          { label: "Pembayaran", value: "nkb_payment" },
+          { label: "Operasional", value: "expense" },
+        ],
+      },
+      {
+        key: "dateRange",
+        label: "Tanggal",
+        type: "daterange",
+        labelFrom: "Tanggal Mulai",
+        labelTo: "Tanggal Sampai",
+      },
+      {
+        key: "storeId",
+        label: "Toko",
+        type: "select",
+        placeholder: "Semua",
+        options: branchOptions.map((b) => ({ label: b.label, value: b.value })),
+      },
+    ],
+    [branchOptions]
+  )
 
   const listOptions = useMemo(() => {
-    const filter: Record<string, string> = {}
-    if (selectedToko) filter.storeId = selectedToko
+    const filter: Record<string, string | number> = {}
+    const fv = filterValues
+    const storeIdFromFilter = fv.storeId as string | undefined
+    if (storeIdFromFilter) {
+      filter.storeId = storeIdFromFilter
+    } else if (selectedToko) {
+      filter.storeId = selectedToko
+    }
+    const category = fv.category as string | undefined
+    if (category) filter.category = category
+    const dateRange = fv.dateRange as { from?: string; to?: string } | undefined
+    if (dateRange?.from) filter.dateFrom = dateRange.from
+    if (dateRange?.to) filter.dateTo = dateRange.to
+    if (branchQueryCompanyId) filter.ptId = branchQueryCompanyId
     return { page: 1, pageSize, filter }
-  }, [selectedToko, pageSize])
+  }, [selectedToko, pageSize, filterValues, branchQueryCompanyId])
 
   const { data, isLoading, isError } = useCashMutations(listOptions)
   const createMutation = useCreateCashMutation()
 
-  const storeNameById = useMemo(() => {
-    const map = new Map<string, string>()
-    branchOptions.forEach((b) => map.set(b.value, b.label))
-    return map
-  }, [branchOptions])
-
   const rows = useMemo(() => {
     const list = data?.data ?? []
-    return list.map((m) =>
-      mapCashMutationToMutasi(m, storeNameById.get(m.storeId) ?? m.storeId)
-    )
-  }, [data, storeNameById])
+    return list.map((m) => mapCashMutationToMutasi(m))
+  }, [data])
 
   const handleTambahData = () => {
     setTambahDataDialogOpen(true)
@@ -351,7 +378,7 @@ export default function MutasiTransaksiPage() {
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex flex-col gap-2">
-            <h1 className="text-2xl font-bold">Mutasi / Transaksi</h1>
+            <h1 className="text-2xl font-bold">GADAI TOP Mutasi/Transaksi</h1>
             <Breadcrumbs
               items={[
                 { label: "Pages", href: "/" },
@@ -420,7 +447,16 @@ export default function MutasiTransaksiPage() {
           columns={columns}
           data={rows}
           title="Daftar Mutasi"
-          searchPlaceholder="Cari..."
+          searchPlaceholder="Cari berdasarkan SPK atau deskripsi"
+          filterConfig={mutasiFilterConfig}
+          filterValues={filterValues}
+          onFilterChange={setFilterValues}
+          filterDialogOpen={filterDialogOpen}
+          onFilterDialogOpenChange={setFilterDialogOpen}
+          onRowClick={(row) => {
+            setDetailRow(row)
+            setDetailDialogOpen(true)
+          }}
           headerRight={
             <div className="flex w-full items-center gap-2 sm:w-auto">
               <Select
@@ -446,7 +482,11 @@ export default function MutasiTransaksiPage() {
                   className="w-full"
                 />
               </div>
-              <Button variant="outline" className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                className="flex items-center gap-2"
+                onClick={() => setFilterDialogOpen(true)}
+              >
                 <SlidersHorizontal className="h-4 w-4" />
                 Filter
               </Button>
@@ -466,6 +506,12 @@ export default function MutasiTransaksiPage() {
         isSubmitting={createMutation.isPending}
         branchOptions={branchOptions}
         selectedBranch={selectedToko}
+      />
+
+      <DetailMutasiDialog
+        open={detailDialogOpen}
+        onOpenChange={setDetailDialogOpen}
+        row={detailRow}
       />
     </div>
   )

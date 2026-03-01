@@ -112,6 +112,37 @@ export function useRejectCapitalTopup() {
   })
 }
 
+// Soft-delete capital topup (pending only)
+export function useDeleteCapitalTopup() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiClient.delete(endpoints.capitalTopups.delete(id)),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: capitalTopupKeys.lists() })
+    },
+  })
+}
+
+// Bulk soft-delete capital topups (pending only)
+export function useBulkDeleteCapitalTopups() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      await Promise.all(
+        ids.map((id) =>
+          apiClient.delete(endpoints.capitalTopups.delete(id))
+        )
+      )
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: capitalTopupKeys.lists() })
+    },
+  })
+}
+
 // Disburse capital topup
 export function useDisburseCapitalTopup() {
   const queryClient = useQueryClient()

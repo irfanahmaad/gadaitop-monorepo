@@ -235,8 +235,8 @@ export function SetujuiRequestDialog({
         onOpenChange={setConfirmOpen}
         onConfirm={handleConfirmSubmit}
         title="Apakah Anda Yakin?"
-        description="Anda akan menyimpan data Tambah Modal baru ke dalam sistem."
-        note="Pastikan kembali sebelum menyimpan data."
+        description="Anda akan menyetujui request tambah modal ini."
+        note=""
         confirmLabel="Ya"
         cancelLabel="Batal"
         variant="info"

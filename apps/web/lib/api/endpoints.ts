@@ -190,6 +190,7 @@ export const endpoints = {
     detail: (id: string) => baseUrl(`capital-topups/${id}`),
     create: baseUrl("capital-topups"),
     update: (id: string) => baseUrl(`capital-topups/${id}`),
+    delete: (id: string) => baseUrl(`capital-topups/${id}`),
     approve: (id: string) => baseUrl(`capital-topups/${id}/approve`),
     reject: (id: string) => baseUrl(`capital-topups/${id}/reject`),
     disburse: (id: string) => baseUrl(`capital-topups/${id}/disburse`),
