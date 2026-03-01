@@ -15,5 +15,9 @@ export class CreateAuctionBatchDto {
 
   @IsOptional()
   @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsString()
   notes?: string;
 }

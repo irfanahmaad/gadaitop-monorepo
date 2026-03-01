@@ -31,9 +31,8 @@ import {
   SearchIcon,
   SlidersHorizontal,
   Plus,
-  QrCode,
-  Printer,
-  CheckCircle,
+  Eye,
+  // Printer,
 } from "lucide-react"
 import { format } from "date-fns"
 import { id } from "date-fns/locale"
@@ -48,7 +47,6 @@ import {
   useAuctionBatches,
   useCancelAuctionBatch,
   useCreateAuctionBatch,
-  useFinalizeAuctionBatch,
 } from "@/lib/react-query/hooks/use-auction-batches"
 import { useCompanies } from "@/lib/react-query/hooks/use-companies"
 import { useSpkList, spkKeys } from "@/lib/react-query/hooks/use-spk"
@@ -57,7 +55,6 @@ import { usePawnTerms } from "@/lib/react-query/hooks/use-pawn-terms"
 import { matchSpkItemToMataRules } from "@/lib/utils/mata-rule-matcher"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { QRCodeDialog } from "@/app/(dashboard)/_components/QRCodeDialog"
 import { CreateBatchDialog } from "@/app/(dashboard)/lelangan/_components/CreateBatchDialog"
 import { cn } from "@workspace/ui/lib/utils"
 
@@ -221,21 +218,21 @@ function flattenOverdueSpkToItemLelang(
   return rows
 }
 
-// Status badge component for Batch Lelang
+// Status badge component for Batch Lelang (labels per design: Menunggu, Diambil, Tervalidasi, Berjalan)
 const BatchStatusBadge = ({ status }: { status: BatchStatus }) => {
   const statusConfig: Record<
     BatchStatus,
     { label: string; className: string }
   > = {
     Draft: {
-      label: "Draft",
+      label: "Menunggu",
       className:
         "bg-gray-500/10 text-gray-700 dark:text-gray-400 border-gray-500/20",
     },
     Didistribusikan: {
-      label: "Didistribusikan",
+      label: "Menunggu",
       className:
-        "bg-slate-500/10 text-slate-700 dark:text-slate-400 border-slate-500/20",
+        "bg-gray-500/10 text-gray-700 dark:text-gray-400 border-gray-500/20",
     },
     Diambil: {
       label: "Diambil",
@@ -243,17 +240,17 @@ const BatchStatusBadge = ({ status }: { status: BatchStatus }) => {
         "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/20",
     },
     Validasi: {
-      label: "Validasi",
+      label: "Tervalidasi",
       className:
-        "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20",
+        "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20",
     },
     "Siap Lelang": {
-      label: "Siap Lelang",
+      label: "Berjalan",
       className:
         "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20",
     },
     "OK by Admin": {
-      label: "OK by Admin",
+      label: "Tervalidasi",
       className:
         "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20",
     },
@@ -316,9 +313,17 @@ const itemLelangColumns: ColumnDef<ItemLelang>[] = [
   {
     accessorKey: "noSPK",
     header: "No. SPK",
-    cell: ({ row }) => (
-      <span className="font-medium">{row.getValue("noSPK")}</span>
-    ),
+    cell: ({ row }) => {
+      const isMata = row.original.isMata
+      return (
+        <div className="flex items-center gap-2">
+          <span className="font-medium">{row.getValue("noSPK")}</span>
+          {isMata && (
+            <Eye className="text-destructive size-4 shrink-0" aria-hidden />
+          )}
+        </div>
+      )
+    },
   },
   {
     accessorKey: "namaBarang",
@@ -333,52 +338,16 @@ const itemLelangColumns: ColumnDef<ItemLelang>[] = [
     header: "Toko",
   },
   {
+    accessorKey: "petugas",
+    header: "Petugas",
+  },
+  {
     accessorKey: "tanggalJatuhTempo",
     header: "Tanggal Jatuh Tempo",
   },
-  {
-    accessorKey: "status",
-    header: "Status",
-    cell: ({ row }) => {
-      const status = row.getValue("status") as string
-      const isJatuhTempo = status === "Jatuh Tempo"
-      return (
-        <Badge
-          variant="outline"
-          className={
-            isJatuhTempo
-              ? "border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-400"
-              : "border-green-500/20 bg-green-500/10 text-green-700 dark:text-green-400"
-          }
-        >
-          {status}
-        </Badge>
-      )
-    },
-  },
-  {
-    accessorKey: "lastUpdatedAt",
-    header: "Last Updated At",
-    cell: ({ row }) => {
-      const status = row.getValue("lastUpdatedAt") as string
-      const isBelumTerscan = status === "Belum Terscan"
-      return (
-        <Badge
-          variant="outline"
-          className={
-            isBelumTerscan
-              ? "border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-400"
-              : "border-green-500/20 bg-green-500/10 text-green-700 dark:text-green-400"
-          }
-        >
-          {status}
-        </Badge>
-      )
-    },
-  },
 ]
 
-// Column definitions for Batch Lelang SPK
+// Column definitions for Batch Lelang SPK (No, ID Batch, Nama Batch, Jumlah Item, Last Updated At, Status, Action)
 const batchLelangColumns: ColumnDef<BatchLelang>[] = [
   {
     id: "select",
@@ -413,39 +382,12 @@ const batchLelangColumns: ColumnDef<BatchLelang>[] = [
     header: "ID Batch",
   },
   {
-    accessorKey: "toko",
-    header: "Toko",
-  },
-  {
-    accessorKey: "penanggungJawab",
-    header: "Penanggung Jawab",
+    accessorKey: "namaBatch",
+    header: "Nama Batch",
   },
   {
     accessorKey: "jumlahItem",
     header: "Jumlah Item",
-  },
-  {
-    id: "progress",
-    header: "Progress",
-    cell: ({ row }) => {
-      const total = row.original.jumlahItem
-      const diambil = row.original.progressDiambil
-      const validasi = row.original.progressValidasi
-      const pct = total > 0 ? Math.round((validasi / total) * 100) : 0
-      return (
-        <div className="flex flex-col gap-1">
-          <div className="text-muted-foreground text-xs">
-            Diambil {diambil}/{total}, Validasi {validasi}/{total}
-          </div>
-          <div className="bg-muted h-1.5 w-20 overflow-hidden rounded-full">
-            <div
-              className="bg-primary h-full rounded-full transition-all"
-              style={{ width: `${pct}%` }}
-            />
-          </div>
-        </div>
-      )
-    },
   },
   {
     accessorKey: "lastUpdatedAt",
@@ -612,11 +554,12 @@ function LelangPageContent() {
     [branchOptions]
   )
 
+  // Filter for Batch Lelang SPK tab only: date range (Mulai Dari / Sampai Dengan) + Toko multi-select
   const batchLelangFilterConfig: FilterConfig[] = React.useMemo(
     () => [
       {
         key: "dateRange",
-        label: "Tanggal Buat",
+        label: "Tanggal",
         type: "daterange",
         labelFrom: "Mulai Dari",
         labelTo: "Sampai Dengan",
@@ -627,21 +570,6 @@ function LelangPageContent() {
         type: "multiselect",
         placeholder: "Pilih toko...",
         options: branchOptions.map((b) => ({ label: b.label, value: b.label })),
-      },
-      {
-        key: "status",
-        label: "Status",
-        type: "multiselect",
-        placeholder: "Pilih status...",
-        options: [
-          { label: "Draft", value: "draft" },
-          { label: "Didistribusikan", value: "assigned" },
-          { label: "Diambil", value: "pickup_in_progress" },
-          { label: "Validasi", value: "validation_pending" },
-          { label: "Siap Lelang", value: "ready_for_auction" },
-          { label: "OK by Admin", value: "finalized" },
-          { label: "Dibatalkan", value: "cancelled" },
-        ],
       },
     ],
     [branchOptions]
@@ -670,15 +598,6 @@ function LelangPageContent() {
   const [selectedItemLelangRows, setSelectedItemLelangRows] = useState<
     ItemLelang[]
   >([])
-  const [qrDialog, setQrDialog] = useState<{ open: boolean; value: string }>({
-    open: false,
-    value: "",
-  })
-
-  const handleShowQr = React.useCallback((noSPK: string) => {
-    setQrDialog({ open: true, value: noSPK })
-  }, [])
-
   const handleDetailItemLelang = React.useCallback(
     (row: ItemLelang) => {
       router.push(`/spk/${row.spkId}`)
@@ -686,38 +605,17 @@ function LelangPageContent() {
     [router]
   )
 
-  const handleTambahKeBatch = React.useCallback((row: ItemLelang) => {
-    setSelectedItemLelangRows([row])
-    setIsBuatBatchDialogOpen(true)
-  }, [])
+  const handleEditItemLelang = React.useCallback(
+    (row: ItemLelang) => {
+      router.push(`/spk/${row.spkId}`)
+    },
+    [router]
+  )
 
-  const itemLelangColumnsWithQr = React.useMemo((): ColumnDef<ItemLelang>[] => {
-    return itemLelangColumns.map((col) => {
-      if ("accessorKey" in col && col.accessorKey === "noSPK") {
-        return {
-          ...col,
-          cell: ({ row }) => (
-            <div className="flex items-center gap-2">
-              <span className="font-medium">{row.getValue("noSPK")}</span>
-              <Button
-                variant="outline"
-                size="icon"
-                className="border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive size-8 shrink-0"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleShowQr(row.original.noSPK)
-                }}
-                aria-label="Tampilkan QR Code"
-              >
-                <QrCode className="size-4" />
-              </Button>
-            </div>
-          ),
-        }
-      }
-      return col
-    })
-  }, [handleShowQr])
+  // const handleTambahKeBatch = React.useCallback((row: ItemLelang) => {
+  //   setSelectedItemLelangRows([row])
+  //   setIsBuatBatchDialogOpen(true)
+  // }, [])
 
   const itemLelangCustomActions = React.useMemo(
     () => [
@@ -783,46 +681,9 @@ function LelangPageContent() {
 
   const { data, isLoading, isError } = useAuctionBatches(listOptions)
   const cancelBatchMutation = useCancelAuctionBatch()
-  const finalizeBatchMutation = useFinalizeAuctionBatch()
-  const [batchToApprove, setBatchToApprove] = useState<BatchLelang | null>(null)
-  const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false)
 
   const batchesFromApi = React.useMemo(() => data?.data ?? [], [data?.data])
 
-  const isBatchReadyForApprove = React.useCallback(
-    (batchRow: BatchLelang) => {
-      const batch = batchesFromApi.find((b) => b.uuid === batchRow.id)
-      if (!batch || batch.status !== "validation_pending") return false
-      const items = batch.items ?? []
-      if (items.length === 0) return false
-      return items.every(
-        (i) =>
-          i.validated === true ||
-          !!(i as { validationVerdict?: string }).validationVerdict
-      )
-    },
-    [batchesFromApi]
-  )
-
-  const batchCustomActions = React.useMemo(
-    () => [
-      {
-        label: "Approve",
-        icon: <CheckCircle className="mr-2 size-4" />,
-        onClick: (row: BatchLelang) => {
-          if (!isBatchReadyForApprove(row)) {
-            toast.error(
-              "Batch belum siap. Semua item harus tervalidasi OK terlebih dahulu."
-            )
-            return
-          }
-          setBatchToApprove(row)
-          setIsApproveDialogOpen(true)
-        },
-      },
-    ],
-    [isBatchReadyForApprove]
-  )
   const batchRows = React.useMemo(
     () => batchesFromApi.map(mapAuctionBatchToBatchLelang),
     [batchesFromApi]
@@ -842,31 +703,12 @@ function LelangPageContent() {
       )
     }
 
-    const statusFilter = (filterValues.status as string[] | undefined) ?? []
-    if (statusFilter.length) {
-      result = result.filter((b) => statusFilter.includes(b.rawStatus))
-    }
-
+    // Batch Lelang SPK filter: only date range + Toko (per design)
     const dateRange = (filterValues.dateRange as {
       from: string | null
       to: string | null
     }) ?? { from: null, to: null }
-    const tipeBarang = (filterValues.tipeBarang as string[] | undefined) ?? []
-    if (tipeBarang.length) {
-      result = result.filter((b) => {
-        const batch = batchesFromApi.find((x) => x.uuid === b.id)
-        const items = batch?.items ?? []
-        return items.some((item) => {
-          const spkItems = item.spk?.items ?? []
-          return spkItems.some(
-            (si) =>
-              si.itemType?.typeName && tipeBarang.includes(si.itemType.typeName)
-          )
-        })
-      })
-    }
     const toko = (filterValues.toko as string[] | undefined) ?? []
-    const segmentasi = filterValues.segmentasi as string | null | undefined
 
     if (dateRange.from || dateRange.to) {
       result = result.filter((b) => {
@@ -880,21 +722,9 @@ function LelangPageContent() {
     if (toko.length) {
       result = result.filter((b) => b.toko && toko.includes(b.toko))
     }
-    if (segmentasi) {
-      const now = new Date()
-      const oneMonthAgo = new Date(now)
-      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1)
-      result = result.filter((b) => {
-        const d = b.updatedAtRaw ? new Date(b.updatedAtRaw) : null
-        if (!d) return false
-        if (segmentasi === "lt_1_bulan") return d >= oneMonthAgo
-        if (segmentasi === "gt_1_bulan") return d < oneMonthAgo
-        return true
-      })
-    }
 
     return result
-  }, [batchRows, batchesFromApi, searchValue, filterValues])
+  }, [batchRows, searchValue, filterValues])
 
   const handleDetail = (row: ItemLelang | BatchLelang) => {
     if ("idBatch" in row) {
@@ -930,6 +760,7 @@ function LelangPageContent() {
     storeId: string
     ptId: string
     spkItemIds: string[]
+    name?: string
     notes?: string
   }) => {
     try {
@@ -937,6 +768,7 @@ function LelangPageContent() {
         storeId: data.storeId,
         ptId: data.ptId,
         spkItemIds: data.spkItemIds,
+        name: data.name,
         notes: data.notes,
       })
       toast.success("Batch lelang berhasil dibuat")
@@ -950,21 +782,6 @@ function LelangPageContent() {
         (err as { message?: string })?.message ?? "Gagal membuat batch lelang"
       )
       throw err
-    }
-  }
-
-  const handleConfirmApprove = async () => {
-    if (!batchToApprove) return
-    try {
-      await finalizeBatchMutation.mutateAsync(batchToApprove.id)
-      toast.success("Batch disetujui untuk lelang")
-      setIsApproveDialogOpen(false)
-      setBatchToApprove(null)
-      queryClient.invalidateQueries({ queryKey: auctionBatchKeys.lists() })
-    } catch (err) {
-      toast.error(
-        (err as { message?: string })?.message ?? "Gagal menyetujui batch"
-      )
     }
   }
 
@@ -995,7 +812,6 @@ function LelangPageContent() {
           <h1 className="text-2xl font-bold">Lelang</h1>
           <Breadcrumbs
             items={[
-              { label: "Pages", href: "/" },
               { label: "Lelang", href: "/lelangan" },
               {
                 label:
@@ -1051,10 +867,12 @@ function LelangPageContent() {
             </Card>
           ) : (
             <DataTable
-              columns={itemLelangColumnsWithQr}
+              columns={itemLelangColumns}
               data={filteredItemLelang}
               title="Daftar SPK Jatuh Tempo"
-              searchPlaceholder="Cari berdasarkan SPK, barang, atau nasabah"
+              searchPlaceholder="Cari"
+              onDetail={handleDetailItemLelang}
+              onEdit={handleEditItemLelang}
               headerRight={
                 <div className="flex w-full items-center gap-2 sm:w-auto">
                   {/* <Button
@@ -1092,7 +910,7 @@ function LelangPageContent() {
                   </Select>
                   <div className="w-full sm:w-auto sm:max-w-sm">
                     <Input
-                      placeholder="Cari berdasarkan SPK, barang, atau nasabah"
+                      placeholder="Cari"
                       value={searchValue}
                       onChange={(e) => setSearchValue(e.target.value)}
                       icon={<SearchIcon className="size-4" />}
@@ -1118,7 +936,6 @@ function LelangPageContent() {
               onPageSizeChange={setPageSize}
               searchValue={searchValue}
               onSearchChange={setSearchValue}
-              onDetail={handleDetailItemLelang}
               customActions={itemLelangCustomActions}
               getRowClassName={getItemLelangRowClassName}
               getRowTitle={getItemLelangRowTitle}
@@ -1144,7 +961,7 @@ function LelangPageContent() {
               columns={batchLelangColumns}
               data={filteredBatchLelang}
               title="Daftar Batch Lelang"
-              searchPlaceholder="Cari berdasarkan batch ID, toko, atau staff"
+              searchPlaceholder="Cari..."
               headerRight={
                 <div className="flex w-full items-center gap-2 sm:w-auto">
                   <Select
@@ -1192,7 +1009,6 @@ function LelangPageContent() {
               onDetail={handleDetail}
               onEdit={handleEdit}
               onDelete={handleDelete}
-              customActions={batchCustomActions}
               getRowClassName={(row) =>
                 row.isMata ? "bg-red-50 dark:bg-red-950/30" : ""
               }
@@ -1211,32 +1027,12 @@ function LelangPageContent() {
         variant="destructive"
       />
 
-      <ConfirmationDialog
-        open={isApproveDialogOpen}
-        onOpenChange={(open) => {
-          setIsApproveDialogOpen(open)
-          if (!open) setBatchToApprove(null)
-        }}
-        onConfirm={handleConfirmApprove}
-        title="Approve Batch"
-        description={`Approve ${batchToApprove?.idBatch ?? ""}? All items validated OK.`}
-        confirmLabel="Ya"
-        variant="info"
-      />
-
       <CreateBatchDialog
         open={isBuatBatchDialogOpen}
         onOpenChange={setIsBuatBatchDialogOpen}
         selectedItems={selectedItemLelangRows}
         onConfirm={handleConfirmBuatBatch}
         isSubmitting={createBatchMutation.isPending}
-      />
-
-      <QRCodeDialog
-        open={qrDialog.open}
-        onOpenChange={(open) => setQrDialog((prev) => ({ ...prev, open }))}
-        value={qrDialog.value}
-        title="QR Code SPK"
       />
     </div>
   )

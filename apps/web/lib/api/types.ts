@@ -749,6 +749,7 @@ export interface CreateAuctionBatchDto {
   storeId: string
   ptId: string
   spkItemIds: string[]
+  name?: string
   notes?: string
 }
 
@@ -844,7 +845,12 @@ export interface ItemConditionDto {
 // Cash Deposit types
 // ==========================================
 
-export type CashDepositStatus = "pending" | "approved" | "rejected"
+export type CashDepositStatus =
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "expired"
+  | "confirmed"
 
 export interface CashDeposit {
   id: string

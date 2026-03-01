@@ -13,7 +13,10 @@ import {
 import { Input } from "@workspace/ui/components/input"
 import { SearchIcon, SlidersHorizontal, Printer } from "lucide-react"
 import type { RequestTambahModal } from "./types"
-import { getHistoryColumns, getHistoryActionColumn } from "./tambah-modal-columns"
+import {
+  getHistoryColumns,
+  getHistoryActionColumn,
+} from "./tambah-modal-columns"
 import { TambahModalTableSkeleton } from "./tambah-modal-table-skeleton"
 
 type HistoryTambahModalTableProps = {
@@ -87,7 +90,7 @@ export function HistoryTambahModalTable({
             <SlidersHorizontal className="h-4 w-4" />
             Filter
           </Button>
-          {onExport && (
+          {/* {onExport && (
             <Button
               variant="outline"
               className="flex items-center gap-2"
@@ -96,7 +99,7 @@ export function HistoryTambahModalTable({
               <Printer className="h-4 w-4" />
               Cetak
             </Button>
-          )}
+          )} */}
         </div>
       }
       initialPageSize={pageSize}

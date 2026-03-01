@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useState, useMemo } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -13,6 +13,19 @@ import {
 } from "@workspace/ui/components/dialog"
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
+import { Textarea } from "@workspace/ui/components/textarea"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@workspace/ui/components/select"
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@workspace/ui/components/avatar"
 import {
   Form,
   FormControl,
@@ -22,9 +35,12 @@ import {
   FormMessage,
 } from "@workspace/ui/components/form"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
+import { useUsers } from "@/lib/react-query/hooks/use-users"
 
 const createSchema = z.object({
   namaBatch: z.string().optional(),
+  penanggungJawab: z.string().optional(),
+  catatan: z.string().optional(),
 })
 
 type CreateFormValues = z.infer<typeof createSchema>
@@ -47,6 +63,7 @@ type CreateBatchDialogProps = {
     storeId: string
     ptId: string
     spkItemIds: string[]
+    name?: string
     notes?: string
   }) => void | Promise<void>
   isSubmitting?: boolean
@@ -59,11 +76,16 @@ export function CreateBatchDialog({
   onConfirm,
   isSubmitting = false,
 }: CreateBatchDialogProps) {
+  // Fetch users (penanggung jawab options)
+  const { data: usersData } = useUsers({ pageSize: 100 })
+  const users = useMemo(() => usersData?.data ?? [], [usersData])
+
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [pendingSubmit, setPendingSubmit] = useState<{
     storeId: string
     ptId: string
     spkItemIds: string[]
+    name?: string
     notes?: string
   } | null>(null)
 
@@ -71,6 +93,8 @@ export function CreateBatchDialog({
     resolver: zodResolver(createSchema),
     defaultValues: {
       namaBatch: "",
+      penanggungJawab: "",
+      catatan: "",
     },
   })
 
@@ -78,6 +102,8 @@ export function CreateBatchDialog({
     if (open) {
       form.reset({
         namaBatch: "",
+        penanggungJawab: "",
+        catatan: "",
       })
     }
   }, [open, form])
@@ -91,7 +117,8 @@ export function CreateBatchDialog({
       storeId: firstItem.storeId,
       ptId: firstItem.ptId,
       spkItemIds: selectedItems.map((i) => i.spkItemId),
-      notes: values.namaBatch?.trim() || undefined,
+      name: values.namaBatch?.trim() || undefined,
+      notes: values.catatan?.trim() || undefined,
     })
     setConfirmOpen(true)
   }
@@ -116,7 +143,8 @@ export function CreateBatchDialog({
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <div className="space-y-4">
-                <div className="rounded-lg border bg-muted/50 p-4">
+                {/* Info summary */}
+                <div className="bg-muted/50 rounded-lg border p-4">
                   <p className="text-muted-foreground text-sm">
                     {selectedItems.length} item dipilih
                     {mataCount > 0 && (
@@ -130,15 +158,63 @@ export function CreateBatchDialog({
                   </p>
                 </div>
 
+                {/* Nama Batch */}
                 <FormField
                   control={form.control}
                   name="namaBatch"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nama Batch (opsional)</FormLabel>
+                      <FormLabel>Nama Batch</FormLabel>
                       <FormControl>
-                        <Input
-                          placeholder="Contoh: Batch Januari 2025"
+                        <Input placeholder="Masukkan nama batch" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Penanggung Jawab Lelang */}
+                <FormField
+                  control={form.control}
+                  name="penanggungJawab"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Penanggung Jawab Lelang</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Pilih staf lelang" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {users.map((user) => (
+                            <SelectItem key={user.uuid} value={user.uuid}>
+                              <span>
+                                {user.fullName ?? user.email ?? "User"}
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Catatan */}
+                <FormField
+                  control={form.control}
+                  name="catatan"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Catatan</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Masukkan catatan"
+                          className="min-h-[80px] resize-none"
                           {...field}
                         />
                       </FormControl>
@@ -157,7 +233,7 @@ export function CreateBatchDialog({
                   Batal
                 </Button>
                 <Button type="submit" disabled={isSubmitting}>
-                  Buat Batch
+                  Simpan
                 </Button>
               </DialogFooter>
             </form>
@@ -171,7 +247,7 @@ export function CreateBatchDialog({
         onConfirm={handleConfirmSubmit}
         title="Buat Batch Lelang"
         description={`Anda akan membuat batch lelang dengan ${selectedItems.length} item yang dipilih.`}
-        confirmLabel="Buat Batch"
+        confirmLabel="Simpan"
         variant="info"
       />
     </>

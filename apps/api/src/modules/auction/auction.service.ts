@@ -104,7 +104,7 @@ export class AuctionService {
 
   async create(
     dto: CreateAuctionBatchDto,
-    createdBy: string,
+    _createdBy: string,
   ): Promise<AuctionBatchDto> {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -148,7 +148,6 @@ export class AuctionService {
       ptId: dto.ptId,
       status: AuctionBatchStatusEnum.Draft,
       notes: dto.notes ?? null,
-      createdBy,
     });
     const savedBatch = await this.batchRepository.save(batch);
 

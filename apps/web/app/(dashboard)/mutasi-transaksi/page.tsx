@@ -13,11 +13,7 @@ import {
   SelectValue,
 } from "@workspace/ui/components/select"
 import { Input } from "@workspace/ui/components/input"
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@workspace/ui/components/avatar"
+import { Avatar, AvatarFallback } from "@workspace/ui/components/avatar"
 import { Card, CardContent, CardHeader } from "@workspace/ui/components/card"
 import { Skeleton } from "@workspace/ui/components/skeleton"
 import { SearchIcon, SlidersHorizontal, Plus } from "lucide-react"
@@ -38,10 +34,8 @@ import { toast } from "sonner"
 type MutasiTransaksi = {
   id: string
   tanggal: string
-  user: {
-    name: string
-    avatar?: string
-  }
+  store?: { shortName: string; fullName?: string } | null
+  user: { name: string; avatar?: string }
   jenis: string
   noSpkNkb: string
   deskripsi: string
@@ -66,15 +60,24 @@ function mapCashMutationToMutasi(m: CashMutation): MutasiTransaksi {
     m.balanceAfter ??
     (typeof m.balanceAfter === "string" ? parseFloat(m.balanceAfter) : 0)
   const category = m.category ?? "other"
-  const createdBy = m.createdBy as { fullName?: string; imageUrl?: string } | undefined
-  const constructed =
-    m.referenceId ? `${m.referenceType ?? ""}-${m.referenceId}`.trim() : ""
+  const createdBy = m.createdBy as
+    | { fullName?: string; imageUrl?: string }
+    | undefined
+  const store = m.store
+    ? {
+        shortName: m.store.shortName ?? m.store.branchCode ?? "-",
+        fullName: m.store.fullName,
+      }
+    : null
+  const constructed = m.referenceId
+    ? `${m.referenceType ?? ""}-${m.referenceId}`.trim()
+    : ""
   const noSpkNkb = (m.referenceNumber ?? constructed) || "-"
-
   const isDebit = mutationType === "debit"
   return {
     id: m.uuid,
     tanggal: m.createdAt,
+    store,
     user: {
       name: createdBy?.fullName ?? "-",
       avatar: createdBy?.imageUrl,
@@ -98,40 +101,52 @@ const columns: ColumnDef<MutasiTransaksi>[] = [
   {
     accessorKey: "tanggal",
     header: "Tanggal",
+    cell: ({ row }) => {
+      const tanggal = row.getValue("tanggal") as string
+      return (
+        <span className="text-sm">
+          {tanggal
+            ? new Date(tanggal).toLocaleString("id-ID", {
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+              })
+            : "-"}
+        </span>
+      )
+    },
   },
   {
-    accessorKey: "user",
-    header: "User",
+    accessorKey: "store",
+    header: "Toko",
     cell: ({ row }) => {
-      const user = row.getValue("user") as MutasiTransaksi["user"]
+      const store = row.getValue("store") as MutasiTransaksi["store"]
+      if (!store) return <span className="text-sm">-</span>
+      const display = store.shortName ?? store.fullName ?? "-"
+      const initials = display
+        .split(/\s+/)
+        .map((s) => s[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
       return (
         <div className="flex items-center gap-2">
           <Avatar className="h-8 w-8">
-            <AvatarImage src={user.avatar} alt={user.name} />
-            <AvatarFallback>
-              {user.name
-                .split(" ")
-                .map((n) => n[0])
-                .join("")
-                .toUpperCase()}
+            <AvatarFallback className="text-muted-foreground text-xs">
+              {initials}
             </AvatarFallback>
           </Avatar>
-          <span className="text-sm">{user.name}</span>
+          <span className="text-sm">{display}</span>
         </div>
       )
     },
   },
   {
     accessorKey: "jenis",
-    header: "Jenis",
-  },
-  {
-    accessorKey: "noSpkNkb",
-    header: "No SPK/NKB",
-  },
-  {
-    accessorKey: "deskripsi",
-    header: "Deskripsi",
+    header: "Tipe Mutasi",
   },
   {
     accessorKey: "debit",
@@ -159,12 +174,10 @@ const columns: ColumnDef<MutasiTransaksi>[] = [
   },
   {
     accessorKey: "saldo",
-    header: "Saldo",
+    header: "Sisa Saldo",
     cell: ({ row }) => {
       const saldo = row.getValue("saldo") as number
-      return (
-        <span className="text-sm">Rp{formatCurrencyDisplay(saldo)},-</span>
-      )
+      return <span className="text-sm">Rp{formatCurrencyDisplay(saldo)},-</span>
     },
   },
 ]
@@ -378,7 +391,7 @@ export default function MutasiTransaksiPage() {
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex flex-col gap-2">
-            <h1 className="text-2xl font-bold">GADAI TOP Mutasi/Transaksi</h1>
+            <h1 className="text-2xl font-bold">Mutasi/Transaksi</h1>
             <Breadcrumbs
               items={[
                 { label: "Pages", href: "/" },
@@ -403,7 +416,7 @@ export default function MutasiTransaksiPage() {
               </Select>
             )}
 
-            {(isSuperAdmin || isCompanyAdmin) && branchOptions.length > 0 && (
+            {isSuperAdmin && branchOptions.length > 0 && (
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium">Pilih Toko :</span>
                 <Select value={selectedToko} onValueChange={setSelectedToko}>
