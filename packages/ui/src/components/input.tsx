@@ -16,15 +16,15 @@ function Input({
   const hasSuffix = suffix != null;
 
   return (
-    <div className="relative w-full">
+    <div className="relative w-full h-12">
       {hasIcon && (
-        <div className="absolute left-0 top-1/2 aspect-square -translate-y-1/2 text-muted-foreground/60 h-full border-r border-input flex items-center justify-center">
+        <div className="absolute left-0 top-1/2 aspect-square -translate-y-1/2 text-muted-foreground/60 h-12 border-r border-input flex items-center justify-center">
           {icon}
         </div>
       )}
 
       {hasSuffix && (
-        <div className="absolute right-0 top-1/2 -translate-y-1/2 h-full flex items-center border-l border-input pl-3 pr-3 text-muted-foreground/60 text-sm">
+        <div className="absolute right-0 top-1/2 -translate-y-1/2 h-12 flex items-center border-l border-input pl-3 pr-3 text-muted-foreground/60 text-sm">
           {suffix}
         </div>
       )}

@@ -168,6 +168,10 @@ export default function SPKPage() {
     () => user?.roles?.some((r) => r.code === "company_admin") ?? false,
     [user]
   )
+  const isBranchStaff = useMemo(
+    () => user?.roles?.some((r) => r.code === "branch_staff") ?? false,
+    [user]
+  )
 
   const listOptions = useMemo(() => {
     const filter: Record<string, string | number> = {}
@@ -258,18 +262,20 @@ export default function SPKPage() {
           data={filteredByAmount}
           onDetail={handleDetail}
           headerLeft={
-            <Select value={selectedBranch} onValueChange={handleBranchChange}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Pilih Cabang" />
-              </SelectTrigger>
-              <SelectContent>
-                {branchOptions.map((branch) => (
-                  <SelectItem key={branch.value} value={branch.value}>
-                    {branch.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            !isBranchStaff && (
+              <Select value={selectedBranch} onValueChange={handleBranchChange}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Pilih Cabang" />
+                </SelectTrigger>
+                <SelectContent>
+                  {branchOptions.map((branch) => (
+                    <SelectItem key={branch.value} value={branch.value}>
+                      {branch.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )
           }
           filterConfig={filterConfig}
           filterValues={filterValues}

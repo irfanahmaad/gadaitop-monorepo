@@ -445,14 +445,22 @@ export interface SpkHistory {
 export interface CreateSpkDto {
   customerId: string
   storeId: string
+  ptId: string
   principalAmount: number
   tenor: number
   items: {
+    catalogId?: string
     itemTypeId: string
     description: string
+    brand?: string
+    model?: string
+    serialNumber?: string
+    appraisedValue: number
+    condition?: "excellent" | "good" | "fair" | "poor"
     weight?: number
-    estimatedValue: number
-    photoUrl?: string
+    purity?: string
+    evidencePhotos?: string[]
+    storageLocation?: string
   }[]
 }
 

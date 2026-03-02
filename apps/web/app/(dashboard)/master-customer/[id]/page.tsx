@@ -32,12 +32,19 @@ import {
   Briefcase,
   User,
   Pencil,
+  Trash2,
+  Ban,
 } from "lucide-react"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
+import { useAuth } from "@/lib/react-query/hooks/use-auth"
+import { ConfirmationDialog } from "@/components/confirmation-dialog"
+import { BlacklistDialog } from "./_components/blacklist-dialog"
 import {
   useCustomer,
   useChangeCustomerPin,
+  useDeleteCustomer,
+  useBlacklistCustomer,
   customerKeys,
 } from "@/lib/react-query/hooks/use-customers"
 import { useSpkList } from "@/lib/react-query/hooks/use-spk"
@@ -278,6 +285,15 @@ export default function MasterCustomerDetailPage() {
 
   const { filterValues, setFilters } = useFilterParams(daftarSPKFilterConfig)
   const changePinMutation = useChangeCustomerPin()
+  const deleteMutation = useDeleteCustomer()
+  const blacklistMutation = useBlacklistCustomer()
+
+  const { user } = useAuth()
+  const isBranchStaff =
+    user?.roles?.some((r) => r.code === "branch_staff") ?? false
+
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [blacklistDialogOpen, setBlacklistDialogOpen] = useState(false)
 
   const {
     data: customerData,
@@ -377,6 +393,29 @@ export default function MasterCustomerDetailPage() {
     }
   }
 
+  const handleDeleteConfirm = async () => {
+    if (!id) return
+    try {
+      await deleteMutation.mutateAsync(id)
+      toast.success("Customer berhasil dihapus")
+      router.push("/master-customer")
+    } catch {
+      toast.error("Gagal menghapus customer")
+    }
+  }
+
+  const handleBlacklistConfirm = async (reason: string) => {
+    if (!id) return
+    try {
+      await blacklistMutation.mutateAsync({ id, data: { reason } })
+      toast.success("Customer berhasil diblacklist")
+      setBlacklistDialogOpen(false)
+      queryClient.invalidateQueries({ queryKey: customerKeys.detail(id) })
+    } catch {
+      toast.error("Gagal mem-blacklist customer")
+    }
+  }
+
   if (!id) {
     return (
       <div className="flex flex-col gap-6">
@@ -411,14 +450,44 @@ export default function MasterCustomerDetailPage() {
           />
         </div>
         {!customerLoading && customer && (
-          <Button
-            variant="outline"
-            className="shrink-0 gap-2"
-            onClick={() => setGantiPinOpen(true)}
-          >
-            <Pencil className="size-4" />
-            Ganti PIN
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            {!isBranchStaff && (
+              <Button
+                variant="outline"
+                className="shrink-0 gap-2"
+                onClick={() => setGantiPinOpen(true)}
+              >
+                <Pencil className="size-4" />
+                Ganti PIN
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              className="shrink-0 gap-2"
+              onClick={() => router.push(`/master-customer/${id}/edit`)}
+            >
+              <Pencil className="size-4" />
+              Edit
+            </Button>
+            <Button
+              variant="destructive"
+              className="shrink-0 gap-2"
+              onClick={() => setDeleteDialogOpen(true)}
+            >
+              <Trash2 className="size-4" />
+              Hapus
+            </Button>
+            {!customerData?.isBlacklisted && customerData?.status !== "blacklisted" && (
+              <Button
+                variant="destructive"
+                className="shrink-0 gap-2"
+                onClick={() => setBlacklistDialogOpen(true)}
+              >
+                <Ban className="size-4" />
+                Blacklist
+              </Button>
+            )}
+          </div>
         )}
       </div>
 
@@ -427,6 +496,23 @@ export default function MasterCustomerDetailPage() {
         onOpenChange={setGantiPinOpen}
         onConfirm={handleGantiPinConfirm}
         isSubmitting={changePinMutation.isPending}
+      />
+
+      <BlacklistDialog
+        open={blacklistDialogOpen}
+        onOpenChange={setBlacklistDialogOpen}
+        onConfirm={handleBlacklistConfirm}
+        isSubmitting={blacklistMutation.isPending}
+      />
+
+      <ConfirmationDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={handleDeleteConfirm}
+        title="Hapus Customer"
+        description={`Anda yakin ingin menghapus customer ${customer?.namaLengkap}?`}
+        confirmLabel="Hapus"
+        variant="destructive"
       />
 
       {/* Data Customer card */}

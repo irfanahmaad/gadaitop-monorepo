@@ -174,6 +174,8 @@ export default function MasterCustomerPage() {
   const isCompanyAdmin =
     user?.roles?.some((r) => r.code === "company_admin") ?? false
   const isSuperAdmin = user?.roles?.some((r) => r.code === "owner") ?? false
+  const isBranchStaff =
+    user?.roles?.some((r) => r.code === "branch_staff") ?? false
 
   const effectiveCompanyId = isCompanyAdmin ? (user?.companyId ?? null) : null
 
@@ -228,6 +230,7 @@ export default function MasterCustomerPage() {
   )
   const [selectedRows, setSelectedRows] = useState<CustomerRow[]>([])
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false)
+  const [deleteData, setDeleteData] = useState<CustomerRow | null>(null)
   const [resetSelectionKey, setResetSelectionKey] = useState(0)
   const queryClient = useQueryClient()
 
@@ -258,6 +261,28 @@ export default function MasterCustomerPage() {
     },
     [router]
   )
+
+  const handleEdit = useCallback(
+    (row: CustomerRow) => {
+      router.push(`/master-customer/${row.id}/edit`)
+    },
+    [router]
+  )
+
+  const handleDelete = useCallback((row: CustomerRow) => {
+    setDeleteData(row)
+  }, [])
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!deleteData) return
+    try {
+      await deleteCustomerMutation.mutateAsync(deleteData.id)
+      toast.success("Customer berhasil dihapus")
+      setDeleteData(null)
+    } catch {
+      toast.error("Gagal menghapus Customer")
+    }
+  }, [deleteData, deleteCustomerMutation])
 
   const handleGantiPin = useCallback((row: CustomerRow) => {
     setGantiPinCustomerId(row.id)
@@ -438,13 +463,19 @@ export default function MasterCustomerPage() {
           searchValue={searchValue}
           onSearchChange={setSearchValue}
           onDetail={handleDetail}
-          customActions={[
-            {
-              label: "Ganti PIN",
-              icon: <Lock className="mr-2 size-4" />,
-              onClick: handleGantiPin,
-            },
-          ]}
+          onEdit={handleEdit}
+          onDelete={isBranchStaff ? handleDelete : undefined}
+          customActions={
+            isBranchStaff
+              ? undefined
+              : [
+                  {
+                    label: "Ganti PIN",
+                    icon: <Lock className="mr-2 size-4" />,
+                    onClick: handleGantiPin,
+                  },
+                ]
+          }
           onSelectionChange={setSelectedRows}
           resetSelectionKey={resetSelectionKey}
         />
@@ -464,6 +495,16 @@ export default function MasterCustomerPage() {
         onConfirm={handleConfirmBulkDelete}
         title="Hapus Customer"
         description={`Anda akan menghapus ${selectedRows.length} data Customer dari dalam sistem.`}
+        confirmLabel="Hapus"
+        variant="destructive"
+      />
+
+      <ConfirmationDialog
+        open={!!deleteData}
+        onOpenChange={(open) => !open && setDeleteData(null)}
+        onConfirm={handleConfirmDelete}
+        title="Hapus Customer"
+        description={`Anda yakin ingin menghapus customer ${deleteData?.namaLengkap}?`}
         confirmLabel="Hapus"
         variant="destructive"
       />
