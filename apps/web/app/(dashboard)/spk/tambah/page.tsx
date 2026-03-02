@@ -10,11 +10,9 @@ import {
   User,
   Calendar,
   CreditCard,
-  Upload,
   Lock,
   X,
   Loader2,
-  Pencil,
   Plus,
   Trash2,
   Image as ImageIcon,
@@ -49,10 +47,14 @@ import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { formatCurrencyInput, parseCurrencyInput } from "@/lib/format-currency"
 
 import { useAuth } from "@/lib/react-query/hooks/use-auth"
-import { useCustomers, useLookupCustomerByNik } from "@/lib/react-query/hooks/use-customers"
+import {
+  useCustomers,
+  useLookupCustomerByNik,
+} from "@/lib/react-query/hooks/use-customers"
 import { useItemTypes } from "@/lib/react-query/hooks/use-item-types"
 import { useCatalogs } from "@/lib/react-query/hooks/use-catalogs"
 import { useCreateSpk } from "@/lib/react-query/hooks/use-spk"
+import { ApiClientError } from "@/lib/api/client"
 
 // Enum mapping for dropdown values
 const kondisiBarangOptions = [
@@ -62,14 +64,15 @@ const kondisiBarangOptions = [
   { value: "poor", label: "Poor (Buruk/Minus)" },
 ]
 
-const statusBarangOptions = [
-  { value: "in_storage", label: "Di Penyimpanan" },
-]
+const statusBarangOptions = [{ value: "in_storage", label: "Di Penyimpanan" }]
 
 const spkSchema = z
   .object({
     fotoCustomer: z.union([z.instanceof(File), z.string()]).optional(),
-    nik: z.string().min(1, "NIK harus diisi").regex(/^\d{16}$/, "NIK harus berupa 16 digit angka"),
+    nik: z
+      .string()
+      .min(1, "NIK harus diisi")
+      .regex(/^\d{16}$/, "NIK harus berupa 16 digit angka"),
     namaCustomer: z.string().optional(),
     tanggalLahir: z.string().optional(),
     tipeBarang: z.string().min(1, "Tipe Barang harus dipilih"),
@@ -81,7 +84,10 @@ const spkSchema = z
     hargaAcuan: z.string().optional(),
     jumlahSPK: z.string().min(1, "Jumlah SPK harus diisi"),
     fotoBarang: z.array(z.instanceof(File)).min(0).optional(),
-    pin: z.string().min(4, "PIN minimal 4 karakter").max(6, "PIN maksimal 6 karakter"),
+    pin: z
+      .string()
+      .min(4, "PIN minimal 4 karakter")
+      .max(6, "PIN maksimal 6 karakter"),
   })
   .refine(
     (data) => {
@@ -102,10 +108,14 @@ type SPKFormValues = z.infer<typeof spkSchema>
 
 export default function TambahSPKPage() {
   const router = useRouter()
-  const [previewFotoCustomer, setPreviewFotoCustomer] = useState<string | null>(null)
-  const [previewFotoBarang, setPreviewFotoBarang] = useState<Array<{ file: File; preview: string }>>([])
+  const [previewFotoCustomer, setPreviewFotoCustomer] = useState<string | null>(
+    null
+  )
+  const [previewFotoBarang, setPreviewFotoBarang] = useState<
+    Array<{ file: File; preview: string }>
+  >([])
   const [confirmOpen, setConfirmOpen] = useState(false)
-  
+
   const { user } = useAuth()
   const effectiveCompanyId = user?.companyId ?? user?.ownedCompanyId
   const effectiveBranchId = user?.branchId
@@ -140,15 +150,14 @@ export default function TambahSPKPage() {
   const isPinValid = pin.length >= 4
 
   // --- API Hooks ---
-  
+
   // 1a. Customers List for Dropdown
   const { data: customersData } = useCustomers({ pageSize: 100 })
   const customerList = customersData?.data ?? []
 
   // 1b. Customer Lookup by NIK
-  const { data: customerData, isFetching: isLoadingCustomer } = useLookupCustomerByNik(
-    watchedNik?.length === 16 ? watchedNik : ""
-  )
+  const { data: customerData, isFetching: isLoadingCustomer } =
+    useLookupCustomerByNik(watchedNik?.length === 16 ? watchedNik : "")
   const customerItem = customerData
 
   // Automatically fill customer details when found
@@ -159,15 +168,17 @@ export default function TambahSPKPage() {
       if (currentName !== newName) {
         form.setValue("namaCustomer", newName)
       }
-      
+
       const currentDob = form.getValues("tanggalLahir")
       const newDob = customerItem.dob || customerItem.dateOfBirth || ""
       if (currentDob !== newDob) {
         form.setValue("tanggalLahir", newDob)
       }
-      
+
       if (customerItem.ktpPhotoUrl || customerItem.selfiePhotoUrl) {
-         setPreviewFotoCustomer(customerItem.selfiePhotoUrl || customerItem.ktpPhotoUrl || null)
+        setPreviewFotoCustomer(
+          customerItem.selfiePhotoUrl || customerItem.ktpPhotoUrl || null
+        )
       }
     } else if (watchedNik?.length === 16 && !isLoadingCustomer) {
       if (form.getValues("namaCustomer") !== "") {
@@ -188,11 +199,13 @@ export default function TambahSPKPage() {
     filter: watchedTipeBarang ? { itemTypeId: watchedTipeBarang } : undefined,
   })
   const catalogOptions = catalogsData?.data ?? []
-  
+
   // Update Harga Acuan when Catalog is selected
   useEffect(() => {
     if (watchedKatalog && catalogsData?.data && catalogsData.data.length > 0) {
-      const selectedCatalog = catalogsData.data.find(c => c.uuid === watchedKatalog)
+      const selectedCatalog = catalogsData.data.find(
+        (c) => c.uuid === watchedKatalog
+      )
       if (selectedCatalog?.basePrice) {
         const newValue = formatCurrencyInput(selectedCatalog.basePrice)
         if (form.getValues("hargaAcuan") !== newValue) {
@@ -224,23 +237,11 @@ export default function TambahSPKPage() {
   // --- Handlers ---
   const handleCustomerMasukkanPin = () => {
     form.setFocus("pin")
-    window.open("/input-pin", "InputPIN", "width=500,height=700,left=200,top=200")
-  }
-
-  const handleImageChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
-    field: { onChange: (value: File | undefined) => void },
-    setPreview: (preview: string | null) => void
-  ) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      field.onChange(file)
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setPreview(reader.result as string)
-      }
-      reader.readAsDataURL(file)
-    }
+    window.open(
+      "/input-pin",
+      "InputPIN",
+      "width=500,height=700,left=200,top=200"
+    )
   }
 
   const handleMultipleImageChange = (
@@ -294,13 +295,23 @@ export default function TambahSPKPage() {
 
   const handleSimpanClick = () => {
     form.handleSubmit((values) => {
-      // Additional validation: branch and company ID must exist
-      if (!effectiveBranchId || (!effectiveCompanyId && !user?.companyId)) {
-        toast.error("Data Cabang atau PT tidak ditemukan di sesi Anda")
+      // Additional validation: PT and Store (branch) must exist in session
+      const ptId = effectiveCompanyId || user?.companyId
+      if (!ptId) {
+        toast.error("Data PT tidak ditemukan di sesi Anda")
+        return
+      }
+
+      if (!effectiveBranchId) {
+        toast.error(
+          "Data cabang toko tidak ditemukan di sesi Anda. Hubungi admin untuk mengatur cabang."
+        )
         return
       }
       if (!customerItem?.uuid) {
-        toast.error("Customer tidak ditemukan. Pastikan NIK terdaftar dan dipilih dengan benar.")
+        toast.error(
+          "Customer tidak ditemukan. Pastikan NIK terdaftar dan dipilih dengan benar."
+        )
         return
       }
       if (values) {
@@ -311,13 +322,14 @@ export default function TambahSPKPage() {
 
   const handleConfirmSubmit = async () => {
     const values = form.getValues()
-    
+
     try {
       if (!customerItem?.uuid) throw new Error("Customer UUID missing")
-      if (!effectiveBranchId) throw new Error("Branch ID missing")
-      
       const ptId = effectiveCompanyId || user?.companyId
       if (!ptId) throw new Error("Company ID missing")
+
+      const storeIdToUse = effectiveBranchId
+      if (!storeIdToUse) throw new Error("Store ID missing")
 
       const principalAmount = parseCurrencyInput(values.jumlahSPK) || 0
       const appraisedValue = parseCurrencyInput(values.hargaAcuan || "0") || 0
@@ -325,7 +337,7 @@ export default function TambahSPKPage() {
       // Map to CreateSpkDto
       await createSpkMutation.mutateAsync({
         customerId: customerItem.uuid,
-        storeId: effectiveBranchId,
+        storeId: storeIdToUse,
         ptId: ptId,
         principalAmount,
         tenor: 30, // Default tenor, adjust if needed
@@ -336,16 +348,32 @@ export default function TambahSPKPage() {
             description: values.kelengkapanBarang || "Barang Gadai",
             serialNumber: values.imei || undefined,
             appraisedValue,
-            condition: values.kondisiBarang as any, 
-          }
-        ]
+            condition: values.kondisiBarang as
+              | "excellent"
+              | "good"
+              | "fair"
+              | "poor",
+          },
+        ],
       })
-      
+
       toast.success("Data SPK berhasil ditambahkan")
       setConfirmOpen(false)
       router.push("/spk")
-    } catch (error: any) {
-      const message = error?.message || "Gagal menambahkan data SPK"
+    } catch (error: unknown) {
+      let message = "Gagal menambahkan data SPK"
+
+      if (error instanceof ApiClientError) {
+        message = error.errorMessage || message
+      } else if (error instanceof Error && error.message) {
+        message = error.message
+      }
+
+      if (message.includes("Store not found")) {
+        message =
+          "Cabang toko tidak ditemukan. Silakan pilih cabang lain atau hubungi admin."
+      }
+
       toast.error(message)
     }
   }
@@ -385,7 +413,7 @@ export default function TambahSPKPage() {
                 <FormField
                   control={form.control}
                   name="fotoCustomer"
-                  render={({ field }) => (
+                  render={() => (
                     <FormItem>
                       <FormControl>
                         <div className="relative">
@@ -399,14 +427,12 @@ export default function TambahSPKPage() {
                               />
                             </div>
                           ) : (
-                            <div
-                              className="border-input bg-muted/50 flex aspect-square w-40 flex-col items-center justify-center gap-3 rounded-full border-2 border-dashed"
-                            >
+                            <div className="border-input bg-muted/50 flex aspect-square w-40 flex-col items-center justify-center gap-3 rounded-full border-2 border-dashed">
                               <div className="flex flex-col items-center gap-2">
                                 <div className="bg-primary/10 rounded-full p-3">
                                   <User className="text-primary size-6" />
                                 </div>
-                                <p className="text-sm font-medium text-center px-4">
+                                <p className="px-4 text-center text-sm font-medium">
                                   Foto Customer
                                 </p>
                               </div>
@@ -430,7 +456,7 @@ export default function TambahSPKPage() {
                       Detail Customer
                     </h2>
                   </div>
-                  <div className="grid gap-6 md:grid-cols-2 items-start">
+                  <div className="grid items-start gap-6 md:grid-cols-2">
                     <FormField
                       control={form.control}
                       name="nik"
@@ -457,17 +483,31 @@ export default function TambahSPKPage() {
                                 </SelectItem>
                               ))}
                               {customerList.length === 0 && (
-                                <SelectItem value="none" disabled>Tidak ada data customer</SelectItem>
+                                <SelectItem value="none" disabled>
+                                  Tidak ada data customer
+                                </SelectItem>
                               )}
                             </SelectContent>
                           </Select>
-                          {isLoadingCustomer && watchedNik.length === 16 && <p className="text-sm text-muted-foreground">Mencari data...</p>}
-                          {!isLoadingCustomer && watchedNik.length === 16 && !customerItem && (
-                            <p className="text-sm text-destructive">Customer tidak ditemukan</p>
+                          {isLoadingCustomer && watchedNik.length === 16 && (
+                            <p className="text-muted-foreground text-xs">
+                              Mencari data...
+                            </p>
                           )}
-                          {!isLoadingCustomer && watchedNik.length === 16 && customerItem && (
-                            <p className="text-sm text-green-600">Customer Valid</p>
-                          )}
+                          {!isLoadingCustomer &&
+                            watchedNik.length === 16 &&
+                            !customerItem && (
+                              <p className="text-destructive text-xs">
+                                Customer tidak ditemukan
+                              </p>
+                            )}
+                          {!isLoadingCustomer &&
+                            watchedNik.length === 16 &&
+                            customerItem && (
+                              <p className="text-xs text-green-600">
+                                Customer Valid
+                              </p>
+                            )}
                           <FormMessage />
                         </FormItem>
                       )}
@@ -478,7 +518,8 @@ export default function TambahSPKPage() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>
-                            Nama Customer <span className="text-destructive">*</span>
+                            Nama Customer{" "}
+                            <span className="text-destructive">*</span>
                           </FormLabel>
                           <FormControl>
                             <Input
@@ -525,14 +566,15 @@ export default function TambahSPKPage() {
                       Detail Barang
                     </h2>
                   </div>
-                  <div className="grid gap-6 md:grid-cols-2 items-start">
+                  <div className="grid items-start gap-6 md:grid-cols-2">
                     <FormField
                       control={form.control}
                       name="tipeBarang"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>
-                            Tipe Barang <span className="text-destructive">*</span>
+                            Tipe Barang{" "}
+                            <span className="text-destructive">*</span>
                           </FormLabel>
                           <Select
                             value={field.value || ""}
@@ -564,7 +606,8 @@ export default function TambahSPKPage() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>
-                            Pilih Barang (Katalog) <span className="text-destructive">*</span>
+                            Pilih Barang (Katalog){" "}
+                            <span className="text-destructive">*</span>
                           </FormLabel>
                           <Select
                             value={field.value || ""}
@@ -573,7 +616,13 @@ export default function TambahSPKPage() {
                           >
                             <FormControl>
                               <SelectTrigger className="w-full">
-                                <SelectValue placeholder={!watchedTipeBarang ? "Pilih Tipe Terlebih Dahulu" : "Pilih Katalog Barang"} />
+                                <SelectValue
+                                  placeholder={
+                                    !watchedTipeBarang
+                                      ? "Pilih Tipe Terlebih Dahulu"
+                                      : "Pilih Katalog Barang"
+                                  }
+                                />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
@@ -583,7 +632,9 @@ export default function TambahSPKPage() {
                                 </SelectItem>
                               ))}
                               {catalogOptions.length === 0 && (
-                                <SelectItem value="none" disabled>Tidak ada item di katalog</SelectItem>
+                                <SelectItem value="none" disabled>
+                                  Tidak ada item di katalog
+                                </SelectItem>
                               )}
                             </SelectContent>
                           </Select>
@@ -597,7 +648,8 @@ export default function TambahSPKPage() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>
-                            Kondisi Barang <span className="text-destructive">*</span>
+                            Kondisi Barang{" "}
+                            <span className="text-destructive">*</span>
                           </FormLabel>
                           <Select
                             value={field.value || ""}
@@ -643,7 +695,9 @@ export default function TambahSPKPage() {
                       name="kelengkapanBarang"
                       render={({ field }) => (
                         <FormItem className="md:col-span-2">
-                          <FormLabel>Kelengkapan Barang / Deskripsi Tambahan</FormLabel>
+                          <FormLabel>
+                            Kelengkapan Barang / Deskripsi Tambahan
+                          </FormLabel>
                           <FormControl>
                             <Textarea
                               placeholder="Contoh: Fullset nota ori, minus lecet pemakaian"
@@ -661,7 +715,8 @@ export default function TambahSPKPage() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>
-                            Status Barang <span className="text-destructive">*</span>
+                            Status Barang{" "}
+                            <span className="text-destructive">*</span>
                           </FormLabel>
                           <Select
                             value={field.value || ""}
@@ -717,7 +772,8 @@ export default function TambahSPKPage() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>
-                            Jumlah Pinjaman <span className="text-destructive">*</span>
+                            Jumlah Pinjaman{" "}
+                            <span className="text-destructive">*</span>
                           </FormLabel>
                           <FormControl>
                             <div className="space-y-2">
@@ -825,7 +881,9 @@ export default function TambahSPKPage() {
                   <div className="flex items-center gap-3">
                     <Lock className="text-destructive size-6" />
                     <h2 className="text-destructive text-lg font-semibold">
-                      {form.watch("pin") ? "Keamanan (PIN sudah Diinput)" : "Keamanan"}
+                      {form.watch("pin")
+                        ? "Keamanan (PIN sudah Diinput)"
+                        : "Keamanan"}
                     </h2>
                   </div>
                   <div className="w-full gap-6">
@@ -917,4 +975,3 @@ export default function TambahSPKPage() {
     </div>
   )
 }
-
