@@ -14,6 +14,9 @@ export class AuctionBatchEntity extends AbstractEntity {
   @Index()
   batchCode: string;
 
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  name: string | null;
+
   @Column({ type: 'uuid' })
   @Index()
   storeId: string;

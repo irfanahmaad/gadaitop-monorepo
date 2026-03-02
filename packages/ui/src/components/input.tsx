@@ -16,7 +16,7 @@ function Input({
   const hasSuffix = suffix != null;
 
   return (
-    <div className="relative">
+    <div className="relative w-full">
       {hasIcon && (
         <div className="absolute left-0 top-1/2 aspect-square -translate-y-1/2 text-muted-foreground/60 h-full border-r border-input flex items-center justify-center">
           {icon}

@@ -37,6 +37,7 @@ import {
   Hand,
 } from "lucide-react"
 import { QRCodeDialog } from "../../_components/QRCodeDialog"
+import { EditBatchDialog } from "../_components/EditBatchDialog"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import {
   Table,
@@ -270,6 +271,7 @@ export default function LelanganDetailPage() {
   const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false)
   const [isTolakDialogOpen, setIsTolakDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isRemoveItemDialogOpen, setIsRemoveItemDialogOpen] = useState(false)
   const [removeItemRow, setRemoveItemRow] = useState<BatchItemRow | null>(null)
   const [pageSize, setPageSize] = useState(100)
@@ -368,6 +370,11 @@ export default function LelanganDetailPage() {
     setRemoveItemRow(null)
   }
 
+  const handleClickBatchLelang = () => {
+    if (!slug) return
+    setIsEditDialogOpen(true)
+  }
+
   if (!slug) {
     return (
       <div className="flex flex-col gap-6">
@@ -419,7 +426,7 @@ export default function LelanganDetailPage() {
             <Button
               variant="outline"
               className="gap-2"
-              onClick={() => router.push(`/validasi-lelangan/${slug}`)}
+              onClick={handleClickBatchLelang}
             >
               <Pencil className="size-4" />
               Edit
@@ -727,6 +734,16 @@ export default function LelanganDetailPage() {
         onOpenChange={setQrDialogOpen}
         value={qrValue}
         title="QR Code SPK"
+      />
+
+      <EditBatchDialog
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        onClose={() => setIsEditDialogOpen(false)}
+        batch={batch ?? null}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: auctionBatchKeys.detail(slug) })
+        }}
       />
 
       <ConfirmationDialog

@@ -26,7 +26,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu"
-import { SearchIcon, SlidersHorizontal, Package, QrCode, Info, MoreHorizontal } from "lucide-react"
+import { SearchIcon, SlidersHorizontal, Package, Eye, Info, MoreHorizontal, QrCode } from "lucide-react"
 import { QRCodeDialog } from "../../_components/QRCodeDialog"
 import type { FilterConfig } from "@/hooks/use-filter-params"
 
@@ -75,6 +75,8 @@ export type StockOpnameItem = {
   toko: string
   petugas: string
   statusScan: "Belum Terscan" | "Terscan"
+  isMata?: boolean
+  mataRuleName?: string
 }
 
 type StockOpnameItemTableProps = {
@@ -108,8 +110,8 @@ const StatusScanBadge = ({
 }
 
 function createColumns(
-  onScanClick: (noSPK: string) => void,
-  onDetail: (item: StockOpnameItem) => void
+  onDetail: (item: StockOpnameItem) => void,
+  onQrSPK: (item: StockOpnameItem) => void
 ): ColumnDef<StockOpnameItem>[] {
   return [
     {
@@ -142,23 +144,11 @@ function createColumns(
       cell: ({ row }) => {
         const item = row.original
         const noSPK = item.noSPK
-        const isBelumTerscan = item.statusScan === "Belum Terscan"
         return (
           <div className="flex items-center gap-2">
             <span>{noSPK}</span>
-            {isBelumTerscan && (
-              <Button
-                variant="outline"
-                size="icon"
-                className="border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive size-8 shrink-0"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onScanClick(noSPK)
-                }}
-                aria-label="Tampilkan QR Code"
-              >
-                <QrCode className="size-4" />
-              </Button>
+            {item.isMata && (
+              <Eye className="text-destructive size-4 shrink-0" aria-hidden />
             )}
           </div>
         )
@@ -207,12 +197,12 @@ function createColumns(
                 className="gap-2"
                 onClick={() => onDetail(item)}
               >
-                <Info className="size-4" />
+                <Eye className="size-4" />
                 Detail
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="gap-2"
-                onClick={() => onScanClick(item.noSPK)}
+                onClick={() => onQrSPK(item)}
               >
                 <QrCode className="size-4" />
                 QR SPK
@@ -240,13 +230,12 @@ export function StockOpnameItemTable({
   const [filterDialogOpen, setFilterDialogOpen] = useState(false)
   const [filterValues, setFilterValues] =
     useState<Record<string, unknown>>(defaultFilterValues)
-  const [qrDialog, setQrDialog] = useState<{ open: boolean; value: string }>({
-    open: false,
-    value: "",
-  })
+  const [qrDialogOpen, setQrDialogOpen] = useState(false)
+  const [selectedQrSPK, setSelectedQrSPK] = useState("")
 
-  const handleScanClick = useCallback((noSPK: string) => {
-    setQrDialog({ open: true, value: noSPK })
+  const handleQrSPK = useCallback((item: StockOpnameItem) => {
+    setSelectedQrSPK(item.noSPK)
+    setQrDialogOpen(true)
   }, [])
 
   const filteredData = useMemo(() => {
@@ -263,11 +252,14 @@ export function StockOpnameItemTable({
   }, [data, filterValues.tipeBarang, filterValues.toko])
 
   const columns = React.useMemo(
-    () => createColumns(handleScanClick, onItemDetail ?? (() => {})),
-    [handleScanClick, onItemDetail]
+    () => createColumns(onItemDetail ?? (() => {}), handleQrSPK),
+    [onItemDetail, handleQrSPK]
   )
 
   const getRowClassName = useCallback((row: StockOpnameItem) => {
+    if (row.isMata) {
+      return "bg-red-50 dark:bg-red-950/30"
+    }
     if (row.statusScan === "Belum Terscan") {
       return "!bg-red-50 dark:!bg-red-950/50"
     }
@@ -277,61 +269,61 @@ export function StockOpnameItemTable({
   return (
     <>
       <DataTable
-        columns={columns}
-        data={filteredData}
-        getRowClassName={getRowClassName}
-        title="Daftar Item"
-        searchPlaceholder="Cari..."
-        filterConfig={STOCK_OPNAME_ITEM_FILTER_CONFIG}
-        filterValues={filterValues}
-        onFilterChange={setFilterValues}
-        filterDialogOpen={filterDialogOpen}
-        onFilterDialogOpenChange={setFilterDialogOpen}
-        headerRight={
-          <div className="flex w-full items-center gap-2 sm:w-auto">
-            <Select
-              value={pageSize.toString()}
-              onValueChange={(value) => setPageSize(Number(value))}
-            >
-              <SelectTrigger className="w-[100px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="10">10</SelectItem>
-                <SelectItem value="25">25</SelectItem>
-                <SelectItem value="50">50</SelectItem>
-                <SelectItem value="100">100</SelectItem>
-              </SelectContent>
-            </Select>
-            <div className="w-full sm:w-auto sm:max-w-sm">
-              <Input
-                placeholder="Cari..."
-                value={searchValue}
-                onChange={(e) => setSearchValue(e.target.value)}
-                icon={<SearchIcon className="size-4" />}
-                className="w-full"
-              />
-            </div>
-            <Button
-              variant="outline"
-              className="flex items-center gap-2"
-              onClick={() => setFilterDialogOpen(true)}
-            >
-              <SlidersHorizontal className="size-4" />
-              Filter
-            </Button>
+      columns={columns}
+      data={filteredData}
+      getRowClassName={getRowClassName}
+      title="Daftar Item"
+      searchPlaceholder="Cari..."
+      filterConfig={STOCK_OPNAME_ITEM_FILTER_CONFIG}
+      filterValues={filterValues}
+      onFilterChange={setFilterValues}
+      filterDialogOpen={filterDialogOpen}
+      onFilterDialogOpenChange={setFilterDialogOpen}
+      headerRight={
+        <div className="flex w-full items-center gap-2 sm:w-auto">
+          <Select
+            value={pageSize.toString()}
+            onValueChange={(value) => setPageSize(Number(value))}
+          >
+            <SelectTrigger className="w-[100px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="10">10</SelectItem>
+              <SelectItem value="25">25</SelectItem>
+              <SelectItem value="50">50</SelectItem>
+              <SelectItem value="100">100</SelectItem>
+            </SelectContent>
+          </Select>
+          <div className="w-full sm:w-auto sm:max-w-sm">
+            <Input
+              placeholder="Cari..."
+              value={searchValue}
+              onChange={(e) => setSearchValue(e.target.value)}
+              icon={<SearchIcon className="size-4" />}
+              className="w-full"
+            />
           </div>
-        }
-        initialPageSize={pageSize}
-        onPageSizeChange={setPageSize}
-        searchValue={searchValue}
-        onSearchChange={setSearchValue}
+          <Button
+            variant="outline"
+            className="flex items-center gap-2"
+            onClick={() => setFilterDialogOpen(true)}
+          >
+            <SlidersHorizontal className="size-4" />
+            Filter
+          </Button>
+        </div>
+      }
+      initialPageSize={pageSize}
+      onPageSizeChange={setPageSize}
+      searchValue={searchValue}
+      onSearchChange={setSearchValue}
       />
-
       <QRCodeDialog
-        open={qrDialog.open}
-        onOpenChange={(open) => setQrDialog((prev) => ({ ...prev, open }))}
-        value={qrDialog.value}
+        open={qrDialogOpen}
+        onOpenChange={setQrDialogOpen}
+        value={selectedQrSPK}
+        title="QR Code SPK"
       />
     </>
   )

@@ -26,6 +26,7 @@ import { CreateAuctionBatchDto } from './dto/create-auction-batch.dto';
 import { QueryAuctionBatchDto } from './dto/query-auction-batch.dto';
 import { UpdatePickupDto } from './dto/update-pickup.dto';
 import { SubmitValidationDto } from './dto/submit-validation.dto';
+import { UpdateAuctionBatchDto } from './dto/update-auction-batch.dto';
 
 @Injectable()
 export class AuctionService {
@@ -148,6 +149,7 @@ export class AuctionService {
       ptId: dto.ptId,
       status: AuctionBatchStatusEnum.Draft,
       notes: dto.notes ?? null,
+      name: dto.name ?? null,
     });
     const savedBatch = await this.batchRepository.save(batch);
 
@@ -176,6 +178,31 @@ export class AuctionService {
     batch.assignedTo = userId;
     batch.assignedAt = new Date();
     batch.status = AuctionBatchStatusEnum.PickupInProgress;
+    await this.batchRepository.save(batch);
+    return this.findOne(batchUuid);
+  }
+
+  async update(batchUuid: string, dto: UpdateAuctionBatchDto): Promise<AuctionBatchDto> {
+    const batch = await this.batchRepository.findOne({ where: { uuid: batchUuid } });
+    if (!batch) {
+      throw new NotFoundException('Auction batch not found');
+    }
+
+    if (dto.name !== undefined) {
+      batch.name = dto.name ?? null;
+    }
+    if (dto.assignedTo !== undefined) {
+      batch.assignedTo = dto.assignedTo ?? null;
+      if (dto.assignedTo) {
+        batch.assignedAt = new Date();
+      } else {
+        batch.assignedAt = null;
+      }
+    }
+    if (dto.notes !== undefined) {
+      batch.notes = dto.notes ?? null;
+    }
+
     await this.batchRepository.save(batch);
     return this.findOne(batchUuid);
   }

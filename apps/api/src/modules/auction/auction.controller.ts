@@ -19,6 +19,7 @@ import { CreateAuctionBatchDto } from './dto/create-auction-batch.dto';
 import { QueryAuctionBatchDto } from './dto/query-auction-batch.dto';
 import { UpdatePickupDto } from './dto/update-pickup.dto';
 import { SubmitValidationDto } from './dto/submit-validation.dto';
+import { UpdateAuctionBatchDto } from './dto/update-auction-batch.dto';
 import { PageMetaDto } from '../../common/dtos/page-meta.dto';
 
 @Controller({ path: 'auction-batches', version: '1' })
@@ -53,6 +54,15 @@ export class AuctionController {
     const user = (req as any).user;
     const createdBy = user?.uuid ?? '';
     return this.auctionService.create(createDto, createdBy);
+  }
+
+  @Put(':id')
+  @Auth([{ action: AclAction.UPDATE, subject: AclSubject.AUCTION_BATCH }])
+  async update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateDto: UpdateAuctionBatchDto,
+  ): Promise<AuctionBatchDto> {
+    return this.auctionService.update(id, updateDto);
   }
 
   @Put(':id/assign')

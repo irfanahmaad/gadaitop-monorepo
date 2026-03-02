@@ -5,6 +5,7 @@ import { AuctionBatchItemDto } from './auction-batch-item.dto';
 export class AuctionBatchDto {
   uuid: string;
   batchCode: string;
+  name: string | null;
   storeId: string;
   ptId: string;
   status: AuctionBatchStatusEnum;
@@ -19,6 +20,7 @@ export class AuctionBatchDto {
   constructor(batch: AuctionBatchEntity & { items?: any[]; store?: any; assignee?: any }) {
     this.uuid = batch.uuid;
     this.batchCode = batch.batchCode;
+    this.name = batch.name ?? null;
     this.storeId = batch.storeId;
     this.ptId = batch.ptId;
     this.status = batch.status;

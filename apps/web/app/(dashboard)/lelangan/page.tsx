@@ -605,12 +605,12 @@ function LelangPageContent() {
     [router]
   )
 
-  const handleEditItemLelang = React.useCallback(
-    (row: ItemLelang) => {
-      router.push(`/spk/${row.spkId}`)
-    },
-    [router]
-  )
+  // const handleEditItemLelang = React.useCallback(
+  //   (row: ItemLelang) => {
+  //     router.push(`/spk/${row.spkId}`)
+  //   },
+  //   [router]
+  // )
 
   // const handleTambahKeBatch = React.useCallback((row: ItemLelang) => {
   //   setSelectedItemLelangRows([row])
@@ -732,9 +732,9 @@ function LelangPageContent() {
     }
   }
 
-  const handleEdit = (row: ItemLelang | BatchLelang) => {
-    void row // reserved for future edit implementation
-  }
+  // const handleEdit = (row: ItemLelang | BatchLelang) => {
+  //   void row // reserved for future edit implementation
+  // }
 
   const handleDelete = (row: ItemLelang | BatchLelang) => {
     setItemToDelete(row)
@@ -809,10 +809,10 @@ function LelangPageContent() {
       {/* Header Section */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex flex-col gap-2">
-          <h1 className="text-2xl font-bold">Lelang</h1>
+          <h1 className="text-2xl font-bold">Lelangan</h1>
           <Breadcrumbs
             items={[
-              { label: "Lelang", href: "/lelangan" },
+              { label: "Lelangan", href: "/lelangan" },
               {
                 label:
                   activeTab === "spk-jatuh-tempo"
@@ -872,7 +872,7 @@ function LelangPageContent() {
               title="Daftar SPK Jatuh Tempo"
               searchPlaceholder="Cari"
               onDetail={handleDetailItemLelang}
-              onEdit={handleEditItemLelang}
+              // onEdit={handleEditItemLelang}
               headerRight={
                 <div className="flex w-full items-center gap-2 sm:w-auto">
                   {/* <Button
@@ -1007,7 +1007,7 @@ function LelangPageContent() {
               searchValue={searchValue}
               onSearchChange={setSearchValue}
               onDetail={handleDetail}
-              onEdit={handleEdit}
+              // onEdit={handleEdit}
               onDelete={handleDelete}
               getRowClassName={(row) =>
                 row.isMata ? "bg-red-50 dark:bg-red-950/30" : ""

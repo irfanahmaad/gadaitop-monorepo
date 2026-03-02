@@ -11,6 +11,7 @@ import type {
   StockOpnameSession,
   StockOpnameSessionListItem,
   UpdateStockOpnameItemsDto,
+  UpdateStockOpnameSessionDto,
 } from "@/lib/api/types"
 
 // Query keys
@@ -36,12 +37,15 @@ export function useStockOpnameSessions(options?: PageOptions) {
 }
 
 // Get single stock opname session
-export function useStockOpnameSession(id: string) {
+export function useStockOpnameSession(
+  id: string,
+  options?: { enabled?: boolean }
+) {
   return useQuery({
     queryKey: stockOpnameKeys.detail(id),
     queryFn: () =>
       apiClient.get<StockOpnameSession>(endpoints.stockOpname.detail(id)),
-    enabled: !!id,
+    enabled: options?.enabled ?? !!id,
   })
 }
 
@@ -56,6 +60,31 @@ export function useCreateStockOpname() {
         data
       ),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: stockOpnameKeys.lists() })
+    },
+  })
+}
+
+// Update stock opname session details
+export function useUpdateStockOpname() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string
+      data: UpdateStockOpnameSessionDto
+    }) =>
+      apiClient.put<StockOpnameSession, UpdateStockOpnameSessionDto>(
+        endpoints.stockOpname.update(id),
+        data
+      ),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: stockOpnameKeys.detail(variables.id),
+      })
       queryClient.invalidateQueries({ queryKey: stockOpnameKeys.lists() })
     },
   })

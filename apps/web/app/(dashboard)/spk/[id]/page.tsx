@@ -32,6 +32,7 @@ import {
   ClipboardList,
   QrCode,
   ExternalLink,
+  Download,
 } from "lucide-react"
 import { toast } from "sonner"
 import { Badge } from "@workspace/ui/components/badge"
@@ -266,12 +267,14 @@ export default function SPKDetailPage() {
   }, [nkbRows, searchValue])
 
   const handleDetail = () => {
-    // Navigate to NKB detail if route exists
+    // TODO: Navigate to NKB detail
+    toast.info("TODO: Navigate to NKB detail")
   }
 
-  const handleEdit = () => {}
-
-  const handleDelete = () => {}
+  const handleDownloadFile = () => {
+    // TODO: Download File
+    toast.info("TODO: Download File")
+  }
 
   const handlePrintQR = () => {
     if (!spk?.spkNumber) {
@@ -504,8 +507,13 @@ export default function SPKDetailPage() {
           searchValue={searchValue}
           onSearchChange={setSearchValue}
           onDetail={handleDetail}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
+          customActions={[
+            {
+              label: "Download File",
+              icon: <Download className="mr-2 h-4 w-4" />,
+              onClick: handleDownloadFile,
+            },
+          ]}
         />
       )}
       {spk?.spkNumber ? (

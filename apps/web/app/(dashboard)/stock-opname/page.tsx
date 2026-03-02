@@ -34,10 +34,12 @@ import { Plus, SearchIcon, SlidersHorizontal, Trash2 } from "lucide-react"
 import type { FilterConfig } from "@/hooks/use-filter-params"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { StockOpnameFormDialog } from "./_components/StockOpnameFormDialog"
+import { EditJadwalSODialog } from "./_components/EditJadwalSODialog"
 import { CalendarView } from "./_components/CalendarView"
 import type { ScheduleItem } from "./_components/StockOpnameScheduleList"
 import {
   useStockOpnameSessions,
+  useStockOpnameSession,
   stockOpnameKeys,
 } from "@/lib/react-query/hooks/use-stock-opname"
 import { useQueryClient } from "@tanstack/react-query"
@@ -231,6 +233,14 @@ export default function StockOpnamePage() {
     StockOpnameRow | ScheduleItem | null
   >(null)
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false)
+  
+  // Edit Dialog State
+  const [editSessionId, setEditSessionId] = useState<string | null>(null)
+  const { data: editSessionData } = useStockOpnameSession(
+    editSessionId ?? "",
+    { enabled: !!editSessionId }
+  )
+
   const [activeTab, setActiveTab] = useState("list")
   const [selectedRows, setSelectedRows] = useState<StockOpnameRow[]>([])
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false)
@@ -424,7 +434,7 @@ export default function StockOpnamePage() {
   }
 
   const handleEdit = (row: StockOpnameRow) => {
-    // router.push(`/stock-opname/${row.id}`)
+    setEditSessionId(row.id)
   }
 
   const handleDelete = (row: StockOpnameRow) => {
@@ -470,6 +480,30 @@ export default function StockOpnamePage() {
           </Button>
         </div>
       </div>
+
+      <StockOpnameFormDialog
+        open={isFormDialogOpen}
+        onOpenChange={setIsFormDialogOpen}
+        onClose={handleFormDialogClose}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: stockOpnameKeys.lists() })
+        }}
+      />
+
+      {editSessionId && (
+        <EditJadwalSODialog
+          open={!!editSessionId}
+          onOpenChange={(open) => {
+            if (!open) setEditSessionId(null)
+          }}
+          onClose={() => setEditSessionId(null)}
+          session={editSessionData ?? null}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: stockOpnameKeys.lists() })
+            setEditSessionId(null)
+          }}
+        />
+      )}
 
       {/* Tabs */}
       <Tabs

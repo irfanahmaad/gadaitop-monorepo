@@ -60,6 +60,25 @@ export function useCreateAuctionBatch() {
   })
 }
 
+// Update auction batch
+export function useUpdateAuctionBatch() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: import("../../api/types").UpdateAuctionBatchDto }) =>
+      apiClient.put<AuctionBatch, import("../../api/types").UpdateAuctionBatchDto>(
+        endpoints.auctionBatches.update(id),
+        data
+      ),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: auctionBatchKeys.detail(variables.id),
+      })
+      queryClient.invalidateQueries({ queryKey: auctionBatchKeys.lists() })
+    },
+  })
+}
+
 // Assign auction batch
 export function useAssignAuctionBatch() {
   const queryClient = useQueryClient()

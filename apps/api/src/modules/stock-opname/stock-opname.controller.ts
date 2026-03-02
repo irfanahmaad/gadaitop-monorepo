@@ -20,6 +20,7 @@ import { QueryStockOpnameDto } from './dto/query-stock-opname.dto';
 import { UpdateStockOpnameItemsDto } from './dto/update-stock-opname-items.dto';
 import { RecordConditionDto } from './dto/record-condition.dto';
 import { PageMetaDto } from '../../common/dtos/page-meta.dto';
+import { UpdateStockOpnameSessionDto } from './dto/update-stock-opname-session.dto';
 
 @Controller({ path: 'stock-opname', version: '1' })
 export class StockOpnameController {
@@ -45,6 +46,15 @@ export class StockOpnameController {
     const user = (req as any).user;
     const createdBy = user?.uuid ?? '';
     return this.stockOpnameService.create(createDto, createdBy);
+  }
+
+  @Put(':id')
+  @Auth([{ action: AclAction.UPDATE, subject: AclSubject.STOCK_OPNAME_SCHEDULE }])
+  async update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateDto: UpdateStockOpnameSessionDto,
+  ): Promise<StockOpnameSessionDto> {
+    return this.stockOpnameService.update(id, updateDto);
   }
 
   @Put(':id/items')

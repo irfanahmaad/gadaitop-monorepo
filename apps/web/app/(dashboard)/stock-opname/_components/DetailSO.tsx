@@ -4,6 +4,9 @@ import React from "react"
 import { Card, CardContent } from "@workspace/ui/components/card"
 import { Badge } from "@workspace/ui/components/badge"
 import { IdCard } from "lucide-react"
+import type { StockOpnameSession } from "@/lib/api/types"
+import { format } from "date-fns"
+import { id as idLocale } from "date-fns/locale"
 
 export type StockOpnameDetail = {
   idSO: string
@@ -19,7 +22,13 @@ export type StockOpnameDetail = {
 }
 
 type DetailSOProps = {
-  data: StockOpnameDetail
+  data?: StockOpnameDetail | null
+  /** API session data — preferred over `data` */
+  session?: StockOpnameSession | null
+  /** Resolved store name (from branch lookup) */
+  storeName?: string
+  /** Mata rule names matched for display */
+  mataRuleNames?: string[]
 }
 
 const formatCurrency = (amount: number): string => {
@@ -27,6 +36,14 @@ const formatCurrency = (amount: number): string => {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(amount)
+}
+
+const STATUS_MAP: Record<string, "Dijadwalkan" | "Berjalan" | "Selesai"> = {
+  draft: "Dijadwalkan",
+  scheduled: "Dijadwalkan",
+  in_progress: "Berjalan",
+  completed: "Selesai",
+  approved: "Selesai",
 }
 
 const statusConfig = {
@@ -47,8 +64,59 @@ const statusConfig = {
   },
 }
 
-export function DetailSO({ data }: DetailSOProps) {
-  const config = statusConfig[data.status]
+function formatDate(isoDate: string): string {
+  try {
+    return format(new Date(isoDate), "d MMMM yyyy HH:mm 'WIB'", {
+      locale: idLocale,
+    })
+  } catch {
+    return isoDate
+  }
+}
+
+function formatLastUpdated(isoDate: string): string {
+  try {
+    return format(new Date(isoDate), "d MMMM yyyy HH:mm:ss", {
+      locale: idLocale,
+    })
+  } catch {
+    return isoDate
+  }
+}
+
+export function DetailSO({
+  data,
+  session,
+  storeName,
+  mataRuleNames,
+}: DetailSOProps) {
+  // Prefer API session data, fall back to legacy dummy style
+  const displayData = React.useMemo(() => {
+    if (session) {
+      const displayStatus =
+        STATUS_MAP[session.status] ?? "Dijadwalkan"
+      return {
+        idSO: session.sessionCode ?? session.uuid,
+        tanggal: formatDate(session.startDate ?? session.scheduledDate ?? session.createdAt),
+        toko: storeName ? [storeName] : [],
+        syaratMata: mataRuleNames ?? [],
+        lastUpdatedAt: formatLastUpdated(session.updatedAt),
+        petugasSO: session.assignedTo
+          ? [session.assignedTo.fullName ?? "—"]
+          : ["—"],
+        uangDiToko: 0,
+        totalUangDiMutasi: 0,
+        catatan: session.notes ?? "",
+        status: displayStatus,
+      }
+    }
+    if (data) return data
+    return null
+  }, [session, data, storeName, mataRuleNames])
+
+  if (!displayData) return null
+
+  const config = statusConfig[displayData.status]
 
   return (
     <Card>
@@ -56,7 +124,7 @@ export function DetailSO({ data }: DetailSOProps) {
         {/* Header with ID SO and Status */}
         <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h2 className="text-2xl font-bold">{data.idSO}</h2>
+            <h2 className="text-2xl font-bold">{displayData.idSO}</h2>
             <p className="text-muted-foreground text-sm">
               Stock Opname / Detail
             </p>
@@ -80,23 +148,29 @@ export function DetailSO({ data }: DetailSOProps) {
             <div className="space-y-4">
               <div className="space-y-2">
                 <label className="text-sm font-bold text-black">ID SO</label>
-                <p className="text-base">{data.idSO}</p>
+                <p className="text-base">{displayData.idSO}</p>
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-black">Toko</label>
-                <p className="text-base">{data.toko.join(", ")}</p>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-black">
-                  Syarat &quot;Mata&quot;
-                </label>
-                <p className="text-base">{data.syaratMata.join(", ")}</p>
-              </div>
+              {displayData.toko.length > 0 && (
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-black">Toko</label>
+                  <p className="text-base">{displayData.toko.join(", ")}</p>
+                </div>
+              )}
+              {displayData.syaratMata.length > 0 && (
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-black">
+                    Syarat &quot;Mata&quot;
+                  </label>
+                  <p className="text-base">
+                    {displayData.syaratMata.join(", ")}
+                  </p>
+                </div>
+              )}
               <div className="space-y-2">
                 <label className="text-sm font-bold text-black">
                   Last Updated At
                 </label>
-                <p className="text-base">{data.lastUpdatedAt}</p>
+                <p className="text-base">{displayData.lastUpdatedAt}</p>
               </div>
             </div>
 
@@ -104,20 +178,22 @@ export function DetailSO({ data }: DetailSOProps) {
             <div className="space-y-4">
               <div className="space-y-2">
                 <label className="text-sm font-bold text-black">Tanggal</label>
-                <p className="text-base">{data.tanggal}</p>
+                <p className="text-base">{displayData.tanggal}</p>
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-bold text-black">
                   Petugas SO
                 </label>
-                <p className="text-base">{data.petugasSO.join(", ")}</p>
+                <p className="text-base">
+                  {displayData.petugasSO.join(", ")}
+                </p>
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-bold text-black">
                   Uang di Toko
                 </label>
                 <p className="text-destructive text-base font-semibold">
-                  Rp {formatCurrency(data.uangDiToko)}
+                  Rp {formatCurrency(displayData.uangDiToko)}
                 </p>
               </div>
               <div className="space-y-2">
@@ -125,19 +201,19 @@ export function DetailSO({ data }: DetailSOProps) {
                   Total Uang di Mutasi Terakhir pada 01:00 WIB
                 </label>
                 <p className="text-base">
-                  Rp {formatCurrency(data.totalUangDiMutasi)}
+                  Rp {formatCurrency(displayData.totalUangDiMutasi)}
                 </p>
               </div>
             </div>
           </div>
 
           {/* Catatan */}
-          {data.catatan && (
+          {displayData.catatan && (
             <div className="space-y-2 border-t border-dashed pt-4">
               <label className="text-muted-foreground text-sm font-bold">
                 Catatan
               </label>
-              <p className="text-base">{data.catatan}</p>
+              <p className="text-base">{displayData.catatan}</p>
             </div>
           )}
         </div>

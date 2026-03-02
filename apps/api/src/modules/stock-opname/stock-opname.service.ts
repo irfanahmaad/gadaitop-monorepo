@@ -20,6 +20,7 @@ import { CreateStockOpnameSessionDto } from './dto/create-stock-opname-session.d
 import { QueryStockOpnameDto } from './dto/query-stock-opname.dto';
 import { UpdateStockOpnameItemsDto } from './dto/update-stock-opname-items.dto';
 import { RecordConditionDto } from './dto/record-condition.dto';
+import { UpdateStockOpnameSessionDto } from './dto/update-stock-opname-session.dto';
 
 @Injectable()
 export class StockOpnameService {
@@ -73,7 +74,7 @@ export class StockOpnameService {
   async findOne(uuid: string): Promise<StockOpnameSessionDto> {
     const session = await this.sessionRepository.findOne({
       where: { uuid },
-      relations: ['items', 'items.spkItem'],
+      relations: ['items', 'items.spkItem', 'items.spkItem.itemType', 'items.spkItem.spk'],
     });
     if (!session) {
       throw new NotFoundException(
@@ -99,6 +100,36 @@ export class StockOpnameService {
     });
     const saved = await this.sessionRepository.save(session);
     return this.findOne(saved.uuid);
+  }
+
+  async update(
+    sessionUuid: string,
+    updateDto: UpdateStockOpnameSessionDto,
+  ): Promise<StockOpnameSessionDto> {
+    const session = await this.sessionRepository.findOne({
+      where: { uuid: sessionUuid },
+    });
+    if (!session) {
+      throw new NotFoundException('Stock opname session not found');
+    }
+    if (session.status !== StockOpnameSessionStatusEnum.Draft) {
+      throw new BadRequestException(
+        'Only draft sessions can be updated',
+      );
+    }
+    
+    if (updateDto.storeId !== undefined) {
+      session.storeId = updateDto.storeId;
+    }
+    if (updateDto.startDate !== undefined) {
+      session.startDate = new Date(updateDto.startDate);
+    }
+    if (updateDto.notes !== undefined) {
+      session.notes = updateDto.notes;
+    }
+    
+    await this.sessionRepository.save(session);
+    return this.findOne(sessionUuid);
   }
 
   async updateItems(

@@ -753,6 +753,12 @@ export interface CreateAuctionBatchDto {
   notes?: string
 }
 
+export interface UpdateAuctionBatchDto {
+  name?: string
+  assignedTo?: string
+  notes?: string
+}
+
 export interface ItemPickupDto {
   pickedUp: boolean
   notes?: string
@@ -803,18 +809,45 @@ export interface StockOpnameItem {
   condition?: string
   notes?: string
   photos?: string[]
+  // Enriched from backend DTO
+  uuid?: string
+  soSessionId?: string
+  spkItemId?: string
+  systemQuantity?: number
+  countedQuantity?: number | null
+  variance?: number
+  conditionBefore?: string | null
+  conditionAfter?: string | null
+  conditionNotes?: string | null
+  damagePhotos?: string[] | null
+  countedAt?: string | null
+  spkItem?: {
+    uuid: string
+    spkId: string
+    description: string
+    itemTypeId: string
+    appraisedValue: string | null
+    evidencePhotos: string[] | null
+    qrCode: string | null
+    status: string
+    itemType?: { uuid: string; typeName: string } | null
+    spk?: { uuid: string; spkNumber: string } | null
+  } | null
 }
 
 export interface StockOpnameSession {
   id: string
   uuid: string
   sessionCode: string
+  ptId: string
   storeId: string
+  startDate?: string
   scheduledDate: string
   status: StockOpnameStatus
   store?: Branch
   assignedTo?: User
   items: StockOpnameItem[]
+  notes?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -823,6 +856,12 @@ export interface CreateStockOpnameDto {
   storeId: string
   startDate: string
   ptId?: string
+  notes?: string
+}
+
+export interface UpdateStockOpnameSessionDto {
+  storeId?: string
+  startDate?: string
   notes?: string
 }
 

@@ -12,82 +12,18 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu"
-import { CheckCheck, ChevronDown, Hand } from "lucide-react"
-import { DetailSO, type StockOpnameDetail } from "../_components/DetailSO"
+import { CheckCheck, ChevronDown, Hand, Pencil } from "lucide-react"
+import { DetailSO } from "../_components/DetailSO"
+import { EditJadwalSODialog } from "../_components/EditJadwalSODialog"
 import {
   StockOpnameItemTable,
   type StockOpnameItem,
 } from "../_components/StockOpnameItemTable"
-
-// Sample detail data - will be replaced with API fetch
-const getStockOpnameDetail = (slug: string): StockOpnameDetail | null => {
-  const sampleDetail: StockOpnameDetail = {
-    idSO: "SO/001",
-    tanggal: "25 November 2025 01:00 WIB",
-    toko: ["GT Jakarta Satu", "GT Jakarta Dua", "GT Jakarta Tiga"],
-    syaratMata: ["Barang Mahal", "Barang Penting"],
-    lastUpdatedAt: "20 November 2025 18:33:45",
-    petugasSO: ["Ben Affleck", "Rocks D Xebec", "Edward Newgate"],
-    uangDiToko: 50_000_000,
-    totalUangDiMutasi: 0,
-    catatan:
-      "Pastikan untuk melakukan SO dengan sangat teliti sehingga tidak ada barang yang terlwat.",
-    status: "Dijadwalkan",
-  }
-  return sampleDetail
-}
-
-// Sample items data - will be replaced with API fetch
-const getStockOpnameItems = (slug: string): StockOpnameItem[] => {
-  return [
-    {
-      id: "1",
-      noSPK: "SPK/002/20112025",
-      namaBarang: "iPhone 15 Pro",
-      tipeBarang: "Handphone",
-      toko: "GT Jakarta Satu",
-      petugas: "Ben Affleck",
-      statusScan: "Belum Terscan",
-    },
-    {
-      id: "2",
-      noSPK: "SPK/003/20112025",
-      namaBarang: "Google Smarthome",
-      tipeBarang: "IoT",
-      toko: "GT Jakarta Dua",
-      petugas: "Ben Affleck",
-      statusScan: "Belum Terscan",
-    },
-    {
-      id: "3",
-      noSPK: "SPK/004/20112025",
-      namaBarang: "iPhone 13",
-      tipeBarang: "Handphone",
-      toko: "GT Jakarta Tiga",
-      petugas: "Ben Affleck",
-      statusScan: "Belum Terscan",
-    },
-    {
-      id: "4",
-      noSPK: "SPK/005/20112025",
-      namaBarang: "MacBook Pro M1",
-      tipeBarang: "Laptop",
-      toko: "GT Jakarta Dua",
-      petugas: "Ben Affleck",
-      statusScan: "Terscan",
-    },
-    ...Array.from({ length: 96 }, (_, i) => ({
-      id: String(i + 5),
-      noSPK: `SPK/${String(i + 6).padStart(3, "0")}/20112025`,
-      namaBarang: ["iPhone 15 Pro", "Google Smarthome", "MacBook Pro"][i % 3]!,
-      tipeBarang: ["Handphone", "IoT", "Laptop"][i % 3]!,
-      toko: ["GT Jakarta Satu", "GT Jakarta Dua", "GT Jakarta Tiga"][i % 3]!,
-      petugas: "Ben Affleck",
-      statusScan:
-        i % 3 === 0 ? ("Terscan" as const) : ("Belum Terscan" as const),
-    })),
-  ]
-}
+import { useStockOpnameSession } from "@/lib/react-query/hooks/use-stock-opname"
+import { useBranches } from "@/lib/react-query/hooks/use-branches"
+import { usePawnTerms } from "@/lib/react-query/hooks/use-pawn-terms"
+import { matchSpkItemToMataRules } from "@/lib/utils/mata-rule-matcher"
+import type { SpkItem, PawnTerm } from "@/lib/api/types"
 
 // Skeleton components
 function DetailSOSkeleton() {
@@ -172,17 +108,101 @@ export default function StockOpnameDetailPage() {
     [user]
   )
 
-  // Simulate loading - in real app, use useQuery/useSWR
-  const [isLoading] = React.useState(false)
-  const detail = getStockOpnameDetail(slug)
-  const items = getStockOpnameItems(slug)
+  // Fetch stock opname session detail from API
+  const {
+    data: session,
+    isLoading,
+    isError,
+    refetch,
+  } = useStockOpnameSession(slug)
+
+  const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false)
+
+
+  // Fetch branches for store name resolution
+  const { data: branchesData } = useBranches({ pageSize: 500 })
+  const storeNameById = useMemo(() => {
+    const map = new Map<string, string>()
+    branchesData?.data?.forEach((b) =>
+      map.set(b.uuid, b.shortName ?? b.fullName ?? b.uuid)
+    )
+    return map
+  }, [branchesData?.data])
+
+  // Fetch pawn terms for mata rule matching
+  const { data: pawnTermsData } = usePawnTerms({ pageSize: 500 })
+  const pawnTerms = useMemo(
+    () => (pawnTermsData?.data ?? []) as PawnTerm[],
+    [pawnTermsData?.data]
+  )
+
+  // Resolve store name
+  const storeName = useMemo(() => {
+    if (!session) return ""
+    return storeNameById.get(session.storeId) ?? session.storeId ?? ""
+  }, [session, storeNameById])
+
+  // Map API items to table format and apply mata rules
+  const { items, mataRuleNames } = useMemo(() => {
+    if (!session?.items?.length) return { items: [], mataRuleNames: [] as string[] }
+
+    const ruleNamesSet = new Set<string>()
+    const mapped: StockOpnameItem[] = session.items.map((apiItem) => {
+      const si = (apiItem as any).spkItem ?? apiItem.spkItem
+      const spkNumber = si?.spk?.spkNumber ?? "—"
+      const description = si?.description ?? "—"
+      const typeName = si?.itemType?.typeName ?? "—"
+      const photoUrl = si?.evidencePhotos?.[0] ?? ""
+      const isCounted = apiItem.countedQuantity != null && apiItem.countedQuantity > 0
+
+      // Apply mata rule if spkItem is available
+      let isMata = false
+      let mataRuleName: string | undefined
+      if (si) {
+        const spkItemForMata: SpkItem = {
+          uuid: si.uuid ?? "",
+          spkId: si.spkId ?? "",
+          itemTypeId: si.itemTypeId ?? "",
+          description: si.description ?? "",
+          appraisedValue: si.appraisedValue ?? "0",
+          estimatedValue: si.appraisedValue
+            ? parseFloat(si.appraisedValue)
+            : 0,
+          itemType: si.itemType
+            ? { uuid: si.itemType.uuid, typeName: si.itemType.typeName }
+            : undefined,
+        } as SpkItem
+        const ptId = session.ptId ?? ""
+        const mataResult = matchSpkItemToMataRules(spkItemForMata, pawnTerms, ptId)
+        isMata = mataResult.isMata
+        mataRuleName = mataResult.mataRuleName
+        if (isMata && mataRuleName) {
+          ruleNamesSet.add(mataRuleName)
+        }
+      }
+
+      return {
+        id: apiItem.uuid ?? apiItem.id ?? apiItem.itemId,
+        foto: photoUrl,
+        noSPK: spkNumber,
+        namaBarang: description,
+        tipeBarang: typeName,
+        toko: storeName,
+        petugas: "—",
+        statusScan: isCounted ? ("Terscan" as const) : ("Belum Terscan" as const),
+        isMata,
+        mataRuleName,
+      }
+    })
+
+    return { items: mapped, mataRuleNames: Array.from(ruleNamesSet) }
+  }, [session, storeName, pawnTerms])
 
   const handleItemDetail = (item: StockOpnameItem) => {
-    // Navigate to item/SPK detail when implemented
     console.log("Item detail:", item)
   }
 
-  if (!detail && !isLoading) {
+  if (isError && !isLoading) {
     return (
       <div className="flex flex-col gap-6">
         <h1 className="text-2xl font-bold">Stock Opname / Detail</h1>
@@ -217,35 +237,61 @@ export default function StockOpnameDetailPage() {
           />
         </div>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+        <div className="flex items-center gap-2">
+          {session?.status === "scheduled" ? (
             <Button
-              variant="destructive"
+              variant="outline"
               className="gap-2"
+              onClick={() => setIsEditDialogOpen(true)}
               disabled={isCompanyAdmin}
             >
-              Approval
-              <ChevronDown className="size-4" />
+              <Pencil className="size-4" />
+              Edit Jadwal
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem className="gap-2">
-              <CheckCheck className="size-4" />
-              Setujui
-            </DropdownMenuItem>
-            <DropdownMenuItem className="gap-2">
-              <Hand className="size-4" />
-              Tolak / Retur
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+          ) : null}
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="destructive"
+                className="gap-2"
+                disabled={isCompanyAdmin}
+              >
+                Approval
+                <ChevronDown className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem className="gap-2">
+                <CheckCheck className="size-4" />
+                Setujui
+              </DropdownMenuItem>
+              <DropdownMenuItem className="gap-2">
+                <Hand className="size-4" />
+                Tolak / Retur
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
+
+      <EditJadwalSODialog
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        onClose={() => setIsEditDialogOpen(false)}
+        session={session ?? null}
+        onSuccess={() => refetch()}
+      />
 
       {/* Detail SO Section */}
       {isLoading ? (
         <DetailSOSkeleton />
-      ) : detail ? (
-        <DetailSO data={detail} />
+      ) : session ? (
+        <DetailSO
+          session={session}
+          storeName={storeName}
+          mataRuleNames={mataRuleNames}
+        />
       ) : null}
 
       {/* Daftar Item Section */}

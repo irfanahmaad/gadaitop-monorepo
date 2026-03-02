@@ -147,6 +147,7 @@ export const endpoints = {
     list: baseUrl("auction-batches"),
     detail: (id: string) => baseUrl(`auction-batches/${id}`),
     create: baseUrl("auction-batches"),
+    update: (id: string) => baseUrl(`auction-batches/${id}`),
     assign: (id: string) => baseUrl(`auction-batches/${id}/assign`),
     itemPickup: (id: string, itemId: string) =>
       baseUrl(`auction-batches/${id}/items/${itemId}/pickup`),
@@ -161,6 +162,7 @@ export const endpoints = {
     list: baseUrl("stock-opname"),
     detail: (id: string) => baseUrl(`stock-opname/${id}`),
     create: baseUrl("stock-opname"),
+    update: (id: string) => baseUrl(`stock-opname/${id}`),
     updateItems: (id: string) => baseUrl(`stock-opname/${id}/items`),
     itemCondition: (id: string, itemId: string) =>
       baseUrl(`stock-opname/${id}/items/${itemId}/condition`),
