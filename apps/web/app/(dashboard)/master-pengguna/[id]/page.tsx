@@ -96,7 +96,7 @@ function DetailSkeleton() {
                 <Skeleton className="h-6 w-36" />
               </div>
               {/* Fields skeleton */}
-              <div className="grid gap-6 md:grid-cols-2">
+              <div className="grid gap-6 md:grid-cols-2 items-start">
                 {Array.from({ length: 4 }).map((_, i) => (
                   <div key={i} className="space-y-2">
                     <Skeleton className="h-4 w-24" />
@@ -262,7 +262,7 @@ export default function MasterPenggunaDetailPage() {
                   </div>
 
                   {/* Data Fields */}
-                  <div className="grid gap-6 md:grid-cols-2">
+                  <div className="grid gap-6 md:grid-cols-2 items-start">
                     {/* Nama Lengkap */}
                     <div className="space-y-2">
                       <label className="text-muted-foreground text-sm font-medium">

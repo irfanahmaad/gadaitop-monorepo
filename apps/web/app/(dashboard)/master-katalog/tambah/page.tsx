@@ -247,7 +247,7 @@ export default function TambahMasterKatalogPage() {
                       Detail Katalog
                     </h2>
                   </div>
-                  <div className="grid gap-6 md:grid-cols-2">
+                  <div className="grid gap-6 md:grid-cols-2 items-start">
                     <FormField
                       control={form.control}
                       name="namaKatalog"
@@ -333,7 +333,7 @@ export default function TambahMasterKatalogPage() {
                       Potongan Harga
                     </h2>
                   </div>
-                  <div className="grid gap-6 md:grid-cols-2">
+                  <div className="grid gap-6 md:grid-cols-2 items-start">
                     <FormField
                       control={form.control}
                       name="namaPotongan"

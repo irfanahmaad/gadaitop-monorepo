@@ -143,7 +143,7 @@ export function DetailSO({
             </h3>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-2">
+          <div className="grid gap-6 md:grid-cols-2 items-start">
             {/* Left Column */}
             <div className="space-y-4">
               <div className="space-y-2">

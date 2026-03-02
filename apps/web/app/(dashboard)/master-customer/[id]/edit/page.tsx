@@ -298,7 +298,7 @@ export default function EditMasterCustomerPage() {
                       Detail Customer
                     </h2>
                   </div>
-                  <div className="grid gap-6 md:grid-cols-2">
+                  <div className="grid gap-6 md:grid-cols-2 items-start">
                     <FormField
                       control={form.control}
                       name="namaCustomer"
@@ -428,7 +428,7 @@ export default function EditMasterCustomerPage() {
                       Detail Kontak
                     </h2>
                   </div>
-                  <div className="grid gap-6 md:grid-cols-2">
+                  <div className="grid gap-6 md:grid-cols-2 items-start">
                     <FormField
                       control={form.control}
                       name="kota"

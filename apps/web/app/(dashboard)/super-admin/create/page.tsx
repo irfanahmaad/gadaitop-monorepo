@@ -250,7 +250,7 @@ export default function SuperAdminCreatePage() {
                         Detail Super Admin
                       </h2>
                     </div>
-                    <div className="grid gap-6 md:grid-cols-2">
+                    <div className="grid gap-6 md:grid-cols-2 items-start">
                       {/* Nama Lengkap Field */}
                       <FormField
                         control={form.control}
@@ -330,7 +330,7 @@ export default function SuperAdminCreatePage() {
                         Keamanan
                       </h2>
                     </div>
-                    <div className="grid gap-6 md:grid-cols-2">
+                    <div className="grid gap-6 md:grid-cols-2 items-start">
                       {/* Kata Sandi Field */}
                       <FormField
                         control={form.control}

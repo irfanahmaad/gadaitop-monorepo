@@ -146,7 +146,7 @@ export default function DetailSuperAdminPage() {
                 </div>
 
                 {/* Data Fields */}
-                <div className="grid gap-6 md:grid-cols-2">
+                <div className="grid gap-6 md:grid-cols-2 items-start">
                   {/* Nama Lengkap */}
                   <div className="space-y-2">
                     <label className="text-muted-foreground text-sm font-medium">

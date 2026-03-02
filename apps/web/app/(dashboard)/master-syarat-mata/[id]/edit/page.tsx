@@ -76,7 +76,7 @@ function FormSkeleton() {
                 <Skeleton className="size-6 rounded" />
                 <Skeleton className="h-6 w-48" />
               </div>
-              <div className="grid gap-6 md:grid-cols-2">
+              <div className="grid gap-6 md:grid-cols-2 items-start">
                 {Array.from({ length: 7 }).map((_, i) => (
                   <div key={i} className="space-y-2">
                     <Skeleton className="h-4 w-24" />
@@ -196,7 +196,7 @@ function EditSyaratMataForm({
                       Detail Syarat &quot;Mata&quot;
                     </h2>
                   </div>
-                  <div className="grid gap-6 md:grid-cols-2">
+                  <div className="grid gap-6 md:grid-cols-2 items-start">
                     <FormField
                       control={form.control}
                       name="namaAturan"

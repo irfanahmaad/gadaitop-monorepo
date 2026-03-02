@@ -179,7 +179,7 @@ export function TambahDataMutasiDialog({
                   />
                 )}
 
-                <div className="grid gap-6 md:grid-cols-2">
+                <div className="grid gap-6 md:grid-cols-2 items-start">
                   <FormField
                     control={form.control}
                     name="nominal"

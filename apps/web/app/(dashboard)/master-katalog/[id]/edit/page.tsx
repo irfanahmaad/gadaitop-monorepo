@@ -99,7 +99,7 @@ function FormSkeleton() {
           <div className="space-y-8">
             <div className="space-y-4">
               <Skeleton className="h-6 w-32" />
-              <div className="grid gap-6 md:grid-cols-2">
+              <div className="grid gap-6 md:grid-cols-2 items-start">
                 <Skeleton className="h-20" />
                 <Skeleton className="h-20" />
                 <Skeleton className="h-20" />
@@ -107,7 +107,7 @@ function FormSkeleton() {
             </div>
             <div className="space-y-4">
               <Skeleton className="h-6 w-32" />
-              <div className="grid gap-6 md:grid-cols-2">
+              <div className="grid gap-6 md:grid-cols-2 items-start">
                 <Skeleton className="h-20" />
                 <Skeleton className="h-20" />
               </div>
@@ -376,7 +376,7 @@ export default function EditMasterKatalogPage() {
                       Detail Katalog
                     </h2>
                   </div>
-                  <div className="grid gap-6 md:grid-cols-2">
+                  <div className="grid gap-6 md:grid-cols-2 items-start">
                     <FormField
                       control={form.control}
                       name="namaKatalog"
@@ -464,7 +464,7 @@ export default function EditMasterKatalogPage() {
                       Potongan Harga
                     </h2>
                   </div>
-                  <div className="grid gap-6 md:grid-cols-2">
+                  <div className="grid gap-6 md:grid-cols-2 items-start">
                     <FormField
                       control={form.control}
                       name="namaPotongan"

@@ -94,7 +94,7 @@ function FormSkeleton() {
                 <Skeleton className="size-6 rounded" />
                 <Skeleton className="h-6 w-40" />
               </div>
-              <div className="grid gap-6 md:grid-cols-2">
+              <div className="grid gap-6 md:grid-cols-2 items-start">
                 {Array.from({ length: 3 }).map((_, i) => (
                   <div key={i} className="space-y-2">
                     <Skeleton className="h-4 w-24" />
@@ -108,7 +108,7 @@ function FormSkeleton() {
                 <Skeleton className="size-6 rounded" />
                 <Skeleton className="h-6 w-24" />
               </div>
-              <div className="grid gap-6 md:grid-cols-2">
+              <div className="grid gap-6 md:grid-cols-2 items-start">
                 {Array.from({ length: 2 }).map((_, i) => (
                   <div key={i} className="space-y-2">
                     <Skeleton className="h-4 w-28" />
@@ -371,7 +371,7 @@ export default function EditSuperAdminPage() {
                         Detail Super Admin
                       </h2>
                     </div>
-                    <div className="grid gap-6 md:grid-cols-2">
+                    <div className="grid gap-6 md:grid-cols-2 items-start">
                       {/* Nama Lengkap Field */}
                       <FormField
                         control={form.control}
@@ -455,7 +455,7 @@ export default function EditSuperAdminPage() {
                       Kosongkan jika tidak ingin mengubah kata sandi
                     </div>
 
-                    <div className="grid gap-6 md:grid-cols-2">
+                    <div className="grid gap-6 md:grid-cols-2 items-start">
                       {/* Kata Sandi Field */}
                       <FormField
                         control={form.control}

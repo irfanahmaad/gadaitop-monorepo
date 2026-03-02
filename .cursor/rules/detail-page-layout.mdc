@@ -67,7 +67,7 @@ Detail pages (entity detail views, e.g. Master Customer detail, Super Admin deta
   </div>
 
   {/* Fields in two-column grid */}
-  <div className="grid gap-6 md:grid-cols-2">
+  <div className="grid gap-6 md:grid-cols-2 items-start">
     <div className="space-y-2">
       <label className="text-muted-foreground text-sm font-medium">
         [Field Label]
@@ -80,7 +80,7 @@ Detail pages (entity detail views, e.g. Master Customer detail, Super Admin deta
 ```
 
 - **Section title:** Icon (`text-destructive size-6`) + `h2` (`text-destructive text-lg font-semibold`), wrapped in `flex items-center gap-3`.
-- **Fields:** `grid gap-6 md:grid-cols-2`. Each field: `space-y-2`, label with `text-muted-foreground text-sm font-medium`, value with `p className="text-base"`.
+- **Fields:** `grid gap-6 md:grid-cols-2 items-start`. Each field: `space-y-2`, label with `text-muted-foreground text-sm font-medium`, value with `p className="text-base"`.
 
 ### 4. Typography and Colors
 
@@ -107,7 +107,7 @@ Use these as the source of truth for structure and class names:
 
 - ✅ One main data card with `CardHeader` + `CardContent`.
 - ✅ Layout: `lg:grid-cols-[250px_1fr]` — avatar left (centered, `size-48`), content right.
-- ✅ Sections: icon + `h2` in red (`text-destructive`), then `grid gap-6 md:grid-cols-2` for fields.
+- ✅ Sections: icon + `h2` in red (`text-destructive`), then `grid gap-6 md:grid-cols-2 items-start` for fields.
 - ✅ Each field: label (`text-muted-foreground text-sm font-medium`) + value (`text-base`).
 - ✅ Detail skeleton matches this layout.
 - ❌ Do not use a different grid, avatar size, or section styling for detail data cards.

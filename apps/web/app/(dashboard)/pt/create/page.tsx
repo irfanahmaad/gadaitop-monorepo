@@ -223,7 +223,7 @@ export default function PTCreatePage() {
                           Detail PT
                         </h3>
                       </div>
-                      <div className="grid gap-6 md:grid-cols-2">
+                      <div className="grid gap-6 md:grid-cols-2 items-start">
                         {/* Kode PT Field */}
                         <FormField
                           control={form.control}
@@ -321,7 +321,7 @@ export default function PTCreatePage() {
                         Admin Primary
                       </h2>
                     </div>
-                    <div className="grid gap-6 md:grid-cols-2">
+                    <div className="grid gap-6 md:grid-cols-2 items-start">
                       {/* Nama Lengkap Field */}
                       <FormField
                         control={form.control}
@@ -398,7 +398,7 @@ export default function PTCreatePage() {
                         Keamanan (Admin Primary)
                       </h2>
                     </div>
-                    <div className="grid gap-6 md:grid-cols-2">
+                    <div className="grid gap-6 md:grid-cols-2 items-start">
                       {/* Kata Sandi Field */}
                       <FormField
                         control={form.control}

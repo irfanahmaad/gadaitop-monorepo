@@ -62,7 +62,7 @@ Add and edit form pages (e.g. Tambah Master Toko, Create PT, Edit Super Admin) M
       [Section Title]
     </h2>
   </div>
-  <div className="grid gap-6 md:grid-cols-2">
+  <div className="grid gap-6 md:grid-cols-2 items-start">
     <FormField ... />
     {/* More fields */}
     {/* Full-width field: add className="md:col-span-2" to FormItem */}
@@ -71,7 +71,7 @@ Add and edit form pages (e.g. Tambah Master Toko, Create PT, Edit Super Admin) M
 ```
 
 - **Section title:** Icon (`text-destructive size-6`) + `h2` (`text-destructive text-lg font-semibold`), wrapped in `flex items-center gap-3`.
-- **Fields:** `grid gap-6 md:grid-cols-2`. Use `FormField` with `FormLabel` and `FormControl`. Required fields: add `<span className="text-destructive">*</span>` after label.
+- **Fields:** `grid gap-6 md:grid-cols-2 items-start`. Use `FormField` with `FormLabel` and `FormControl`. Required fields: add `<span className="text-destructive">*</span>` after label.
 - **Full-width fields** (e.g. Textarea for Alamat): add `className="md:col-span-2"` to `FormItem`.
 
 ### 4. Action Buttons
@@ -118,7 +118,7 @@ Use these as the source of truth:
 
 - ✅ One main `Card` with `CardHeader` + `CardContent`.
 - ✅ Layout: `lg:grid-cols-[250px_1fr]` — image/avatar left (centered, `w-48` circular), form content right.
-- ✅ Sections: icon + `h2` in red (`text-destructive`), then `grid gap-6 md:grid-cols-2` for fields.
+- ✅ Sections: icon + `h2` in red (`text-destructive`), then `grid gap-6 md:grid-cols-2 items-start` for fields.
 - ✅ Batal (outline) + Simpan (red) buttons at bottom right.
 - ✅ Save confirmation dialog before persisting.
 - ❌ Do not use a different grid, avatar/upload size, or section styling for add/edit form pages.

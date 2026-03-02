@@ -258,7 +258,7 @@ export default function TambahMasterTokoPage() {
                       Detail Toko
                     </h2>
                   </div>
-                  <div className="grid gap-6 md:grid-cols-2">
+                  <div className="grid gap-6 md:grid-cols-2 items-start">
                     {isSuperAdmin && (
                       <FormField
                         control={form.control}

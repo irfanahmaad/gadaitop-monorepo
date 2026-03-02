@@ -42,7 +42,7 @@ function DetailSOSkeleton() {
             <Skeleton className="h-1 w-8 rounded-full" />
             <Skeleton className="h-5 w-24" />
           </div>
-          <div className="grid gap-6 md:grid-cols-2">
+          <div className="grid gap-6 md:grid-cols-2 items-start">
             {Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="space-y-2">
                 <Skeleton className="h-4 w-32" />

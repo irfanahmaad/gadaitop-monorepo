@@ -92,7 +92,7 @@ function FormSkeleton() {
                 <Skeleton className="size-6 rounded" />
                 <Skeleton className="h-6 w-24" />
               </div>
-              <div className="grid gap-6 md:grid-cols-2">
+              <div className="grid gap-6 md:grid-cols-2 items-start">
                 {Array.from({ length: 4 }).map((_, i) => (
                   <div key={i} className="space-y-2">
                     <Skeleton className="h-4 w-24" />
@@ -106,7 +106,7 @@ function FormSkeleton() {
                 <Skeleton className="size-6 rounded" />
                 <Skeleton className="h-6 w-32" />
               </div>
-              <div className="grid gap-6 md:grid-cols-2">
+              <div className="grid gap-6 md:grid-cols-2 items-start">
                 {Array.from({ length: 3 }).map((_, i) => (
                   <div key={i} className="space-y-2">
                     <Skeleton className="h-4 w-24" />
@@ -352,7 +352,7 @@ export default function EditPTPage() {
                           Detail PT
                         </h3>
                       </div>
-                      <div className="grid gap-6 md:grid-cols-2">
+                      <div className="grid gap-6 md:grid-cols-2 items-start">
                         {/* Kode PT Field */}
                         <FormField
                           control={form.control}
@@ -454,7 +454,7 @@ export default function EditPTPage() {
                     <p className="text-muted-foreground text-sm">
                       Data admin primary tidak dapat diubah di halaman ini.
                     </p>
-                    <div className="grid gap-6 md:grid-cols-2">
+                    <div className="grid gap-6 md:grid-cols-2 items-start">
                       {/* Nama Lengkap Field */}
                       <FormField
                         control={form.control}
@@ -534,7 +534,7 @@ export default function EditPTPage() {
                     <div className="text-muted-foreground mb-4 text-sm">
                       Untuk mengubah kata sandi admin, silakan gunakan fitur reset password.
                     </div>
-                    <div className="grid gap-6 md:grid-cols-2">
+                    <div className="grid gap-6 md:grid-cols-2 items-start">
                       {/* Kata Sandi Field */}
                       <FormField
                         control={form.control}

@@ -210,7 +210,7 @@ function DataCustomerSkeleton() {
                 <Skeleton className="size-6 rounded" />
                 <Skeleton className="h-6 w-36" />
               </div>
-              <div className="grid gap-6 md:grid-cols-2">
+              <div className="grid gap-6 md:grid-cols-2 items-start">
                 {Array.from({ length: 5 }).map((_, i) => (
                   <div key={i} className="space-y-2">
                     <Skeleton className="h-4 w-24" />
@@ -224,7 +224,7 @@ function DataCustomerSkeleton() {
                 <Skeleton className="size-6 rounded" />
                 <Skeleton className="h-6 w-28" />
               </div>
-              <div className="grid gap-6 md:grid-cols-2">
+              <div className="grid gap-6 md:grid-cols-2 items-start">
                 {Array.from({ length: 7 }).map((_, i) => (
                   <div key={i} className="space-y-2">
                     <Skeleton className="h-4 w-20" />
@@ -558,7 +558,7 @@ export default function MasterCustomerDetailPage() {
                       Detail Customer
                     </h2>
                   </div>
-                  <div className="grid gap-6 md:grid-cols-2">
+                  <div className="grid gap-6 md:grid-cols-2 items-start">
                     <div className="space-y-2">
                       <label className="text-muted-foreground text-sm font-medium">
                         Nama Customer
@@ -600,7 +600,7 @@ export default function MasterCustomerDetailPage() {
                       Detail Kontak
                     </h2>
                   </div>
-                  <div className="grid gap-6 md:grid-cols-2">
+                  <div className="grid gap-6 md:grid-cols-2 items-start">
                     <div className="space-y-2">
                       <label className="text-muted-foreground text-sm font-medium">
                         Kota
