@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { format, parse } from "date-fns"
 import { id } from "date-fns/locale"
 import {
@@ -142,11 +142,18 @@ function parseDobToIso(value: string): string | null {
 
 export default function TambahMasterCustomerPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const queryNik = searchParams.get("nik") ?? ""
+
   const { user } = useAuth()
   const isCompanyAdmin =
     user?.roles?.some((r) => r.code === "company_admin") ?? false
   const isSuperAdmin = user?.roles?.some((r) => r.code === "owner") ?? false
-  const effectiveCompanyId = isCompanyAdmin ? (user?.companyId ?? null) : null
+  const isBranchStaff =
+    user?.roles?.some((r) => r.code === "branch_staff") ?? false
+  
+  const effectiveCompanyId = user?.companyId ?? null
+  const effectiveBranchId = user?.branchId ?? null
 
   const { data: companiesData } = useCompanies(
     isSuperAdmin || isCompanyAdmin ? { pageSize: 100 } : undefined
@@ -154,18 +161,20 @@ export default function TambahMasterCustomerPage() {
   const ptOptions = useMemo(() => {
     const list = companiesData?.data ?? []
     const mapped = list.map((c) => ({ value: c.uuid, label: c.companyName }))
-    if (isCompanyAdmin && effectiveCompanyId) {
-      return mapped.filter((o) => o.value === effectiveCompanyId)
+    if (isCompanyAdmin || isBranchStaff) {
+      if (effectiveCompanyId) {
+        return mapped.filter((o) => o.value === effectiveCompanyId)
+      }
     }
     return mapped
-  }, [companiesData, isCompanyAdmin, effectiveCompanyId])
+  }, [companiesData, isCompanyAdmin, isBranchStaff, effectiveCompanyId])
 
   const [selectedPT, setSelectedPT] = useState("")
   useEffect(() => {
-    if (isCompanyAdmin && effectiveCompanyId && !selectedPT) {
+    if ((isCompanyAdmin || isBranchStaff) && effectiveCompanyId && !selectedPT) {
       setSelectedPT(effectiveCompanyId)
     }
-  }, [isCompanyAdmin, effectiveCompanyId, selectedPT])
+  }, [isCompanyAdmin, isBranchStaff, effectiveCompanyId, selectedPT])
   useEffect(() => {
     if (isSuperAdmin && ptOptions.length > 0 && !selectedPT) {
       setSelectedPT(ptOptions[0]!.value)
@@ -184,7 +193,7 @@ export default function TambahMasterCustomerPage() {
       image: undefined,
       namaCustomer: "",
       jenisKelamin: "Laki-laki",
-      nik: "",
+      nik: queryNik,
       tempatLahir: "",
       tanggalLahir: "",
       kota: "",
@@ -197,6 +206,18 @@ export default function TambahMasterCustomerPage() {
       pin: "",
     },
   })
+
+  // Listen to BroadcastChannel for PIN from input-pin popup
+  useEffect(() => {
+    const channel = new BroadcastChannel("customer-pin-channel")
+    channel.onmessage = (event) => {
+      if (event.data?.type === "PIN_SET" && event.data?.pin) {
+        form.setValue("pin", event.data.pin)
+        form.trigger("pin")
+      }
+    }
+    return () => channel.close()
+  }, [form])
 
   const handleImageChange = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -219,7 +240,11 @@ export default function TambahMasterCustomerPage() {
 
   const handleCustomerMasukkanPin = () => {
     form.setFocus("pin")
-    toast.info("Customer dapat memasukkan PIN pada kolom PIN di form ini")
+    window.open(
+      "/input-pin",
+      "InputPIN",
+      "width=500,height=700,left=200,top=200"
+    )
   }
 
   const handleSimpanClick = () => {
@@ -266,14 +291,15 @@ export default function TambahMasterCustomerPage() {
       await createCustomerMutation.mutateAsync({
         nik: values.nik,
         pin,
-        fullName: values.namaCustomer,
-        dateOfBirth: dobIso,
+        name: values.namaCustomer, // fixed mapping to name
+        dob: dobIso, // fixed mapping to dob
         gender: values.jenisKelamin === "Laki-laki" ? "male" : "female",
         address,
         city,
-        phoneNumber: phone,
+        phone: phone, // fixed mapping to phone
         email,
         ptId: selectedPT,
+        branchId: isBranchStaff && effectiveBranchId ? effectiveBranchId : undefined,
       })
       toast.success("Data Customer berhasil ditambahkan")
       setConfirmOpen(false)
@@ -676,7 +702,7 @@ export default function TambahMasterCustomerPage() {
                   <div className="flex items-center gap-3">
                     <Lock className="text-destructive size-6" />
                     <h2 className="text-destructive text-lg font-semibold">
-                      Keamanan (PIN sudah Diinput)
+                      {form.watch("pin") ? "Keamanan (PIN sudah Diinput)" : "Keamanan"}
                     </h2>
                   </div>
                   <div className="w-full gap-6">
@@ -693,6 +719,7 @@ export default function TambahMasterCustomerPage() {
                                 placeholder="••••••••"
                                 icon={<Lock className="size-4" />}
                                 className="flex-1"
+                                readOnly={!!form.watch("pin")} // read-only if it's already filled via channel
                                 {...field}
                               />
                               <Button

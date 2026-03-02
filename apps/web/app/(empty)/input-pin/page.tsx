@@ -66,18 +66,25 @@ export default function PortalCustomerPage() {
   }
 
   const handleSimpan = () => {
-    if (pin.length < 8) {
-      toast.error("PIN harus minimal 8 karakter")
+    if (pin.length < 4 || pin.length > 6) {
+      toast.error("PIN harus 4 sampai 6 karakter")
       return
     }
 
     setIsSubmitting(true)
-    // Simulate API call
+    
+    // Broadcast back to opener
+    const channel = new BroadcastChannel("customer-pin-channel")
+    channel.postMessage({ type: "PIN_SET", pin })
+    channel.close()
+
     setTimeout(() => {
       setIsSubmitting(false)
       toast.success("PIN berhasil disimpan")
-      // Navigate to next page or handle success
-    }, 1000)
+      setTimeout(() => {
+        window.close()
+      }, 500)
+    }, 500)
   }
 
   if (isLoading) {
@@ -105,7 +112,7 @@ export default function PortalCustomerPage() {
             <div className="flex flex-col items-center gap-2 text-center">
               <h2 className="text-2xl font-bold">Masukkan PIN</h2>
               <p className="text-muted-foreground text-sm">
-                Silakan Masukkan PIN dengan minimal 8 Karakter
+                Silakan Masukkan PIN 4 - 6 Karakter
               </p>
             </div>
 
@@ -117,11 +124,12 @@ export default function PortalCustomerPage() {
               <Input
                 id="pin"
                 type="password"
-                placeholder="Minimal 8 Karakter"
+                placeholder="4 - 6 Karakter"
                 value={pin}
                 onChange={(e) => setPin(e.target.value)}
                 icon={<Lock className="size-4" />}
                 disabled={isSubmitting}
+                maxLength={6}
               />
             </div>
 
@@ -141,7 +149,7 @@ export default function PortalCustomerPage() {
                 type="button"
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90 flex-1"
                 onClick={handleSimpan}
-                disabled={isSubmitting || pin.length < 8}
+                disabled={isSubmitting || pin.length < 4 || pin.length > 6}
               >
                 {isSubmitting ? (
                   <>

@@ -4,9 +4,15 @@ import React, { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { IdCard, ScanLine, RotateCcw, Search } from "lucide-react"
+import { RotateCcw, Search, IdCard, ScanLine, Info } from "lucide-react"
 import { toast } from "sonner"
+import { useRouter } from "next/navigation"
+
 import { Breadcrumbs } from "@/components/breadcrumbs"
+import { ConfirmationDialog } from "@/components/confirmation-dialog"
+import { apiClient } from "@/lib/api/client"
+import { endpoints } from "@/lib/api/endpoints"
+import type { Customer } from "@/lib/api/types"
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
 import {
@@ -36,7 +42,10 @@ const scanKtpSchema = z.object({
 type ScanKtpFormValues = z.infer<typeof scanKtpSchema>
 
 export default function ScanKtpPage() {
+  const router = useRouter()
   const [isSearching, setIsSearching] = useState(false)
+  const [notFoundDialogVisible, setNotFoundDialogVisible] = useState(false)
+  const [searchedNik, setSearchedNik] = useState("")
 
   const form = useForm<ScanKtpFormValues>({
     resolver: zodResolver(scanKtpSchema),
@@ -58,14 +67,25 @@ export default function ScanKtpPage() {
   const handleSearch = async (values: ScanKtpFormValues) => {
     setIsSearching(true)
     try {
-      // TODO: Replace with API call to search SPK by NIK
-      console.log("Mencari SPK dengan NIK:", values.nik)
-      toast.success("Pencarian berhasil")
-      // TODO: Navigate to SPK detail or show results
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Gagal mencari SPK"
-      toast.error(message)
+      const customer = await apiClient.get<Customer | null>(
+        endpoints.customers.lookupByNik(values.nik)
+      )
+      if (customer) {
+        toast.success("Customer ditemukan")
+        router.push(`/master-customer/${customer.uuid}`)
+      } else {
+        setSearchedNik(values.nik)
+        setNotFoundDialogVisible(true)
+      }
+    } catch (error: any) {
+      if (error.statusCode === 404) {
+        setSearchedNik(values.nik)
+        setNotFoundDialogVisible(true)
+      } else {
+        const message =
+          error instanceof Error ? error.message : "Gagal mencari data"
+        toast.error(message)
+      }
     } finally {
       setIsSearching(false)
     }
@@ -160,6 +180,21 @@ export default function ScanKtpPage() {
           </Form>
         </CardContent>
       </Card>
+
+      {/* Not Found Confirmation Dialog */}
+      <ConfirmationDialog
+        open={notFoundDialogVisible}
+        onOpenChange={setNotFoundDialogVisible}
+        onConfirm={() =>
+          router.push(`/master-customer/tambah?nik=${searchedNik}`)
+        }
+        title="Tidak ada Data"
+        description="Data yang anda cari tidak ada di dalam sistem, pastikan data yang diinput sudah sesuai."
+        note="atau lakukan pendaftaran customer"
+        confirmLabel="Daftarkan"
+        cancelLabel="Tutup"
+        variant="destructive" // Wait we could use a custom ConfirmationDialog or standard one. We use destructive to get a red button, and it will have a red icon.
+      />
     </div>
   )
 }

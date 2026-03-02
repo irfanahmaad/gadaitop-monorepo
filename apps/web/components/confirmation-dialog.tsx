@@ -22,8 +22,8 @@ interface ConfirmationDialogProps {
   note?: string
   confirmLabel?: string
   cancelLabel?: string
-  /** "destructive" = red icon, confirm then cancel; "info" = blue icon, cancel then Ya */
-  variant?: "destructive" | "info"
+  /** "destructive" = red icon, confirm then cancel; "info" = blue icon, cancel then Ya; "info-destructive" = blue icon, cancel then red confirm */
+  variant?: "destructive" | "info" | "info-destructive"
 }
 
 export function ConfirmationDialog({
@@ -54,7 +54,7 @@ export function ConfirmationDialog({
           <div className="flex flex-col items-center gap-4 text-center">
             <div
               className={`flex h-12 w-12 items-center justify-center rounded-full ${
-                isInfo ? "bg-blue-500" : "bg-red-500"
+                isInfo || variant === "info-destructive" ? "bg-blue-500" : "bg-red-500"
               }`}
             >
               <Info className="h-6 w-6 text-white" />
@@ -99,9 +99,9 @@ export function ConfirmationDialog({
                 {cancelLabel}
               </Button>
               <Button
-                variant="destructive"
+                variant={variant === "info-destructive" ? "destructive" : "destructive"}
                 onClick={handleConfirm}
-                className="flex-1 sm:flex-initial"
+                className="flex-1 sm:flex-initial bg-red-600 hover:bg-red-700 text-white"
               >
                 {confirmLabel}
               </Button>

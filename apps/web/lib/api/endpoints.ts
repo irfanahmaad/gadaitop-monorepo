@@ -106,6 +106,7 @@ export const endpoints = {
   customers: {
     list: baseUrl("customers"),
     detail: (id: string) => baseUrl(`customers/${id}`),
+    lookupByNik: (nik: string) => baseUrl(`customers/nik/${nik}`),
     create: baseUrl("customers"),
     update: (id: string) => baseUrl(`customers/${id}`),
     scanKtp: baseUrl("customers/scan-ktp"),

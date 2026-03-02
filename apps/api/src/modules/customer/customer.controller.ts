@@ -57,6 +57,13 @@ export class CustomerController {
     return this.customerService.findOne(id);
   }
 
+  @Get('nik/:nik')
+  @Auth([{ action: AclAction.READ, subject: AclSubject.CUSTOMER }])
+  async findByNik(@Param('nik') nik: string): Promise<CustomerDto | null> {
+    const customer = await this.customerService.findByNik(nik);
+    return customer ? new CustomerDto(customer) : null;
+  }
+
   @Post()
   @Auth([{ action: AclAction.CREATE, subject: AclSubject.CUSTOMER }])
   async create(

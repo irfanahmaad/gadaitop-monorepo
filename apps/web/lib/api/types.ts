@@ -525,10 +525,10 @@ export interface Customer {
 export interface CreateCustomerDto {
   nik: string
   pin: string
-  fullName: string
-  dateOfBirth: string
+  name: string
+  dob: string
   address: string
-  phoneNumber: string
+  phone: string
   email: string
   gender?: "male" | "female"
   city?: string

@@ -46,6 +46,16 @@ export function useCustomer(id: string) {
   })
 }
 
+// Lookup customer by NIK
+export function useLookupCustomerByNik(nik: string) {
+  return useQuery({
+    queryKey: [...customerKeys.details(), "nik", nik],
+    queryFn: () => apiClient.get<Customer | null>(endpoints.customers.lookupByNik(nik)),
+    enabled: !!nik && nik.length === 16,
+    retry: false, // Don't retry on 404
+  })
+}
+
 // Create customer
 export function useCreateCustomer() {
   const queryClient = useQueryClient()
