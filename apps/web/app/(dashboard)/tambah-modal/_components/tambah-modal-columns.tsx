@@ -17,7 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu"
 import { Button } from "@workspace/ui/components/button"
-import { Check, Ban, MoreHorizontal, Pencil, Eye } from "lucide-react"
+import { Check, Ban, MoreHorizontal, Pencil, Eye, Trash2 } from "lucide-react"
 import type { RequestTambahModal } from "./types"
 import { formatTanggalRequest, formatNominal } from "./utils"
 import { StatusBadge } from "./status-badge"
@@ -127,54 +127,74 @@ export function getHistoryColumns(): ColumnDef<RequestTambahModal>[] {
   return [numberColumn, ...getDataColumns()]
 }
 
+type RequestActionHandlers = {
+  onApprove?: (row: RequestTambahModal) => void
+  onReject?: (row: RequestTambahModal) => void
+  onEdit?: (row: RequestTambahModal) => void
+  onDetail?: (row: RequestTambahModal) => void
+  onDelete?: (row: RequestTambahModal) => void
+}
+
 export function getRequestActionColumn(
-  onApprove: (row: RequestTambahModal) => void,
-  onReject: (row: RequestTambahModal) => void,
-  options?: {
-    onEdit?: (row: RequestTambahModal) => void
-    onDetail?: (row: RequestTambahModal) => void
-  }
+  handlers: RequestActionHandlers
 ): ColumnDef<RequestTambahModal> {
   return {
     id: "actions",
     enableHiding: false,
-    cell: ({ row }) => (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="h-8 w-8 p-0">
-            <span className="sr-only">Buka menu</span>
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuLabel>Action</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => onApprove(row.original)}>
-            <Check className="mr-2 h-4 w-4" />
-            Setujui
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => onReject(row.original)}
-            className="text-destructive focus:text-destructive"
-          >
-            <Ban className="mr-2 h-4 w-4" />
-            Tolak
-          </DropdownMenuItem>
-          {options?.onEdit && (
-            <DropdownMenuItem onClick={() => options.onEdit!(row.original)}>
-              <Pencil className="mr-2 h-4 w-4" />
-              Edit
-            </DropdownMenuItem>
-          )}
-          {options?.onDetail && (
-            <DropdownMenuItem onClick={() => options.onDetail!(row.original)}>
-              <Eye className="mr-2 h-4 w-4" />
-              Detail
-            </DropdownMenuItem>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
-    ),
+    cell: ({ row }) => {
+      const { onApprove, onReject, onEdit, onDetail, onDelete } = handlers
+
+      return (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="h-8 w-8 p-0">
+              <span className="sr-only">Buka menu</span>
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>Action</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {onApprove && (
+              <DropdownMenuItem onClick={() => onApprove(row.original)}>
+                <Check className="mr-2 h-4 w-4" />
+                Setujui
+              </DropdownMenuItem>
+            )}
+            {onReject && (
+              <DropdownMenuItem
+                onClick={() => onReject(row.original)}
+                className="text-destructive focus:text-destructive"
+              >
+                <Ban className="mr-2 h-4 w-4" />
+                Tolak
+              </DropdownMenuItem>
+            )}
+            {onEdit && (
+              <DropdownMenuItem onClick={() => onEdit(row.original)}>
+                <Pencil className="mr-2 h-4 w-4" />
+                Edit
+              </DropdownMenuItem>
+            )}
+            {onDetail && (
+              <DropdownMenuItem onClick={() => onDetail(row.original)}>
+                <Eye className="mr-2 h-4 w-4" />
+                Detail
+              </DropdownMenuItem>
+            )}
+            {onDelete && (
+              <DropdownMenuItem
+                onClick={() => onDelete(row.original)}
+                className="text-destructive focus:text-destructive"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Hapus
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )
+    },
   }
 }
 
