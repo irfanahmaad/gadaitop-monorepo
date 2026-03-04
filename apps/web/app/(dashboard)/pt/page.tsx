@@ -14,7 +14,7 @@ import {
 } from "@workspace/ui/components/avatar"
 import { Building2, Plus } from "lucide-react"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
-import { useCompanies, useDeleteCompany } from "@/lib/react-query/hooks"
+import { useCompanies, useDeleteCompany, usePublicUrl } from "@/lib/react-query/hooks"
 import type { Company } from "@/lib/api/types"
 import { Skeleton } from "@workspace/ui/components/skeleton"
 import {
@@ -36,17 +36,7 @@ const columns: ColumnDef<Company>[] = [
   {
     id: "foto",
     header: "Foto",
-    cell: ({ row }) => {
-      const company = row.original
-      return (
-        <Avatar className="size-10">
-          <AvatarImage src="" alt={company.companyName} />
-          <AvatarFallback>
-            <Building2 className="size-5" />
-          </AvatarFallback>
-        </Avatar>
-      )
-    },
+    cell: ({ row }) => <CompanyAvatar company={row.original} />,
   },
   {
     id: "code",
@@ -70,6 +60,21 @@ const columns: ColumnDef<Company>[] = [
     cell: ({ row }) => row.original.owner?.fullName || "-",
   },
 ]
+
+function CompanyAvatar({ company }: { company: Company }) {
+  const { data: publicUrlData } = usePublicUrl(company.imageUrl ?? "")
+  const url = company.imageUrl ? publicUrlData?.url : undefined
+
+  return (
+    <Avatar className="size-10">
+      <AvatarImage src={url} alt={company.companyName} />
+      <AvatarFallback>
+        <Building2 className="size-5" />
+      </AvatarFallback>
+    </Avatar>
+  )
+}
+
 
 // Loading skeleton component
 function TableSkeleton() {

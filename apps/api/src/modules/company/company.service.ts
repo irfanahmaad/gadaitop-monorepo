@@ -48,6 +48,7 @@ export class CompanyService {
         companyCode: true,
         phoneNumber: true,
         address: true,
+        imageUrl: true,
         activeStatus: true,
         owner: {
           id: true,
