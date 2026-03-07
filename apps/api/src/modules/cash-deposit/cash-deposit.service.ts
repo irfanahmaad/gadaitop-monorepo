@@ -51,6 +51,7 @@ export class CashDepositService {
       relation: {
         store: true,
         pt: true,
+        requester: true,
       },
       where,
       orderBy: sortAttribute(queryDto.sortBy, {

@@ -78,18 +78,23 @@ function getDataColumns(): ColumnDef<RequestTambahModal>[] {
       header: "Dilakukan Oleh",
       cell: ({ row }) => {
         const user = row.original.dilakukanOleh
+        const name = user?.name ?? "-"
+        const initials = name
+          .split(" ")
+          .filter(Boolean)
+          .map((n) => n[0])
+          .join("")
+          .toUpperCase()
+          .slice(0, 2)
         return (
           <div className="flex items-center gap-2">
             <Avatar className="h-8 w-8">
-              <AvatarImage src={user.avatar} alt={user.name} />
+              <AvatarImage src={user?.avatar} alt={name} />
               <AvatarFallback className="text-xs">
-                {user.name
-                  .split(" ")
-                  .map((n) => n[0])
-                  .join("")}
+                {initials || "-"}
               </AvatarFallback>
             </Avatar>
-            <span className="text-sm">{user.name}</span>
+            <span className="text-sm">{name}</span>
           </div>
         )
       },

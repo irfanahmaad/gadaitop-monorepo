@@ -210,17 +210,15 @@ function TambahModalPageContent() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleteRow, setDeleteRow] = useState<RequestTambahModal | null>(null)
 
-  const requestListOptions = useMemo(() => {
-    const filter: Record<string, string> = { status: "pending" }
-    if (effectiveBranch) filter.storeId = effectiveBranch
-    return { page: 1, pageSize, filter }
-  }, [effectiveBranch, pageSize])
+  const requestListOptions = useMemo(
+    () => ({ page: 1, pageSize, filter: { status: "pending" } }),
+    [pageSize]
+  )
 
-  const historyListOptions = useMemo(() => {
-    const filter: Record<string, string> = {}
-    if (effectiveBranch) filter.storeId = effectiveBranch
-    return { page: 1, pageSize: historyPageSize, filter }
-  }, [effectiveBranch, historyPageSize])
+  const historyListOptions = useMemo(
+    () => ({ page: 1, pageSize: historyPageSize, filter: {} }),
+    [historyPageSize]
+  )
 
   const { data: requestData, isLoading: isLoadingRequest } =
     useCapitalTopups(requestListOptions)
