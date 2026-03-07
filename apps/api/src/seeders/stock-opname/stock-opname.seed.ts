@@ -2,7 +2,6 @@ import { Seeder } from '@concepta/typeorm-seeding';
 import { subDays } from 'date-fns';
 
 import { StockOpnameSessionEntity } from '../../modules/stock-opname/entities/stock-opname-session.entity';
-import { StockOpnameItemEntity } from '../../modules/stock-opname/entities/stock-opname-item.entity';
 import { BranchEntity } from '../../modules/branch/entities/branch.entity';
 import { SpkItemEntity } from '../../modules/spk/entities/spk-item.entity';
 import { UserEntity } from '../../modules/user/entities/user.entity';
@@ -71,6 +70,7 @@ export class StockOpnameSeed extends Seeder {
         endDate: subDays(new Date(), 29),
         status: StockOpnameSessionStatusEnum.Completed,
         creator,
+        assignedTo: creator.uuid,
         totalItemsSystem: storageItems.length,
         totalItemsCounted: storageItems.length, // Perfect score
         variancesCount: 0,
@@ -98,6 +98,7 @@ export class StockOpnameSeed extends Seeder {
         startDate: new Date(),
         status: StockOpnameSessionStatusEnum.InProgress,
         creator,
+        assignedTo: creator.uuid,
         totalItemsSystem: storageItems.length,
         totalItemsCounted: Math.floor(storageItems.length / 2),
         variancesCount: 0,

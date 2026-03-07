@@ -188,7 +188,7 @@ export default function StockOpnameDetailPage() {
         namaBarang: description,
         tipeBarang: typeName,
         toko: storeName,
-        petugas: "—",
+        petugas: session.assignee?.fullName ?? session.creatorFullName ?? "—",
         statusScan: isCounted ? ("Terscan" as const) : ("Belum Terscan" as const),
         isMata,
         mataRuleName,
@@ -238,7 +238,7 @@ export default function StockOpnameDetailPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          {session?.status === "scheduled" ? (
+          {session?.status === "draft" ? (
             <Button
               variant="outline"
               className="gap-2"

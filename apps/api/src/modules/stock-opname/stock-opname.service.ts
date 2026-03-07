@@ -53,6 +53,7 @@ export class StockOpnameService {
     const qbOptions: QueryBuilderOptionsType<StockOpnameSessionEntity> = {
       ...queryDto,
       where,
+      relation: { creator: true, assignee: true },
       orderBy: sortAttribute(queryDto.sortBy, {
         createdAt: { createdAt: true },
       }) ?? { createdAt: 'DESC' } as any,
@@ -74,7 +75,14 @@ export class StockOpnameService {
   async findOne(uuid: string): Promise<StockOpnameSessionDto> {
     const session = await this.sessionRepository.findOne({
       where: { uuid },
-      relations: ['items', 'items.spkItem', 'items.spkItem.itemType', 'items.spkItem.spk'],
+      relations: [
+        'creator',
+        'assignee',
+        'items',
+        'items.spkItem',
+        'items.spkItem.itemType',
+        'items.spkItem.spk',
+      ],
     });
     if (!session) {
       throw new NotFoundException(
@@ -96,6 +104,7 @@ export class StockOpnameService {
       startDate: new Date(createDto.startDate),
       status: StockOpnameSessionStatusEnum.Draft,
       createdBy,
+      assignedTo: createDto.assignedTo ?? null,
       notes: createDto.notes ?? null,
     });
     const saved = await this.sessionRepository.save(session);
@@ -123,6 +132,9 @@ export class StockOpnameService {
     }
     if (updateDto.startDate !== undefined) {
       session.startDate = new Date(updateDto.startDate);
+    }
+    if (updateDto.assignedTo !== undefined) {
+      session.assignedTo = updateDto.assignedTo;
     }
     if (updateDto.notes !== undefined) {
       session.notes = updateDto.notes;

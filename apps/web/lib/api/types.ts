@@ -805,10 +805,14 @@ export interface StockOpnameSessionListItem {
   totalItemsCounted: number
   variancesCount: number
   createdAt: string
+  assignedTo: string | null
+  assignee?: Pick<User, "uuid" | "fullName"> | null
+  /** Fallback for older rows without assigned petugas */
+  creatorFullName?: string
 }
 
 export type StockOpnameStatus =
-  | "scheduled"
+  | "draft"
   | "in_progress"
   | "completed"
   | "approved"
@@ -856,7 +860,9 @@ export interface StockOpnameSession {
   scheduledDate: string
   status: StockOpnameStatus
   store?: Branch
-  assignedTo?: User
+  assignedTo: string | null
+  assignee?: Pick<User, "uuid" | "fullName"> | null
+  creatorFullName?: string
   items: StockOpnameItem[]
   notes?: string | null
   createdAt: string
@@ -867,12 +873,14 @@ export interface CreateStockOpnameDto {
   storeId: string
   startDate: string
   ptId?: string
+  assignedTo?: string
   notes?: string
 }
 
 export interface UpdateStockOpnameSessionDto {
   storeId?: string
   startDate?: string
+  assignedTo?: string
   notes?: string
 }
 

@@ -94,7 +94,7 @@ function mapSessionToRow(
     idSO: session.sessionCode,
     tanggal: formatTanggal(session.startDate),
     toko: storeNameById.get(session.storeId) ?? session.storeId,
-    petugas: "—",
+    petugas: session.assignee?.fullName ?? session.creatorFullName ?? "—",
     lastUpdatedAt: formatLastUpdated(session.createdAt),
     status: STATUS_DISPLAY[session.status],
   }
@@ -203,7 +203,7 @@ const columns: ColumnDef<StockOpnameRow>[] = [
   },
   {
     accessorKey: "petugas",
-    header: "Petugas",
+    header: "Petugas SO",
   },
   {
     accessorKey: "lastUpdatedAt",

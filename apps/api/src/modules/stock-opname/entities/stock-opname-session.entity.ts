@@ -52,6 +52,14 @@ export class StockOpnameSessionEntity extends AbstractEntity {
   creator: Relation<any>;
 
   @Column({ type: 'uuid', nullable: true })
+  @Index()
+  assignedTo: string | null;
+
+  @ManyToOne('UserEntity', { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'assigned_to', referencedColumnName: 'uuid' })
+  assignee: Relation<any> | null;
+
+  @Column({ type: 'uuid', nullable: true })
   approvedBy: string | null;
 
   @ManyToOne('UserEntity', { nullable: true, onDelete: 'SET NULL' })

@@ -101,9 +101,9 @@ export function DetailSO({
         toko: storeName ? [storeName] : [],
         syaratMata: mataRuleNames ?? [],
         lastUpdatedAt: formatLastUpdated(session.updatedAt),
-        petugasSO: session.assignedTo
-          ? [session.assignedTo.fullName ?? "—"]
-          : ["—"],
+        petugasSO: [
+          session.assignee?.fullName ?? session.creatorFullName ?? "—",
+        ],
         uangDiToko: 0,
         totalUangDiMutasi: 0,
         catatan: session.notes ?? "",

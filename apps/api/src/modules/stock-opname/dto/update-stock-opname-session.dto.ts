@@ -10,6 +10,10 @@ export class UpdateStockOpnameSessionDto {
   startDate?: string;
 
   @IsOptional()
+  @IsUUID()
+  assignedTo?: string;
+
+  @IsOptional()
   @IsString()
   notes?: string;
 }

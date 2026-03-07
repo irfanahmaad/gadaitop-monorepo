@@ -168,7 +168,7 @@ function createColumns(
     },
     {
       accessorKey: "petugas",
-      header: "Petugas",
+      header: "Petugas SO",
     },
     {
       accessorKey: "statusScan",
