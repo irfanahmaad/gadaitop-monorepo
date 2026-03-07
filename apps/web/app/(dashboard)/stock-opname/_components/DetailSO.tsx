@@ -74,13 +74,16 @@ function formatDate(isoDate: string): string {
   }
 }
 
-function formatLastUpdated(isoDate: string): string {
+function formatLastUpdated(isoDate: string | undefined | null): string {
+  if (isoDate == null || isoDate === "") return "—"
   try {
-    return format(new Date(isoDate), "d MMMM yyyy HH:mm:ss", {
+    const d = new Date(isoDate)
+    if (Number.isNaN(d.getTime())) return "—"
+    return format(d, "d MMMM yyyy HH:mm:ss", {
       locale: idLocale,
     })
   } catch {
-    return isoDate
+    return "—"
   }
 }
 
@@ -100,7 +103,9 @@ export function DetailSO({
         tanggal: formatDate(session.startDate ?? session.scheduledDate ?? session.createdAt),
         toko: storeName ? [storeName] : [],
         syaratMata: mataRuleNames ?? [],
-        lastUpdatedAt: formatLastUpdated(session.updatedAt),
+        lastUpdatedAt: formatLastUpdated(
+          session.updatedAt ?? session.createdAt
+        ),
         petugasSO: [
           session.assignee?.fullName ?? session.creatorFullName ?? "—",
         ],
@@ -170,7 +175,9 @@ export function DetailSO({
                 <label className="text-sm font-bold text-black">
                   Last Updated At
                 </label>
-                <p className="text-base">{displayData.lastUpdatedAt}</p>
+                <p className="text-base">
+                  {displayData.lastUpdatedAt || "—"}
+                </p>
               </div>
             </div>
 

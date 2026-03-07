@@ -77,11 +77,14 @@ function formatTanggal(isoDate: string): string {
   }
 }
 
-function formatLastUpdated(isoDate: string): string {
+function formatLastUpdated(isoDate: string | undefined | null): string {
+  if (isoDate == null || isoDate === "") return "—"
   try {
-    return format(new Date(isoDate), "d MMMM yyyy HH:mm:ss", { locale: id })
+    const d = new Date(isoDate)
+    if (Number.isNaN(d.getTime())) return "—"
+    return format(d, "d MMMM yyyy HH:mm:ss", { locale: id })
   } catch {
-    return isoDate
+    return "—"
   }
 }
 
@@ -95,7 +98,9 @@ function mapSessionToRow(
     tanggal: formatTanggal(session.startDate),
     toko: storeNameById.get(session.storeId) ?? session.storeId,
     petugas: session.assignee?.fullName ?? session.creatorFullName ?? "—",
-    lastUpdatedAt: formatLastUpdated(session.createdAt),
+    lastUpdatedAt: formatLastUpdated(
+      session.updatedAt ?? session.createdAt
+    ),
     status: STATUS_DISPLAY[session.status],
   }
 }

@@ -238,12 +238,11 @@ export default function StockOpnameDetailPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          {session?.status === "draft" ? (
+          {session?.status === "draft" && !isCompanyAdmin ? (
             <Button
               variant="outline"
               className="gap-2"
               onClick={() => setIsEditDialogOpen(true)}
-              disabled={isCompanyAdmin}
             >
               <Pencil className="size-4" />
               Edit Jadwal

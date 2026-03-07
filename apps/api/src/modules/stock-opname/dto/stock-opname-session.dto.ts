@@ -14,6 +14,7 @@ export class StockOpnameSessionDto {
   totalItemsCounted: number;
   variancesCount: number;
   createdAt: Date;
+  updatedAt: Date;
   assignedTo: string | null;
   assignee?: { uuid: string; fullName: string } | null;
   /** Kept as fallback for older rows without `assigned_to` */
@@ -38,6 +39,7 @@ export class StockOpnameSessionDto {
     this.totalItemsCounted = session.totalItemsCounted ?? 0;
     this.variancesCount = session.variancesCount ?? 0;
     this.createdAt = session.createdAt;
+    this.updatedAt = session.updatedAt ?? session.createdAt;
     this.assignedTo = session.assignedTo ?? null;
     this.assignee = session.assignee
       ? {

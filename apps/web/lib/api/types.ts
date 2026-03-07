@@ -805,6 +805,7 @@ export interface StockOpnameSessionListItem {
   totalItemsCounted: number
   variancesCount: number
   createdAt: string
+  updatedAt?: string
   assignedTo: string | null
   assignee?: Pick<User, "uuid" | "fullName"> | null
   /** Fallback for older rows without assigned petugas */
