@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -123,6 +123,7 @@ const itemsData: ValidasiItem[] = [
 
 export default function DetailValidasiLelanganPage() {
   const params = useParams()
+  const router = useRouter()
   const slug = params.slug as string
   const [activeTab, setActiveTab] = React.useState<"belum" | "terscan">("belum")
   const [items, setItems] = React.useState<ValidasiItem[]>(itemsData)
@@ -241,23 +242,28 @@ export default function DetailValidasiLelanganPage() {
     {
       id: "actions",
       header: "Action",
-      cell: () => (
+      cell: ({ row }) => (
         <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">Buka menu</span>
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem className="gap-2">
-                Detail
-              </DropdownMenuItem>
-              <DropdownMenuItem className="gap-2">
-                QR SPK
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="h-8 w-8 p-0">
+              <span className="sr-only">Buka menu</span>
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              className="gap-2"
+              onClick={() =>
+                router.push(`/validasi-lelangan/${slug}/item/${row.original.id}`)
+              }
+            >
+              Detail
+            </DropdownMenuItem>
+            <DropdownMenuItem className="gap-2">
+              QR SPK
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       ),
     },
   ]

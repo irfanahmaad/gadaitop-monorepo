@@ -65,10 +65,10 @@ const ROLE_MENU_MAP: Record<string, MenuSubject[]> = {
     MenuSubject.STOCK_OPNAME,
   ],
 
-  // Auction Staff — auction-related menus
+  // Auction Staff — validasi lelang only (no Lelangan menu)
   auction_staff: [
     MenuSubject.DASHBOARD,
-    MenuSubject.LELANGAN,
+    MenuSubject.VALIDASI_LELANG,
   ],
 
   // Marketing — auction viewing + marketing notes

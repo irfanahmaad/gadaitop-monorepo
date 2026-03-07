@@ -51,6 +51,7 @@ export enum MenuSubject {
   SPK = "MenuSpk",
   STOCK_OPNAME = "MenuStockOpname",
   LELANGAN = "MenuLelangan",
+  VALIDASI_LELANG = "MenuValidasiLelang",
   TAMBAH_MODAL = "MenuTambahModal",
   SETOR_UANG = "MenuSetorUang",
   MUTASI_TRANSAKSI = "MenuMutasiTransaksi",
