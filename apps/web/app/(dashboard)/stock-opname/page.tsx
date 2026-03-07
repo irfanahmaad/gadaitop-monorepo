@@ -57,6 +57,11 @@ export type StockOpnameRow = {
   petugas: string
   lastUpdatedAt: string
   status: "Dijadwalkan" | "Berjalan" | "Menunggu Approval" | "Tervalidasi"
+  // For stock_auditor columns: numeric or "-"
+  tokoNumber?: string
+  petugasNumber?: string
+  syaratMataNumber?: string
+  itemCount?: string
 }
 
 const STATUS_DISPLAY: Record<
@@ -102,6 +107,13 @@ function mapSessionToRow(
       session.updatedAt ?? session.createdAt
     ),
     status: STATUS_DISPLAY[session.status],
+    tokoNumber: session.storeId ? "1" : "—",
+    petugasNumber: session.assignee ? "1" : "—",
+    syaratMataNumber: "—",
+    itemCount:
+      session.totalItemsCounted != null
+        ? String(session.totalItemsCounted)
+        : "—",
   }
 }
 
@@ -221,12 +233,67 @@ const columns: ColumnDef<StockOpnameRow>[] = [
   },
 ]
 
+// Stock auditor columns: No, ID SO, Tanggal, Toko, Petugas, Syarat "Mata", Jumlah Item, Last Updated At, [Status for Tervalidasi], Action (detail only)
+function getStockAuditorColumns(showStatus: boolean): ColumnDef<StockOpnameRow>[] {
+  const base: ColumnDef<StockOpnameRow>[] = [
+    {
+      id: "no",
+      header: "No",
+      cell: ({ row }) => <span className="text-sm">{row.index + 1}</span>,
+      enableSorting: false,
+      enableHiding: false,
+    },
+    { accessorKey: "idSO", header: "ID SO" },
+    { accessorKey: "tanggal", header: "Tanggal" },
+    {
+      accessorKey: "tokoNumber",
+      header: "Toko",
+      cell: ({ row }) => row.original.tokoNumber ?? "—",
+    },
+    {
+      accessorKey: "petugasNumber",
+      header: "Petugas",
+      cell: ({ row }) => row.original.petugasNumber ?? "—",
+    },
+    {
+      accessorKey: "syaratMataNumber",
+      header: 'Syarat "Mata"',
+      cell: ({ row }) => row.original.syaratMataNumber ?? "—",
+    },
+    {
+      accessorKey: "itemCount",
+      header: "Jumlah Item",
+      cell: ({ row }) => row.original.itemCount ?? "—",
+    },
+    { accessorKey: "lastUpdatedAt", header: "Last Updated At" },
+  ]
+  if (showStatus) {
+    base.push({
+      accessorKey: "status",
+      header: "Status",
+      cell: () => (
+        <Badge
+          variant="outline"
+          className="bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20"
+        >
+          Tervalidasi
+        </Badge>
+      ),
+    })
+  }
+  return base
+}
+
 export default function StockOpnamePage() {
   const router = useRouter()
   const queryClient = useQueryClient()
   const { user } = useAuth()
   const isCompanyAdmin = useMemo(
     () => user?.roles?.some((role) => role.code === "company_admin") ?? false,
+    [user]
+  )
+  const isStockAuditor = useMemo(
+    () => user?.roles?.some((role) => role.code === "stock_auditor") ?? false,
     [user]
   )
 
@@ -322,20 +389,28 @@ export default function StockOpnamePage() {
   const [filterValues, setFilterValues] =
     useState<Record<string, unknown>>(defaultFilterValues)
 
-  // List options by tab: list/calendar = all; other tabs = filter by status
+  // List options by tab: list/calendar = all; other tabs = filter by status.
+  // For stock_auditor, treat list/calendar as dijadwalkan so we never fetch unfiltered list.
+  const effectiveTab = useMemo(
+    () =>
+      isStockAuditor && ["list", "calendar"].includes(activeTab)
+        ? "dijadwalkan"
+        : activeTab,
+    [isStockAuditor, activeTab]
+  )
   const listOptions = useMemo(
     () => ({
       page,
       pageSize,
       sortBy: "createdAt" as const,
       order: "DESC" as const,
-      ...(activeTab === "dijadwalkan" && { filter: { status: "draft" } }),
-      ...(activeTab === "waiting-for-approval" && {
+      ...(effectiveTab === "dijadwalkan" && { filter: { status: "draft" } }),
+      ...(effectiveTab === "waiting-for-approval" && {
         filter: { status: "completed" },
       }),
-      ...(activeTab === "tervalidasi" && { filter: { status: "approved" } }),
+      ...(effectiveTab === "tervalidasi" && { filter: { status: "approved" } }),
     }),
-    [activeTab, page, pageSize]
+    [effectiveTab, page, pageSize]
   )
 
   const {
@@ -344,22 +419,31 @@ export default function StockOpnamePage() {
     isError,
   } = useStockOpnameSessions(listOptions)
 
-  // Counts for status tabs (minimal query to get meta.count)
-  const { data: countDraft } = useStockOpnameSessions({
-    filter: { status: "draft" },
-    page: 1,
-    pageSize: 1,
-  })
-  const { data: countCompleted } = useStockOpnameSessions({
-    filter: { status: "completed" },
-    page: 1,
-    pageSize: 1,
-  })
-  const { data: countApproved } = useStockOpnameSessions({
-    filter: { status: "approved" },
-    page: 1,
-    pageSize: 1,
-  })
+  // Counts for status tabs (only stock_auditor sees those tabs)
+  const { data: countDraft } = useStockOpnameSessions(
+    {
+      filter: { status: "draft" },
+      page: 1,
+      pageSize: 1,
+    },
+    { enabled: isStockAuditor }
+  )
+  const { data: countCompleted } = useStockOpnameSessions(
+    {
+      filter: { status: "completed" },
+      page: 1,
+      pageSize: 1,
+    },
+    { enabled: isStockAuditor }
+  )
+  const { data: countApproved } = useStockOpnameSessions(
+    {
+      filter: { status: "approved" },
+      page: 1,
+      pageSize: 1,
+    },
+    { enabled: isStockAuditor }
+  )
 
   const dijadwalkanCount = countDraft?.meta?.count ?? 0
   const waitingForApprovalCount = countCompleted?.meta?.count ?? 0
@@ -426,6 +510,13 @@ export default function StockOpnamePage() {
     }
   }, [isCompanyAdmin, activeTab])
 
+  // For stock_auditor, only status tabs — ensure activeTab is never list/calendar (avoids unfiltered list fetch)
+  useEffect(() => {
+    if (isStockAuditor && ["list", "calendar"].includes(activeTab)) {
+      setActiveTab("dijadwalkan")
+    }
+  }, [isStockAuditor, activeTab])
+
   const handleCreate = () => {
     setIsFormDialogOpen(true)
   }
@@ -478,12 +569,14 @@ export default function StockOpnamePage() {
           />
         </div>
 
-        <div>
-          <Button onClick={handleCreate} variant="destructive">
-            <Plus className="size-5" />
-            Tambah Data
-          </Button>
-        </div>
+        {!isStockAuditor && (
+          <div>
+            <Button onClick={handleCreate} variant="destructive">
+              <Plus className="size-5" />
+              Tambah Data
+            </Button>
+          </div>
+        )}
       </div>
 
       <StockOpnameFormDialog
@@ -517,9 +610,13 @@ export default function StockOpnamePage() {
         className="flex flex-col gap-4"
       >
         <TabsList className="w-fit">
-          <TabsTrigger value="list">Tampilan List</TabsTrigger>
-          <TabsTrigger value="calendar">Tampilan Kalender</TabsTrigger>
-          {!isCompanyAdmin && (
+          {!isStockAuditor && (
+            <>
+              <TabsTrigger value="list">Tampilan List</TabsTrigger>
+              <TabsTrigger value="calendar">Tampilan Kalender</TabsTrigger>
+            </>
+          )}
+          {isStockAuditor && (
             <>
               <TabsTrigger
                 value="dijadwalkan"
@@ -671,7 +768,7 @@ export default function StockOpnamePage() {
           />
         </TabsContent>
 
-        {/* Dijadwalkan View */}
+        {/* Dijadwalkan View (stock_auditor only) */}
         <TabsContent value="dijadwalkan" className="mt-0">
           {isLoading ? (
             <TableSkeleton />
@@ -683,20 +780,11 @@ export default function StockOpnamePage() {
             </Card>
           ) : (
             <DataTable
-              columns={columns}
+              columns={getStockAuditorColumns(false)}
               data={rows}
               searchPlaceholder="Cari..."
               headerLeft={
-                <div className="flex items-center gap-2">
-                  <CardTitle className="text-xl">
-                    Daftar SO Dijadwalkan
-                  </CardTitle>
-                  {selectedRows.length > 0 && (
-                    <span className="text-destructive font-semibold">
-                      &middot; {selectedRows.length} Selected
-                    </span>
-                  )}
-                </div>
+                <CardTitle className="text-xl">Daftar SO Dijadwalkan</CardTitle>
               }
               headerRight={
                 <div className="flex w-full items-center gap-2 sm:w-auto">
@@ -723,44 +811,18 @@ export default function StockOpnamePage() {
                       className="w-full"
                     />
                   </div>
-                  <Button
-                    variant="outline"
-                    className="flex items-center gap-2"
-                    onClick={() => setFilterDialogOpen(true)}
-                  >
-                    <SlidersHorizontal className="h-4 w-4" />
-                    Filter
-                  </Button>
-                  {selectedRows.length > 0 && (
-                    <Button
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90 flex items-center gap-2"
-                      onClick={handleBulkDelete}
-                    >
-                      <Trash2 className="size-4" />
-                      Hapus
-                    </Button>
-                  )}
                 </div>
               }
-              filterConfig={filterConfig}
-              filterValues={filterValues}
-              onFilterChange={setFilterValues}
-              filterDialogOpen={filterDialogOpen}
-              onFilterDialogOpenChange={setFilterDialogOpen}
               initialPageSize={pageSize}
               onPageSizeChange={setPageSize}
               searchValue={searchValue}
               onSearchChange={setSearchValue}
               onDetail={handleDetail}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-              onSelectionChange={setSelectedRows}
-              resetSelectionKey={resetSelectionKey}
             />
           )}
         </TabsContent>
 
-        {/* Waiting for Approval View */}
+        {/* Waiting for Approval View (stock_auditor only) */}
         <TabsContent value="waiting-for-approval" className="mt-0">
           {isLoading ? (
             <TableSkeleton />
@@ -772,20 +834,13 @@ export default function StockOpnamePage() {
             </Card>
           ) : (
             <DataTable
-              columns={columns}
+              columns={getStockAuditorColumns(false)}
               data={rows}
               searchPlaceholder="Cari..."
               headerLeft={
-                <div className="flex items-center gap-2">
-                  <CardTitle className="text-xl">
-                    Daftar SO Waiting for Approval
-                  </CardTitle>
-                  {selectedRows.length > 0 && (
-                    <span className="text-destructive font-semibold">
-                      &middot; {selectedRows.length} Selected
-                    </span>
-                  )}
-                </div>
+                <CardTitle className="text-xl">
+                  Daftar SO Waiting for Approval
+                </CardTitle>
               }
               headerRight={
                 <div className="flex w-full items-center gap-2 sm:w-auto">
@@ -812,44 +867,18 @@ export default function StockOpnamePage() {
                       className="w-full"
                     />
                   </div>
-                  <Button
-                    variant="outline"
-                    className="flex items-center gap-2"
-                    onClick={() => setFilterDialogOpen(true)}
-                  >
-                    <SlidersHorizontal className="h-4 w-4" />
-                    Filter
-                  </Button>
-                  {selectedRows.length > 0 && (
-                    <Button
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90 flex items-center gap-2"
-                      onClick={handleBulkDelete}
-                    >
-                      <Trash2 className="size-4" />
-                      Hapus
-                    </Button>
-                  )}
                 </div>
               }
-              filterConfig={filterConfig}
-              filterValues={filterValues}
-              onFilterChange={setFilterValues}
-              filterDialogOpen={filterDialogOpen}
-              onFilterDialogOpenChange={setFilterDialogOpen}
               initialPageSize={pageSize}
               onPageSizeChange={setPageSize}
               searchValue={searchValue}
               onSearchChange={setSearchValue}
               onDetail={handleDetail}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-              onSelectionChange={setSelectedRows}
-              resetSelectionKey={resetSelectionKey}
             />
           )}
         </TabsContent>
 
-        {/* Tervalidasi View */}
+        {/* Tervalidasi View (stock_auditor only) */}
         <TabsContent value="tervalidasi" className="mt-0">
           {isLoading ? (
             <TableSkeleton />
@@ -861,20 +890,13 @@ export default function StockOpnamePage() {
             </Card>
           ) : (
             <DataTable
-              columns={columns}
+              columns={getStockAuditorColumns(true)}
               data={rows}
               searchPlaceholder="Cari..."
               headerLeft={
-                <div className="flex items-center gap-2">
-                  <CardTitle className="text-xl">
-                    Daftar SO Tervalidasi
-                  </CardTitle>
-                  {selectedRows.length > 0 && (
-                    <span className="text-destructive font-semibold">
-                      &middot; {selectedRows.length} Selected
-                    </span>
-                  )}
-                </div>
+                <CardTitle className="text-xl">
+                  Daftar SO Tervalidasi
+                </CardTitle>
               }
               headerRight={
                 <div className="flex w-full items-center gap-2 sm:w-auto">
@@ -901,39 +923,13 @@ export default function StockOpnamePage() {
                       className="w-full"
                     />
                   </div>
-                  <Button
-                    variant="outline"
-                    className="flex items-center gap-2"
-                    onClick={() => setFilterDialogOpen(true)}
-                  >
-                    <SlidersHorizontal className="h-4 w-4" />
-                    Filter
-                  </Button>
-                  {selectedRows.length > 0 && (
-                    <Button
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90 flex items-center gap-2"
-                      onClick={handleBulkDelete}
-                    >
-                      <Trash2 className="size-4" />
-                      Hapus
-                    </Button>
-                  )}
                 </div>
               }
-              filterConfig={filterConfig}
-              filterValues={filterValues}
-              onFilterChange={setFilterValues}
-              filterDialogOpen={filterDialogOpen}
-              onFilterDialogOpenChange={setFilterDialogOpen}
               initialPageSize={pageSize}
               onPageSizeChange={setPageSize}
               searchValue={searchValue}
               onSearchChange={setSearchValue}
               onDetail={handleDetail}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-              onSelectionChange={setSelectedRows}
-              resetSelectionKey={resetSelectionKey}
             />
           )}
         </TabsContent>
