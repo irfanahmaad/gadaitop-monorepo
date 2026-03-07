@@ -49,10 +49,13 @@ function SelectValue({
 function SelectTrigger({
   className,
   size = "default",
+  clearable = false,
   children,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Trigger> & {
   size?: "sm" | "default";
+  /** When true, shows a clear selection button when a value is selected. Default: false. */
+  clearable?: boolean;
 }) {
   const { value, onValueChange } = React.useContext(SelectContext);
   const hasValue = value != null && value !== "";
@@ -74,7 +77,7 @@ function SelectTrigger({
       {...props}
     >
       {children}
-      {hasValue && onValueChange ? (
+      {clearable && hasValue && onValueChange ? (
         <button
           type="button"
           tabIndex={-1}

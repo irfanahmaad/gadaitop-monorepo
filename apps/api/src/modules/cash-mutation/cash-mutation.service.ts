@@ -49,6 +49,9 @@ export class CashMutationService {
     const qbOptions: QueryBuilderOptionsType<CashMutationEntity> = {
       ...queryDto,
       where,
+      relation: {
+        store: true,
+      },
       orderBy:
         sortAttribute(queryDto.sortBy, {
           mutationDate: { mutationDate: true },
