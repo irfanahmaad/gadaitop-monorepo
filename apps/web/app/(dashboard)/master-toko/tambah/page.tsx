@@ -43,6 +43,7 @@ import {
 } from "@workspace/ui/components/select"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { useCreateBranch } from "@/lib/react-query/hooks/use-branches"
+import { useUploadFile } from "@/lib/react-query/hooks/use-upload"
 import { useAuth } from "@/lib/react-query/hooks/use-auth"
 import { useCompanies } from "@/lib/react-query/hooks/use-companies"
 
@@ -98,6 +99,7 @@ export default function TambahMasterTokoPage() {
   }, [companiesData])
 
   const { mutateAsync: createBranch, isPending: isSubmitting } = useCreateBranch()
+  const uploadFileMutation = useUploadFile()
 
   const form = useForm<TokoFormValues>({
     resolver: zodResolver(tokoSchema),
@@ -144,6 +146,19 @@ export default function TambahMasterTokoPage() {
       if (!companyId) {
         throw new Error("Company ID PT belum dipilih atau tidak ditemukan")
       }
+
+      let imageUrl: string | undefined
+      if (values.image instanceof File) {
+        const file = values.image
+        const ext = file.name.split(".").pop() || "jpg"
+        const key = `branches/${companyId}/foto-${Date.now()}.${ext}`
+        const { key: s3Key } = await uploadFileMutation.mutateAsync({
+          file,
+          key,
+        })
+        imageUrl = s3Key
+      }
+
       await createBranch({
         branchCode: values.kodeLokasi,
         shortName: values.alias,
@@ -152,6 +167,7 @@ export default function TambahMasterTokoPage() {
         phone: (values.noTelepon ?? "").trim() || "-",
         city: (values.kota ?? "").trim() || "-",
         companyId,
+        ...(imageUrl && { imageUrl }),
       })
       toast.success("Data Toko berhasil ditambahkan")
       setConfirmOpen(false)

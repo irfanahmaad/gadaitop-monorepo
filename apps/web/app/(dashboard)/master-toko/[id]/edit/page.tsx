@@ -14,6 +14,7 @@ import {
   X,
   Loader2,
   Pencil,
+  Trash2,
 } from "lucide-react"
 import { toast } from "sonner"
 import { Breadcrumbs } from "@/components/breadcrumbs"
@@ -40,6 +41,7 @@ import {
   useBranch,
   useUpdateBranch,
 } from "@/lib/react-query/hooks/use-branches"
+import { useUploadFile, usePublicUrl } from "@/lib/react-query/hooks/use-upload"
 import { useAuth } from "@/lib/react-query/hooks/use-auth"
 import type { Branch } from "@/lib/api/types"
 
@@ -81,7 +83,7 @@ type TokoFormValues = z.infer<typeof tokoSchema>
 function branchToFormValues(branch: Branch): TokoFormValues {
   const company = branch.company as { companyName?: string } | undefined
   return {
-    image: undefined,
+    image: branch.imageUrl ?? undefined,
     kodeLokasi: branch.branchCode,
     namaToko: branch.fullName,
     alias: branch.shortName,
@@ -146,6 +148,9 @@ export default function EditMasterTokoPage() {
 
   const { data: branchData, isLoading, isError } = useBranch(id)
   const updateBranchMutation = useUpdateBranch()
+  const uploadFileMutation = useUploadFile()
+  const existingImageKey = branchData?.imageUrl ?? ""
+  const { data: publicUrlData } = usePublicUrl(existingImageKey)
 
   const form = useForm<TokoFormValues>({
     resolver: zodResolver(tokoSchema),
@@ -166,11 +171,19 @@ export default function EditMasterTokoPage() {
     if (branchData) {
       const values = branchToFormValues(branchData)
       form.reset(values)
-      if (values.image && typeof values.image === "string") {
-        setPreviewImage(values.image)
-      }
     }
   }, [branchData, form])
+
+  // Set preview from existing S3 image (public URL)
+  useEffect(() => {
+    const currentImage = form.getValues("image")
+    if (currentImage instanceof File) return
+    if (existingImageKey && publicUrlData?.url && currentImage) {
+      setPreviewImage(publicUrlData.url)
+    } else if (!currentImage) {
+      setPreviewImage(null)
+    }
+  }, [existingImageKey, publicUrlData?.url, form])
 
   const handleImageChange = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -187,6 +200,13 @@ export default function EditMasterTokoPage() {
     }
   }
 
+  const handleRemoveImage = (field: {
+    onChange: (value: undefined) => void
+  }) => {
+    field.onChange(undefined)
+    setPreviewImage(null)
+  }
+
   const handleSimpanClick = () => {
     form.handleSubmit((values) => {
       if (values) {
@@ -198,6 +218,21 @@ export default function EditMasterTokoPage() {
   const handleConfirmSubmit = async () => {
     const values = form.getValues()
     try {
+      let imageUrl: string | null | undefined = undefined
+
+      if (values.image instanceof File) {
+        const file = values.image
+        const ext = file.name.split(".").pop() || "jpg"
+        const key = `branches/${id}/foto-${Date.now()}.${ext}`
+        const { key: s3Key } = await uploadFileMutation.mutateAsync({
+          file,
+          key,
+        })
+        imageUrl = s3Key
+      } else if (existingImageKey && !values.image) {
+        imageUrl = null
+      }
+
       await updateBranchMutation.mutateAsync({
         id,
         data: {
@@ -206,6 +241,7 @@ export default function EditMasterTokoPage() {
           address: values.alamat ?? "",
           phone: values.noTelepon ?? "",
           city: values.kota ?? "",
+          ...(imageUrl !== undefined && { imageUrl }),
         },
       })
       toast.success("Data Toko berhasil diperbarui")
@@ -334,20 +370,30 @@ export default function EditMasterTokoPage() {
                                 alt="Preview"
                                 className="size-full overflow-hidden rounded-full object-cover"
                               />
-                              <label
-                                htmlFor="image-upload-edit"
-                                className="bg-destructive hover:bg-destructive/90 absolute right-0 bottom-0 z-10 flex size-10 cursor-pointer items-center justify-center rounded-full text-white shadow-sm transition-colors"
-                                aria-label="Ubah gambar"
-                              >
-                                <Pencil className="size-4" />
-                                <input
-                                  id="image-upload-edit"
-                                  type="file"
-                                  accept="image/*"
-                                  className="hidden"
-                                  onChange={(e) => handleImageChange(e, field)}
-                                />
-                              </label>
+                              <div className="absolute bottom-0 left-0 right-0 z-10 flex justify-between gap-1 p-1">
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveImage(field)}
+                                  className="flex size-10 items-center justify-center rounded-full bg-muted-foreground/80 text-white shadow-sm transition-colors hover:bg-muted-foreground"
+                                  aria-label="Hapus gambar"
+                                >
+                                  <Trash2 className="size-4" />
+                                </button>
+                                <label
+                                  htmlFor="image-upload-edit"
+                                  className="bg-destructive hover:bg-destructive/90 flex size-10 cursor-pointer items-center justify-center rounded-full text-white shadow-sm transition-colors"
+                                  aria-label="Ubah gambar"
+                                >
+                                  <Pencil className="size-4" />
+                                  <input
+                                    id="image-upload-edit"
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => handleImageChange(e, field)}
+                                  />
+                                </label>
+                              </div>
                             </div>
                           ) : (
                             <label

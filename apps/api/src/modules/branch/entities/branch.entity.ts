@@ -44,6 +44,12 @@ export class BranchEntity extends AbstractEntity {
   @Index()
   city: string; // kota
 
+  /**
+   * Store photo/image URL (S3 key). Resolved to public URL via upload service.
+   */
+  @Column({ name: 'image_url', type: 'varchar', length: 500, nullable: true })
+  imageUrl: string | null;
+
   // ============================================
   // COMPANY RELATIONSHIP - RS: "kode PT"
   // "Toko harus dimiliki oleh sebuah PT"

@@ -3,6 +3,11 @@ import { IsOptional, IsString, MaxLength } from 'class-validator';
 export class UpdateBranchDto {
   @IsOptional()
   @IsString()
+  @MaxLength(500)
+  imageUrl?: string | null;
+
+  @IsOptional()
+  @IsString()
   @MaxLength(50)
   shortName?: string;
 

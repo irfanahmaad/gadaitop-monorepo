@@ -49,6 +49,7 @@ import {
 } from "@/lib/react-query/hooks/use-borrow-requests"
 import { useCompanies } from "@/lib/react-query/hooks/use-companies"
 import { useAuth } from "@/lib/react-query/hooks/use-auth"
+import { usePublicUrl } from "@/lib/react-query/hooks/use-upload"
 import type { Branch } from "@/lib/api/types"
 
 // Toko detail type (UI shape)
@@ -68,7 +69,7 @@ function mapBranchToTokoDetail(branch: Branch): TokoDetail {
   const company = branch.company as { companyName?: string } | undefined
   return {
     id: branch.uuid,
-    foto: "",
+    foto: branch.imageUrl ?? "",
     kodeLokasi: branch.branchCode,
     namaToko: branch.fullName,
     alias: branch.shortName,
@@ -144,6 +145,9 @@ export default function MasterTokoDetailPage() {
     () => (branchData ? mapBranchToTokoDetail(branchData) : null),
     [branchData]
   )
+
+  const imageKey = toko?.foto ?? ""
+  const { data: publicUrlData } = usePublicUrl(imageKey)
 
   const handleEdit = () => {
     router.push(`/master-toko/${id}/edit`)
@@ -302,7 +306,10 @@ export default function MasterTokoDetailPage() {
                 {/* Profile Picture */}
                 <div className="flex justify-center">
                   <Avatar className="size-48">
-                    <AvatarImage src={toko.foto} alt={toko.namaToko} />
+                    <AvatarImage
+                      src={imageKey ? publicUrlData?.url : undefined}
+                      alt={toko.namaToko}
+                    />
                     <AvatarFallback>
                       <Store className="text-muted-foreground size-24" />
                     </AvatarFallback>

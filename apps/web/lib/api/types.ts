@@ -219,6 +219,7 @@ export interface Branch {
   address: string
   phone: string
   city: string
+  imageUrl?: string | null
   companyId: string
   isBorrowed: boolean
   actualOwnerId: string | null
@@ -241,10 +242,12 @@ export interface CreateBranchDto {
   phone: string
   city: string
   companyId: string
+  imageUrl?: string
   isBorrowed?: boolean
 }
 
 export interface UpdateBranchDto {
+  imageUrl?: string | null
   shortName?: string
   fullName?: string
   address?: string
