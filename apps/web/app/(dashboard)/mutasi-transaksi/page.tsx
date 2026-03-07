@@ -283,18 +283,27 @@ export default function MutasiTransaksiPage() {
       },
       {
         key: "dateRange",
-        label: "Tanggal",
+        label: "",
         type: "daterange",
         labelFrom: "Tanggal Mulai",
         labelTo: "Tanggal Sampai",
       },
+      {
+        key: "storeId",
+        label: "Toko",
+        type: "select",
+        placeholder: "Semua",
+        options: branchOptions.map((b) => ({ label: b.label, value: b.value })),
+      },
     ],
-    []
+    [branchOptions]
   )
 
   const listOptions = useMemo(() => {
     const filter: Record<string, string | number> = {}
     const fv = filterValues
+    const storeId = fv.storeId as string | undefined
+    if (storeId) filter.storeId = storeId
     const category = fv.category as string | undefined
     if (category) filter.category = category
     const dateRange = fv.dateRange as { from?: string; to?: string } | undefined
