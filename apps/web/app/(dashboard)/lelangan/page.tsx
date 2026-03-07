@@ -183,6 +183,7 @@ function flattenOverdueSpkToItemLelang(
     const dueDate = spk.dueDate
       ? format(new Date(spk.dueDate), "d MMM yyyy", { locale: id })
       : "-"
+    const petugas = getAssigneeName(spk.createdBy)
 
     for (const item of items) {
       if (item.status !== "in_storage") continue
@@ -206,7 +207,7 @@ function flattenOverdueSpkToItemLelang(
         namaNasabah,
         tipeBarang: typeName,
         toko: storeShortName,
-        petugas: "-",
+        petugas,
         tanggalJatuhTempo: dueDate,
         status: "Jatuh Tempo",
         lastUpdatedAt: "Belum Terscan",

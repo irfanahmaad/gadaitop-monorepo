@@ -85,6 +85,10 @@ export class SpkRecordEntity extends AbstractEntity {
   @Column({ type: 'boolean', default: false })
   confirmedByPin: boolean;
 
+  @ManyToOne('UserEntity', { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'created_by', referencedColumnName: 'uuid' })
+  creator: Relation<any> | null;
+
   @OneToMany('SpkItemEntity', 'spk')
   items: Relation<SpkItemEntity[]>;
 }
