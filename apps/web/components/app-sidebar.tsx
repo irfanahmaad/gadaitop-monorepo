@@ -227,7 +227,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                           isActive={pathname?.startsWith("/stock-opname")}
                         >
                           <Link
-                            href="/stock-opname"
+                            href={
+                              isStockAuditor
+                                ? "/stock-opname/auditor"
+                                : "/stock-opname"
+                            }
                             className="flex items-center gap-2"
                           >
                             <Box className="size-4 shrink-0" />

@@ -147,7 +147,8 @@ export async function middleware(request: NextRequest) {
 
   if (isAuthenticated && pathname === "/" && !isCustomerSession) {
     if (isBranchStaff) return NextResponse.redirect(new URL("/scan-ktp", request.url))
-    if (isStockAuditor) return NextResponse.redirect(new URL("/stock-opname", request.url))
+    if (isStockAuditor)
+      return NextResponse.redirect(new URL("/stock-opname/auditor", request.url))
     if (isAuctionStaff) return NextResponse.redirect(new URL("/lelangan", request.url))
   }
 

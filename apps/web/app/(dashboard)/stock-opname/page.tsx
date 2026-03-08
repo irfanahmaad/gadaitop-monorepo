@@ -45,84 +45,14 @@ import {
 } from "@/lib/react-query/hooks/use-stock-opname"
 import { useQueryClient } from "@tanstack/react-query"
 import { useBranches } from "@/lib/react-query/hooks/use-branches"
-import type { StockOpnameSessionListItem } from "@/lib/api/types"
-import { format } from "date-fns"
-import { id } from "date-fns/locale"
+import type { StockOpnameRow } from "./_lib/row-utils"
+import { mapSessionToRow } from "./_lib/row-utils"
 import { toast } from "sonner"
 
-// Row type for table and calendar (mapped from API)
-export type StockOpnameRow = {
-  id: string
-  idSO: string
-  tanggal: string
-  toko: string
-  petugas: string
-  lastUpdatedAt: string
-  status: "Dijadwalkan" | "Berjalan" | "Menunggu Approval" | "Tervalidasi"
-  // For stock_auditor columns: numeric or "-"
-  tokoNumber?: string
-  petugasNumber?: string
-  syaratMataNumber?: string
-  itemCount?: string
-}
+// Re-export for consumers that import from page
+export type { StockOpnameRow } from "./_lib/row-utils"
 
-const STATUS_DISPLAY: Record<
-  StockOpnameSessionListItem["status"],
-  StockOpnameRow["status"]
-> = {
-  draft: "Dijadwalkan",
-  in_progress: "Berjalan",
-  completed: "Menunggu Approval",
-  approved: "Tervalidasi",
-}
-
-function formatTanggal(isoDate: string): string {
-  try {
-    return format(new Date(isoDate), "d MMMM yyyy", { locale: id })
-  } catch {
-    return isoDate
-  }
-}
-
-function formatLastUpdated(isoDate: string | undefined | null): string {
-  if (isoDate == null || isoDate === "") return "—"
-  try {
-    const d = new Date(isoDate)
-    if (Number.isNaN(d.getTime())) return "—"
-    return format(d, "d MMMM yyyy HH:mm:ss", { locale: id })
-  } catch {
-    return "—"
-  }
-}
-
-function mapSessionToRow(session: StockOpnameSessionListItem): StockOpnameRow {
-  const storeCount = session.stores?.length ?? session.storeIds?.length ?? 0
-  const assigneeCount = session.assignees?.length ?? 0
-  const syaratMataCount = session.pawnTermIds?.length ?? session.pawnTerms?.length ?? 0
-  return {
-    id: session.uuid,
-    idSO: session.sessionCode,
-    tanggal: formatTanggal(session.startDate),
-    toko: storeCount > 0 ? `${storeCount} Toko` : "—",
-    petugas:
-      assigneeCount > 0
-        ? `${assigneeCount} Petugas`
-        : session.creatorFullName ?? "—",
-    lastUpdatedAt: formatLastUpdated(
-      session.updatedAt ?? session.createdAt
-    ),
-    status: STATUS_DISPLAY[session.status],
-    tokoNumber: storeCount > 0 ? String(storeCount) : "—",
-    petugasNumber: assigneeCount > 0 ? String(assigneeCount) : "—",
-    syaratMataNumber: syaratMataCount > 0 ? String(syaratMataCount) : "—",
-    itemCount:
-      session.totalItemsCounted != null
-        ? String(session.totalItemsCounted)
-        : "—",
-  }
-}
-
-// Status badge component
+// Status badge component (Admin PT list/calendar)
 const StatusBadge = ({ status }: { status: StockOpnameRow["status"] }) => {
   const statusConfig: Record<
     StockOpnameRow["status"],
@@ -157,7 +87,6 @@ const StatusBadge = ({ status }: { status: StockOpnameRow["status"] }) => {
   )
 }
 
-// Table skeleton for loading state
 function TableSkeleton() {
   return (
     <Card>
@@ -184,7 +113,6 @@ function TableSkeleton() {
   )
 }
 
-// Column definitions
 const columns: ColumnDef<StockOpnameRow>[] = [
   {
     id: "select",
@@ -211,26 +139,11 @@ const columns: ColumnDef<StockOpnameRow>[] = [
     enableSorting: false,
     enableHiding: false,
   },
-  {
-    accessorKey: "idSO",
-    header: "ID SO",
-  },
-  {
-    accessorKey: "tanggal",
-    header: "Tanggal",
-  },
-  {
-    accessorKey: "toko",
-    header: "Toko",
-  },
-  {
-    accessorKey: "petugas",
-    header: "Petugas SO",
-  },
-  {
-    accessorKey: "lastUpdatedAt",
-    header: "Last Updated At",
-  },
+  { accessorKey: "idSO", header: "ID SO" },
+  { accessorKey: "tanggal", header: "Tanggal" },
+  { accessorKey: "toko", header: "Toko" },
+  { accessorKey: "petugas", header: "Petugas SO" },
+  { accessorKey: "lastUpdatedAt", header: "Last Updated At" },
   {
     accessorKey: "status",
     header: "Status",
@@ -238,65 +151,10 @@ const columns: ColumnDef<StockOpnameRow>[] = [
   },
 ]
 
-// Stock auditor columns: No, ID SO, Tanggal, Toko, Petugas, Syarat "Mata", Jumlah Item, Last Updated At, [Status for Tervalidasi], Action (detail only)
-function getStockAuditorColumns(showStatus: boolean): ColumnDef<StockOpnameRow>[] {
-  const base: ColumnDef<StockOpnameRow>[] = [
-    {
-      id: "no",
-      header: "No",
-      cell: ({ row }) => <span className="text-sm">{row.index + 1}</span>,
-      enableSorting: false,
-      enableHiding: false,
-    },
-    { accessorKey: "idSO", header: "ID SO" },
-    { accessorKey: "tanggal", header: "Tanggal" },
-    {
-      accessorKey: "tokoNumber",
-      header: "Toko",
-      cell: ({ row }) => row.original.tokoNumber ?? "—",
-    },
-    {
-      accessorKey: "petugasNumber",
-      header: "Petugas",
-      cell: ({ row }) => row.original.petugasNumber ?? "—",
-    },
-    {
-      accessorKey: "syaratMataNumber",
-      header: 'Syarat "Mata"',
-      cell: ({ row }) => row.original.syaratMataNumber ?? "—",
-    },
-    {
-      accessorKey: "itemCount",
-      header: "Jumlah Item",
-      cell: ({ row }) => row.original.itemCount ?? "—",
-    },
-    { accessorKey: "lastUpdatedAt", header: "Last Updated At" },
-  ]
-  if (showStatus) {
-    base.push({
-      accessorKey: "status",
-      header: "Status",
-      cell: () => (
-        <Badge
-          variant="outline"
-          className="bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20"
-        >
-          Tervalidasi
-        </Badge>
-      ),
-    })
-  }
-  return base
-}
-
 export default function StockOpnamePage() {
   const router = useRouter()
   const queryClient = useQueryClient()
-  const { user } = useAuth()
-  const isCompanyAdmin = useMemo(
-    () => user?.roles?.some((role) => role.code === "company_admin") ?? false,
-    [user]
-  )
+  const { user, isLoading: isAuthLoading } = useAuth()
   const isStockAuditor = useMemo(
     () => user?.roles?.some((role) => role.code === "stock_auditor") ?? false,
     [user]
@@ -310,8 +168,6 @@ export default function StockOpnamePage() {
     StockOpnameRow | ScheduleItem | null
   >(null)
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false)
-  
-  // Edit Dialog State
   const [editSessionId, setEditSessionId] = useState<string | null>(null)
   const { data: editSessionData } = useStockOpnameSession(
     editSessionId ?? "",
@@ -325,7 +181,6 @@ export default function StockOpnamePage() {
 
   const deleteStockOpname = useDeleteStockOpname()
 
-  // Branch lookup for store names
   const { data: branchesData } = useBranches({ pageSize: 500 })
   const storeNameById = useMemo(() => {
     const map = new Map<string, string>()
@@ -335,7 +190,6 @@ export default function StockOpnamePage() {
     return map
   }, [branchesData?.data])
 
-  // Filter config for Stock Opname
   const filterConfig: FilterConfig[] = useMemo(
     () => [
       {
@@ -396,80 +250,40 @@ export default function StockOpnamePage() {
   const [filterValues, setFilterValues] =
     useState<Record<string, unknown>>(defaultFilterValues)
 
-  // List options by tab: list/calendar = all; other tabs = filter by status.
-  // For stock_auditor, treat list/calendar as dijadwalkan so we never fetch unfiltered list.
-  const effectiveTab = useMemo(
-    () =>
-      isStockAuditor && ["list", "calendar"].includes(activeTab)
-        ? "dijadwalkan"
-        : activeTab,
-    [isStockAuditor, activeTab]
-  )
+  // Admin PT: only list and calendar tabs — fetch unfiltered list
   const listOptions = useMemo(
     () => ({
       page,
       pageSize,
       sortBy: "createdAt" as const,
       order: "DESC" as const,
-      ...(effectiveTab === "dijadwalkan" && { filter: { status: "draft" } }),
-      ...(effectiveTab === "waiting-for-approval" && {
-        filter: { status: "completed" },
-      }),
-      ...(effectiveTab === "tervalidasi" && { filter: { status: "approved" } }),
     }),
-    [effectiveTab, page, pageSize]
+    [page, pageSize]
   )
+
+  const shouldFetchList =
+    !!user && !isStockAuditor && ["list", "calendar"].includes(activeTab)
 
   const {
     data: listResponse,
     isLoading,
     isError,
-  } = useStockOpnameSessions(listOptions)
+  } = useStockOpnameSessions(listOptions, { enabled: shouldFetchList })
 
-  // Counts for status tabs (only stock_auditor sees those tabs)
-  const { data: countDraft } = useStockOpnameSessions(
-    {
-      filter: { status: "draft" },
-      page: 1,
-      pageSize: 1,
-    },
-    { enabled: isStockAuditor }
-  )
-  const { data: countCompleted } = useStockOpnameSessions(
-    {
-      filter: { status: "completed" },
-      page: 1,
-      pageSize: 1,
-    },
-    { enabled: isStockAuditor }
-  )
-  const { data: countApproved } = useStockOpnameSessions(
-    {
-      filter: { status: "approved" },
-      page: 1,
-      pageSize: 1,
-    },
-    { enabled: isStockAuditor }
-  )
+  const isContentLoading = isAuthLoading || (shouldFetchList && isLoading)
+  const isContentError = shouldFetchList && isError
 
-  const dijadwalkanCount = countDraft?.meta?.count ?? 0
-  const waitingForApprovalCount = countCompleted?.meta?.count ?? 0
-  const tervalidasiCount = countApproved?.meta?.count ?? 0
-
-  // Apply filters client-side, then map to rows
   const rows = useMemo(() => {
     const sessions = listResponse?.data ?? []
     const dateRange = (filterValues.dateRange as {
       from: string | null
       to: string | null
     }) ?? { from: null, to: null }
-    // tipeBarang filter: session list has no item types; reserved for future API support
     const toko = (filterValues.toko as string[] | undefined) ?? []
     const segmentasi = filterValues.segmentasi as string | null | undefined
 
     let filtered = sessions
 
-    // Date range filter (on startDate)
     if (dateRange.from || dateRange.to) {
       filtered = filtered.filter((s) => {
         const d = new Date(s.startDate)
@@ -479,17 +293,16 @@ export default function StockOpnamePage() {
       })
     }
 
-    // Toko filter (store name) — match if any session store is in selected toko
     if (toko.length) {
       filtered = filtered.filter((s) => {
         const storeNames = (s.stores ?? []).map(
-          (st) => st.shortName ?? st.fullName ?? storeNameById.get(st.uuid) ?? st.uuid
+          (st) =>
+            st.shortName ?? st.fullName ?? storeNameById.get(st.uuid) ?? st.uuid
         )
         return storeNames.some((name) => toko.includes(name))
       })
     }
 
-    // Segmentasi filter (< 1 Bulan vs > 1 Bulan based on startDate)
     if (segmentasi) {
       const now = new Date()
       const oneMonthAgo = new Date(now)
@@ -502,7 +315,6 @@ export default function StockOpnamePage() {
       })
     }
 
-    // tipeBarang: session list doesn't include item types; no client-side filter
     return filtered.map((s) => mapSessionToRow(s))
   }, [
     listResponse?.data,
@@ -512,36 +324,17 @@ export default function StockOpnamePage() {
     filterValues.segmentasi,
   ])
 
-  // For company_admin, only "list" and "calendar" are available — ensure activeTab is valid
   useEffect(() => {
-    if (isCompanyAdmin && !["list", "calendar"].includes(activeTab)) {
-      setActiveTab("list")
+    if (user != null && isStockAuditor) {
+      router.replace("/stock-opname/auditor")
     }
-  }, [isCompanyAdmin, activeTab])
+  }, [user, isStockAuditor, router])
 
-  // For stock_auditor, only status tabs — ensure activeTab is never list/calendar (avoids unfiltered list fetch)
-  useEffect(() => {
-    if (isStockAuditor && ["list", "calendar"].includes(activeTab)) {
-      setActiveTab("dijadwalkan")
-    }
-  }, [isStockAuditor, activeTab])
-
-  const handleCreate = () => {
-    setIsFormDialogOpen(true)
-  }
-
-  const handleFormDialogClose = () => {
-    setIsFormDialogOpen(false)
-  }
-
-  const handleDetail = (row: StockOpnameRow) => {
+  const handleCreate = () => setIsFormDialogOpen(true)
+  const handleFormDialogClose = () => setIsFormDialogOpen(false)
+  const handleDetail = (row: StockOpnameRow) =>
     router.push(`/stock-opname/${row.id}`)
-  }
-
-  const handleEdit = (row: StockOpnameRow) => {
-    setEditSessionId(row.id)
-  }
-
+  const handleEdit = (row: StockOpnameRow) => setEditSessionId(row.id)
   const handleDelete = (row: StockOpnameRow) => {
     setItemToDelete(row)
     setIsConfirmDialogOpen(true)
@@ -555,16 +348,11 @@ export default function StockOpnamePage() {
         setItemToDelete(null)
         setIsConfirmDialogOpen(false)
       },
-      onError: () => {
-        toast.error("Gagal menghapus Stock Opname")
-      },
+      onError: () => toast.error("Gagal menghapus Stock Opname"),
     })
   }
 
-  const handleBulkDelete = () => {
-    setIsBulkDeleteDialogOpen(true)
-  }
-
+  const handleBulkDelete = () => setIsBulkDeleteDialogOpen(true)
   const handleConfirmBulkDelete = () => {
     const ids = selectedRows.map((r) => r.id)
     Promise.all(ids.map((id) => deleteStockOpname.mutateAsync(id)))
@@ -583,9 +371,12 @@ export default function StockOpnamePage() {
       })
   }
 
+  if (user != null && isStockAuditor) {
+    return null
+  }
+
   return (
     <div className="flex flex-col gap-6">
-      {/* Header Section */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex flex-col gap-2">
           <h1 className="text-2xl font-bold">Stock Opname</h1>
@@ -593,24 +384,21 @@ export default function StockOpnamePage() {
             items={[{ label: "Pages", href: "/" }, { label: "Stock Opname" }]}
           />
         </div>
-
-        {!isStockAuditor && (
-          <div>
-            <Button onClick={handleCreate} variant="destructive">
-              <Plus className="size-5" />
-              Tambah Data
-            </Button>
-          </div>
-        )}
+        <div>
+          <Button onClick={handleCreate} variant="destructive">
+            <Plus className="size-5" />
+            Tambah Data
+          </Button>
+        </div>
       </div>
 
       <StockOpnameFormDialog
         open={isFormDialogOpen}
         onOpenChange={setIsFormDialogOpen}
         onClose={handleFormDialogClose}
-        onSuccess={() => {
+        onSuccess={() =>
           queryClient.invalidateQueries({ queryKey: stockOpnameKeys.lists() })
-        }}
+        }
       />
 
       {editSessionId && (
@@ -628,75 +416,20 @@ export default function StockOpnamePage() {
         />
       )}
 
-      {/* Tabs */}
       <Tabs
         value={activeTab}
         onValueChange={setActiveTab}
         className="flex flex-col gap-4"
       >
         <TabsList className="w-fit">
-          {!isStockAuditor && (
-            <>
-              <TabsTrigger value="list">Tampilan List</TabsTrigger>
-              <TabsTrigger value="calendar">Tampilan Kalender</TabsTrigger>
-            </>
-          )}
-          {isStockAuditor && (
-            <>
-              <TabsTrigger
-                value="dijadwalkan"
-                className="flex items-center gap-2"
-              >
-                Dijadwalkan
-                <span
-                  className={`ml-2 rounded-full px-2 py-0.5 text-xs font-medium ${
-                    activeTab === "dijadwalkan"
-                      ? "bg-[#DD3333] text-white"
-                      : "bg-red-50 text-[#DD3333]"
-                  }`}
-                >
-                  {dijadwalkanCount}
-                </span>
-              </TabsTrigger>
-              <TabsTrigger
-                value="waiting-for-approval"
-                className="flex items-center gap-2"
-              >
-                Waiting for Approval
-                <span
-                  className={`ml-2 rounded-full px-2 py-0.5 text-xs font-medium ${
-                    activeTab === "waiting-for-approval"
-                      ? "bg-[#DD3333] text-white"
-                      : "bg-red-50 text-[#DD3333]"
-                  }`}
-                >
-                  {waitingForApprovalCount}
-                </span>
-              </TabsTrigger>
-              <TabsTrigger
-                value="tervalidasi"
-                className="flex items-center gap-2"
-              >
-                Tervalidasi
-                <span
-                  className={`ml-2 rounded-full px-2 py-0.5 text-xs font-medium ${
-                    activeTab === "tervalidasi"
-                      ? "bg-[#DD3333] text-white"
-                      : "bg-red-50 text-[#DD3333]"
-                  }`}
-                >
-                  {tervalidasiCount}
-                </span>
-              </TabsTrigger>
-            </>
-          )}
+          <TabsTrigger value="list">Tampilan List</TabsTrigger>
+          <TabsTrigger value="calendar">Tampilan Kalender</TabsTrigger>
         </TabsList>
 
-        {/* List View */}
         <TabsContent value="list" className="mt-0">
-          {isLoading ? (
+          {isContentLoading ? (
             <TableSkeleton />
-          ) : isError ? (
+          ) : isContentError ? (
             <Card>
               <CardContent className="py-10 text-center">
                 <p className="text-destructive">Gagal memuat data</p>
@@ -779,11 +512,10 @@ export default function StockOpnamePage() {
           )}
         </TabsContent>
 
-        {/* Calendar View */}
         <TabsContent value="calendar" className="mt-0">
           <CalendarView
             data={rows}
-            isLoading={isLoading}
+            isLoading={isContentLoading}
             onDetail={(item) => router.push(`/stock-opname/${item.id}`)}
             onEdit={(item) => router.push(`/stock-opname/${item.id}`)}
             onDelete={(item) => {
@@ -792,185 +524,8 @@ export default function StockOpnamePage() {
             }}
           />
         </TabsContent>
-
-        {/* Dijadwalkan View (stock_auditor only) */}
-        <TabsContent value="dijadwalkan" className="mt-0">
-          {isLoading ? (
-            <TableSkeleton />
-          ) : isError ? (
-            <Card>
-              <CardContent className="py-10 text-center">
-                <p className="text-destructive">Gagal memuat data</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <DataTable
-              columns={getStockAuditorColumns(false)}
-              data={rows}
-              searchPlaceholder="Cari..."
-              headerLeft={
-                <CardTitle className="text-xl">Daftar SO Dijadwalkan</CardTitle>
-              }
-              headerRight={
-                <div className="flex w-full items-center gap-2 sm:w-auto">
-                  <Select
-                    value={pageSize.toString()}
-                    onValueChange={(value) => setPageSize(Number(value))}
-                  >
-                    <SelectTrigger className="w-[100px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="10">10</SelectItem>
-                      <SelectItem value="25">25</SelectItem>
-                      <SelectItem value="50">50</SelectItem>
-                      <SelectItem value="100">100</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <div className="w-full sm:w-auto sm:max-w-sm">
-                    <Input
-                      placeholder="Cari..."
-                      value={searchValue}
-                      onChange={(e) => setSearchValue(e.target.value)}
-                      icon={<SearchIcon className="size-4" />}
-                      className="w-full"
-                    />
-                  </div>
-                </div>
-              }
-              initialPageSize={pageSize}
-              onPageSizeChange={setPageSize}
-              searchValue={searchValue}
-              onSearchChange={setSearchValue}
-              onDetail={handleDetail}
-            />
-          )}
-        </TabsContent>
-
-        {/* Waiting for Approval View (stock_auditor only) */}
-        <TabsContent value="waiting-for-approval" className="mt-0">
-          {isLoading ? (
-            <TableSkeleton />
-          ) : isError ? (
-            <Card>
-              <CardContent className="py-10 text-center">
-                <p className="text-destructive">Gagal memuat data</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <DataTable
-              columns={getStockAuditorColumns(false)}
-              data={rows}
-              searchPlaceholder="Cari..."
-              headerLeft={
-                <CardTitle className="text-xl">
-                  Daftar SO Waiting for Approval
-                </CardTitle>
-              }
-              headerRight={
-                <div className="flex w-full items-center gap-2 sm:w-auto">
-                  <Select
-                    value={pageSize.toString()}
-                    onValueChange={(value) => setPageSize(Number(value))}
-                  >
-                    <SelectTrigger className="w-[100px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="10">10</SelectItem>
-                      <SelectItem value="25">25</SelectItem>
-                      <SelectItem value="50">50</SelectItem>
-                      <SelectItem value="100">100</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <div className="w-full sm:w-auto sm:max-w-sm">
-                    <Input
-                      placeholder="Cari..."
-                      value={searchValue}
-                      onChange={(e) => setSearchValue(e.target.value)}
-                      icon={<SearchIcon className="size-4" />}
-                      className="w-full"
-                    />
-                  </div>
-                </div>
-              }
-              initialPageSize={pageSize}
-              onPageSizeChange={setPageSize}
-              searchValue={searchValue}
-              onSearchChange={setSearchValue}
-              onDetail={handleDetail}
-            />
-          )}
-        </TabsContent>
-
-        {/* Tervalidasi View (stock_auditor only) */}
-        <TabsContent value="tervalidasi" className="mt-0">
-          {isLoading ? (
-            <TableSkeleton />
-          ) : isError ? (
-            <Card>
-              <CardContent className="py-10 text-center">
-                <p className="text-destructive">Gagal memuat data</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <DataTable
-              columns={getStockAuditorColumns(true)}
-              data={rows}
-              searchPlaceholder="Cari..."
-              headerLeft={
-                <CardTitle className="text-xl">
-                  Daftar SO Tervalidasi
-                </CardTitle>
-              }
-              headerRight={
-                <div className="flex w-full items-center gap-2 sm:w-auto">
-                  <Select
-                    value={pageSize.toString()}
-                    onValueChange={(value) => setPageSize(Number(value))}
-                  >
-                    <SelectTrigger className="w-[100px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="10">10</SelectItem>
-                      <SelectItem value="25">25</SelectItem>
-                      <SelectItem value="50">50</SelectItem>
-                      <SelectItem value="100">100</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <div className="w-full sm:w-auto sm:max-w-sm">
-                    <Input
-                      placeholder="Cari..."
-                      value={searchValue}
-                      onChange={(e) => setSearchValue(e.target.value)}
-                      icon={<SearchIcon className="size-4" />}
-                      className="w-full"
-                    />
-                  </div>
-                </div>
-              }
-              initialPageSize={pageSize}
-              onPageSizeChange={setPageSize}
-              searchValue={searchValue}
-              onSearchChange={setSearchValue}
-              onDetail={handleDetail}
-            />
-          )}
-        </TabsContent>
       </Tabs>
 
-      {/* Form Dialog for Create */}
-      <StockOpnameFormDialog
-        open={isFormDialogOpen}
-        onOpenChange={setIsFormDialogOpen}
-        onClose={handleFormDialogClose}
-        onSuccess={() =>
-          queryClient.invalidateQueries({ queryKey: stockOpnameKeys.lists() })
-        }
-      />
-
-      {/* Confirmation Dialog for Delete */}
       <ConfirmationDialog
         open={isConfirmDialogOpen}
         onOpenChange={setIsConfirmDialogOpen}
@@ -980,7 +535,6 @@ export default function StockOpnamePage() {
         variant="destructive"
       />
 
-      {/* Confirmation Dialog for Bulk Delete */}
       <ConfirmationDialog
         open={isBulkDeleteDialogOpen}
         onOpenChange={setIsBulkDeleteDialogOpen}

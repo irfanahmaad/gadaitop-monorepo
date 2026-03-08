@@ -115,6 +115,11 @@ export default function StockOpnameDetailPage() {
     () => user?.roles?.some((r) => r.code === "company_admin") ?? false,
     [user]
   )
+  const isStockAuditor = useMemo(
+    () => user?.roles?.some((r) => r.code === "stock_auditor") ?? false,
+    [user]
+  )
+  const stockListHref = isStockAuditor ? "/stock-opname/auditor" : "/stock-opname"
 
   // Fetch stock opname session detail from API
   const {
@@ -268,7 +273,7 @@ export default function StockOpnameDetailPage() {
             <Button
               variant="outline"
               className="mt-4"
-              onClick={() => router.push("/stock-opname")}
+              onClick={() => router.push(stockListHref)}
             >
               Kembali ke Stock Opname
             </Button>
@@ -287,7 +292,7 @@ export default function StockOpnameDetailPage() {
           <Breadcrumbs
             items={[
               { label: "Pages", href: "/" },
-              { label: "Stock Opname", href: "/stock-opname" },
+              { label: "Stock Opname", href: stockListHref },
               { label: "Detail" },
             ]}
           />

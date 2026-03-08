@@ -34,7 +34,6 @@ export default function PenilaianBarangPage() {
   const params = useParams()
   const router = useRouter()
   const slug = params.slug as string
-  const itemId = params.itemId as string
   const fileInputRef = React.useRef<HTMLInputElement>(null)
   const objectUrlsRef = React.useRef<Set<string>>(new Set())
 
@@ -44,7 +43,7 @@ export default function PenilaianBarangPage() {
   const [isSubmitting, setIsSubmitting] = React.useState(false)
 
   const handleBatal = () => {
-    router.push(`/validasi-lelangan/${slug}/item/${itemId}`)
+    router.push(`/stock-opname/auditor/${slug}`)
   }
 
   const handleSimpan = () => {
@@ -99,16 +98,16 @@ export default function PenilaianBarangPage() {
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbLink href="/validasi-lelangan">
-                Validasi Lelang
+              <BreadcrumbLink href="/stock-opname">
+                Stock Opname
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator>
               <ChevronRight className="h-4 w-4" />
             </BreadcrumbSeparator>
             <BreadcrumbItem>
-              <BreadcrumbLink href={`/validasi-lelangan/${slug}`}>
-                Detail
+              <BreadcrumbLink href={`/stock-opname/auditor/${slug}`}>
+                Detail Batch
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator>
