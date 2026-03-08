@@ -29,7 +29,8 @@ export class UpdateUserDto {
 
   @IsOptional()
   @IsUUID()
-  branchId?: string;
+  @ValidateIf((o) => o.branchId != null)
+  branchId?: string | null;
 
   @IsOptional()
   @ValidateIf((o) => o.imageUrl != null)

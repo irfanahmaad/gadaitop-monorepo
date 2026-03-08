@@ -1,4 +1,11 @@
-import { IsOptional, IsUUID, IsEnum, IsString, Matches } from 'class-validator';
+import {
+  IsOptional,
+  IsUUID,
+  IsEnum,
+  IsString,
+  Matches,
+  IsDateString,
+} from 'class-validator';
 
 import { PageOptionsDto } from '../../../common/dtos/page-options.dto';
 import { NkbPaymentTypeEnum } from '../../../constants/nkb-payment-type';
@@ -34,4 +41,12 @@ export class QueryNkbDto extends PageOptionsDto {
   @IsOptional()
   @IsEnum(NkbPaymentTypeEnum)
   paymentType?: NkbPaymentTypeEnum;
+
+  @IsOptional()
+  @IsDateString()
+  dateFrom?: string;
+
+  @IsOptional()
+  @IsDateString()
+  dateTo?: string;
 }

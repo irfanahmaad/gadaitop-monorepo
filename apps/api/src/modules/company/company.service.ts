@@ -220,7 +220,7 @@ export class CompanyService {
     };
   }
 
-  async delete(uuid: string): Promise<void> {
+  async delete(uuid: string, deletedBy?: string | null): Promise<void> {
     const company = await this.companyRepository.findOne({
       where: { uuid },
       relations: ['owner', 'branches', 'users'],
@@ -237,18 +237,19 @@ export class CompanyService {
       );
     }
 
-    // Use transaction to delete company and optionally the owner
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
-      // Remove company
-      await queryRunner.manager.softRemove(company);
+      company.deletedAt = new Date();
+      company.deletedBy = deletedBy ?? null;
+      await queryRunner.manager.save(company);
 
-      // Optionally soft-remove the owner if they only own this company
       if (company.owner) {
-        await queryRunner.manager.softRemove(company.owner);
+        (company.owner as any).deletedAt = new Date();
+        (company.owner as any).deletedBy = deletedBy ?? null;
+        await queryRunner.manager.save(company.owner);
       }
 
       await queryRunner.commitTransaction();

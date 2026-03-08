@@ -252,7 +252,7 @@ export class CustomerService {
     return new CustomerDto(updated);
   }
 
-  async remove(uuid: string): Promise<void> {
+  async remove(uuid: string, deletedBy?: string | null): Promise<void> {
     const customer = await this.customerRepository.findOne({
       where: { uuid },
     });
@@ -261,7 +261,9 @@ export class CustomerService {
       throw new NotFoundException(`Customer with UUID ${uuid} not found`);
     }
 
-    await this.customerRepository.softDelete({ uuid });
+    customer.deletedAt = new Date();
+    customer.deletedBy = deletedBy ?? null;
+    await this.customerRepository.save(customer);
   }
 
   async scanKtp(_dto: { imageBase64: string }): Promise<{

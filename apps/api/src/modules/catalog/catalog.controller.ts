@@ -76,8 +76,13 @@ export class CatalogController {
 
   @Delete(':id')
   @Auth([{ action: AclAction.DELETE, subject: AclSubject.CATALOG }])
-  async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
-    return this.catalogService.remove(id);
+  async remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
+  ): Promise<void> {
+    const user = (req as any).user;
+    const deletedBy = user?.uuid ?? null;
+    return this.catalogService.remove(id, deletedBy);
   }
 
   @Post('import')

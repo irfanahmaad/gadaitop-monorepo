@@ -8,7 +8,9 @@ import {
   Param,
   Query,
   ParseUUIDPipe,
+  Req,
 } from '@nestjs/common';
+import { Request } from 'express';
 
 import { Auth } from '../../decorators';
 import { AclAction, AclSubject } from '../../constants/acl';
@@ -78,8 +80,11 @@ export class UserController {
   @Auth([{ action: AclAction.DELETE, subject: AclSubject.USER }])
   async delete(
     @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
   ): Promise<{ message: string }> {
-    await this.userService.deleteByUuid(id);
+    const user = (req as any).user;
+    const deletedBy = user?.uuid ?? null;
+    await this.userService.deleteByUuid(id, deletedBy);
     return { message: 'User deleted successfully' };
   }
 }

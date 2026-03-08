@@ -141,12 +141,15 @@ export class DynamicQueryBuilder {
               key,
               op,
             );
-            const translatedValue = this.translateValue(operator, value);
+            const translatedValue = this.translateValue(op, value);
 
-            qb.andWhere(condition, { [key]: translatedValue });
-
-            if (Array.isArray(value)) {
-              qb.setParameter(`${key}`, translatedValue);
+            if (op === 'isNull' || op === 'isNotNull') {
+              qb.andWhere(condition);
+            } else {
+              qb.andWhere(condition, { [key]: translatedValue });
+              if (Array.isArray(value)) {
+                qb.setParameter(`${key}`, translatedValue);
+              }
             }
           }
         }
@@ -219,6 +222,10 @@ export class DynamicQueryBuilder {
         return `${alias}.${key} LIKE :${key}`;
       case 'between':
         return `${alias}.${key} BETWEEN :${key}_start AND :${key}_end`;
+      case 'isNull':
+        return `${alias}.${key} IS NULL`;
+      case 'isNotNull':
+        return `${alias}.${key} IS NOT NULL`;
       default:
         throw new Error(`Unknown operator: ${operator}`);
     }

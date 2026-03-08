@@ -650,9 +650,9 @@ export default function LelanganDetailPage() {
                         <TableCell className="font-medium">
                           <div className="flex items-center gap-2">
                             <span>{row.noSPK}</span>
-                            {!row.isMata && (
+                            {row.isMata && (
                               <span
-                                title="Item tidak sesuai syarat Mata"
+                                title="Item sesuai syarat Mata"
                                 className="inline-flex shrink-0"
                               >
                                 <Eye className="text-destructive size-4" />

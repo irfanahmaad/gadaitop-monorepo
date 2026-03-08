@@ -83,6 +83,13 @@ const formatNkbDate = (dateStr: string): string => {
 // Filter configuration for NKB
 const filterConfig: FilterConfig[] = [
   {
+    key: "dateRange",
+    label: "Tanggal",
+    type: "daterange",
+    labelFrom: "Mulai Dari",
+    labelTo: "Sampai Dengan",
+  },
+  {
     key: "pembayaranRange",
     label: "Total Pembayaran",
     type: "currencyrange",
@@ -471,16 +478,21 @@ function NKBPageContent() {
     session?.user?.roles?.some((r) => r.code === "company_admin") ?? false
 
   // NKB Baru: fetch pending NKB from API
-  const nkbBaruListOptions = useMemo(
-    () => ({
+  const nkbBaruListOptions = useMemo(() => {
+    const dateRange = filterValues.dateRange as
+      | { from?: string; to?: string }
+      | undefined
+    const filter: Record<string, string> = {
+      status: "pending",
+    }
+    if (dateRange?.from) filter.dateFrom = dateRange.from
+    if (dateRange?.to) filter.dateTo = dateRange.to
+    return {
       page: 1,
       pageSize: 100,
-      filter: {
-        status: "pending" as const,
-      },
-    }),
-    []
-  )
+      filter,
+    }
+  }, [filterValues.dateRange])
   const { data: nkbBaruResponse, isLoading: isLoadingNkbBaru } =
     useNkbList(nkbBaruListOptions)
   const nkbBaruData = useMemo(
@@ -489,18 +501,23 @@ function NKBPageContent() {
   )
 
   // History NKB: fetch confirmed + rejected from API
-  const nkbHistoryListOptions = useMemo(
-    () => ({
+  const nkbHistoryListOptions = useMemo(() => {
+    const dateRange = filterValues.dateRange as
+      | { from?: string; to?: string }
+      | undefined
+    const filter: Record<string, string> = {
+      statusIn: "confirmed,rejected",
+    }
+    if (dateRange?.from) filter.dateFrom = dateRange.from
+    if (dateRange?.to) filter.dateTo = dateRange.to
+    return {
       page: 1,
       pageSize: 100,
       sortBy: "createdAt",
       order: "DESC" as const,
-      filter: {
-        statusIn: "confirmed,rejected",
-      },
-    }),
-    []
-  )
+      filter,
+    }
+  }, [filterValues.dateRange])
   const {
     data: nkbHistoryResponse,
     isLoading: isLoadingHistory,

@@ -95,6 +95,16 @@ export class NkbService {
     if (queryDto.branchId) {
       qb.andWhere('nkb.storeId = :storeId', { storeId: queryDto.branchId });
     }
+    if (queryDto.dateFrom) {
+      qb.andWhere('nkb.createdAt >= :dateFrom', {
+        dateFrom: new Date(queryDto.dateFrom),
+      });
+    }
+    if (queryDto.dateTo) {
+      const dateToEnd = new Date(queryDto.dateTo);
+      dateToEnd.setHours(23, 59, 59, 999);
+      qb.andWhere('nkb.createdAt <= :dateTo', { dateTo: dateToEnd });
+    }
 
     const dynamicQueryBuilder = new DynamicQueryBuilder(this.nkbRepository.metadata);
     const [records, count] = await dynamicQueryBuilder.buildDynamicQuery(

@@ -276,7 +276,7 @@ export class CatalogService {
     return new CatalogDto(updated);
   }
 
-  async remove(uuid: string): Promise<void> {
+  async remove(uuid: string, deletedBy?: string | null): Promise<void> {
     const catalog = await this.catalogRepository.findOne({
       where: { uuid },
     });
@@ -285,7 +285,9 @@ export class CatalogService {
       throw new NotFoundException(`Catalog with UUID ${uuid} not found`);
     }
 
-    await this.catalogRepository.softDelete({ uuid });
+    catalog.deletedAt = new Date();
+    catalog.deletedBy = deletedBy ?? null;
+    await this.catalogRepository.save(catalog);
   }
 
   async getPriceHistory(catalogId: string): Promise<CatalogPriceHistoryDto[]> {

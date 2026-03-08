@@ -117,7 +117,7 @@ export class BranchService {
     return new BranchDto(updated);
   }
 
-  async remove(uuid: string): Promise<void> {
+  async remove(uuid: string, deletedBy?: string | null): Promise<void> {
     const branch = await this.branchRepository.findOne({
       where: { uuid },
     });
@@ -126,7 +126,9 @@ export class BranchService {
       throw new NotFoundException(`Branch with UUID ${uuid} not found`);
     }
 
-    await this.branchRepository.softDelete({ uuid });
+    branch.deletedAt = new Date();
+    branch.deletedBy = deletedBy ?? null;
+    await this.branchRepository.save(branch);
   }
 
   async approveBorrowRequest(
@@ -177,5 +179,39 @@ export class BranchService {
 
     const updated = await this.branchRepository.save(branch);
     return new BranchDto(updated);
+  }
+
+  async deactivate(uuid: string): Promise<BranchDto> {
+    const branch = await this.branchRepository.findOne({
+      where: { uuid },
+    });
+    if (!branch) {
+      throw new NotFoundException(`Branch with UUID ${uuid} not found`);
+    }
+    if (branch.status !== BranchStatusEnum.Active) {
+      throw new BadRequestException(
+        'Only active branches can be deactivated',
+      );
+    }
+    branch.status = BranchStatusEnum.Inactive;
+    await this.branchRepository.save(branch);
+    return this.findOne(uuid);
+  }
+
+  async activate(uuid: string): Promise<BranchDto> {
+    const branch = await this.branchRepository.findOne({
+      where: { uuid },
+    });
+    if (!branch) {
+      throw new NotFoundException(`Branch with UUID ${uuid} not found`);
+    }
+    if (branch.status !== BranchStatusEnum.Inactive) {
+      throw new BadRequestException(
+        'Only inactive branches can be activated',
+      );
+    }
+    branch.status = BranchStatusEnum.Active;
+    await this.branchRepository.save(branch);
+    return this.findOne(uuid);
   }
 }

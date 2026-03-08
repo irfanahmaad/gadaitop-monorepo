@@ -39,6 +39,7 @@ export {
   useBranches,
   useCreateBranch,
   useDeleteBranch,
+  useDeactivateBranch,
   useRejectBranch,
   useUpdateBranch,
 } from "./use-branches"

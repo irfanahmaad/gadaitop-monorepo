@@ -93,7 +93,7 @@ export class ItemTypeService {
     return new ItemTypeDto(updated);
   }
 
-  async remove(uuid: string): Promise<void> {
+  async remove(uuid: string, deletedBy?: string | null): Promise<void> {
     const item = await this.itemTypeRepository.findOne({
       where: { uuid },
     });
@@ -102,6 +102,8 @@ export class ItemTypeService {
       throw new NotFoundException(`Item type with UUID ${uuid} not found`);
     }
 
-    await this.itemTypeRepository.softDelete({ uuid });
+    item.deletedAt = new Date();
+    item.deletedBy = deletedBy ?? null;
+    await this.itemTypeRepository.save(item);
   }
 }

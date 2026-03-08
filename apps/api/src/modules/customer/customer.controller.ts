@@ -1,5 +1,6 @@
 import {
   Controller,
+  ForbiddenException,
   Get,
   Post,
   Put,
@@ -92,6 +93,11 @@ export class CustomerController {
     @Req() req: Request,
   ): Promise<{ success: boolean }> {
     const user = (req as any).user;
+    const roles = user?.roles ?? [];
+    const isCompanyAdmin = roles.some((r: { code?: string }) => r?.code === 'company_admin');
+    if (!changePinDto.oldPin && !isCompanyAdmin) {
+      throw new ForbiddenException('Only Admin PT can reset customer PIN without old PIN');
+    }
     const changedBy = user?.uuid ?? null;
     const ipAddress = (req.headers['x-forwarded-for'] as string) ?? req.socket?.remoteAddress ?? undefined;
     const userAgent = req.headers['user-agent'];
@@ -131,7 +137,12 @@ export class CustomerController {
 
   @Delete(':id')
   @Auth([{ action: AclAction.DELETE, subject: AclSubject.CUSTOMER }])
-  async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
-    return this.customerService.remove(id);
+  async remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
+  ): Promise<void> {
+    const user = (req as any).user;
+    const deletedBy = user?.uuid ?? null;
+    return this.customerService.remove(id, deletedBy);
   }
 }

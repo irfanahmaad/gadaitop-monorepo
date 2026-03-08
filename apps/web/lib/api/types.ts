@@ -102,7 +102,8 @@ export interface UpdateUserDto {
   imageUrl?: string | null
   activeStatus?: ActiveStatus
   companyId?: string
-  branchId?: string
+  /** Set to null to clear branch assignment (e.g. when role is Admin PT). */
+  branchId?: string | null
 }
 
 export interface AssignRoleDto {
@@ -630,6 +631,8 @@ export interface QueryNkbDto extends PageOptions {
   /** Comma-separated statuses, e.g. "confirmed,rejected". When set, backend returns NKBs with status in this list. */
   statusIn?: string
   type?: NkbType
+  dateFrom?: string
+  dateTo?: string
   ptId?: string
   branchId?: string
 }
@@ -767,6 +770,7 @@ export interface CreateAuctionBatchDto {
   spkItemIds: string[]
   name?: string
   notes?: string
+  assignedTo?: string
 }
 
 export interface UpdateAuctionBatchDto {

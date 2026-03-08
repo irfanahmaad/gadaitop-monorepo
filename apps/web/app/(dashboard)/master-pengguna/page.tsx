@@ -174,6 +174,25 @@ const columns: ColumnDef<User>[] = [
     cell: ({ row }) => row.getValue("phoneNumber") || "-",
   },
   {
+    id: "company",
+    header: "PT",
+    cell: ({ row }) => {
+      const user = row.original
+      const name = user.company?.companyName ?? user.company?.companyCode
+      return <span className="text-sm">{name ?? "-"}</span>
+    },
+  },
+  {
+    id: "branch",
+    header: "Toko/Cabang",
+    cell: ({ row }) => {
+      const user = row.original
+      const name =
+        user.branch?.shortName ?? user.branch?.branchCode ?? user.branch?.uuid
+      return <span className="text-sm">{name ?? "-"}</span>
+    },
+  },
+  {
     id: "role",
     header: "Role",
     cell: ({ row }) => {
@@ -310,13 +329,21 @@ function MasterPenggunaPageContent() {
     return Array.isArray(roleValue) ? roleValue : []
   }, [filterValues.role])
 
+  const [excludeAdminPt, setExcludeAdminPt] = useState(false)
+
   const listOptions = React.useMemo(() => {
     const filter: Record<string, string> = {}
     if (companyFilterId) filter.companyId = companyFilterId
     if (selectedRoles.length > 0) filter.roleCode = selectedRoles[0] as string
     if (debouncedSearchValue.trim()) filter.search = debouncedSearchValue.trim()
-    return { page, pageSize, filter }
-  }, [page, pageSize, companyFilterId, selectedRoles, debouncedSearchValue])
+    if (excludeAdminPt) filter.excludeRoleCode = "company_admin"
+    return {
+      page,
+      pageSize,
+      filter,
+      sortBy: "desc-id",
+    }
+  }, [page, pageSize, companyFilterId, selectedRoles, debouncedSearchValue, excludeAdminPt])
 
   const { data, isLoading, isError } = useUsers(listOptions)
   const deleteUserMutation = useDeleteUser()
@@ -326,7 +353,7 @@ function MasterPenggunaPageContent() {
   // Reset to page 1 when search or filters change
   useEffect(() => {
     setPage(1)
-  }, [debouncedSearchValue, companyFilterId, selectedRoles])
+  }, [debouncedSearchValue, companyFilterId, selectedRoles, excludeAdminPt])
 
   const handleDetail = useCallback(
     (row: User) => {
@@ -480,6 +507,18 @@ function MasterPenggunaPageContent() {
                     className="w-full"
                   />
                 </div>
+                <label className="flex cursor-pointer items-center gap-2 text-sm">
+                  <Checkbox
+                    checked={excludeAdminPt}
+                    onCheckedChange={(checked) =>
+                      setExcludeAdminPt(checked === true)
+                    }
+                    aria-label="Sembunyikan Admin PT"
+                  />
+                  <span className="text-muted-foreground whitespace-nowrap">
+                    Sembunyikan Admin PT
+                  </span>
+                </label>
                 <Button
                   variant="outline"
                   className="flex items-center gap-2"

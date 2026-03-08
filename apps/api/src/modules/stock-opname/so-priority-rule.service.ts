@@ -93,11 +93,13 @@ export class SoPriorityRuleService {
     return this.findOne(uuid);
   }
 
-  async remove(uuid: string): Promise<void> {
+  async remove(uuid: string, deletedBy?: string | null): Promise<void> {
     const rule = await this.ruleRepository.findOne({ where: { uuid } });
     if (!rule) {
       throw new NotFoundException(`SO priority rule with UUID ${uuid} not found`);
     }
-    await this.ruleRepository.softRemove(rule);
+    rule.deletedAt = new Date();
+    rule.deletedBy = deletedBy ?? null;
+    await this.ruleRepository.save(rule);
   }
 }

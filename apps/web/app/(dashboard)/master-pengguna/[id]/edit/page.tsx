@@ -45,6 +45,7 @@ import {
   SelectValue,
 } from "@workspace/ui/components/select"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
+import type { Role } from "@/lib/api/types"
 import {
   useUser,
   useUpdateUser,
@@ -52,6 +53,8 @@ import {
   useResetUserPassword,
 } from "@/lib/react-query/hooks/use-users"
 import { useRoles } from "@/lib/react-query/hooks/use-roles"
+import { useBranches } from "@/lib/react-query/hooks/use-branches"
+import { useAuth } from "@/lib/react-query/hooks/use-auth"
 import { usePublicUrl, useUploadFile } from "@/lib/react-query/hooks/use-upload"
 
 const userSchema = z
@@ -64,6 +67,7 @@ const userSchema = z
       .email("Format email tidak valid"),
     phoneNumber: z.string().optional().or(z.literal("")),
     roleId: z.string().min(1, "Role harus dipilih"),
+    branchId: z.string().optional().or(z.literal("")),
     password: z.string().optional().or(z.literal("")),
     confirmPassword: z.string().optional().or(z.literal("")),
   })
@@ -177,6 +181,8 @@ export default function EditMasterPenggunaPage() {
     resetPasswordMutation.isPending ||
     presignedUrlMutation.isPending
 
+  const { user: authUser } = useAuth()
+
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userSchema),
     defaultValues: {
@@ -185,10 +191,41 @@ export default function EditMasterPenggunaPage() {
       email: "",
       phoneNumber: "",
       roleId: "",
+      branchId: "",
       password: "",
       confirmPassword: "",
     },
   })
+
+  const selectedRoleId = form.watch("roleId")
+  const selectedRole = React.useMemo(
+    () =>
+      (rolesData?.data ?? []).find((r: Role) => r.uuid === selectedRoleId),
+    [rolesData?.data, selectedRoleId]
+  )
+  const isStaffToko = selectedRole?.code === "branch_staff"
+  const showBranchField =
+    selectedRole != null && selectedRole.code !== "company_admin"
+
+  const companyIdForBranches =
+    userData?.companyId ?? authUser?.companyId ?? undefined
+  const { data: branchesData } = useBranches(
+    companyIdForBranches
+      ? { companyId: companyIdForBranches, pageSize: 100 }
+      : undefined,
+    { enabled: !!companyIdForBranches && showBranchField }
+  )
+  const branchOptions = React.useMemo(() => {
+    const list = branchesData?.data ?? []
+    return list.map((b) => ({
+      value: b.uuid,
+      label: b.shortName ?? b.branchCode ?? b.uuid,
+    }))
+  }, [branchesData])
+
+  useEffect(() => {
+    if (selectedRole?.code === "company_admin") form.setValue("branchId", "")
+  }, [selectedRole?.code, form])
 
   // Pre-fill form when user data is loaded; only run once to avoid overwriting user's image change
   useEffect(() => {
@@ -200,6 +237,7 @@ export default function EditMasterPenggunaPage() {
       email: user.email || "",
       phoneNumber: user.phoneNumber || "",
       roleId,
+      branchId: user.branchId ?? "",
       password: "",
       confirmPassword: "",
     })
@@ -242,9 +280,14 @@ export default function EditMasterPenggunaPage() {
 
   const handleSimpanClick = () => {
     form.handleSubmit((values) => {
-      if (values) {
-        setConfirmOpen(true)
+      if (!values) return
+      if (selectedRole?.code === "branch_staff" && !values.branchId?.trim()) {
+        form.setError("branchId", {
+          message: "Toko/Cabang harus dipilih untuk role Staf Toko",
+        })
+        return
       }
+      setConfirmOpen(true)
     })()
   }
 
@@ -266,7 +309,7 @@ export default function EditMasterPenggunaPage() {
         imageUrl = null
       }
 
-      // Update basic user info (including image)
+      // Update basic user info (including image and branch)
       await updateUserMutation.mutateAsync({
         id: userId,
         data: {
@@ -274,6 +317,9 @@ export default function EditMasterPenggunaPage() {
           email: values.email,
           phoneNumber: values.phoneNumber || undefined,
           ...(imageUrl !== undefined && { imageUrl }),
+          ...(showBranchField
+            ? { branchId: values.branchId?.trim() || null }
+            : { branchId: null }),
         },
       })
 
@@ -523,7 +569,7 @@ export default function EditMasterPenggunaPage() {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                {rolesData?.data?.map((role) => (
+                                {rolesData?.data?.map((role: Role) => (
                                   <SelectItem key={role.uuid} value={role.uuid}>
                                     {role.name}
                                   </SelectItem>
@@ -534,6 +580,46 @@ export default function EditMasterPenggunaPage() {
                           </FormItem>
                         )}
                       />
+                      {showBranchField && (
+                        <FormField
+                          control={form.control}
+                          name="branchId"
+                          render={({ field }) => (
+                            <FormItem className="md:col-span-2">
+                              <FormLabel>
+                                Toko/Cabang
+                                {isStaffToko && (
+                                  <span className="text-destructive"> *</span>
+                                )}
+                              </FormLabel>
+                              <Select
+                                value={field.value || undefined}
+                                onValueChange={field.onChange}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue
+                                      placeholder={
+                                        isStaffToko
+                                          ? "Pilih Toko/Cabang"
+                                          : "Pilih Toko/Cabang (opsional)"
+                                      }
+                                    />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {branchOptions.map((b) => (
+                                    <SelectItem key={b.value} value={b.value}>
+                                      {b.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      )}
                     </div>
                   </div>
 

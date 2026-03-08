@@ -65,6 +65,7 @@ type CreateBatchDialogProps = {
     spkItemIds: string[]
     name?: string
     notes?: string
+    assignedTo?: string
   }) => void | Promise<void>
   isSubmitting?: boolean
 }
@@ -87,6 +88,7 @@ export function CreateBatchDialog({
     spkItemIds: string[]
     name?: string
     notes?: string
+    assignedTo?: string
   } | null>(null)
 
   const form = useForm<CreateFormValues>({
@@ -119,6 +121,7 @@ export function CreateBatchDialog({
       spkItemIds: selectedItems.map((i) => i.spkItemId),
       name: values.namaBatch?.trim() || undefined,
       notes: values.catatan?.trim() || undefined,
+      assignedTo: values.penanggungJawab || undefined,
     })
     setConfirmOpen(true)
   }

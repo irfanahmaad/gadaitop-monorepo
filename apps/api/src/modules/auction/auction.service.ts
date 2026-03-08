@@ -150,6 +150,8 @@ export class AuctionService {
       status: AuctionBatchStatusEnum.Draft,
       notes: dto.notes ?? null,
       name: dto.name ?? null,
+      assignedTo: dto.assignedTo ?? null,
+      assignedAt: dto.assignedTo ? new Date() : null,
     });
     const savedBatch = await this.batchRepository.save(batch);
 

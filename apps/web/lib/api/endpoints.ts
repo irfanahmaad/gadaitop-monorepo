@@ -48,6 +48,8 @@ export const endpoints = {
     delete: (id: string) => baseUrl(`branches/${id}`),
     approve: (id: string) => baseUrl(`branches/${id}/approve`),
     reject: (id: string) => baseUrl(`branches/${id}/reject`),
+    deactivate: (id: string) => baseUrl(`branches/${id}/deactivate`),
+    activate: (id: string) => baseUrl(`branches/${id}/activate`),
   },
 
   // Item Types
