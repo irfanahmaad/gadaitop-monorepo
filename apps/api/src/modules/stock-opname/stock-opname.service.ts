@@ -74,7 +74,13 @@ export class StockOpnameService {
   async findOne(uuid: string): Promise<StockOpnameSessionDto> {
     const session = await this.sessionRepository.findOne({
       where: { uuid },
-      relations: ['items', 'items.spkItem', 'items.spkItem.itemType', 'items.spkItem.spk'],
+      relations: [
+        'creator',
+        'items',
+        'items.spkItem',
+        'items.spkItem.itemType',
+        'items.spkItem.spk',
+      ],
     });
     if (!session) {
       throw new NotFoundException(

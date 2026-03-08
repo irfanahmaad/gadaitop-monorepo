@@ -484,6 +484,8 @@ export interface QuerySpkDto extends PageOptions {
   branchId?: string
   dateFrom?: string
   dateTo?: string
+  /** When true and status=overdue, exclude SPK items already in an auction batch (Daftar Lelang). */
+  excludeInAuctionBatch?: boolean
 }
 
 // ==========================================
@@ -918,9 +920,14 @@ export interface CashDeposit {
   updatedAt: string
 }
 
+export type CashDepositPaymentMethod = 'bank_transfer' | 'qris' | 'virtual_account'
+
 export interface CreateCashDepositDto {
   storeId: string
+  ptId?: string
   amount: number
+  paymentMethod: CashDepositPaymentMethod
+  paymentChannel?: string
   notes?: string
   bankAccountId?: string
   proofUrl?: string

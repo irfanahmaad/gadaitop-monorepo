@@ -14,9 +14,15 @@ export class StockOpnameSessionDto {
   totalItemsCounted: number;
   variancesCount: number;
   createdAt: Date;
+  updatedAt: Date;
+  notes: string | null;
   items?: StockOpnameItemDto[];
+  /** Assigned staff (petugas SO) — from session creator */
+  assignedTo?: { uuid: string; fullName?: string; name?: string; email?: string } | null;
 
-  constructor(session: StockOpnameSessionEntity & { items?: any[] }) {
+  constructor(
+    session: StockOpnameSessionEntity & { items?: any[]; creator?: any },
+  ) {
     this.uuid = session.uuid;
     this.sessionCode = session.sessionCode;
     this.ptId = session.ptId;
@@ -28,8 +34,21 @@ export class StockOpnameSessionDto {
     this.totalItemsCounted = session.totalItemsCounted ?? 0;
     this.variancesCount = session.variancesCount ?? 0;
     this.createdAt = session.createdAt;
+    this.updatedAt = session.updatedAt;
+    this.notes = session.notes ?? null;
     if (session.items?.length) {
       this.items = session.items.map((i) => new StockOpnameItemDto(i));
+    }
+    if (session.creator) {
+      const c = session.creator;
+      this.assignedTo = {
+        uuid: c.uuid,
+        fullName: c.fullName ?? c.name,
+        name: c.name ?? c.fullName,
+        email: c.email,
+      };
+    } else {
+      this.assignedTo = null;
     }
   }
 }

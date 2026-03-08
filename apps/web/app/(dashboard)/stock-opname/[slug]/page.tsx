@@ -19,6 +19,8 @@ import {
   StockOpnameItemTable,
   type StockOpnameItem,
 } from "../_components/StockOpnameItemTable"
+import { StockOpnameItemDetailDialog } from "../_components/StockOpnameItemDetailDialog"
+import type { StockOpnameItem as ApiStockOpnameItem } from "@/lib/api/types"
 import { useStockOpnameSession } from "@/lib/react-query/hooks/use-stock-opname"
 import { useBranches } from "@/lib/react-query/hooks/use-branches"
 import { usePawnTerms } from "@/lib/react-query/hooks/use-pawn-terms"
@@ -117,6 +119,8 @@ export default function StockOpnameDetailPage() {
   } = useStockOpnameSession(slug)
 
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false)
+  const [itemDetailDialogOpen, setItemDetailDialogOpen] = React.useState(false)
+  const [selectedApiItem, setSelectedApiItem] = React.useState<ApiStockOpnameItem | null>(null)
 
 
   // Fetch branches for store name resolution
@@ -199,7 +203,11 @@ export default function StockOpnameDetailPage() {
   }, [session, storeName, pawnTerms])
 
   const handleItemDetail = (item: StockOpnameItem) => {
-    console.log("Item detail:", item)
+    const apiItem = session?.items?.find(
+      (i) => (i as ApiStockOpnameItem).uuid === item.id || (i as ApiStockOpnameItem).id === item.id
+    ) as ApiStockOpnameItem | undefined
+    setSelectedApiItem(apiItem ?? null)
+    setItemDetailDialogOpen(true)
   }
 
   if (isError && !isLoading) {
@@ -300,6 +308,12 @@ export default function StockOpnameDetailPage() {
       ) : (
         <StockOpnameItemTable data={items} onDetailAction={handleItemDetail} />
       )}
+
+      <StockOpnameItemDetailDialog
+        open={itemDetailDialogOpen}
+        onOpenChange={setItemDetailDialogOpen}
+        apiItem={selectedApiItem}
+      />
     </div>
   )
 }
