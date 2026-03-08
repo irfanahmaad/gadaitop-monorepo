@@ -20,6 +20,7 @@ import { SpkSeed } from './spk/spk.seed';
 import { OverdueSpkSeed } from './spk/overdue-spk.seed';
 import { NkbSeed } from './nkb/nkb.seed';
 import { StockOpnameSeed } from './stock-opname/stock-opname.seed';
+import { StockOpnameMataScenarioSeed } from './stock-opname/stock-opname-mata-scenario.seed';
 import { AuctionBatchSeed } from './auction-batch/auction-batch.seed';
 import { CapitalTopupSeed } from './capital-topup/capital-topup.seed';
 import { CashDepositSeed } from './cash-deposit/cash-deposit.seed';
@@ -82,6 +83,7 @@ export default new SeedingSource({
     OverdueSpkSeed,
     NkbSeed,
     StockOpnameSeed,
+    StockOpnameMataScenarioSeed,
     AuctionBatchSeed,
     CapitalTopupSeed,
     CashDepositSeed,

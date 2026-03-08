@@ -21,43 +21,127 @@ import {
   SelectValue,
 } from "@workspace/ui/components/select"
 import { ChevronRight, ImagePlus, Trash2, X } from "lucide-react"
+import { toast } from "sonner"
+import { ConfirmationDialog } from "@/components/confirmation-dialog"
+import {
+  useRecordItemCondition,
+  useUpdateStockOpnameItems,
+} from "@/lib/react-query/hooks/use-stock-opname"
+import { useUploadFile } from "@/lib/react-query/hooks/use-upload"
+import type { SpkItemConditionEnum } from "@/lib/api/types"
 
-const pinjamPtOptions = [
+const penilaianOptions = [
   { value: "ada-sesuai", label: "Ada & Kondisi Sesuai" },
   { value: "ada-tidak-sesuai", label: "Ada & Kondisi Tidak Sesuai" },
   { value: "tidak-ada", label: "Tidak Ada" },
 ]
 
-type ImageEntry = { url: string; isObjectUrl?: boolean }
+function mapPenilaianToCondition(penilaian: string): SpkItemConditionEnum {
+  switch (penilaian) {
+    case "ada-sesuai":
+      return "good"
+    case "ada-tidak-sesuai":
+      return "fair"
+    case "tidak-ada":
+      return "poor"
+    default:
+      return "good"
+  }
+}
+
+type ImageEntry = { file: File; previewUrl: string }
 
 export default function PenilaianBarangPage() {
   const params = useParams()
   const router = useRouter()
   const slug = params.slug as string
+  const itemId = params.itemId as string
   const fileInputRef = React.useRef<HTMLInputElement>(null)
   const objectUrlsRef = React.useRef<Set<string>>(new Set())
 
-  const [pinjamPt, setPinjamPt] = React.useState("")
+  const [penilaian, setPenilaian] = React.useState("")
   const [alamat, setAlamat] = React.useState("")
   const [images, setImages] = React.useState<ImageEntry[]>([])
-  const [isSubmitting, setIsSubmitting] = React.useState(false)
+  const [confirmOpen, setConfirmOpen] = React.useState(false)
+
+  const updateItems = useUpdateStockOpnameItems()
+  const recordCondition = useRecordItemCondition()
+  const uploadFileMutation = useUploadFile()
+  const isSubmitting =
+    updateItems.isPending ||
+    recordCondition.isPending ||
+    uploadFileMutation.isPending
 
   const handleBatal = () => {
     router.push(`/stock-opname/auditor/${slug}`)
   }
 
-  const handleSimpan = () => {
-    setIsSubmitting(true)
-    // No API call - slice only
-    setTimeout(() => setIsSubmitting(false), 500)
+  const handleSimpanClick = () => {
+    setConfirmOpen(true)
   }
+
+  const handleConfirmSimpan = React.useCallback(async () => {
+    if (!slug || !itemId) return
+    setConfirmOpen(false)
+    try {
+      const uploadedKeys: string[] = []
+      if (images.length > 0) {
+        const prefix = `stock-opname/${slug}/${itemId}`
+        for (let i = 0; i < images.length; i++) {
+          const entry = images[i]
+          if (!entry) continue
+          const ext =
+            entry.file.name.split(".").pop()?.toLowerCase() || "jpg"
+          const key = `${prefix}/damage-${Date.now()}-${i}.${ext}`
+          const { key: savedKey } = await uploadFileMutation.mutateAsync({
+            file: entry.file,
+            key,
+          })
+          uploadedKeys.push(savedKey)
+        }
+      }
+
+      await updateItems.mutateAsync({
+        id: slug,
+        data: {
+          items: [{ itemId, countedQuantity: 1 }],
+        },
+      })
+      await recordCondition.mutateAsync({
+        sessionId: slug,
+        itemId,
+        data: {
+          conditionAfter: mapPenilaianToCondition(penilaian),
+          conditionNotes: alamat || undefined,
+          damagePhotos:
+            uploadedKeys.length > 0 ? uploadedKeys : undefined,
+        },
+      })
+      toast.success("Penilaian berhasil disimpan")
+      router.push(`/stock-opname/auditor/${slug}`)
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Gagal menyimpan penilaian"
+      )
+    }
+  }, [
+    slug,
+    itemId,
+    penilaian,
+    alamat,
+    images,
+    updateItems,
+    recordCondition,
+    uploadFileMutation,
+    router,
+  ])
 
   const removeImage = (index: number) => {
     setImages((prev) => {
       const entry = prev[index]
-      if (entry?.isObjectUrl && entry.url) {
-        URL.revokeObjectURL(entry.url)
-        objectUrlsRef.current.delete(entry.url)
+      if (entry?.previewUrl) {
+        URL.revokeObjectURL(entry.previewUrl)
+        objectUrlsRef.current.delete(entry.previewUrl)
       }
       return prev.filter((_, i) => i !== index)
     })
@@ -74,9 +158,9 @@ export default function PenilaianBarangPage() {
     for (let i = 0; i < files.length; i++) {
       const file = files[i]
       if (!file?.type.startsWith("image/")) continue
-      const url = URL.createObjectURL(file)
-      objectUrlsRef.current.add(url)
-      newEntries.push({ url, isObjectUrl: true })
+      const previewUrl = URL.createObjectURL(file)
+      objectUrlsRef.current.add(previewUrl)
+      newEntries.push({ file, previewUrl })
     }
     setImages((prev) => [...prev, ...newEntries])
     e.target.value = ""
@@ -132,14 +216,14 @@ export default function PenilaianBarangPage() {
           <div className="grid gap-6 md:grid-cols-2 items-start">
             <div className="space-y-2">
               <label className="text-muted-foreground text-sm font-medium">
-                Pinjam PT (Opsional)
+                Penilaian
               </label>
-              <Select value={pinjamPt} onValueChange={setPinjamPt}>
+              <Select value={penilaian} onValueChange={setPenilaian}>
                 <SelectTrigger>
                   <SelectValue placeholder="Pilih..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {pinjamPtOptions.map((opt) => (
+                  {penilaianOptions.map((opt) => (
                     <SelectItem key={opt.value} value={opt.value}>
                       {opt.label}
                     </SelectItem>
@@ -177,12 +261,12 @@ export default function PenilaianBarangPage() {
               />
               {images.map((entry, index) => (
                 <div
-                  key={entry.url}
+                  key={entry.previewUrl}
                   className="relative aspect-square w-24 rounded-lg border bg-muted overflow-hidden shrink-0"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element -- blob/object URLs for user uploads */}
                   <img
-                    src={entry.url}
+                    src={entry.previewUrl}
                     alt=""
                     className="size-full object-cover"
                   />
@@ -219,7 +303,7 @@ export default function PenilaianBarangPage() {
             <Button
               type="button"
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={handleSimpan}
+              onClick={handleSimpanClick}
               disabled={isSubmitting}
             >
               {isSubmitting ? "Menyimpan..." : "Simpan"}
@@ -227,6 +311,18 @@ export default function PenilaianBarangPage() {
           </div>
         </CardContent>
       </Card>
+
+      <ConfirmationDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title="Simpan Penilaian?"
+        description="Data penilaian barang akan disimpan dan item akan tercatat sebagai terscan."
+        note="Pastikan kembali sebelum menyimpan data."
+        confirmLabel="Ya"
+        cancelLabel="Batal"
+        variant="info"
+        onConfirm={handleConfirmSimpan}
+      />
     </div>
   )
 }

@@ -5,10 +5,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { type FindOptionsWhere, Repository } from 'typeorm';
+import { DataSource, In, type FindOptionsWhere, Repository } from 'typeorm';
 
 import { PageMetaDto } from '../../common/dtos/page-meta.dto';
+import { SpkItemStatusEnum } from '../../constants/spk-item-status';
+import { SpkStatusEnum } from '../../constants/spk-status';
 import { StockOpnameSessionStatusEnum } from '../../constants/stock-opname-session-status';
+import { PawnTermEntity } from '../pawn-term/entities/pawn-term.entity';
+import { SpkItemEntity } from '../spk/entities/spk-item.entity';
 import { StockOpnameSessionEntity } from './entities/stock-opname-session.entity';
 import { StockOpnameSessionStoreEntity } from './entities/stock-opname-session-store.entity';
 import { StockOpnameSessionAssigneeEntity } from './entities/stock-opname-session-assignee.entity';
@@ -20,6 +24,13 @@ import { QueryStockOpnameDto } from './dto/query-stock-opname.dto';
 import { UpdateStockOpnameItemsDto } from './dto/update-stock-opname-items.dto';
 import { RecordConditionDto } from './dto/record-condition.dto';
 import { UpdateStockOpnameSessionDto } from './dto/update-stock-opname-session.dto';
+
+/** SPK statuses where items are still in scope (belum lunas, belum dilelang). */
+const SPK_SCOPE_STATUSES = [
+  SpkStatusEnum.Active,
+  SpkStatusEnum.Extended,
+  SpkStatusEnum.Overdue,
+];
 
 @Injectable()
 export class StockOpnameService {
@@ -34,6 +45,11 @@ export class StockOpnameService {
     private sessionPawnTermRepository: Repository<StockOpnameSessionPawnTermEntity>,
     @InjectRepository(StockOpnameItemEntity)
     private itemRepository: Repository<StockOpnameItemEntity>,
+    @InjectRepository(SpkItemEntity)
+    private spkItemRepository: Repository<SpkItemEntity>,
+    @InjectRepository(PawnTermEntity)
+    private pawnTermRepository: Repository<PawnTermEntity>,
+    private dataSource: DataSource,
   ) {}
 
   async findAll(
@@ -123,43 +139,156 @@ export class StockOpnameService {
     createdBy: string,
   ): Promise<StockOpnameSessionDto> {
     const sessionCode = await this.generateSessionCode();
-    const session = this.sessionRepository.create({
-      sessionCode,
-      ptId: createDto.ptId,
-      startDate: new Date(createDto.startDate),
-      status: StockOpnameSessionStatusEnum.Draft,
-      createdBy,
-      notes: createDto.notes ?? null,
-      mataItemCount:
-        createDto.mataItemCount != null ? createDto.mataItemCount : null,
-    });
-    const saved = await this.sessionRepository.save(session);
 
-    for (const storeId of createDto.storeIds) {
-      await this.sessionStoreRepository.save(
-        this.sessionStoreRepository.create({
-          session: saved,
-          store: { uuid: storeId },
+    const savedUuid = await this.dataSource.transaction(async (manager) => {
+      const session = manager.create(StockOpnameSessionEntity, {
+        sessionCode,
+        ptId: createDto.ptId,
+        startDate: new Date(createDto.startDate),
+        status: StockOpnameSessionStatusEnum.Draft,
+        createdBy,
+        notes: createDto.notes ?? null,
+        mataItemCount:
+          createDto.mataItemCount != null ? createDto.mataItemCount : null,
+      });
+      const saved = await manager.save(StockOpnameSessionEntity, session);
+      const sessionUuid =
+        saved.uuid ??
+        (await manager.findOne(StockOpnameSessionEntity, { where: { id: saved.id } }))?.uuid;
+      if (!sessionUuid) {
+        throw new BadRequestException('Failed to create stock opname session');
+      }
+
+      for (const storeId of createDto.storeIds) {
+        await manager.save(
+          StockOpnameSessionStoreEntity,
+          manager.create(StockOpnameSessionStoreEntity, {
+            session: saved,
+            store: { uuid: storeId },
+          }),
+        );
+      }
+      for (const userId of createDto.assignedToIds ?? []) {
+        await manager.save(
+          StockOpnameSessionAssigneeEntity,
+          manager.create(StockOpnameSessionAssigneeEntity, {
+            session: saved,
+            user: { uuid: userId },
+          }),
+        );
+      }
+      for (const pawnTermId of createDto.pawnTermIds ?? []) {
+        await manager.save(
+          StockOpnameSessionPawnTermEntity,
+          manager.create(StockOpnameSessionPawnTermEntity, {
+            session: saved,
+            pawnTerm: { uuid: pawnTermId },
+          }),
+        );
+      }
+
+      await this.materializeScopeItems(manager, sessionUuid, createDto);
+
+      return sessionUuid;
+    });
+
+    return this.findOne(savedUuid);
+  }
+
+  /**
+   * Select eligible SPK items (belum lunas, belum dilelang) matching pawn terms
+   * and create stock_opname_items. Limits to mataItemCount when specified.
+   */
+  private async materializeScopeItems(
+    manager: import('typeorm').EntityManager,
+    sessionUuid: string,
+    createDto: CreateStockOpnameSessionDto,
+  ): Promise<void> {
+    const pawnTermIds = createDto.pawnTermIds ?? [];
+    const mataItemCount = createDto.mataItemCount ?? 0;
+
+    if (pawnTermIds.length === 0 || mataItemCount < 1) {
+      return;
+    }
+
+    const eligibleItems = await manager
+      .getRepository(SpkItemEntity)
+      .createQueryBuilder('item')
+      .innerJoin('item.spk', 'spk')
+      .innerJoinAndSelect('item.itemType', 'itemType')
+      .where('item.status = :status', { status: SpkItemStatusEnum.InStorage })
+      .andWhere('spk.storeId IN (:...storeIds)', {
+        storeIds: createDto.storeIds,
+      })
+      .andWhere('spk.ptId = :ptId', { ptId: createDto.ptId })
+      .andWhere('spk.status IN (:...statuses)', {
+        statuses: SPK_SCOPE_STATUSES,
+      })
+      .getMany();
+
+    const pawnTerms = await manager.getRepository(PawnTermEntity).find({
+      where: { uuid: In(pawnTermIds) },
+      relations: ['itemType'],
+    });
+
+    const pawnTermIdsSet = new Set(pawnTermIds);
+    const filteredTerms = pawnTerms.filter((pt) => pawnTermIdsSet.has(pt.uuid));
+
+    const matchingItems: SpkItemEntity[] = [];
+    for (const item of eligibleItems) {
+      const value = parseFloat(item.appraisedValue) || 0;
+      for (const term of filteredTerms) {
+        const typeMatches =
+          item.itemTypeId === term.itemTypeId ||
+          (item.itemType?.uuid && term.itemType?.uuid &&
+            item.itemType.uuid === term.itemType.uuid);
+        if (!typeMatches) continue;
+
+        const min = parseFloat(term.loanLimitMin) || 0;
+        const max = parseFloat(term.loanLimitMax) || Infinity;
+        if (value >= min && value <= max) {
+          matchingItems.push(item);
+          break;
+        }
+      }
+      if (matchingItems.length >= mataItemCount) break;
+    }
+
+    const toInsert = matchingItems.slice(0, mataItemCount);
+
+    for (const spkItem of toInsert) {
+      await manager.save(
+        StockOpnameItemEntity,
+        manager.create(StockOpnameItemEntity, {
+          soSessionId: sessionUuid,
+          spkItemId: spkItem.uuid,
+          systemQuantity: 1,
+          countedQuantity: null,
+          conditionBefore: spkItem.condition,
         }),
       );
     }
-    for (const userId of createDto.assignedToIds ?? []) {
-      await this.sessionAssigneeRepository.save(
-        this.sessionAssigneeRepository.create({
-          session: saved,
-          user: { uuid: userId },
-        }),
-      );
+
+    if (toInsert.length > 0) {
+      const session = await manager.findOne(StockOpnameSessionEntity, {
+        where: { uuid: sessionUuid },
+        relations: ['items'],
+      });
+      if (session?.items) {
+        let totalCounted = 0;
+        let variances = 0;
+        for (const item of session.items) {
+          totalCounted += item.countedQuantity ?? 0;
+          const sys = item.systemQuantity ?? 1;
+          const cnt = item.countedQuantity ?? 0;
+          if (cnt !== sys) variances += 1;
+        }
+        session.totalItemsSystem = session.items.length;
+        session.totalItemsCounted = totalCounted;
+        session.variancesCount = variances;
+        await manager.save(StockOpnameSessionEntity, session);
+      }
     }
-    for (const pawnTermId of createDto.pawnTermIds ?? []) {
-      await this.sessionPawnTermRepository.save(
-        this.sessionPawnTermRepository.create({
-          session: saved,
-          pawnTerm: { uuid: pawnTermId },
-        }),
-      );
-    }
-    return this.findOne(saved.uuid);
   }
 
   async update(

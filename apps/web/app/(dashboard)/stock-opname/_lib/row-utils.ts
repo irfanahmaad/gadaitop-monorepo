@@ -14,6 +14,7 @@ export type StockOpnameRow = {
   petugasNumber?: string
   syaratMataNumber?: string
   itemCount?: string
+  totalItemsSystem?: string
 }
 
 export const STATUS_DISPLAY: Record<
@@ -60,10 +61,8 @@ export function mapSessionToRow(
     petugas:
       assigneeCount > 0
         ? `${assigneeCount} Petugas`
-        : session.creatorFullName ?? "—",
-    lastUpdatedAt: formatLastUpdated(
-      session.updatedAt ?? session.createdAt
-    ),
+        : (session.creatorFullName ?? "—"),
+    lastUpdatedAt: formatLastUpdated(session.updatedAt ?? session.createdAt),
     status: STATUS_DISPLAY[session.status],
     tokoNumber: storeCount > 0 ? String(storeCount) : "—",
     petugasNumber: assigneeCount > 0 ? String(assigneeCount) : "—",
@@ -72,5 +71,7 @@ export function mapSessionToRow(
       session.totalItemsCounted != null
         ? String(session.totalItemsCounted)
         : "—",
+    totalItemsSystem:
+      session.totalItemsSystem != null ? String(session.totalItemsSystem) : "—",
   }
 }

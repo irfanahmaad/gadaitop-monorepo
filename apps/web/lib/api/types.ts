@@ -936,6 +936,19 @@ export interface ItemConditionDto {
   photos?: string[]
 }
 
+/** Backend RecordConditionDto - conditionAfter, conditionNotes, damagePhotos */
+export type SpkItemConditionEnum =
+  | "excellent"
+  | "good"
+  | "fair"
+  | "poor"
+
+export interface RecordConditionDto {
+  conditionAfter: SpkItemConditionEnum
+  conditionNotes?: string
+  damagePhotos?: string[]
+}
+
 // ==========================================
 // Cash Deposit types
 // ==========================================

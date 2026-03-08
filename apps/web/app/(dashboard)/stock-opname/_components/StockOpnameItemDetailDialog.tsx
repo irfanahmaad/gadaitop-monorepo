@@ -15,7 +15,19 @@ import {
 } from "@workspace/ui/components/avatar"
 import { Package, QrCode, X } from "lucide-react"
 import { QRCodeDialog } from "../../_components/QRCodeDialog"
+import { usePublicUrl } from "@/lib/react-query/hooks/use-upload"
 import type { StockOpnameItem as ApiStockOpnameItem } from "@/lib/api/types"
+
+function DamagePhotoImage({ storageKey }: { storageKey: string }) {
+  const { data } = usePublicUrl(storageKey)
+  if (!data?.url) return <Avatar className="size-16 rounded-md animate-pulse bg-muted" />
+  return (
+    <Avatar className="size-16 rounded-md">
+      {/* eslint-disable-next-line @next/next/no-img-element -- resolved upload URL */}
+      <img src={data.url} alt="" className="size-full object-cover rounded-md" />
+    </Avatar>
+  )
+}
 
 type StockOpnameItemDetailDialogProps = {
   open: boolean
@@ -100,6 +112,19 @@ export function StockOpnameItemDetailDialog({
                         {i + 1}
                       </AvatarFallback>
                     </Avatar>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {apiItem.damagePhotos && apiItem.damagePhotos.length > 0 && (
+              <div className="space-y-2">
+                <label className="text-muted-foreground text-xs font-medium">
+                  Gambar Barang (penilaian)
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {apiItem.damagePhotos.map((key, i) => (
+                    <DamagePhotoImage key={key || i} storageKey={key} />
                   ))}
                 </div>
               </div>

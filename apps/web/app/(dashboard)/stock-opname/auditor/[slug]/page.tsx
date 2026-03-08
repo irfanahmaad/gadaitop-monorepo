@@ -15,6 +15,13 @@ import {
   CardTitle,
 } from "@workspace/ui/components/card"
 import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@workspace/ui/components/dialog"
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -42,7 +49,7 @@ import {
   AvatarImage,
   AvatarFallback,
 } from "@workspace/ui/components/avatar"
-import { Package, Eye, MoreHorizontal, QrCode } from "lucide-react"
+import { Package, Eye, Keyboard, MoreHorizontal, QrCode } from "lucide-react"
 import { format } from "date-fns"
 import { id as idLocale } from "date-fns/locale"
 import { SearchIcon } from "lucide-react"
@@ -50,74 +57,9 @@ import { useStockOpnameSession } from "@/lib/react-query/hooks/use-stock-opname"
 import { usePawnTerms } from "@/lib/react-query/hooks/use-pawn-terms"
 import { matchSpkItemToMataRules } from "@/lib/utils/mata-rule-matcher"
 import type { SpkItem, PawnTerm } from "@/lib/api/types"
-import type { StockOpnameItem as ApiStockOpnameItem } from "@/lib/api/types"
 import { type StockOpnameItem } from "../../_components/StockOpnameItemTable"
-import { StockOpnameItemDetailDialog } from "../../_components/StockOpnameItemDetailDialog"
 import { QRCodeDialog } from "@/app/(dashboard)/_components/QRCodeDialog"
 import { QRScanDialog } from "@/components/qr-scan-dialog"
-
-// Dummy data for progress and table rows when session has no items (until API provides)
-const DUMMY_PROGRESS_PERCENT = 60
-
-const DUMMY_ITEMS_BELUM_TERSCAN: StockOpnameItem[] = [
-  {
-    id: "dummy-belum-1",
-    noSPK: "SPK/2025/001",
-    namaBarang: "iPhone 15 Pro",
-    tipeBarang: "Handphone",
-    toko: "GT Jakarta Satu",
-    petugas: "—",
-    statusScan: "Belum Terscan",
-  },
-  {
-    id: "dummy-belum-2",
-    noSPK: "SPK/2025/002",
-    namaBarang: "Google Smarthome",
-    tipeBarang: "IoT",
-    toko: "GT Jakarta Dua",
-    petugas: "—",
-    statusScan: "Belum Terscan",
-  },
-  {
-    id: "dummy-belum-3",
-    noSPK: "SPK/2025/003",
-    namaBarang: "MacBook Pro M1",
-    tipeBarang: "Laptop",
-    toko: "GT Jakarta Dua",
-    petugas: "—",
-    statusScan: "Belum Terscan",
-  },
-  {
-    id: "dummy-belum-4",
-    noSPK: "SPK/2025/004",
-    namaBarang: "MacBook Pro M2",
-    tipeBarang: "Laptop",
-    toko: "GT Jakarta Tiga",
-    petugas: "—",
-    statusScan: "Belum Terscan",
-  },
-]
-
-const DUMMY_ITEMS_TERSCAN: StockOpnameItem[] = [
-  {
-    id: "dummy-terscan-1",
-    noSPK: "SPK/2025/005",
-    namaBarang: "Samsung Galaxy S24",
-    tipeBarang: "Handphone",
-    toko: "GT Jakarta Satu",
-    petugas: "—",
-    statusScan: "Terscan",
-  },
-  {
-    id: "dummy-terscan-2",
-    noSPK: "SPK/2025/006",
-    namaBarang: "iPad Pro",
-    tipeBarang: "Tablet",
-    toko: "GT Jakarta Dua",
-    petugas: "—",
-    statusScan: "Terscan",
-  },
-]
 
 function formatDate(isoDate: string): string {
   try {
@@ -366,58 +308,56 @@ export default function StockOpnameAuditorDetailPage() {
   const { items } = useMemo(() => {
     if (session?.items?.length) {
       const mapped: StockOpnameItem[] = session.items.map((apiItem) => {
-      const si = (apiItem as any).spkItem ?? apiItem.spkItem
-      const spkNumber = si?.spk?.spkNumber ?? "—"
-      const description = si?.description ?? "—"
-      const typeName = si?.itemType?.typeName ?? "—"
-      const photoUrl = si?.evidencePhotos?.[0] ?? ""
-      const isCounted =
-        apiItem.countedQuantity != null && apiItem.countedQuantity > 0
+        const si = (apiItem as any).spkItem ?? apiItem.spkItem
+        const spkNumber = si?.spk?.spkNumber ?? "—"
+        const description = si?.description ?? "—"
+        const typeName = si?.itemType?.typeName ?? "—"
+        const photoUrl = si?.evidencePhotos?.[0] ?? ""
+        const isCounted =
+          apiItem.countedQuantity != null && apiItem.countedQuantity > 0
 
-      let isMata = false
-      let mataRuleName: string | undefined
-      if (si) {
-        const spkItemForMata: SpkItem = {
-          uuid: si.uuid ?? "",
-          spkId: si.spkId ?? "",
-          itemTypeId: si.itemTypeId ?? "",
-          description: si.description ?? "",
-          appraisedValue: si.appraisedValue ?? "0",
-          estimatedValue: si.appraisedValue ? parseFloat(si.appraisedValue) : 0,
-          itemType: si.itemType
-            ? { uuid: si.itemType.uuid, typeName: si.itemType.typeName }
-            : undefined,
-        } as SpkItem
-        const ptId = session.ptId ?? ""
-        const mataResult = matchSpkItemToMataRules(
-          spkItemForMata,
-          pawnTerms,
-          ptId
-        )
-        isMata = mataResult.isMata
-        mataRuleName = mataResult.mataRuleName
-      }
+        let isMata = false
+        let mataRuleName: string | undefined
+        if (si) {
+          const spkItemForMata: SpkItem = {
+            uuid: si.uuid ?? "",
+            spkId: si.spkId ?? "",
+            itemTypeId: si.itemTypeId ?? "",
+            description: si.description ?? "",
+            appraisedValue: si.appraisedValue ?? "0",
+            estimatedValue: si.appraisedValue ? parseFloat(si.appraisedValue) : 0,
+            itemType: si.itemType
+              ? { uuid: si.itemType.uuid, typeName: si.itemType.typeName }
+              : undefined,
+          } as SpkItem
+          const ptId = session.ptId ?? ""
+          const mataResult = matchSpkItemToMataRules(
+            spkItemForMata,
+            pawnTerms,
+            ptId
+          )
+          isMata = mataResult.isMata
+          mataRuleName = mataResult.mataRuleName
+        }
 
-      return {
-        id: apiItem.uuid ?? apiItem.id ?? apiItem.itemId,
-        foto: photoUrl,
-        noSPK: spkNumber,
-        namaBarang: description,
-        tipeBarang: typeName,
-        toko: storeNamesStr || "—",
-        petugas: assigneeNamesStr,
-        statusScan: isCounted
-          ? ("Terscan" as const)
-          : ("Belum Terscan" as const),
-        isMata,
-        mataRuleName,
-      }
-    })
+        return {
+          id: apiItem.uuid ?? apiItem.id ?? apiItem.itemId,
+          foto: photoUrl,
+          noSPK: spkNumber,
+          namaBarang: description,
+          tipeBarang: typeName,
+          toko: storeNamesStr || "—",
+          petugas: assigneeNamesStr,
+          statusScan: isCounted
+            ? ("Terscan" as const)
+            : ("Belum Terscan" as const),
+          isMata,
+          mataRuleName,
+        }
+      })
       return { items: mapped }
     }
-    return {
-      items: [...DUMMY_ITEMS_BELUM_TERSCAN, ...DUMMY_ITEMS_TERSCAN],
-    }
+    return { items: [] }
   }, [session, storeNamesStr, assigneeNamesStr, pawnTerms])
 
   const [activeTab, setActiveTab] = useState<"belum-terscan" | "terscan">(
@@ -425,12 +365,21 @@ export default function StockOpnameAuditorDetailPage() {
   )
   const [pageSize, setPageSize] = useState(10)
   const [searchValue, setSearchValue] = useState("")
-  const [itemDetailOpen, setItemDetailOpen] = useState(false)
-  const [selectedApiItem, setSelectedApiItem] =
-    useState<ApiStockOpnameItem | null>(null)
   const [qrDialogOpen, setQrDialogOpen] = useState(false)
   const [selectedQrSPK, setSelectedQrSPK] = useState("")
   const [scanDialogOpen, setScanDialogOpen] = useState(false)
+  const [manualScanOpen, setManualScanOpen] = useState(false)
+  const [manualScanValue, setManualScanValue] = useState("")
+
+  const openPenilaianForValue = (value: string) => {
+    const trimmed = value.trim()
+    if (!trimmed) return
+    const item = items.find((i) => i.id === trimmed || i.noSPK === trimmed)
+    const itemId = item?.id ?? trimmed
+    setManualScanOpen(false)
+    setManualScanValue("")
+    router.push(`/stock-opname/auditor/${slug}/item/${itemId}/penilaian`)
+  }
 
   const belumTerscanCount = useMemo(
     () => items.filter((i) => i.statusScan === "Belum Terscan").length,
@@ -440,7 +389,9 @@ export default function StockOpnameAuditorDetailPage() {
     () => items.filter((i) => i.statusScan === "Terscan").length,
     [items]
   )
-  const progressPercent = DUMMY_PROGRESS_PERCENT
+  const totalItems = items.length
+  const progressPercent =
+    totalItems > 0 ? Math.round((terscanCount / totalItems) * 100) : 0
 
   const filteredItems = useMemo(() => {
     if (activeTab === "belum-terscan") {
@@ -453,20 +404,14 @@ export default function StockOpnameAuditorDetailPage() {
     () =>
       createItemColumns(
         (item) => {
-          const apiItem = session?.items?.find(
-            (i) =>
-              (i as ApiStockOpnameItem).uuid === item.id ||
-              (i as ApiStockOpnameItem).id === item.id
-          ) as ApiStockOpnameItem | undefined
-          setSelectedApiItem(apiItem ?? null)
-          setItemDetailOpen(true)
+          router.push(`/stock-opname/auditor/${slug}/item/${item.id}`)
         },
         (item) => {
           setSelectedQrSPK(item.noSPK)
           setQrDialogOpen(true)
         }
       ),
-    [session?.items]
+    [slug, router]
   )
 
   useEffect(() => {
@@ -727,6 +672,15 @@ export default function StockOpnameAuditorDetailPage() {
                     <QrCode className="size-4" />
                     Scan QR
                   </Button>
+                  <Button
+                    variant="outline"
+                    className="flex items-center gap-2"
+                    onClick={() => setManualScanOpen(true)}
+                    title="Tanpa kamera: masukkan No. SPK atau Item ID"
+                  >
+                    <Keyboard className="size-4" />
+                    Masukkan No. SPK
+                  </Button>
                 </div>
               }
               initialPageSize={pageSize}
@@ -786,6 +740,15 @@ export default function StockOpnameAuditorDetailPage() {
                     <QrCode className="size-4" />
                     Scan QR
                   </Button>
+                  <Button
+                    variant="outline"
+                    className="flex items-center gap-2"
+                    onClick={() => setManualScanOpen(true)}
+                    title="Tanpa kamera: masukkan No. SPK atau Item ID"
+                  >
+                    <Keyboard className="size-4" />
+                    Masukkan No. SPK
+                  </Button>
                 </div>
               }
               initialPageSize={pageSize}
@@ -796,6 +759,44 @@ export default function StockOpnameAuditorDetailPage() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Manual entry when camera is not available (e.g. laptop) */}
+      <Dialog open={manualScanOpen} onOpenChange={setManualScanOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Masukkan No. SPK atau Item ID</DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground text-sm">
+            Jika tidak memakai kamera, ketik No. SPK (contoh: SPK-001) atau UUID item stock opname, lalu Buka Penilaian.
+          </p>
+          <Input
+            placeholder="No. SPK atau Item ID"
+            value={manualScanValue}
+            onChange={(e) => setManualScanValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") openPenilaianForValue(manualScanValue)
+            }}
+          />
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setManualScanOpen(false)
+                setManualScanValue("")
+              }}
+            >
+              Batal
+            </Button>
+            <Button
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => openPenilaianForValue(manualScanValue)}
+              disabled={!manualScanValue.trim()}
+            >
+              Buka Penilaian
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <QRScanDialog
         open={scanDialogOpen}
@@ -810,11 +811,6 @@ export default function StockOpnameAuditorDetailPage() {
             `/stock-opname/auditor/${slug}/item/${itemId}/penilaian`
           )
         }}
-      />
-      <StockOpnameItemDetailDialog
-        open={itemDetailOpen}
-        onOpenChange={setItemDetailOpen}
-        apiItem={selectedApiItem}
       />
       <QRCodeDialog
         open={qrDialogOpen}

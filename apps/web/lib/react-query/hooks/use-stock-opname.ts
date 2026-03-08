@@ -6,8 +6,8 @@ import { apiClient } from "@/lib/api/client"
 import { endpoints } from "@/lib/api/endpoints"
 import type {
   CreateStockOpnameDto,
-  ItemConditionDto,
   PageOptions,
+  RecordConditionDto,
   StockOpnameSession,
   StockOpnameSessionListItem,
   UpdateStockOpnameItemsDto,
@@ -130,9 +130,9 @@ export function useRecordItemCondition() {
     }: {
       sessionId: string
       itemId: string
-      data: ItemConditionDto
+      data: RecordConditionDto
     }) =>
-      apiClient.post<void, ItemConditionDto>(
+      apiClient.post<void, RecordConditionDto>(
         endpoints.stockOpname.itemCondition(sessionId, itemId),
         data
       ),

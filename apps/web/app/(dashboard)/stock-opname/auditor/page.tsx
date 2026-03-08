@@ -29,13 +29,8 @@ import {
   CardTitle,
 } from "@workspace/ui/components/card"
 import { SearchIcon } from "lucide-react"
-import {
-  useStockOpnameSessions,
-} from "@/lib/react-query/hooks/use-stock-opname"
-import {
-  type StockOpnameRow,
-  mapSessionToRow,
-} from "../_lib/row-utils"
+import { useStockOpnameSessions } from "@/lib/react-query/hooks/use-stock-opname"
+import { type StockOpnameRow, mapSessionToRow } from "../_lib/row-utils"
 
 function TableSkeleton() {
   return (
@@ -92,9 +87,9 @@ function getStockAuditorColumns(
       cell: ({ row }) => row.original.syaratMataNumber ?? "—",
     },
     {
-      accessorKey: "itemCount",
+      accessorKey: "totalItemsSystem",
       header: "Jumlah Item",
-      cell: ({ row }) => row.original.itemCount ?? "—",
+      cell: ({ row }) => row.original.totalItemsSystem ?? "—",
     },
     { accessorKey: "lastUpdatedAt", header: "Last Updated At" },
   ]
@@ -105,7 +100,7 @@ function getStockAuditorColumns(
       cell: () => (
         <Badge
           variant="outline"
-          className="bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20"
+          className="border-green-500/20 bg-green-500/10 text-green-700 dark:text-green-400"
         >
           Tervalidasi
         </Badge>
@@ -374,9 +369,7 @@ export default function StockOpnameAuditorPage() {
               data={rows}
               searchPlaceholder="Cari..."
               headerLeft={
-                <CardTitle className="text-xl">
-                  Daftar SO Tervalidasi
-                </CardTitle>
+                <CardTitle className="text-xl">Daftar SO Tervalidasi</CardTitle>
               }
               headerRight={
                 <div className="flex w-full items-center gap-2 sm:w-auto">
