@@ -102,7 +102,8 @@ export interface UpdateUserDto {
   imageUrl?: string | null
   activeStatus?: ActiveStatus
   companyId?: string
-  branchId?: string
+  /** Set to null to clear branch assignment (e.g. when role is Admin PT). */
+  branchId?: string | null
 }
 
 export interface AssignRoleDto {
