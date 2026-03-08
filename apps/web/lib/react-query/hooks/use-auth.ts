@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation"
 import { apiClient, clearTokenCache } from "@/lib/api/client"
 import { endpoints } from "@/lib/api/endpoints"
 import type { ApiResponse, LoginCredentials, RegisterCredentials } from "@/lib/api/types"
-import type { AuthUser } from "@/lib/auth/types"
+import type { AuthUser, AuthCustomer, AccountType } from "@/lib/auth/types"
 
 // Query keys
 export const authKeys = {
@@ -15,12 +15,33 @@ export const authKeys = {
   me: () => [...authKeys.all, "me"] as const,
 }
 
-// Hook to get the current authenticated user from NextAuth session
+// Hook to get the current authenticated user from NextAuth session.
+// Returns AuthUser for backward compatibility with dashboard pages (staff-only).
+// Customers are redirected away by middleware, so dashboard never sees AuthCustomer.
 export function useAuth() {
   const { data: session, status, update } = useSession()
 
   return {
     user: session?.user as AuthUser | undefined,
+    accountType: session?.accountType as AccountType | undefined,
+    accessToken: session?.accessToken,
+    isAuthenticated: status === "authenticated",
+    isLoading: status === "loading",
+    error: session?.error,
+    updateSession: update,
+  }
+}
+
+// Hook for customer portal - returns customer-specific data when logged in as customer
+export function useCustomerAuth() {
+  const { data: session, status, update } = useSession()
+  const accountType = session?.accountType as AccountType | undefined
+
+  return {
+    user: session?.user as AuthCustomer | undefined,
+    accountType,
+    customer: accountType === "customer" ? (session?.user as AuthCustomer) : undefined,
+    isCustomer: accountType === "customer",
     accessToken: session?.accessToken,
     isAuthenticated: status === "authenticated",
     isLoading: status === "loading",
@@ -99,29 +120,46 @@ export function useRegister() {
   })
 }
 
-// Logout mutation using NextAuth
+// Logout mutation using NextAuth (staff)
 export function useLogout() {
   const queryClient = useQueryClient()
   const router = useRouter()
 
   return useMutation({
     mutationFn: async () => {
-      // First call backend logout to invalidate the token on server
       try {
         await apiClient.post<ApiResponse<boolean>>(endpoints.auth.logout)
       } catch {
-        // Continue with logout even if backend call fails
         console.warn("Backend logout failed, continuing with client-side logout")
       }
-
-      // Then sign out from NextAuth
       await signOut({ redirect: false })
     },
     onSettled: () => {
-      // Clear cached token, React Query cache, and redirect
       clearTokenCache()
       queryClient.clear()
       router.push("/login")
+    },
+  })
+}
+
+// Logout mutation for customer portal
+export function useCustomerLogout() {
+  const queryClient = useQueryClient()
+  const router = useRouter()
+
+  return useMutation({
+    mutationFn: async () => {
+      try {
+        await apiClient.post<ApiResponse<boolean>>(endpoints.auth.logout)
+      } catch {
+        console.warn("Backend logout failed, continuing with client-side logout")
+      }
+      await signOut({ redirect: false })
+    },
+    onSettled: () => {
+      clearTokenCache()
+      queryClient.clear()
+      router.push("/portal-customer/login")
     },
   })
 }

@@ -10,6 +10,7 @@ import imgMetricsDashboard4 from "public/commons/img_metrics-dashboard-4.png"
 
 // Portal Customer
 import imgPortalCustomer from "public/commons/img_portal-customer.png"
+import imgLoginPortalCustomer from "public/commons/img_login-portal-customer.png"
 
 export {
   imgLogoGadaiTopImgOnly,
@@ -20,4 +21,5 @@ export {
   imgMetricsDashboard3,
   imgMetricsDashboard4,
   imgPortalCustomer,
+  imgLoginPortalCustomer,
 }

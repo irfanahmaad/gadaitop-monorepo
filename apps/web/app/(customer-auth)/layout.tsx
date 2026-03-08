@@ -1,0 +1,13 @@
+import React from "react"
+
+export default function CustomerAuthLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <div className="flex min-h-screen w-full items-center justify-center bg-slate-200">
+      {children}
+    </div>
+  )
+}
