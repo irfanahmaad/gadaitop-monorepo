@@ -1,5 +1,6 @@
 import {
   Controller,
+  Delete,
   Get,
   Post,
   Put,
@@ -55,6 +56,18 @@ export class CapitalTopupController {
     @Body() updateDto: UpdateCapitalTopupDto,
   ): Promise<CapitalTopupDto> {
     return this.capitalTopupService.update(id, updateDto);
+  }
+
+  @Delete(':id')
+  @Auth([{ action: AclAction.DELETE, subject: AclSubject.ADD_CAPITAL }])
+  async delete(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
+  ): Promise<{ success: boolean }> {
+    const user = (req as any).user;
+    const deletedBy = user?.uuid ?? null;
+    await this.capitalTopupService.delete(id, deletedBy);
+    return { success: true };
   }
 
   @Put(':id/approve')

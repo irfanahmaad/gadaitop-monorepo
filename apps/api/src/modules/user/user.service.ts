@@ -42,7 +42,7 @@ export class UserService {
   async findOne(findData: FindOptionsWhere<UserEntity>): Promise<UserDto> {
     const user = await this.userRepository.findOne({
       where: findData,
-      relations: { roles: true },
+      relations: { roles: true, company: true, branch: true },
     });
 
     if (!user) {
@@ -72,12 +72,13 @@ export class UserService {
   }> {
     const qbOptions: QueryBuilderOptionsType<UserEntity> = {
       ...options,
-      relation: { roles: true },
+      relation: { roles: true, company: true, branch: true },
       orderBy: sortAttribute(options.sortBy, {
+        id: { id: true },
         fullName: { fullName: true },
         email: { email: true },
         activeStatus: { activeStatus: true },
-      }) ?? { id: 'ASC' } as any,
+      }) ?? { id: 'DESC' } as any,
     };
 
     const qb = UserEntity.createQueryBuilder('users');
@@ -105,6 +106,18 @@ export class UserService {
       qb.andWhere('users.companyId = :companyId', {
         companyId: options.companyId,
       });
+    }
+
+    // Exclude users with a given role (e.g. company_admin)
+    if (options.excludeRoleCode?.trim()) {
+      qb.andWhere(
+        `users.id NOT IN (
+          SELECT ur.user_id FROM user_roles ur
+          INNER JOIN roles r ON r.id = ur.role_id
+          WHERE r.code = :excludeRoleCode
+        )`,
+        { excludeRoleCode: options.excludeRoleCode.trim() },
+      );
     }
 
     const dynamicQueryBuilder = new DynamicQueryBuilder(this.userRepository.metadata);
@@ -294,7 +307,7 @@ export class UserService {
     );
   }
 
-  async deleteByUuid(uuid: string): Promise<void> {
+  async deleteByUuid(uuid: string, deletedBy?: string | null): Promise<void> {
     const user = await this.userRepository.findOne({
       where: { uuid },
     });
@@ -303,6 +316,8 @@ export class UserService {
       throw new NotFoundException(`User with UUID ${uuid} not found`);
     }
 
-    await this.userRepository.softDelete({ uuid });
+    user.deletedAt = new Date();
+    user.deletedBy = deletedBy ?? null;
+    await this.userRepository.save(user);
   }
 }

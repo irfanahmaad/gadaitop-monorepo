@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { type FindOptionsWhere, Repository } from 'typeorm';
+import { type FindOptionsWhere, IsNull, Repository } from 'typeorm';
 
 import { PageMetaDto } from '../../common/dtos/page-meta.dto';
 import {
@@ -32,7 +32,9 @@ export class CapitalTopupService {
     queryDto: QueryCapitalTopupDto,
     userPtId?: string,
   ): Promise<{ data: CapitalTopupDto[]; meta: PageMetaDto }> {
-    const where: FindOptionsWhere<CapitalTopupEntity> = {};
+    const where: FindOptionsWhere<CapitalTopupEntity> = {
+      deletedAt: IsNull(),
+    };
 
     if (userPtId) {
       where.ptId = userPtId;
@@ -129,6 +131,31 @@ export class CapitalTopupService {
     }
     await this.capitalTopupRepository.save(topup);
     return this.findOne(uuid);
+  }
+
+  /**
+   * Soft-delete a pending capital topup (sets deletedAt and optionally deletedBy).
+   * Only pending requests can be soft-deleted. Soft-deleted rows are excluded
+   * from findAll and findOne. No FK constraints reference capital_topups;
+   * cash_mutations and notifications only store reference_type as data.
+   */
+  async delete(uuid: string, deletedBy?: string | null): Promise<void> {
+    const topup = await this.capitalTopupRepository.findOne({
+      where: { uuid },
+    });
+    if (!topup) {
+      throw new NotFoundException(
+        `Capital topup with UUID ${uuid} not found`,
+      );
+    }
+    if (topup.status !== CapitalTopupStatusEnum.Pending) {
+      throw new BadRequestException(
+        'Only pending topup requests can be deleted',
+      );
+    }
+    topup.deletedAt = new Date();
+    topup.deletedBy = deletedBy ?? null;
+    await this.capitalTopupRepository.save(topup);
   }
 
   async approve(uuid: string, approvedBy: string): Promise<CapitalTopupDto> {

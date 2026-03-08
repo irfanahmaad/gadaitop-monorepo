@@ -203,7 +203,7 @@ export class PawnTermService {
     return new PawnTermDto(updated);
   }
 
-  async remove(uuid: string): Promise<void> {
+  async remove(uuid: string, deletedBy?: string | null): Promise<void> {
     const term = await this.pawnTermRepository.findOne({
       where: { uuid },
     });
@@ -212,7 +212,9 @@ export class PawnTermService {
       throw new NotFoundException(`Pawn term with UUID ${uuid} not found`);
     }
 
-    await this.pawnTermRepository.softDelete({ uuid });
+    term.deletedAt = new Date();
+    term.deletedBy = deletedBy ?? null;
+    await this.pawnTermRepository.save(term);
   }
 
   async findByPtAndItemType(ptId: string, itemTypeId: string): Promise<PawnTermEntity | null> {

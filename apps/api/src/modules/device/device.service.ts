@@ -64,7 +64,7 @@ export class DeviceService {
     return new DeviceRegistrationDto(updated);
   }
 
-  async remove(uuid: string): Promise<void> {
+  async remove(uuid: string, deletedBy?: string | null): Promise<void> {
     const device = await this.deviceRepository.findOne({
       where: { uuid },
     });
@@ -73,7 +73,9 @@ export class DeviceService {
       throw new NotFoundException(`Device with UUID ${uuid} not found`);
     }
 
-    await this.deviceRepository.softDelete({ uuid });
+    device.deletedAt = new Date();
+    device.deletedBy = deletedBy ?? null;
+    await this.deviceRepository.save(device);
   }
 
   async verifyIpAddress(userId: string, ipAddress: string): Promise<boolean> {

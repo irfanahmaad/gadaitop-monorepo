@@ -394,11 +394,6 @@ const batchLelangColumns: ColumnDef<BatchLelang>[] = [
     accessorKey: "lastUpdatedAt",
     header: "Last Updated At",
   },
-  {
-    accessorKey: "status",
-    header: "Status",
-    cell: ({ row }) => <BatchStatusBadge status={row.getValue("status")} />,
-  },
 ]
 
 function TableSkeleton() {
@@ -756,6 +751,7 @@ function LelangPageContent() {
     spkItemIds: string[]
     name?: string
     notes?: string
+    assignedTo?: string
   }) => {
     try {
       await createBatchMutation.mutateAsync({
@@ -764,6 +760,7 @@ function LelangPageContent() {
         spkItemIds: data.spkItemIds,
         name: data.name,
         notes: data.notes,
+        assignedTo: data.assignedTo,
       })
       toast.success("Batch lelang berhasil dibuat")
       setIsBuatBatchDialogOpen(false)

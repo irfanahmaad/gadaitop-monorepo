@@ -13,4 +13,9 @@ export class QueryUserDto extends PageOptionsDto {
   @IsOptional()
   @IsUUID()
   companyId?: string;
+
+  /** When set, exclude users who have this role (e.g. "company_admin" to hide Admin PT). */
+  @IsOptional()
+  @IsString()
+  excludeRoleCode?: string;
 }

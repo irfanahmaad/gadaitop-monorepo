@@ -7,7 +7,9 @@ import {
   Patch,
   Body,
   Query,
+  Req,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { ParseUUIDPipe } from '@nestjs/common/pipes';
 
 import { PageOptionsDto } from '../../common/dtos/page-options.dto';
@@ -67,7 +69,12 @@ export class CompanyController {
 
   @Delete(':id')
   @Auth([{ action: AclAction.DELETE, subject: AclSubject.PT }])
-  async delete(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
-    return this.companyService.delete(id);
+  async delete(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
+  ): Promise<void> {
+    const user = (req as any).user;
+    const deletedBy = user?.uuid ?? null;
+    return this.companyService.delete(id, deletedBy);
   }
 }

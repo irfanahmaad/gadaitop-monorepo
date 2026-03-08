@@ -44,6 +44,7 @@ import { useAuth } from "@/lib/react-query/hooks/use-auth"
 import {
   useBranches,
   useDeleteBranch,
+  useDeactivateBranch,
   branchKeys,
 } from "@/lib/react-query/hooks/use-branches"
 import {
@@ -362,6 +363,7 @@ export default function MasterTokoPage() {
     })
 
   const deleteBranchMutation = useDeleteBranch()
+  const deactivateBranchMutation = useDeactivateBranch()
   const approveBorrowRequestMutation = useApproveBorrowRequest()
   const rejectBorrowRequestMutation = useRejectBorrowRequest()
 
@@ -462,11 +464,17 @@ export default function MasterTokoPage() {
 
   const handleRevokeConfirm = useCallback(async () => {
     if (!revokeRow) return
-    // TODO: Wire to revoke API when backend implements PATCH branches/:id/revoke
-    toast.info("Fitur Revoke akan segera tersedia")
-    setIsRevokeConfirmOpen(false)
-    setRevokeRow(null)
-  }, [revokeRow])
+    try {
+      await deactivateBranchMutation.mutateAsync(revokeRow.id)
+      toast.success("Toko berhasil dinonaktifkan")
+      setIsRevokeConfirmOpen(false)
+      setRevokeRow(null)
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Gagal menonaktifkan toko"
+      toast.error(message)
+    }
+  }, [revokeRow, deactivateBranchMutation])
 
   const handleSetujui = useCallback((row: RequestToko) => {
     setSetujuiRow(row)

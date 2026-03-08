@@ -65,7 +65,12 @@ export class SoPriorityRulesController {
 
   @Delete(':id')
   @Auth([])
-  async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
-    return this.soPriorityRuleService.remove(id);
+  async remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
+  ): Promise<void> {
+    const user = (req as any).user;
+    const deletedBy = user?.uuid ?? null;
+    return this.soPriorityRuleService.remove(id, deletedBy);
   }
 }

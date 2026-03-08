@@ -36,21 +36,26 @@ import { usePublicUrl } from "@/lib/react-query/hooks/use-upload"
 const getRoleBadgeConfig = (role: { code: string; name: string }) => {
   const configs: Record<string, { label: string; className: string }> = {
     owner: {
+      label: "Super Admin",
+      className:
+        "border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-400",
+    },
+    company_admin: {
       label: "Admin PT",
       className:
         "border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-400",
     },
-    "staf-toko": {
-      label: "Staf Toko",
+    branch_staff: {
+      label: "Staf Cabang",
       className:
         "border-yellow-500/20 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400",
     },
-    "stock-opname": {
+    stock_auditor: {
       label: "Stock Opname",
       className:
         "border-green-500/20 bg-green-500/10 text-green-700 dark:text-green-400",
     },
-    lelang: {
+    auction_staff: {
       label: "Lelang",
       className:
         "border-purple-500/20 bg-purple-500/10 text-purple-700 dark:text-purple-400",
@@ -97,7 +102,7 @@ function DetailSkeleton() {
               </div>
               {/* Fields skeleton */}
               <div className="grid gap-6 md:grid-cols-2 items-start">
-                {Array.from({ length: 4 }).map((_, i) => (
+                {Array.from({ length: 6 }).map((_, i) => (
                   <div key={i} className="space-y-2">
                     <Skeleton className="h-4 w-24" />
                     <Skeleton className="h-5 w-full" />
@@ -252,12 +257,12 @@ export default function MasterPenggunaDetailPage() {
 
               {/* Detail Information */}
               <div className="space-y-8">
-                {/* Detail Super Admin Section */}
+                {/* Detail Pengguna Section */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-3">
                     <IdCard className="text-destructive size-6" />
                     <h2 className="text-destructive text-lg font-semibold">
-                      Detail Super Admin
+                      Detail Pengguna
                     </h2>
                   </div>
 
@@ -310,6 +315,30 @@ export default function MasterPenggunaDetailPage() {
                           <p className="text-muted-foreground text-base">-</p>
                         )}
                       </div>
+                    </div>
+
+                    {/* PT */}
+                    <div className="space-y-2">
+                      <label className="text-muted-foreground text-sm font-medium">
+                        PT
+                      </label>
+                      <p className="text-base">
+                        {user.company?.companyName ??
+                          user.company?.companyCode ??
+                          "-"}
+                      </p>
+                    </div>
+
+                    {/* Toko/Cabang */}
+                    <div className="space-y-2">
+                      <label className="text-muted-foreground text-sm font-medium">
+                        Toko/Cabang
+                      </label>
+                      <p className="text-base">
+                        {user.branch?.shortName ??
+                          user.branch?.branchCode ??
+                          "-"}
+                      </p>
                     </div>
                   </div>
                 </div>

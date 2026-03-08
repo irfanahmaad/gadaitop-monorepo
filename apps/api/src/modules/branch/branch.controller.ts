@@ -67,8 +67,13 @@ export class BranchController {
 
   @Delete(':id')
   @Auth([{ action: AclAction.DELETE, subject: AclSubject.STORE }])
-  async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
-    return this.branchService.remove(id);
+  async remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
+  ): Promise<void> {
+    const user = (req as any).user;
+    const deletedBy = user?.uuid ?? null;
+    return this.branchService.remove(id, deletedBy);
   }
 
   @Patch(':id/approve')
@@ -92,5 +97,17 @@ export class BranchController {
     const user = (req as any).user;
     const approverId = user?.uuid ?? '';
     return this.branchService.rejectBorrowRequest(id, approverId, body.rejectionReason);
+  }
+
+  @Patch(':id/deactivate')
+  @Auth([{ action: AclAction.UPDATE, subject: AclSubject.STORE }])
+  async deactivate(@Param('id', ParseUUIDPipe) id: string): Promise<BranchDto> {
+    return this.branchService.deactivate(id);
+  }
+
+  @Patch(':id/activate')
+  @Auth([{ action: AclAction.UPDATE, subject: AclSubject.STORE }])
+  async activate(@Param('id', ParseUUIDPipe) id: string): Promise<BranchDto> {
+    return this.branchService.activate(id);
   }
 }
