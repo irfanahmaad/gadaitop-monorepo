@@ -810,6 +810,14 @@ export type StockOpnameAssigneeSummary = {
   email?: string
 }
 
+export type StockOpnamePawnTermSummary = {
+  uuid: string
+  ruleName?: string | null
+  itemType?: { typeName?: string }
+  tenorMin?: number
+  tenorMax?: number
+}
+
 /** Backend list response item (matches StockOpnameSessionDto) */
 export interface StockOpnameSessionListItem {
   uuid: string
@@ -817,6 +825,9 @@ export interface StockOpnameSessionListItem {
   ptId: string
   storeIds: string[]
   stores: StockOpnameStoreSummary[]
+  pawnTermIds?: string[]
+  pawnTerms?: StockOpnamePawnTermSummary[]
+  mataItemCount?: number | null
   startDate: string
   endDate: string | null
   status: StockOpnameSessionStatus
@@ -875,6 +886,9 @@ export interface StockOpnameSession {
   ptId: string
   storeIds: string[]
   stores: StockOpnameStoreSummary[]
+  pawnTermIds: string[]
+  pawnTerms: StockOpnamePawnTermSummary[]
+  mataItemCount: number | null
   startDate?: string
   scheduledDate: string
   status: StockOpnameStatus
@@ -891,6 +905,8 @@ export interface CreateStockOpnameDto {
   storeIds: string[]
   startDate: string
   assignedToIds?: string[]
+  pawnTermIds?: string[]
+  mataItemCount?: number
   notes?: string
 }
 
@@ -898,6 +914,8 @@ export interface UpdateStockOpnameSessionDto {
   storeIds?: string[]
   startDate?: string
   assignedToIds?: string[]
+  pawnTermIds?: string[]
+  mataItemCount?: number
   notes?: string
 }
 

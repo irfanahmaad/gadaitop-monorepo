@@ -96,6 +96,7 @@ function formatLastUpdated(isoDate: string | undefined | null): string {
 function mapSessionToRow(session: StockOpnameSessionListItem): StockOpnameRow {
   const storeCount = session.stores?.length ?? session.storeIds?.length ?? 0
   const assigneeCount = session.assignees?.length ?? 0
+  const syaratMataCount = session.pawnTermIds?.length ?? session.pawnTerms?.length ?? 0
   return {
     id: session.uuid,
     idSO: session.sessionCode,
@@ -111,7 +112,7 @@ function mapSessionToRow(session: StockOpnameSessionListItem): StockOpnameRow {
     status: STATUS_DISPLAY[session.status],
     tokoNumber: storeCount > 0 ? String(storeCount) : "—",
     petugasNumber: assigneeCount > 0 ? String(assigneeCount) : "—",
-    syaratMataNumber: "—",
+    syaratMataNumber: syaratMataCount > 0 ? String(syaratMataCount) : "—",
     itemCount:
       session.totalItemsCounted != null
         ? String(session.totalItemsCounted)

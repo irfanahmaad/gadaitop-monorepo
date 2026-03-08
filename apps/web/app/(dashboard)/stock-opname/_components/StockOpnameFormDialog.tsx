@@ -177,11 +177,17 @@ export function StockOpnameFormDialog({
     }
     const startDate = format(pendingValues.tanggal, "yyyy-MM-dd")
     const notes = pendingValues.catatan?.trim() || undefined
+    const mataItemCount =
+      pendingValues.jumlahItemMata && pendingValues.jumlahItemMata.trim()
+        ? parseInt(pendingValues.jumlahItemMata, 10)
+        : undefined
     const payload: CreateStockOpnameDto = {
       ptId,
       storeIds: pendingValues.toko,
       startDate,
       assignedToIds: pendingValues.petugasSO.length > 0 ? pendingValues.petugasSO : undefined,
+      pawnTermIds: pendingValues.syaratMata ?? [],
+      mataItemCount: mataItemCount != null && !Number.isNaN(mataItemCount) ? mataItemCount : undefined,
       notes,
     }
     try {
@@ -314,9 +320,7 @@ export function StockOpnameFormDialog({
                     <MultiSelectCombobox
                       options={petugasSOOptions}
                       selected={field.value ?? []}
-                      onSelectedChange={(values) =>
-                        field.onChange(values.slice(-1))
-                      }
+                      onSelectedChange={field.onChange}
                       placeholder="Pilih Petugas"
                       searchPlaceholder="Cari Petugas..."
                       emptyMessage="Petugas tidak ditemukan"

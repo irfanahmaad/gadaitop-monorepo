@@ -4,6 +4,7 @@ import { AbstractEntity } from '../../../common/abstract.entity';
 import { StockOpnameSessionStatusEnum } from '../../../constants/stock-opname-session-status';
 import { StockOpnameItemEntity } from './stock-opname-item.entity';
 import { StockOpnameSessionAssigneeEntity } from './stock-opname-session-assignee.entity';
+import { StockOpnameSessionPawnTermEntity } from './stock-opname-session-pawn-term.entity';
 import { StockOpnameSessionStoreEntity } from './stock-opname-session-store.entity';
 
 @Entity({ name: 'stock_opname_sessions' })
@@ -33,6 +34,12 @@ export class StockOpnameSessionEntity extends AbstractEntity {
   )
   sessionAssignees: Relation<StockOpnameSessionAssigneeEntity[]>;
 
+  @OneToMany(
+    () => StockOpnameSessionPawnTermEntity,
+    (spt) => spt.session,
+  )
+  sessionPawnTerms: Relation<StockOpnameSessionPawnTermEntity[]>;
+
   @Column({ type: 'date' })
   @Index()
   startDate: Date;
@@ -58,14 +65,6 @@ export class StockOpnameSessionEntity extends AbstractEntity {
   creator: Relation<any>;
 
   @Column({ type: 'uuid', nullable: true })
-  @Index()
-  assignedTo: string | null;
-
-  @ManyToOne('UserEntity', { nullable: true, onDelete: 'SET NULL' })
-  @JoinColumn({ name: 'assigned_to', referencedColumnName: 'uuid' })
-  assignee: Relation<any> | null;
-
-  @Column({ type: 'uuid', nullable: true })
   approvedBy: string | null;
 
   @ManyToOne('UserEntity', { nullable: true, onDelete: 'SET NULL' })
@@ -77,6 +76,9 @@ export class StockOpnameSessionEntity extends AbstractEntity {
 
   @Column({ type: 'text', nullable: true })
   notes: string | null;
+
+  @Column({ type: 'int', nullable: true })
+  mataItemCount: number | null;
 
   @OneToMany('StockOpnameItemEntity', 'session')
   items: Relation<StockOpnameItemEntity[]>;

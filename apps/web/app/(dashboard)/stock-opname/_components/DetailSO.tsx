@@ -104,11 +104,23 @@ export function DetailSO({
       if (petugasNames.length === 0 && session.creatorFullName) {
         petugasNames = [session.creatorFullName]
       }
+      // Prefer persisted pawn term names, fall back to derived mata rule names
+      const syaratMataNames =
+        (session.pawnTerms?.length ?? 0) > 0
+          ? (session.pawnTerms ?? []).map(
+              (pt) =>
+                pt.ruleName?.trim() ||
+                pt.itemType?.typeName ||
+                (pt.tenorMin != null && pt.tenorMax != null
+                  ? `Tenor ${pt.tenorMin}-${pt.tenorMax} bln`
+                  : pt.uuid)
+            )
+          : mataRuleNames ?? []
       return {
         idSO: session.sessionCode ?? session.uuid,
         tanggal: formatDate(session.startDate ?? session.scheduledDate ?? session.createdAt),
         toko: tokoNames,
-        syaratMata: mataRuleNames ?? [],
+        syaratMata: syaratMataNames,
         lastUpdatedAt: formatLastUpdated(
           session.updatedAt ?? session.createdAt
         ),

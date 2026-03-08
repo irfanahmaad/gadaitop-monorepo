@@ -2,9 +2,11 @@ import {
   ArrayMinSize,
   IsArray,
   IsDateString,
+  IsInt,
   IsOptional,
   IsString,
   IsUUID,
+  Min,
 } from 'class-validator';
 
 export class CreateStockOpnameSessionDto {
@@ -23,6 +25,16 @@ export class CreateStockOpnameSessionDto {
   @IsArray()
   @IsUUID('4', { each: true })
   assignedToIds?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  pawnTermIds?: string[];
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  mataItemCount?: number;
 
   @IsOptional()
   @IsString()

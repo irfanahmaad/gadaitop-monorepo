@@ -12,6 +12,7 @@ import { StockOpnameSessionStatusEnum } from '../../constants/stock-opname-sessi
 import { StockOpnameSessionEntity } from './entities/stock-opname-session.entity';
 import { StockOpnameSessionStoreEntity } from './entities/stock-opname-session-store.entity';
 import { StockOpnameSessionAssigneeEntity } from './entities/stock-opname-session-assignee.entity';
+import { StockOpnameSessionPawnTermEntity } from './entities/stock-opname-session-pawn-term.entity';
 import { StockOpnameItemEntity } from './entities/stock-opname-item.entity';
 import { StockOpnameSessionDto } from './dto/stock-opname-session.dto';
 import { CreateStockOpnameSessionDto } from './dto/create-stock-opname-session.dto';
@@ -29,6 +30,8 @@ export class StockOpnameService {
     private sessionStoreRepository: Repository<StockOpnameSessionStoreEntity>,
     @InjectRepository(StockOpnameSessionAssigneeEntity)
     private sessionAssigneeRepository: Repository<StockOpnameSessionAssigneeEntity>,
+    @InjectRepository(StockOpnameSessionPawnTermEntity)
+    private sessionPawnTermRepository: Repository<StockOpnameSessionPawnTermEntity>,
     @InjectRepository(StockOpnameItemEntity)
     private itemRepository: Repository<StockOpnameItemEntity>,
   ) {}
@@ -54,7 +57,10 @@ export class StockOpnameService {
       .leftJoinAndSelect('session.sessionStores', 'sessionStores')
       .leftJoinAndSelect('sessionStores.store', 'store')
       .leftJoinAndSelect('session.sessionAssignees', 'sessionAssignees')
-      .leftJoinAndSelect('sessionAssignees.user', 'assigneeUser');
+      .leftJoinAndSelect('sessionAssignees.user', 'assigneeUser')
+      .leftJoinAndSelect('session.sessionPawnTerms', 'sessionPawnTerms')
+      .leftJoinAndSelect('sessionPawnTerms.pawnTerm', 'pawnTerm')
+      .leftJoinAndSelect('pawnTerm.itemType', 'pawnTermItemType');
 
     if (where.ptId) {
       qb = qb.andWhere('session.ptId = :ptId', { ptId: where.ptId });
@@ -92,6 +98,9 @@ export class StockOpnameService {
         'sessionStores.store',
         'sessionAssignees',
         'sessionAssignees.user',
+        'sessionPawnTerms',
+        'sessionPawnTerms.pawnTerm',
+        'sessionPawnTerms.pawnTerm.itemType',
         'items',
         'items.spkItem',
         'items.spkItem.itemType',
@@ -121,6 +130,8 @@ export class StockOpnameService {
       status: StockOpnameSessionStatusEnum.Draft,
       createdBy,
       notes: createDto.notes ?? null,
+      mataItemCount:
+        createDto.mataItemCount != null ? createDto.mataItemCount : null,
     });
     const saved = await this.sessionRepository.save(session);
 
@@ -140,6 +151,14 @@ export class StockOpnameService {
         }),
       );
     }
+    for (const pawnTermId of createDto.pawnTermIds ?? []) {
+      await this.sessionPawnTermRepository.save(
+        this.sessionPawnTermRepository.create({
+          session: saved,
+          pawnTerm: { uuid: pawnTermId },
+        }),
+      );
+    }
     return this.findOne(saved.uuid);
   }
 
@@ -150,7 +169,7 @@ export class StockOpnameService {
   ): Promise<StockOpnameSessionDto> {
     const session = await this.sessionRepository.findOne({
       where: { uuid: sessionUuid },
-      relations: ['sessionStores', 'sessionAssignees'],
+      relations: ['sessionStores', 'sessionAssignees', 'sessionPawnTerms'],
     });
     if (!session) {
       throw new NotFoundException('Stock opname session not found');
@@ -169,6 +188,9 @@ export class StockOpnameService {
     }
     if (updateDto.notes !== undefined) {
       session.notes = updateDto.notes;
+    }
+    if (updateDto.mataItemCount !== undefined) {
+      session.mataItemCount = updateDto.mataItemCount;
     }
     await this.sessionRepository.save(session);
 
@@ -198,6 +220,21 @@ export class StockOpnameService {
           this.sessionAssigneeRepository.create({
             session: { uuid: sessionUuid },
             user: { uuid: userId },
+          }),
+        );
+      }
+    }
+    if (updateDto.pawnTermIds !== undefined) {
+      await this.sessionPawnTermRepository
+        .createQueryBuilder()
+        .delete()
+        .where('so_session_id = :sessionUuid', { sessionUuid })
+        .execute();
+      for (const pawnTermId of updateDto.pawnTermIds) {
+        await this.sessionPawnTermRepository.save(
+          this.sessionPawnTermRepository.create({
+            session: { uuid: sessionUuid },
+            pawnTerm: { uuid: pawnTermId },
           }),
         );
       }

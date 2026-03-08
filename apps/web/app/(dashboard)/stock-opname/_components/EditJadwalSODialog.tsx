@@ -160,8 +160,9 @@ export function EditJadwalSODialog({
         petugasSO: session.assignees?.length
           ? session.assignees.map((a) => a.uuid)
           : [],
-        syaratMata: [],
-        jumlahItemMata: "10",
+        syaratMata: session.pawnTermIds?.length ? session.pawnTermIds : [],
+        jumlahItemMata:
+          session.mataItemCount != null ? String(session.mataItemCount) : "10",
         catatan: session.notes ?? "",
       })
     } else if (!open) {
@@ -186,11 +187,17 @@ export function EditJadwalSODialog({
     }
     const startDate = pendingValues.tanggal ? format(pendingValues.tanggal, "yyyy-MM-dd") : undefined
     const notes = pendingValues.catatan?.trim() || undefined
+    const mataItemCount =
+      pendingValues.jumlahItemMata && pendingValues.jumlahItemMata.trim()
+        ? parseInt(pendingValues.jumlahItemMata, 10)
+        : undefined
 
     const payload: UpdateStockOpnameSessionDto = {
       storeIds: pendingValues.toko,
       startDate,
       assignedToIds: pendingValues.petugasSO.length > 0 ? pendingValues.petugasSO : undefined,
+      pawnTermIds: pendingValues.syaratMata ?? [],
+      mataItemCount: mataItemCount != null && !Number.isNaN(mataItemCount) ? mataItemCount : undefined,
       notes,
     }
 
@@ -327,9 +334,7 @@ export function EditJadwalSODialog({
                     <MultiSelectCombobox
                       options={petugasSOOptions}
                       selected={field.value ?? []}
-                      onSelectedChange={(values) =>
-                        field.onChange(values.slice(-1))
-                      }
+                      onSelectedChange={field.onChange}
                       placeholder="Pilih Petugas"
                       searchPlaceholder="Cari Petugas..."
                       emptyMessage="Petugas tidak ditemukan"
