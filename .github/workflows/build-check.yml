@@ -1,5 +1,5 @@
 # Run API and Web builds. Fails if either build fails.
-# Report is visible in Actions tab: which job failed and full build logs.
+# On PRs, posts or updates a comment with build status.
 name: Build Check
 
 on:
@@ -60,3 +60,55 @@ jobs:
         run: pnpm run build:web
         env:
           NODE_ENV: production
+
+  comment-pr:
+    name: Comment PR with build result
+    runs-on: ubuntu-latest
+    needs: [build-api, build-web]
+    if: always() && github.event_name == 'pull_request' && (needs.build-api.result != 'cancelled' || needs.build-web.result != 'cancelled')
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Post or update PR comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const marker = '<!-- build-check -->';
+            const apiResult = '${{ needs.build-api.result }}';
+            const webResult = '${{ needs.build-web.result }}';
+            const runUrl = `https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
+            const apiIcon = apiResult === 'success' ? '✅' : (apiResult === 'failure' ? '❌' : '⏭️');
+            const webIcon = webResult === 'success' ? '✅' : (webResult === 'failure' ? '❌' : '⏭️');
+            const body = `## 🔨 Build Check
+
+            | Job | Status |
+            |-----|--------|
+            | **Build API** | ${apiIcon} \`${apiResult}\` |
+            | **Build Web** | ${webIcon} \`${webResult}\` |
+
+            [View run](${runUrl})
+            ${marker}`;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.body && c.body.includes(marker));
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
