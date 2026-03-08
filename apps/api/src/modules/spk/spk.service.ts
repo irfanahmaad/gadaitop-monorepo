@@ -18,6 +18,7 @@ import { SpkStatusEnum } from '../../constants/spk-status';
 import { NkbPaymentMethodEnum } from '../../constants/nkb-payment-method';
 import { NkbPaymentTypeEnum } from '../../constants/nkb-payment-type';
 import { NkbStatusEnum } from '../../constants/nkb-status';
+import { AuctionBatchItemEntity } from '../auction/entities/auction-batch-item.entity';
 import { BranchEntity } from '../branch/entities/branch.entity';
 import { CompanyEntity } from '../company/entities/company.entity';
 import { CustomerEntity } from '../customer/entities/customer.entity';
@@ -49,6 +50,8 @@ export class SpkService {
     private companyRepository: Repository<CompanyEntity>,
     @InjectRepository(ItemTypeEntity)
     private itemTypeRepository: Repository<ItemTypeEntity>,
+    @InjectRepository(AuctionBatchItemEntity)
+    private batchItemRepository: Repository<AuctionBatchItemEntity>,
     private interestCalculator: InterestCalculatorService,
     private dataSource: DataSource,
   ) {}
@@ -128,7 +131,20 @@ export class SpkService {
       qbOptions,
     );
 
-    const data = records.map((r) => new SpkDto(r));
+    let data = records.map((r) => new SpkDto(r));
+    if (isOverdue && queryDto.excludeInAuctionBatch) {
+      const batchItems = await this.batchItemRepository.find({
+        select: ['spkItemId'],
+      });
+      const spkItemIdsInBatch = new Set(batchItems.map((b) => b.spkItemId));
+      data = records.map((r) => {
+        const filteredItems = (r.items || []).filter(
+          (item: { uuid: string }) => !spkItemIdsInBatch.has(item.uuid),
+        );
+        return new SpkDto({ ...r, items: filteredItems } as any);
+      });
+    }
+
     const meta = new PageMetaDto({
       pageOptionsDto: queryDto,
       itemCount: count,

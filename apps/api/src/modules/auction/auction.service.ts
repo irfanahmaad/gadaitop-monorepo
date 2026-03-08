@@ -135,9 +135,9 @@ export class AuctionService {
           `SPK item ${item.uuid} is not in_storage; status is ${item.status}`,
         );
       }
-      if (spk.storeId !== dto.storeId || spk.ptId !== dto.ptId) {
+      if (spk.ptId !== dto.ptId) {
         throw new BadRequestException(
-          `SPK item ${item.uuid} does not belong to the given store/PT`,
+          `SPK item ${item.uuid} does not belong to the given PT`,
         );
       }
     }

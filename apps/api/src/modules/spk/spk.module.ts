@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
+import { AuctionBatchItemEntity } from '../auction/entities/auction-batch-item.entity';
 import { BranchEntity } from '../branch/entities/branch.entity';
 import { CompanyEntity } from '../company/entities/company.entity';
 import { CustomerEntity } from '../customer/entities/customer.entity';
@@ -22,6 +23,7 @@ import { InterestCalculatorService } from './services/interest-calculator.servic
       BranchEntity,
       CompanyEntity,
       ItemTypeEntity,
+      AuctionBatchItemEntity,
     ]),
   ],
   controllers: [SpkController],

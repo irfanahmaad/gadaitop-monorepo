@@ -46,7 +46,9 @@ import {
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { formatCurrencyInput, parseCurrencyInput } from "@/lib/format-currency"
 
-import { useAuth } from "@/lib/react-query/hooks/use-auth"
+import type { ApiResponse } from "@/lib/api/types"
+import type { AuthUser } from "@/lib/auth/types"
+import { useAuth, useAuthMe } from "@/lib/react-query/hooks/use-auth"
 import {
   useCustomers,
   useLookupCustomerByNik,
@@ -117,8 +119,13 @@ export default function TambahSPKPage() {
   const [confirmOpen, setConfirmOpen] = useState(false)
 
   const { user } = useAuth()
+  const isBranchStaff = user?.roles?.some((r) => r.code === "branch_staff") ?? false
+  const { data: meData } = useAuthMe({
+    enabled: isBranchStaff && !user?.branchId,
+  })
   const effectiveCompanyId = user?.companyId ?? user?.ownedCompanyId
-  const effectiveBranchId = user?.branchId
+  const meUser = (meData?.data as ApiResponse<AuthUser> | undefined)?.data
+  const effectiveBranchId = user?.branchId ?? meUser?.branchId ?? null
 
   const form = useForm<SPKFormValues>({
     resolver: zodResolver(spkSchema),

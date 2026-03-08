@@ -1,6 +1,6 @@
 "use client"
 
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { signIn, signOut, useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 
@@ -48,6 +48,15 @@ export function useCustomerAuth() {
     error: session?.error,
     updateSession: update,
   }
+}
+
+/** Fetches full user profile from GET /auth/me (includes branchId). Use when session may be stale or missing branchId. */
+export function useAuthMe(options?: { enabled?: boolean }) {
+  return useQuery<ApiResponse<AuthUser>>({
+    queryKey: authKeys.me(),
+    queryFn: () => apiClient.get<ApiResponse<AuthUser>>(endpoints.auth.me),
+    enabled: options?.enabled ?? true,
+  })
 }
 
 // Hook to get current user (alias for useAuth for backward compatibility)

@@ -7,8 +7,10 @@ export class CreateCashDepositDto {
   @IsUUID()
   storeId: string;
 
+  /** PT (company) ID. Optional: when omitted, resolved from the store (branch) companyId. */
+  @IsOptional()
   @IsUUID()
-  ptId: string;
+  ptId?: string;
 
   @IsNumber()
   @Min(0)

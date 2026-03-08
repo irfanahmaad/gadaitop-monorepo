@@ -15,11 +15,14 @@ export class StockOpnameSessionDto {
   variancesCount: number;
   createdAt: Date;
   updatedAt: Date;
+  notes: string | null;
   assignedTo: string | null;
   assignee?: { uuid: string; fullName: string } | null;
   /** Kept as fallback for older rows without `assigned_to` */
   creatorFullName?: string;
   items?: StockOpnameItemDto[];
+  /** Assigned staff (petugas SO) — from session creator */
+  assignedTo?: { uuid: string; fullName?: string; name?: string; email?: string } | null;
 
   constructor(
     session: StockOpnameSessionEntity & {
@@ -40,6 +43,7 @@ export class StockOpnameSessionDto {
     this.variancesCount = session.variancesCount ?? 0;
     this.createdAt = session.createdAt;
     this.updatedAt = session.updatedAt ?? session.createdAt;
+    this.notes = session.notes ?? null;
     this.assignedTo = session.assignedTo ?? null;
     this.assignee = session.assignee
       ? {
@@ -50,6 +54,17 @@ export class StockOpnameSessionDto {
     this.creatorFullName = session.creator?.fullName;
     if (session.items?.length) {
       this.items = session.items.map((i) => new StockOpnameItemDto(i));
+    }
+    if (session.creator) {
+      const c = session.creator;
+      this.assignedTo = {
+        uuid: c.uuid,
+        fullName: c.fullName ?? c.name,
+        name: c.name ?? c.fullName,
+        email: c.email,
+      };
+    } else {
+      this.assignedTo = null;
     }
   }
 }

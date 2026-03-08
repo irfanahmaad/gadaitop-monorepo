@@ -474,7 +474,10 @@ function LelangPageContent() {
     () => ({
       page: 1,
       pageSize: 200,
-      filter: { status: "overdue" } as Record<string, string>,
+      filter: {
+        status: "overdue",
+        excludeInAuctionBatch: "true",
+      } as Record<string, string>,
     }),
     []
   )
@@ -744,16 +747,6 @@ function LelangPageContent() {
 
   const handleBuatBatchClick = () => {
     if (selectedItemLelangRows.length === 0) return
-    const first = selectedItemLelangRows[0]!
-    const allSameStore = selectedItemLelangRows.every(
-      (r) => r.storeId === first.storeId && r.ptId === first.ptId
-    )
-    if (!allSameStore) {
-      toast.error(
-        "Semua item yang dipilih harus dari toko yang sama. Silakan pilih item dari satu toko."
-      )
-      return
-    }
     setIsBuatBatchDialogOpen(true)
   }
 

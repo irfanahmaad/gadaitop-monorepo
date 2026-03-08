@@ -6,6 +6,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { type FindOptionsWhere, Repository } from 'typeorm';
 
+import { BranchEntity } from '../branch/entities/branch.entity';
 import { PageMetaDto } from '../../common/dtos/page-meta.dto';
 import {
   DynamicQueryBuilder,
@@ -25,6 +26,8 @@ export class CashDepositService {
   constructor(
     @InjectRepository(CashDepositEntity)
     private cashDepositRepository: Repository<CashDepositEntity>,
+    @InjectRepository(BranchEntity)
+    private branchRepository: Repository<BranchEntity>,
   ) {}
 
   async findAll(
@@ -87,11 +90,22 @@ export class CashDepositService {
     createDto: CreateCashDepositDto,
     requestedBy: string,
   ): Promise<CashDepositDto> {
+    let ptId = createDto.ptId;
+    if (!ptId) {
+      const store = await this.branchRepository.findOne({
+        where: { uuid: createDto.storeId },
+      });
+      if (!store) {
+        throw new NotFoundException('Store (branch) not found');
+      }
+      ptId = store.companyId;
+    }
+
     const depositCode = await this.generateDepositCode();
     const deposit = this.cashDepositRepository.create({
       depositCode,
       storeId: createDto.storeId,
-      ptId: createDto.ptId,
+      ptId,
       amount: String(createDto.amount),
       paymentMethod: createDto.paymentMethod,
       paymentChannel: createDto.paymentChannel ?? null,

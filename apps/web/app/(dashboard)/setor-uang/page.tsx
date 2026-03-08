@@ -48,7 +48,7 @@ import {
   useCashDeposits,
   useCreateCashDeposit,
 } from "@/lib/react-query/hooks/use-cash-deposits"
-import { useBranches } from "@/lib/react-query/hooks/use-branches"
+import { useBranch, useBranches } from "@/lib/react-query/hooks/use-branches"
 import { useCompanies } from "@/lib/react-query/hooks/use-companies"
 import type { CashDeposit } from "@/lib/api/types"
 import type { FilterConfig } from "@/hooks/use-filter-params"
@@ -255,8 +255,17 @@ export default function SetorUangPage() {
     return list.map((c) => ({ value: c.uuid, label: c.companyName }))
   }, [companiesData])
 
+  const isBranchStaff =
+    user?.roles?.some((r) => r.code === "branch_staff") ?? false
+  const { data: branchStaffBranch } = useBranch(
+    isBranchStaff && user?.branchId ? user.branchId : ""
+  )
+
   const defaultPT =
-    (isSuperAdmin && ptOptions[0]?.value) || effectiveCompanyId || ""
+    (isSuperAdmin && ptOptions[0]?.value) ||
+    effectiveCompanyId ||
+    (branchStaffBranch?.companyId ?? "") ||
+    ""
   const effectivePT = selectedPT || defaultPT
 
   const branchQueryCompanyId = isSuperAdmin ? effectivePT : effectiveCompanyId
@@ -268,12 +277,23 @@ export default function SetorUangPage() {
   )
 
   const branchOptions = useMemo(() => {
+    if (isBranchStaff && branchStaffBranch) {
+      return [
+        {
+          value: branchStaffBranch.uuid,
+          label:
+            branchStaffBranch.shortName ??
+            branchStaffBranch.branchCode ??
+            branchStaffBranch.uuid,
+        },
+      ]
+    }
     const list = branchesData?.data ?? []
     return list.map((b) => ({
       value: b.uuid,
       label: b.shortName ?? b.branchCode ?? b.uuid,
     }))
-  }, [branchesData])
+  }, [branchesData, isBranchStaff, branchStaffBranch])
 
   const [selectedBranch, setSelectedBranch] = useState<string>("")
   const validBranch =
@@ -360,7 +380,9 @@ export default function SetorUangPage() {
       try {
         await createMutation.mutateAsync({
           storeId: data.storeId,
+          ptId: effectivePT || undefined,
           amount: data.amount,
+          paymentMethod: "bank_transfer",
           notes: data.notes,
         })
         toast.success("Permintaan setoran berhasil dibuat")
@@ -370,7 +392,7 @@ export default function SetorUangPage() {
         throw new Error("Create failed")
       }
     },
-    [createMutation]
+    [createMutation, effectivePT]
   )
 
   const handleDetail = useCallback((row: SetorUang) => {
