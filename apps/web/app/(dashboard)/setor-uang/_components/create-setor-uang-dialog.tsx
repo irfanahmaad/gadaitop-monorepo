@@ -31,7 +31,9 @@ import {
   SelectValue,
 } from "@workspace/ui/components/select"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
+import { useCashBalance } from "@/lib/react-query/hooks/use-cash-mutations"
 import { formatCurrencyInput, parseCurrencyInput } from "@/lib/format-currency"
+import { Skeleton } from "@workspace/ui/components/skeleton"
 
 const createSchema = z.object({
   storeId: z.string().min(1, "Toko wajib dipilih"),
@@ -75,6 +77,12 @@ export function CreateSetorUangDialog({
       catatan: "",
     },
   })
+
+  const selectedStoreId = form.watch("storeId")
+  const { data: balanceData, isLoading: isLoadingBalance } =
+    useCashBalance(selectedStoreId)
+  const saldoAkhir =
+    balanceData?.balance != null ? Number(balanceData.balance) : null
 
   useEffect(() => {
     if (open) {
@@ -160,6 +168,26 @@ export function CreateSetorUangDialog({
                     </FormItem>
                   )}
                 />
+              )}
+              {selectedStoreId && (
+                <div className="space-y-2">
+                  <label className="text-muted-foreground text-sm font-medium">
+                    Saldo Akhir Toko
+                  </label>
+                  {isLoadingBalance ? (
+                    <Skeleton className="h-9 w-full max-w-[200px]" />
+                  ) : (
+                    <p className="text-base font-medium">
+                      Rp{" "}
+                      {saldoAkhir != null
+                        ? new Intl.NumberFormat("id-ID", {
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: 0,
+                          }).format(saldoAkhir)
+                        : "-"}
+                    </p>
+                  )}
+                </div>
               )}
               <FormField
                 control={form.control}

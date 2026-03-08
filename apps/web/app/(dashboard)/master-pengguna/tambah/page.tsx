@@ -44,7 +44,11 @@ import {
   SelectValue,
 } from "@workspace/ui/components/select"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
-import { createUser, dummyRoles } from "../dummy-data"
+import type { Role } from "@/lib/api/types"
+import { useAuth } from "@/lib/react-query/hooks/use-auth"
+import { useCreateUser } from "@/lib/react-query/hooks/use-users"
+import { useRoles } from "@/lib/react-query/hooks/use-roles"
+import { useBranches } from "@/lib/react-query/hooks/use-branches"
 
 const userSchema = z
   .object({
@@ -56,6 +60,7 @@ const userSchema = z
       .email("Format email tidak valid"),
     phoneNumber: z.string().optional().or(z.literal("")),
     roleId: z.string().min(1, "Role harus dipilih"),
+    branchId: z.string().optional().or(z.literal("")),
     password: z
       .string()
       .min(1, "Kata Sandi harus diisi")
@@ -71,15 +76,16 @@ type UserFormValues = z.infer<typeof userSchema>
 
 export default function TambahMasterPenggunaPage() {
   const router = useRouter()
+  const { user } = useAuth()
+  const createMutation = useCreateUser()
+  const { data: rolesData, isLoading: isLoadingRoles } = useRoles({
+    pageSize: 100,
+  })
+
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [previewImage, setPreviewImage] = useState<string | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-
-  // Get roles from dummy data
-  const rolesData = { data: dummyRoles }
-  const isLoadingRoles = false
 
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userSchema),
@@ -89,10 +95,40 @@ export default function TambahMasterPenggunaPage() {
       email: "",
       phoneNumber: "",
       roleId: "",
+      branchId: "",
       password: "",
       confirmPassword: "",
     },
   })
+
+  const selectedRoleId = form.watch("roleId")
+  const selectedRole = React.useMemo(
+    () =>
+      (rolesData?.data ?? []).find((r: Role) => r.uuid === selectedRoleId),
+    [rolesData?.data, selectedRoleId]
+  )
+  const isStaffToko = selectedRole?.code === "branch_staff"
+  const showBranchField =
+    selectedRole != null && selectedRole.code !== "company_admin"
+
+  const companyIdForBranches = user?.companyId ?? undefined
+  const { data: branchesData } = useBranches(
+    companyIdForBranches
+      ? { companyId: companyIdForBranches, pageSize: 100 }
+      : undefined,
+    { enabled: !!companyIdForBranches && showBranchField }
+  )
+  const branchOptions = React.useMemo(() => {
+    const list = branchesData?.data ?? []
+    return list.map((b) => ({
+      value: b.uuid,
+      label: b.shortName ?? b.branchCode ?? b.uuid,
+    }))
+  }, [branchesData])
+
+  React.useEffect(() => {
+    if (selectedRole?.code === "company_admin") form.setValue("branchId", "")
+  }, [selectedRole?.code, form])
 
   const handleImageChange = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -109,42 +145,42 @@ export default function TambahMasterPenggunaPage() {
     }
   }
 
-  const handleRemoveImage = (field: {
-    onChange: (value: undefined) => void
-  }) => {
-    field.onChange(undefined)
-    setPreviewImage(null)
-  }
-
   const handleSimpanClick = () => {
     form.handleSubmit((values) => {
-      if (values) {
-        setConfirmOpen(true)
+      if (!values) return
+      if (selectedRole?.code === "branch_staff" && !values.branchId?.trim()) {
+        form.setError("branchId", {
+          message: "Toko/Cabang harus dipilih untuk role Staf Toko",
+        })
+        return
       }
+      setConfirmOpen(true)
     })()
   }
 
   const handleConfirmSubmit = async () => {
     const values = form.getValues()
-    setIsSubmitting(true)
 
     try {
-      createUser({
+      await createMutation.mutateAsync({
         fullName: values.fullName,
         email: values.email,
         password: values.password,
         phoneNumber: values.phoneNumber || undefined,
         roleIds: [values.roleId],
+        companyId: user?.companyId ?? undefined,
+        ...(values.branchId?.trim() && {
+          branchId: values.branchId.trim(),
+        }),
       })
       toast.success("Pengguna berhasil ditambahkan")
       setConfirmOpen(false)
       router.push("/master-pengguna")
-    } catch (error: any) {
-      toast.error(
-        error?.errorMessage || error?.message || "Gagal menambahkan pengguna"
-      )
-    } finally {
-      setIsSubmitting(false)
+    } catch (error: unknown) {
+      const err = error as { errorMessage?: string; message?: string }
+      const message =
+        err?.errorMessage ?? err?.message ?? "Gagal menambahkan pengguna"
+      toast.error(message)
     }
   }
 
@@ -317,7 +353,7 @@ export default function TambahMasterPenggunaPage() {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                {rolesData?.data?.map((role) => (
+                                {(rolesData?.data ?? []).map((role: Role) => (
                                   <SelectItem key={role.uuid} value={role.uuid}>
                                     {role.name}
                                   </SelectItem>
@@ -328,6 +364,46 @@ export default function TambahMasterPenggunaPage() {
                           </FormItem>
                         )}
                       />
+                      {showBranchField && (
+                        <FormField
+                          control={form.control}
+                          name="branchId"
+                          render={({ field }) => (
+                            <FormItem className="md:col-span-2">
+                              <FormLabel>
+                                Toko/Cabang
+                                {isStaffToko && (
+                                  <span className="text-destructive"> *</span>
+                                )}
+                              </FormLabel>
+                              <Select
+                                value={field.value || undefined}
+                                onValueChange={field.onChange}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue
+                                    placeholder={
+                                      isStaffToko
+                                        ? "Pilih Toko/Cabang"
+                                        : "Pilih Toko/Cabang (opsional)"
+                                    }
+                                  />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {branchOptions.map((b) => (
+                                    <SelectItem key={b.value} value={b.value}>
+                                      {b.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      )}
                     </div>
                   </div>
 
@@ -425,7 +501,7 @@ export default function TambahMasterPenggunaPage() {
                       type="button"
                       variant="outline"
                       onClick={() => router.push("/master-pengguna")}
-                      disabled={isSubmitting}
+                      disabled={createMutation.isPending}
                     >
                       <X className="mr-2 size-4" />
                       Batal
@@ -434,9 +510,9 @@ export default function TambahMasterPenggunaPage() {
                       type="button"
                       className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                       onClick={handleSimpanClick}
-                      disabled={isSubmitting}
+                      disabled={createMutation.isPending || isLoadingRoles}
                     >
-                      {isSubmitting ? (
+                      {createMutation.isPending ? (
                         <>
                           <Loader2 className="mr-2 size-4 animate-spin" />
                           Menyimpan...

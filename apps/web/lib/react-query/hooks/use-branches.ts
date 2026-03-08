@@ -110,3 +110,17 @@ export function useRejectBranch() {
     },
   })
 }
+
+// Deactivate branch (revoke / set store inactive)
+export function useDeactivateBranch() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiClient.patch<Branch>(endpoints.branches.deactivate(id)),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: branchKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: branchKeys.detail(id) })
+    },
+  })
+}

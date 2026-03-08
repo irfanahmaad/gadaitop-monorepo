@@ -4,7 +4,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, type FindOptionsWhere, Repository } from 'typeorm';
+import {
+  Between,
+  DataSource,
+  type FindOptionsWhere,
+  LessThanOrEqual,
+  MoreThanOrEqual,
+  Repository,
+} from 'typeorm';
 
 import { validateHash } from '../../common/utils';
 import { PageMetaDto } from '../../common/dtos/page-meta.dto';
@@ -76,6 +83,22 @@ export class SpkService {
     }
     if (queryDto.status) {
       where.status = queryDto.status;
+    }
+    if (queryDto.dateFrom || queryDto.dateTo) {
+      if (queryDto.dateFrom && queryDto.dateTo) {
+        const dateToEnd = new Date(queryDto.dateTo);
+        dateToEnd.setHours(23, 59, 59, 999);
+        where.createdAt = Between(
+          new Date(queryDto.dateFrom),
+          dateToEnd,
+        ) as any;
+      } else if (queryDto.dateFrom) {
+        where.createdAt = MoreThanOrEqual(new Date(queryDto.dateFrom)) as any;
+      } else {
+        const dateToEnd = new Date(queryDto.dateTo!);
+        dateToEnd.setHours(23, 59, 59, 999);
+        where.createdAt = LessThanOrEqual(dateToEnd) as any;
+      }
     }
 
     const isOverdue = queryDto.status === SpkStatusEnum.Overdue;

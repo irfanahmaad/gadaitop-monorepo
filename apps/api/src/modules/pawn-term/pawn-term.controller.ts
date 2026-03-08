@@ -63,7 +63,12 @@ export class PawnTermController {
 
   @Delete(':id')
   @Auth([])
-  async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
-    return this.pawnTermService.remove(id);
+  async remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
+  ): Promise<void> {
+    const user = (req as any).user;
+    const deletedBy = user?.uuid ?? null;
+    return this.pawnTermService.remove(id, deletedBy);
   }
 }

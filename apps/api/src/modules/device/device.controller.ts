@@ -51,7 +51,12 @@ export class DeviceController {
 
   @Delete(':deviceId')
   @Auth([])
-  async remove(@Param('deviceId', ParseUUIDPipe) deviceId: string): Promise<void> {
-    return this.deviceService.remove(deviceId);
+  async remove(
+    @Param('deviceId', ParseUUIDPipe) deviceId: string,
+    @Req() req: Request,
+  ): Promise<void> {
+    const user = (req as any).user;
+    const deletedBy = user?.uuid ?? null;
+    return this.deviceService.remove(deviceId, deletedBy);
   }
 }

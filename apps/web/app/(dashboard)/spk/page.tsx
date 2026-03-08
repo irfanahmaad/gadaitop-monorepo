@@ -66,6 +66,13 @@ function getCustomerPhotoUrl(spk: Spk): string | undefined {
 
 const filterConfig: FilterConfig[] = [
   {
+    key: "dateRange",
+    label: "Tanggal",
+    type: "daterange",
+    labelFrom: "Mulai Dari",
+    labelTo: "Sampai Dengan",
+  },
+  {
     key: "spkRange",
     label: "SPK",
     type: "currencyrange",
@@ -176,6 +183,9 @@ export default function SPKPage() {
   const listOptions = useMemo(() => {
     const filter: Record<string, string | number> = {}
     if (selectedBranch) filter.branchId = selectedBranch
+    const dateRange = filterValues.dateRange as { from?: string; to?: string } | undefined
+    if (dateRange?.from) filter.dateFrom = dateRange.from
+    if (dateRange?.to) filter.dateTo = dateRange.to
     const spkRange = filterValues.spkRange as
       | { from?: number | string | null; to?: number | string | null }
       | undefined

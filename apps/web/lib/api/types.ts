@@ -630,6 +630,8 @@ export interface QueryNkbDto extends PageOptions {
   /** Comma-separated statuses, e.g. "confirmed,rejected". When set, backend returns NKBs with status in this list. */
   statusIn?: string
   type?: NkbType
+  dateFrom?: string
+  dateTo?: string
   ptId?: string
   branchId?: string
 }
@@ -767,6 +769,7 @@ export interface CreateAuctionBatchDto {
   spkItemIds: string[]
   name?: string
   notes?: string
+  assignedTo?: string
 }
 
 export interface UpdateAuctionBatchDto {

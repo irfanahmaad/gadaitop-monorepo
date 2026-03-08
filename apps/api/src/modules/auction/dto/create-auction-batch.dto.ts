@@ -20,4 +20,8 @@ export class CreateAuctionBatchDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @IsOptional()
+  @IsUUID()
+  assignedTo?: string;
 }
