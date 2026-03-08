@@ -95,7 +95,11 @@ export function EditJadwalSODialog({
   const { data: branchesData } = useBranches({ pageSize: 500 })
   const { data: usersData } = useUsers({
     pageSize: 500,
-    filter: { roleCode: "stock_auditor" },
+    filter: {
+      roleCode: "stock_auditor",
+      ...(ptId ? { companyId: ptId } : {}),
+    },
+    enabled: !!ptId,
   })
   const { data: pawnTermsData } = usePawnTerms({
     pageSize: 500,

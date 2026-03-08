@@ -27,12 +27,16 @@ export const userKeys = {
   detail: (id: string) => [...userKeys.details(), id] as const,
 }
 
-// Get users list
-export function useUsers(options?: PageOptions) {
+// Get users list (options.enabled can be used to skip fetching, e.g. when ptId is required)
+export function useUsers(
+  options?: PageOptions & { enabled?: boolean }
+) {
+  const { enabled, ...pageOptions } = options ?? {}
   return useQuery({
-    queryKey: userKeys.list(options),
-    queryFn: () => apiClient.getList<User>(endpoints.users.list, options),
+    queryKey: userKeys.list(pageOptions),
+    queryFn: () => apiClient.getList<User>(endpoints.users.list, pageOptions),
     placeholderData: keepPreviousData,
+    enabled: enabled !== false,
   })
 }
 

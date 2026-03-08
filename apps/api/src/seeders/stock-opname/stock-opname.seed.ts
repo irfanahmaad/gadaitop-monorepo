@@ -4,9 +4,11 @@ import { subDays } from 'date-fns';
 import { StockOpnameSessionEntity } from '../../modules/stock-opname/entities/stock-opname-session.entity';
 import { StockOpnameSessionStoreEntity } from '../../modules/stock-opname/entities/stock-opname-session-store.entity';
 import { StockOpnameSessionAssigneeEntity } from '../../modules/stock-opname/entities/stock-opname-session-assignee.entity';
+import { StockOpnameSessionPawnTermEntity } from '../../modules/stock-opname/entities/stock-opname-session-pawn-term.entity';
 import { BranchEntity } from '../../modules/branch/entities/branch.entity';
 import { SpkItemEntity } from '../../modules/spk/entities/spk-item.entity';
 import { UserEntity } from '../../modules/user/entities/user.entity';
+import { PawnTermEntity } from '../../modules/pawn-term/entities/pawn-term.entity';
 import { StockOpnameSessionStatusEnum } from '../../constants/stock-opname-session-status';
 import { SpkItemStatusEnum } from '../../constants/spk-item-status';
 import { dataSource } from '../db.seed';
@@ -32,9 +34,11 @@ export class StockOpnameSeed extends Seeder {
     const sessionRepo = dataSource.getRepository(StockOpnameSessionEntity);
     const sessionStoreRepo = dataSource.getRepository(StockOpnameSessionStoreEntity);
     const sessionAssigneeRepo = dataSource.getRepository(StockOpnameSessionAssigneeEntity);
+    const sessionPawnTermRepo = dataSource.getRepository(StockOpnameSessionPawnTermEntity);
     const branchRepo = dataSource.getRepository(BranchEntity);
     const spkItemRepo = dataSource.getRepository(SpkItemEntity);
     const userRepo = dataSource.getRepository(UserEntity);
+    const pawnTermRepo = dataSource.getRepository(PawnTermEntity);
 
     const existingCount = await sessionRepo.count();
     if (existingCount > 0) {
@@ -54,7 +58,7 @@ export class StockOpnameSeed extends Seeder {
     let totalSessions = 0;
 
     for (const branch of branches) {
-      // Find items in storage for this branch
+      // Find items in storage for this branch (SPK items whose SPK record is at this store)
       const storageItems = await spkItemRepo.find({
         where: {
           status: SpkItemStatusEnum.InStorage,
@@ -64,6 +68,12 @@ export class StockOpnameSeed extends Seeder {
       });
 
       if (storageItems.length === 0) continue;
+
+      // Pawn terms for this PT (used for session pawn term relation)
+      const pawnTerms = await pawnTermRepo.find({
+        where: { ptId: branch.companyId },
+        take: 3,
+      });
 
       // 1. Create a Completed Session (Past)
       const completedSession = await sessionFactory.create({
@@ -80,15 +90,23 @@ export class StockOpnameSeed extends Seeder {
       await sessionStoreRepo.save(
         sessionStoreRepo.create({
           session: completedSession,
-          store: branch,
+          store: { uuid: branch.uuid },
         }),
       );
       await sessionAssigneeRepo.save(
         sessionAssigneeRepo.create({
           session: completedSession,
-          user: creator,
+          user: { uuid: creator.uuid },
         }),
       );
+      for (const pawnTerm of pawnTerms) {
+        await sessionPawnTermRepo.save(
+          sessionPawnTermRepo.create({
+            session: completedSession,
+            pawnTerm: { uuid: pawnTerm.uuid },
+          }),
+        );
+      }
       totalSessions++;
 
       // Create items for completed session (all match)
@@ -117,15 +135,23 @@ export class StockOpnameSeed extends Seeder {
       await sessionStoreRepo.save(
         sessionStoreRepo.create({
           session: currentSession,
-          store: branch,
+          store: { uuid: branch.uuid },
         }),
       );
       await sessionAssigneeRepo.save(
         sessionAssigneeRepo.create({
           session: currentSession,
-          user: creator,
+          user: { uuid: creator.uuid },
         }),
       );
+      for (const pawnTerm of pawnTerms) {
+        await sessionPawnTermRepo.save(
+          sessionPawnTermRepo.create({
+            session: currentSession,
+            pawnTerm: { uuid: pawnTerm.uuid },
+          }),
+        );
+      }
       totalSessions++;
 
       // Create items for current session - First half counted, second half not
