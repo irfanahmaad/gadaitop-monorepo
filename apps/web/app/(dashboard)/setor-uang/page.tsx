@@ -160,20 +160,22 @@ const getBaseColumns = (): {
     accessorKey: "dilakukanOleh",
     header: "Dilakukan Oleh",
     cell: ({ row }) => {
-      const user = row.getValue("dilakukanOleh") as SetorUang["dilakukanOleh"]
+      const user = row.getValue("dilakukanOleh") as SetorUang["dilakukanOleh"] | undefined
+      const name = user?.name ?? "-"
+      const initials = name
+        .split(" ")
+        .filter(Boolean)
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2) || "-"
       return (
         <div className="flex items-center gap-2">
           <Avatar className="h-8 w-8">
-            <AvatarImage src={user.avatar} alt={user.name} />
-            <AvatarFallback className="text-xs">
-              {user.name
-                .split(" ")
-                .map((n) => n[0])
-                .join("")
-                .toUpperCase()}
-            </AvatarFallback>
+            <AvatarImage src={user?.avatar} alt={name} />
+            <AvatarFallback className="text-xs">{initials}</AvatarFallback>
           </Avatar>
-          <span className="text-sm">{user.name}</span>
+          <span className="text-sm">{name}</span>
         </div>
       )
     },
@@ -204,7 +206,8 @@ const getBaseColumns = (): {
 
 const getActionColumn = (
   onDetail: (row: SetorUang) => void,
-  onEdit: (row: SetorUang) => void
+  onEdit: (row: SetorUang) => void,
+  showEdit: boolean
 ) => ({
   id: "actions",
   enableHiding: false as const,
@@ -223,10 +226,12 @@ const getActionColumn = (
           <Eye className="mr-2 h-4 w-4" />
           Detail
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => onEdit(row.original)}>
-          <Pencil className="mr-2 h-4 w-4" />
-          Edit
-        </DropdownMenuItem>
+        {showEdit && (
+          <DropdownMenuItem onClick={() => onEdit(row.original)}>
+            <Pencil className="mr-2 h-4 w-4" />
+            Edit
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   ),
@@ -347,8 +352,6 @@ export default function SetorUangPage() {
     const firstStoreId = storeIds?.[0]
     if (typeof firstStoreId === "string") {
       filter.storeId = firstStoreId
-    } else if (effectiveBranch) {
-      filter.storeId = effectiveBranch
     }
     const status = fv.status as string | undefined
     if (status) filter.status = status
@@ -358,7 +361,7 @@ export default function SetorUangPage() {
     if (dateFrom) filter.dateFrom = dateFrom
     if (dateTo) filter.dateTo = dateTo
     return { page: 1, pageSize, filter }
-  }, [effectiveBranch, pageSize, filterValues])
+  }, [pageSize, filterValues])
 
   const { data, isLoading, isError } = useCashDeposits(listOptions)
   const createMutation = useCreateCashDeposit()
@@ -404,9 +407,10 @@ export default function SetorUangPage() {
   }, [])
 
   const columns = useMemo(() => {
-    const actionColumn = getActionColumn(handleDetail, handleEdit)
+    const showEdit = !isCompanyAdmin
+    const actionColumn = getActionColumn(handleDetail, handleEdit, showEdit)
     return [...getBaseColumns(), actionColumn]
-  }, [handleDetail, handleEdit])
+  }, [handleDetail, handleEdit, isCompanyAdmin])
 
   return (
     <div className="flex flex-col gap-6">

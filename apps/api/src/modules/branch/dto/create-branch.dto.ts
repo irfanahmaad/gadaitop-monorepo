@@ -1,6 +1,11 @@
 import { IsBoolean, IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 
 export class CreateBranchDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  imageUrl?: string;
+
   @IsNotEmpty()
   @IsString()
   @MaxLength(20)

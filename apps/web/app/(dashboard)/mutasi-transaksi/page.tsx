@@ -283,7 +283,7 @@ export default function MutasiTransaksiPage() {
       },
       {
         key: "dateRange",
-        label: "Tanggal",
+        label: "",
         type: "daterange",
         labelFrom: "Tanggal Mulai",
         labelTo: "Tanggal Sampai",
@@ -302,20 +302,15 @@ export default function MutasiTransaksiPage() {
   const listOptions = useMemo(() => {
     const filter: Record<string, string | number> = {}
     const fv = filterValues
-    const storeIdFromFilter = fv.storeId as string | undefined
-    if (storeIdFromFilter) {
-      filter.storeId = storeIdFromFilter
-    } else if (selectedToko) {
-      filter.storeId = selectedToko
-    }
+    const storeId = fv.storeId as string | undefined
+    if (storeId) filter.storeId = storeId
     const category = fv.category as string | undefined
     if (category) filter.category = category
     const dateRange = fv.dateRange as { from?: string; to?: string } | undefined
     if (dateRange?.from) filter.dateFrom = dateRange.from
     if (dateRange?.to) filter.dateTo = dateRange.to
-    if (branchQueryCompanyId) filter.ptId = branchQueryCompanyId
     return { page: 1, pageSize, filter }
-  }, [selectedToko, pageSize, filterValues, branchQueryCompanyId])
+  }, [pageSize, filterValues])
 
   const { data, isLoading, isError } = useCashMutations(listOptions)
   const createMutation = useCreateCashMutation()
@@ -414,24 +409,6 @@ export default function MutasiTransaksiPage() {
                   ))}
                 </SelectContent>
               </Select>
-            )}
-
-            {isSuperAdmin && branchOptions.length > 0 && (
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">Pilih Toko :</span>
-                <Select value={selectedToko} onValueChange={setSelectedToko}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Pilih Toko" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {branchOptions.map((b) => (
-                      <SelectItem key={b.value} value={b.value}>
-                        {b.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
             )}
 
             {!isCompanyAdmin && (

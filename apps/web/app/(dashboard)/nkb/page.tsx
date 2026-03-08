@@ -4,6 +4,7 @@ import React, { useMemo, Suspense, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { ColumnDef } from "@tanstack/react-table"
+import { toast } from "sonner"
 import { Breadcrumbs } from "@/components/breadcrumbs"
 import { DataTable } from "@/components/data-table"
 import {
@@ -34,49 +35,26 @@ import {
 } from "@workspace/ui/components/dialog"
 import { Button } from "@workspace/ui/components/button"
 import { X, Hand, Check, Trash2 } from "lucide-react"
+import {
+  useNkbList,
+  useConfirmNkb,
+  useRejectNkb,
+} from "@/lib/react-query/hooks/use-nkb"
+import type { Nkb } from "@/lib/api/types"
+import { TolakNkbDialog } from "./_components/tolak-nkb-dialog"
 
-// Sample data type
-type NKB = {
-  id: string
-  nomorNKB: string
-  jenisPembayaran: string
-  tanggalWaktu: string
-  totalPembayaran: number
-  status?: "Disetujui" | "Ditolak" // Only for History NKB
+// Payment type labels for NKB
+const NKB_PAYMENT_TYPE_LABELS: Record<string, string> = {
+  renewal: "Perpanjangan",
+  full_redemption: "Pelunasan",
+  partial: "Cicilan",
 }
 
-// Sample data for "NKB Baru"
-const sampleNKBBaru: NKB[] = Array.from({ length: 1 }, (_, i) => ({
-  id: `NKB${String(i + 1).padStart(3, "0")}`,
-  nomorNKB: `iPhone 15 Pro`,
-  jenisPembayaran: "Cash",
-  tanggalWaktu: new Date(2025, 10, 20, 18, 33, 45).toLocaleString("id-ID", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  }),
-  totalPembayaran: 650000,
-}))
-
-// Sample data for "History NKB"
-const sampleHistoryNKB: NKB[] = Array.from({ length: 4 }, (_, i) => ({
-  id: `NKB${String(i + 1).padStart(3, "0")}`,
-  nomorNKB: `NKB/001/20112025`,
-  jenisPembayaran: i % 2 === 0 ? "Cash" : "Transfer",
-  tanggalWaktu: new Date(2025, 10, 20, 18, 33, 45).toLocaleString("id-ID", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  }),
-  totalPembayaran: 650000,
-  status: i % 2 === 0 ? "Disetujui" : "Ditolak",
-}))
+// Status label for History NKB (API status -> display)
+const NKB_HISTORY_STATUS_LABELS: Record<string, string> = {
+  confirmed: "Disetujui",
+  rejected: "Ditolak",
+}
 
 // Format currency helper
 const formatCurrency = (amount: number): string => {
@@ -84,6 +62,22 @@ const formatCurrency = (amount: number): string => {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(amount)
+}
+
+// Format date for NKB
+const formatNkbDate = (dateStr: string): string => {
+  try {
+    return new Date(dateStr).toLocaleString("id-ID", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    })
+  } catch {
+    return dateStr
+  }
 }
 
 // Filter configuration for NKB
@@ -104,8 +98,8 @@ const pageSizeOptions = [
   { value: "100", label: "100" },
 ]
 
-// Base column definitions (shared columns)
-const baseColumns: ColumnDef<NKB>[] = [
+// Base column definitions for NKB Baru (API Nkb type)
+const baseColumnsNkb: ColumnDef<Nkb>[] = [
   {
     id: "select",
     enableHiding: false,
@@ -136,52 +130,82 @@ const baseColumns: ColumnDef<NKB>[] = [
     },
   },
   {
-    accessorKey: "nomorNKB",
+    accessorKey: "nkbNumber",
     header: "Nomor NKB",
   },
   {
-    accessorKey: "jenisPembayaran",
+    accessorKey: "paymentType",
     header: "Jenis Pembayaran",
+    cell: ({ row }) =>
+      NKB_PAYMENT_TYPE_LABELS[row.getValue("paymentType") as string] ??
+      (row.getValue("paymentType") as string),
   },
   {
-    accessorKey: "tanggalWaktu",
+    accessorKey: "createdAt",
     header: "Tanggal & Waktu",
+    cell: ({ row }) => formatNkbDate(row.getValue("createdAt") as string),
   },
   {
-    accessorKey: "totalPembayaran",
+    accessorKey: "amountPaid",
     header: "Total Pembayaran",
-    cell: ({ row }) => {
-      return `Rp ${formatCurrency(row.getValue("totalPembayaran"))},-`
-    },
+    cell: ({ row }) =>
+      `Rp ${formatCurrency(Number(row.getValue("amountPaid")))},-`,
   },
 ]
 
-// Column definitions for NKB Baru (without Status)
-const columnsNKBBaru: ColumnDef<NKB>[] = [...baseColumns]
+const columnsNKBBaru: ColumnDef<Nkb>[] = [...baseColumnsNkb]
 
-// Column definitions for History NKB (with Status)
-const columnsHistoryNKB: ColumnDef<NKB>[] = [
-  ...baseColumns,
+// Column definitions for History NKB (API Nkb type, read-only, no row selection)
+const columnsHistoryNKB: ColumnDef<Nkb>[] = [
+  {
+    id: "no",
+    header: "No",
+    cell: ({ row, table }) => {
+      const index = table.getRowModel().rows.findIndex((r) => r.id === row.id)
+      return index + 1
+    },
+  },
+  {
+    accessorKey: "nkbNumber",
+    header: "Nomor NKB",
+  },
+  {
+    accessorKey: "paymentType",
+    header: "Jenis Pembayaran",
+    cell: ({ row }) =>
+      NKB_PAYMENT_TYPE_LABELS[row.getValue("paymentType") as string] ??
+      (row.getValue("paymentType") as string),
+  },
+  {
+    accessorKey: "createdAt",
+    header: "Tanggal & Waktu",
+    cell: ({ row }) => formatNkbDate(row.getValue("createdAt") as string),
+  },
+  {
+    accessorKey: "amountPaid",
+    header: "Total Pembayaran",
+    cell: ({ row }) =>
+      `Rp ${formatCurrency(Number(row.getValue("amountPaid")))},-`,
+  },
   {
     accessorKey: "status",
     header: "Status",
     cell: ({ row }) => {
-      const status = row.getValue("status") as
-        | "Disetujui"
-        | "Ditolak"
-        | undefined
+      const status = row.getValue("status") as string | undefined
       if (!status) return null
+      const label = NKB_HISTORY_STATUS_LABELS[status] ?? status
+      const isApproved = status === "confirmed"
 
       return (
         <Badge
-          variant={status === "Disetujui" ? "secondary" : "destructive"}
+          variant={isApproved ? "secondary" : "destructive"}
           className={
-            status === "Disetujui"
+            isApproved
               ? "bg-green-100 text-green-800 hover:bg-green-100 dark:bg-green-900 dark:text-green-300"
               : "bg-red-100 text-red-800 hover:bg-red-100 dark:bg-red-900 dark:text-red-300"
           }
         >
-          {status}
+          {label}
         </Badge>
       )
     },
@@ -223,19 +247,23 @@ function TableSkeleton() {
   )
 }
 
-// NKB Information Dialog Component
+// NKB Information Dialog Component (receives API Nkb for approve/reject)
 function NKBInfoDialog({
   open,
   onOpenChange,
   nkb,
-  onApprove,
-  onReject,
+  onApproveClick,
+  onRejectClick,
+  isApprovePending,
+  isRejectPending,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
-  nkb: NKB | null
-  onApprove: () => void
-  onReject: () => void
+  nkb: Nkb | null
+  onApproveClick: () => void
+  onRejectClick: () => void
+  isApprovePending: boolean
+  isRejectPending: boolean
 }) {
   if (!nkb) return null
 
@@ -253,13 +281,13 @@ function NKBInfoDialog({
               <label className="text-muted-foreground text-sm font-medium">
                 Nomor NKB
               </label>
-              <p className="text-base">{nkb.nomorNKB}</p>
+              <p className="text-base">{nkb.nkbNumber}</p>
             </div>
             <div className="space-y-2">
               <label className="text-muted-foreground text-sm font-medium">
                 Tanggal & Waktu
               </label>
-              <p className="text-base">{nkb.tanggalWaktu}</p>
+              <p className="text-base">{formatNkbDate(nkb.createdAt)}</p>
             </div>
           </div>
 
@@ -269,14 +297,16 @@ function NKBInfoDialog({
               <label className="text-muted-foreground text-sm font-medium">
                 Jenis Pembayaran
               </label>
-              <p className="text-base">{nkb.jenisPembayaran}</p>
+              <p className="text-base">
+                {NKB_PAYMENT_TYPE_LABELS[nkb.paymentType] ?? nkb.paymentType}
+              </p>
             </div>
             <div className="space-y-2">
               <label className="text-muted-foreground text-sm font-medium">
                 Total Pembayaran
               </label>
               <p className="text-base">
-                Rp {formatCurrency(nkb.totalPembayaran)},-
+                Rp {formatCurrency(Number(nkb.amountPaid))},-
               </p>
             </div>
           </div>
@@ -293,10 +323,8 @@ function NKBInfoDialog({
           </Button>
           <Button
             variant="outline"
-            onClick={() => {
-              onReject()
-              onOpenChange(false)
-            }}
+            onClick={onRejectClick}
+            disabled={isRejectPending}
             className="flex items-center gap-2 border-red-500 text-red-500 hover:bg-red-50 hover:text-red-600"
           >
             <Hand className="size-4" />
@@ -304,14 +332,113 @@ function NKBInfoDialog({
           </Button>
           <Button
             variant="destructive"
-            onClick={() => {
-              onApprove()
-              onOpenChange(false)
-            }}
+            onClick={onApproveClick}
+            disabled={isApprovePending}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90 flex items-center gap-2"
           >
             <Check className="size-4" />
             Setujui
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// History NKB read-only info dialog (popup on Detail action)
+function HistoryNKBInfoDialog({
+  open,
+  onOpenChange,
+  nkb,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  nkb: Nkb | null
+}) {
+  if (!nkb) return null
+
+  const statusLabel = NKB_HISTORY_STATUS_LABELS[nkb.status] ?? nkb.status
+  const isApproved = nkb.status === "confirmed"
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent showCloseButton={false} className="sm:max-w-lg">
+        <DialogHeader>
+          <div className="flex items-center justify-between gap-4">
+            <DialogTitle className="text-xl font-bold">
+              Informasi NKB
+            </DialogTitle>
+            <Badge
+              className={
+                isApproved
+                  ? "bg-green-100 text-green-800 hover:bg-green-100 dark:bg-green-900 dark:text-green-300"
+                  : "bg-red-100 text-red-800 hover:bg-red-100 dark:bg-red-900 dark:text-red-300"
+              }
+            >
+              {statusLabel}
+            </Badge>
+          </div>
+        </DialogHeader>
+
+        <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-2">
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-muted-foreground text-sm font-medium">
+                Nomor NKB
+              </label>
+              <p className="text-base">{nkb.nkbNumber}</p>
+            </div>
+            <div className="space-y-2">
+              <label className="text-muted-foreground text-sm font-medium">
+                Jenis Pembayaran
+              </label>
+              <p className="text-base">
+                {NKB_PAYMENT_TYPE_LABELS[nkb.paymentType] ?? nkb.paymentType}
+              </p>
+            </div>
+            <div className="space-y-2">
+              <label className="text-muted-foreground text-sm font-medium">
+                Total Pembayaran
+              </label>
+              <p className="text-base">
+                Rp {formatCurrency(Number(nkb.amountPaid))},-
+              </p>
+            </div>
+          </div>
+          <div className="space-y-4">
+            {nkb.spk?.spkNumber != null && nkb.spk.spkNumber !== "" && (
+              <div className="space-y-2">
+                <label className="text-muted-foreground text-sm font-medium">
+                  Nomor SPK
+                </label>
+                <p className="text-base">{nkb.spk.spkNumber}</p>
+              </div>
+            )}
+            <div className="space-y-2">
+              <label className="text-muted-foreground text-sm font-medium">
+                Tanggal & Waktu
+              </label>
+              <p className="text-base">{formatNkbDate(nkb.createdAt)}</p>
+            </div>
+            {nkb.status === "rejected" && nkb.rejectionReason && (
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-muted-foreground text-sm font-medium">
+                  Alasan Ditolak
+                </label>
+                <p className="text-base">{nkb.rejectionReason}</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <DialogFooter className="flex-row gap-2 sm:justify-end">
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            className="flex items-center gap-2"
+          >
+            <X className="size-4" />
+            Tutup
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -326,15 +453,134 @@ function NKBPageContent() {
   const [pageSize, setPageSize] = useState("10")
   const { filterValues, setFilters } = useFilterParams(filterConfig)
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
-  const [itemToDelete, setItemToDelete] = useState<NKB | null>(null)
+  const [itemToDelete, setItemToDelete] = useState<Nkb | null>(null)
   const [isNKBInfoDialogOpen, setIsNKBInfoDialogOpen] = useState(false)
-  const [selectedNKB, setSelectedNKB] = useState<NKB | null>(null)
-  const [selectedNKBRows, setSelectedNKBRows] = useState<NKB[]>([])
+  const [selectedNKB, setSelectedNKB] = useState<Nkb | null>(null)
+  const [isHistoryNKBInfoDialogOpen, setIsHistoryNKBInfoDialogOpen] =
+    useState(false)
+  const [selectedHistoryNKB, setSelectedHistoryNKB] = useState<Nkb | null>(
+    null
+  )
+  const [selectedNKBRows, setSelectedNKBRows] = useState<Nkb[]>([])
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false)
   const [resetSelectionKey, setResetSelectionKey] = useState(0)
+  const [isApproveConfirmOpen, setIsApproveConfirmOpen] = useState(false)
+  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false)
 
   const isCompanyAdmin =
     session?.user?.roles?.some((r) => r.code === "company_admin") ?? false
+
+  // NKB Baru: fetch pending NKB from API
+  const nkbBaruListOptions = useMemo(
+    () => ({
+      page: 1,
+      pageSize: 100,
+      filter: {
+        status: "pending" as const,
+      },
+    }),
+    []
+  )
+  const { data: nkbBaruResponse, isLoading: isLoadingNkbBaru } =
+    useNkbList(nkbBaruListOptions)
+  const nkbBaruData = useMemo(
+    () => nkbBaruResponse?.data ?? [],
+    [nkbBaruResponse?.data]
+  )
+
+  // History NKB: fetch confirmed + rejected from API
+  const nkbHistoryListOptions = useMemo(
+    () => ({
+      page: 1,
+      pageSize: 100,
+      sortBy: "createdAt",
+      order: "DESC" as const,
+      filter: {
+        statusIn: "confirmed,rejected",
+      },
+    }),
+    []
+  )
+  const {
+    data: nkbHistoryResponse,
+    isLoading: isLoadingHistory,
+    isError: isErrorHistory,
+  } = useNkbList(nkbHistoryListOptions)
+  const nkbHistoryData = useMemo(
+    () => nkbHistoryResponse?.data ?? [],
+    [nkbHistoryResponse?.data]
+  )
+
+  const confirmNkbMutation = useConfirmNkb()
+  const rejectNkbMutation = useRejectNkb()
+
+  // NKB Baru: apply client-side filters (e.g. pembayaran range) to API data
+  const filteredNkbBaruData = useMemo(() => {
+    let filtered = [...nkbBaruData]
+    const pembayaranRange = filterValues.pembayaranRange as
+      | { from?: number | string | null; to?: number | string | null }
+      | undefined
+    if (pembayaranRange) {
+      if (pembayaranRange.from !== null && pembayaranRange.from !== undefined) {
+        const fromValue =
+          typeof pembayaranRange.from === "string"
+            ? Number(pembayaranRange.from)
+            : pembayaranRange.from
+        if (!isNaN(fromValue)) {
+          filtered = filtered.filter(
+            (item) => Number(item.amountPaid) >= fromValue
+          )
+        }
+      }
+      if (pembayaranRange.to !== null && pembayaranRange.to !== undefined) {
+        const toValue =
+          typeof pembayaranRange.to === "string"
+            ? Number(pembayaranRange.to)
+            : pembayaranRange.to
+        if (!isNaN(toValue)) {
+          filtered = filtered.filter(
+            (item) => Number(item.amountPaid) <= toValue
+          )
+        }
+      }
+    }
+    return filtered
+  }, [filterValues, nkbBaruData])
+
+  // History: apply client-side amount filter to API data
+  const filteredHistoryData = useMemo(() => {
+    let filtered = [...nkbHistoryData]
+    const pembayaranRange = filterValues.pembayaranRange as
+      | { from?: number | string | null; to?: number | string | null }
+      | undefined
+    if (pembayaranRange) {
+      if (pembayaranRange.from !== null && pembayaranRange.from !== undefined) {
+        const fromValue =
+          typeof pembayaranRange.from === "string"
+            ? Number(pembayaranRange.from)
+            : pembayaranRange.from
+        if (!isNaN(fromValue)) {
+          filtered = filtered.filter(
+            (item) => Number(item.amountPaid) >= fromValue
+          )
+        }
+      }
+      if (pembayaranRange.to !== null && pembayaranRange.to !== undefined) {
+        const toValue =
+          typeof pembayaranRange.to === "string"
+            ? Number(pembayaranRange.to)
+            : pembayaranRange.to
+        if (!isNaN(toValue)) {
+          filtered = filtered.filter(
+            (item) => Number(item.amountPaid) <= toValue
+          )
+        }
+      }
+    }
+    return filtered
+  }, [filterValues, nkbHistoryData])
+
+  const nkbBaruCount = nkbBaruData.length
 
   // NKB is not allowed for Admin PT (company_admin) — redirect to dashboard
   useEffect(() => {
@@ -347,58 +593,17 @@ function NKBPageContent() {
     return <TableSkeleton />
   }
 
-  // Get data based on active tab
-  const currentData = useMemo(() => {
-    return activeTab === "nkb-baru" ? sampleNKBBaru : sampleHistoryNKB
-  }, [activeTab])
-
-  // Count new NKB items
-  const nkbBaruCount = sampleNKBBaru.length
-
-  // Apply filters to data
-  const filteredData = useMemo(() => {
-    let filtered = [...currentData]
-
-    // Apply pembayaran range filter
-    const pembayaranRange = filterValues.pembayaranRange as
-      | { from?: number | string | null; to?: number | string | null }
-      | undefined
-    if (pembayaranRange) {
-      if (pembayaranRange.from !== null && pembayaranRange.from !== undefined) {
-        const fromValue =
-          typeof pembayaranRange.from === "string"
-            ? Number(pembayaranRange.from)
-            : pembayaranRange.from
-        if (!isNaN(fromValue)) {
-          filtered = filtered.filter(
-            (item) => item.totalPembayaran >= fromValue
-          )
-        }
-      }
-      if (pembayaranRange.to !== null && pembayaranRange.to !== undefined) {
-        const toValue =
-          typeof pembayaranRange.to === "string"
-            ? Number(pembayaranRange.to)
-            : pembayaranRange.to
-        if (!isNaN(toValue)) {
-          filtered = filtered.filter((item) => item.totalPembayaran <= toValue)
-        }
-      }
-    }
-
-    return filtered
-  }, [filterValues, currentData])
-
-  const handleDetailNKBBaru = (row: NKB) => {
+  const handleDetailNKBBaru = (row: Nkb) => {
     setSelectedNKB(row)
     setIsNKBInfoDialogOpen(true)
   }
 
-  const handleDetailHistoryNKB = (row: NKB) => {
-    router.push(`/nkb/${row.id}`)
+  const handleDetailHistoryNKB = (row: Nkb) => {
+    setSelectedHistoryNKB(row)
+    setIsHistoryNKBInfoDialogOpen(true)
   }
 
-  const handleDelete = (row: NKB) => {
+  const handleDelete = (row: Nkb) => {
     setItemToDelete(row)
     setIsConfirmDialogOpen(true)
   }
@@ -406,21 +611,44 @@ function NKBPageContent() {
   const handleConfirmDelete = () => {
     if (itemToDelete) {
       console.log("Delete:", itemToDelete)
-      // Implement delete action
+      // Implement delete action when API available
     }
   }
 
-  const handleApprove = () => {
-    if (selectedNKB) {
-      console.log("Approve:", selectedNKB)
-      // Implement approve action
+  const handleApproveClick = () => {
+    if (selectedNKB) setIsApproveConfirmOpen(true)
+  }
+
+  const handleConfirmApprove = async () => {
+    if (!selectedNKB) return
+    try {
+      await confirmNkbMutation.mutateAsync({ id: selectedNKB.uuid })
+      toast.success("NKB berhasil disetujui")
+      setIsApproveConfirmOpen(false)
+      setIsNKBInfoDialogOpen(false)
+      setSelectedNKB(null)
+    } catch {
+      toast.error("Gagal menyetujui NKB")
     }
   }
 
-  const handleReject = () => {
-    if (selectedNKB) {
-      console.log("Reject:", selectedNKB)
-      // Implement reject action
+  const handleRejectClick = () => {
+    if (selectedNKB) setIsRejectDialogOpen(true)
+  }
+
+  const handleRejectConfirm = async (nkb: Nkb, data: { reason: string }) => {
+    try {
+      await rejectNkbMutation.mutateAsync({
+        id: nkb.uuid,
+        data: { reason: data.reason },
+      })
+      toast.success("NKB berhasil ditolak")
+      setIsRejectDialogOpen(false)
+      setIsNKBInfoDialogOpen(false)
+      setSelectedNKB(null)
+    } catch {
+      toast.error("Gagal menolak NKB")
+      throw new Error("Reject failed")
     }
   }
 
@@ -469,14 +697,78 @@ function NKBPageContent() {
 
         {/* NKB Baru Tab Content */}
         <TabsContent value="nkb-baru">
-          <DataTable
-            columns={columnsNKBBaru}
-            data={filteredData}
-            title="Daftar NKB"
-            onDetail={handleDetailNKBBaru}
-            onDelete={handleDelete}
-            headerLeft={
-              <div className="flex items-center gap-2">
+          {isLoadingNkbBaru ? (
+            <TableSkeleton />
+          ) : (
+            <DataTable
+              columns={columnsNKBBaru}
+              data={filteredNkbBaruData}
+              title="Daftar NKB"
+              onDetail={handleDetailNKBBaru}
+              onDelete={handleDelete}
+              headerLeft={
+                <div className="flex items-center gap-2">
+                  <Select value={pageSize} onValueChange={handlePageSizeChange}>
+                    <SelectTrigger className="w-[120px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {pageSizeOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedNKBRows.length > 0 && (
+                    <span className="text-destructive font-semibold">
+                      &middot; {selectedNKBRows.length} Selected
+                    </span>
+                  )}
+                </div>
+              }
+              headerRight={
+                selectedNKBRows.length > 0 ? (
+                  <div className="flex w-full items-center gap-2 sm:w-auto">
+                    <Button
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90 flex items-center gap-2"
+                      onClick={handleBulkDelete}
+                    >
+                      <Trash2 className="size-4" />
+                      Hapus
+                    </Button>
+                  </div>
+                ) : undefined
+              }
+              filterConfig={filterConfig}
+              filterValues={filterValues}
+              onFilterChange={setFilters}
+              initialPageSize={parseInt(pageSize)}
+              onPageSizeChange={(size) => setPageSize(String(size))}
+              searchPlaceholder="Search"
+              onSelectionChange={setSelectedNKBRows}
+              resetSelectionKey={resetSelectionKey}
+            />
+          )}
+        </TabsContent>
+
+        {/* History NKB Tab Content */}
+        <TabsContent value="history-nkb">
+          {isLoadingHistory ? (
+            <TableSkeleton />
+          ) : isErrorHistory ? (
+            <Card>
+              <CardContent className="py-10 text-center">
+                <p className="text-destructive">Gagal memuat data</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <DataTable
+              columns={columnsHistoryNKB}
+              data={filteredHistoryData}
+              title="Daftar NKB"
+              onDetail={handleDetailHistoryNKB}
+              headerLeft={
                 <Select value={pageSize} onValueChange={handlePageSizeChange}>
                   <SelectTrigger className="w-[120px]">
                     <SelectValue />
@@ -489,65 +781,15 @@ function NKBPageContent() {
                     ))}
                   </SelectContent>
                 </Select>
-                {selectedNKBRows.length > 0 && (
-                  <span className="text-destructive font-semibold">
-                    &middot; {selectedNKBRows.length} Selected
-                  </span>
-                )}
-              </div>
-            }
-            headerRight={
-              selectedNKBRows.length > 0 ? (
-                <div className="flex w-full items-center gap-2 sm:w-auto">
-                  <Button
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90 flex items-center gap-2"
-                    onClick={handleBulkDelete}
-                  >
-                    <Trash2 className="size-4" />
-                    Hapus
-                  </Button>
-                </div>
-              ) : undefined
-            }
-            filterConfig={filterConfig}
-            filterValues={filterValues}
-            onFilterChange={setFilters}
-            initialPageSize={parseInt(pageSize)}
-            onPageSizeChange={(size) => setPageSize(String(size))}
-            searchPlaceholder="Search"
-            onSelectionChange={setSelectedNKBRows}
-            resetSelectionKey={resetSelectionKey}
-          />
-        </TabsContent>
-
-        {/* History NKB Tab Content */}
-        <TabsContent value="history-nkb">
-          <DataTable
-            columns={columnsHistoryNKB}
-            data={filteredData}
-            title="Daftar NKB"
-            onDetail={handleDetailHistoryNKB}
-            headerLeft={
-              <Select value={pageSize} onValueChange={handlePageSizeChange}>
-                <SelectTrigger className="w-[120px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {pageSizeOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            }
-            filterConfig={filterConfig}
-            filterValues={filterValues}
-            onFilterChange={setFilters}
-            initialPageSize={parseInt(pageSize)}
-            onPageSizeChange={(size) => setPageSize(String(size))}
-            searchPlaceholder="Search"
-          />
+              }
+              filterConfig={filterConfig}
+              filterValues={filterValues}
+              onFilterChange={setFilters}
+              initialPageSize={parseInt(pageSize)}
+              onPageSizeChange={(size) => setPageSize(String(size))}
+              searchPlaceholder="Search"
+            />
+          )}
         </TabsContent>
       </Tabs>
 
@@ -556,8 +798,39 @@ function NKBPageContent() {
         open={isNKBInfoDialogOpen}
         onOpenChange={setIsNKBInfoDialogOpen}
         nkb={selectedNKB}
-        onApprove={handleApprove}
-        onReject={handleReject}
+        onApproveClick={handleApproveClick}
+        onRejectClick={handleRejectClick}
+        isApprovePending={confirmNkbMutation.isPending}
+        isRejectPending={rejectNkbMutation.isPending}
+      />
+
+      {/* History NKB Information Dialog (read-only popup) */}
+      <HistoryNKBInfoDialog
+        open={isHistoryNKBInfoDialogOpen}
+        onOpenChange={setIsHistoryNKBInfoDialogOpen}
+        nkb={selectedHistoryNKB}
+      />
+
+      {/* Confirmation Dialog for Approve */}
+      <ConfirmationDialog
+        open={isApproveConfirmOpen}
+        onOpenChange={setIsApproveConfirmOpen}
+        onConfirm={handleConfirmApprove}
+        title="Setujui NKB"
+        description="Anda akan menyetujui NKB ini."
+        note="Pastikan kembali sebelum menyimpan data."
+        confirmLabel="Ya"
+        cancelLabel="Batal"
+        variant="info"
+      />
+
+      {/* Tolak NKB Dialog (with optional reason + confirm) */}
+      <TolakNkbDialog
+        open={isRejectDialogOpen}
+        onOpenChange={setIsRejectDialogOpen}
+        nkb={selectedNKB}
+        onConfirm={handleRejectConfirm}
+        isSubmitting={rejectNkbMutation.isPending}
       />
 
       {/* Confirmation Dialog for Delete */}

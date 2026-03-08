@@ -47,7 +47,9 @@ const stockOpnameSchema = z.object({
     required_error: "Tanggal harus diisi",
   }),
   toko: z.array(z.string()).min(1, "Toko harus dipilih minimal satu"),
-  petugasSO: z.array(z.string()).optional(),
+  petugasSO: z
+    .array(z.string())
+    .min(1, "Petugas SO harus dipilih minimal satu"),
   syaratMata: z.array(z.string()).optional(),
   jumlahItemMata: z
     .string()
@@ -175,11 +177,13 @@ export function StockOpnameFormDialog({
     }
     const startDate = format(pendingValues.tanggal, "yyyy-MM-dd")
     const notes = pendingValues.catatan?.trim() || undefined
+    const assignedTo = pendingValues.petugasSO[0]
     const payloads: CreateStockOpnameDto[] = pendingValues.toko.map(
       (storeId) => ({
         ptId,
         storeId,
         startDate,
+        assignedTo,
         notes,
       })
     )
@@ -319,7 +323,9 @@ export function StockOpnameFormDialog({
                     <MultiSelectCombobox
                       options={petugasSOOptions}
                       selected={field.value ?? []}
-                      onSelectedChange={field.onChange}
+                      onSelectedChange={(values) =>
+                        field.onChange(values.slice(-1))
+                      }
                       placeholder="Pilih Petugas"
                       searchPlaceholder="Cari Petugas..."
                       emptyMessage="Petugas tidak ditemukan"

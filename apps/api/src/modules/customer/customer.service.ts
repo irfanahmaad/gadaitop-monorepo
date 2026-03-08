@@ -57,6 +57,8 @@ export class CustomerService {
         email: true,
         city: true,
         isBlacklisted: true,
+        ktpPhotoUrl: true,
+        selfiePhotoUrl: true,
       },
       where,
       orderBy: sortAttribute(queryDto.sortBy, {

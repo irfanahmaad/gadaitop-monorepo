@@ -3,7 +3,7 @@ import { getToken } from "next-auth/jwt"
 
 import type { NextRequest } from "next/server"
 
-// Routes that don't require authentication
+// Staff routes that don't require authentication
 const publicRoutes = [
   "/login",
   "/register",
@@ -12,22 +12,36 @@ const publicRoutes = [
   "/verify-email",
 ]
 
-// Routes that should redirect to dashboard if already authenticated
+// Customer portal routes
+const customerLoginPath = "/portal-customer/login"
+const customerPortalPrefix = "/portal-customer"
+
+// Routes that should redirect to dashboard if already authenticated (staff)
 const authRoutes = ["/login", "/register"]
 
 // API routes that should be excluded from middleware
 const excludedApiRoutes = ["/api/auth"]
+
+function isCustomerPortalRoute(pathname: string): boolean {
+  return pathname.startsWith(customerPortalPrefix)
+}
+
+function isCustomerLoginRoute(pathname: string): boolean {
+  return pathname === customerLoginPath
+}
+
+function isCustomerProtectedRoute(pathname: string): boolean {
+  return isCustomerPortalRoute(pathname) && !isCustomerLoginRoute(pathname)
+}
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Skip middleware for API routes (except our protected ones)
   if (pathname.startsWith("/api")) {
-    // Allow NextAuth routes
     if (excludedApiRoutes.some((route) => pathname.startsWith(route))) {
       return NextResponse.next()
     }
-    // Other API routes go through proxy
     return NextResponse.next()
   }
 
@@ -40,11 +54,14 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Get the token from the session
   const token = await getToken({
     req: request,
     secret: process.env.NEXTAUTH_SECRET,
   })
+
+  const accountType = (token as { accountType?: "staff" | "customer" })
+    ?.accountType as "staff" | "customer" | undefined
+  const isCustomerSession = accountType === "customer"
 
   const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route))
   const isAuthRoute = authRoutes.some((route) => pathname.startsWith(route))
@@ -53,72 +70,85 @@ export async function middleware(request: NextRequest) {
   const hasSessionExpiredParam =
     request.nextUrl.searchParams.get("error") === "SessionExpired"
 
-  // Check if token has expired - handle this FIRST before other checks
+  // Handle session expired - redirect to appropriate login
   if (hasSessionExpiredError) {
-    // If already on login page with SessionExpired, allow it to proceed
-    // This prevents redirect loops
-    if (isLoginPage) {
+    if (isCustomerLoginRoute(pathname) || isLoginPage) {
       return NextResponse.next()
     }
 
-    // Clear the session cookies and redirect to login
-    const loginUrl = new URL("/login", request.url)
+    const isCustomerRealm = isCustomerPortalRoute(pathname)
+    const loginUrl = new URL(
+      isCustomerRealm ? customerLoginPath : "/login",
+      request.url
+    )
     loginUrl.searchParams.set("error", "SessionExpired")
-    // Only set callbackUrl if it's not already the login page or other auth routes to avoid loops
-    // Also ensure callbackUrl is not /login to prevent redirect loops after successful login
-    if (pathname !== "/login" && !isAuthRoute && pathname !== "/") {
+    if (
+      (isCustomerRealm && !isCustomerLoginRoute(pathname)) ||
+      (!isCustomerRealm && pathname !== "/login" && !isAuthRoute && pathname !== "/")
+    ) {
       loginUrl.searchParams.set("callbackUrl", pathname)
     }
 
     const response = NextResponse.redirect(loginUrl)
-
-    // Clear NextAuth session cookies (both HTTP and HTTPS variants)
     response.cookies.delete("next-auth.session-token")
     response.cookies.delete("__Secure-next-auth.session-token")
-    // Also clear any other potential NextAuth cookie names
     response.cookies.delete("next-auth.csrf-token")
     response.cookies.delete("__Secure-next-auth.csrf-token")
 
     return response
   }
 
-  // If already on login page with SessionExpired param, allow it (handles edge cases)
-  if (isLoginPage && hasSessionExpiredParam) {
+  if ((isLoginPage || isCustomerLoginRoute(pathname)) && hasSessionExpiredParam) {
     return NextResponse.next()
   }
 
-  // Determine if user is authenticated (token exists AND no error)
   const isAuthenticated = !!token && !token.error
 
-  // If user is authenticated and tries to access auth routes, redirect to dashboard
-  if (isAuthenticated && isAuthRoute) {
-    return NextResponse.redirect(new URL("/", request.url))
+  // Authenticated customer: redirect away from customer login, block staff routes
+  if (isAuthenticated && isCustomerSession) {
+    if (isCustomerLoginRoute(pathname)) {
+      return NextResponse.redirect(new URL(customerPortalPrefix, request.url))
+    }
+    if (!isCustomerPortalRoute(pathname)) {
+      return NextResponse.redirect(new URL(customerPortalPrefix, request.url))
+    }
+    return NextResponse.next()
   }
 
-  // If user is not authenticated and tries to access protected routes
-  if (!isAuthenticated && !isPublicRoute) {
-    const loginUrl = new URL("/login", request.url)
-    loginUrl.searchParams.set("callbackUrl", pathname)
-    return NextResponse.redirect(loginUrl)
+  // Authenticated staff: redirect away from staff auth routes, block customer portal
+  if (isAuthenticated && !isCustomerSession) {
+    if (isAuthRoute) {
+      return NextResponse.redirect(new URL("/", request.url))
+    }
+    if (isCustomerPortalRoute(pathname)) {
+      return NextResponse.redirect(new URL("/", request.url))
+    }
   }
 
-  // branch_staff: first menu is Scan KTP — redirect "/" to "/scan-ktp" before any render
+  // Unauthenticated: protect customer portal and staff routes
+  if (!isAuthenticated) {
+    if (isCustomerProtectedRoute(pathname)) {
+      const loginUrl = new URL(customerLoginPath, request.url)
+      loginUrl.searchParams.set("callbackUrl", pathname)
+      return NextResponse.redirect(loginUrl)
+    }
+    if (!isPublicRoute && !isCustomerLoginRoute(pathname)) {
+      const loginUrl = new URL("/login", request.url)
+      loginUrl.searchParams.set("callbackUrl", pathname)
+      return NextResponse.redirect(loginUrl)
+    }
+  }
+
+  // Staff role-based redirects for "/"
   const roles = (token as { roles?: Array<{ code?: string }> })?.roles ?? []
   const isBranchStaff = roles.some((r) => r.code === "branch_staff")
-  if (isAuthenticated && pathname === "/" && isBranchStaff) {
-    return NextResponse.redirect(new URL("/scan-ktp", request.url))
-  }
-
-  // stock_auditor: redirect "/" to "/stock-opname"
   const isStockAuditor = roles.some((r) => r.code === "stock_auditor")
-  if (isAuthenticated && pathname === "/" && isStockAuditor) {
-    return NextResponse.redirect(new URL("/stock-opname", request.url))
-  }
-
-  // auction_staff: redirect "/" to "/lelangan"
   const isAuctionStaff = roles.some((r) => r.code === "auction_staff")
-  if (isAuthenticated && pathname === "/" && isAuctionStaff) {
-    return NextResponse.redirect(new URL("/lelangan", request.url))
+
+  if (isAuthenticated && pathname === "/" && !isCustomerSession) {
+    if (isBranchStaff) return NextResponse.redirect(new URL("/scan-ktp", request.url))
+    if (isStockAuditor) return NextResponse.redirect(new URL("/stock-opname", request.url))
+    if (isAuctionStaff) return NextResponse.redirect(new URL("/lelangan", request.url))
   }
 
   return NextResponse.next()

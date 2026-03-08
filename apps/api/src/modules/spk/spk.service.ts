@@ -113,6 +113,7 @@ export class SpkService {
         pt: true,
         ...(isOverdue && {
           items: { itemType: true },
+          creator: true,
         }),
       },
       where,

@@ -75,6 +75,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       (ability.can("view", MenuSubject.NKB) && !isCompanyAdmin) ||
       ability.can("view", MenuSubject.STOCK_OPNAME) ||
       ability.can("view", MenuSubject.LELANGAN) ||
+      ability.can("view", MenuSubject.VALIDASI_LELANG) ||
       ability.can("view", MenuSubject.TAMBAH_MODAL) ||
       ability.can("view", MenuSubject.SETOR_UANG) ||
       ability.can("view", MenuSubject.MUTASI_TRANSAKSI) ||
@@ -247,6 +248,22 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                           >
                             <Gavel className="size-4 shrink-0" />
                             <span>Lelangan</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    </Can>
+                    <Can I="view" a={MenuSubject.VALIDASI_LELANG}>
+                      <SidebarMenuItem>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={pathname?.startsWith("/validasi-lelangan")}
+                        >
+                          <Link
+                            href="/validasi-lelangan"
+                            className="flex items-center gap-2"
+                          >
+                            <Gavel className="size-4 shrink-0" />
+                            <span>Validasi Lelang</span>
                           </Link>
                         </SidebarMenuButton>
                       </SidebarMenuItem>

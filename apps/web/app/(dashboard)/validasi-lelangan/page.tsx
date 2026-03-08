@@ -1,7 +1,8 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
+import { useSession } from "next-auth/react"
 import { ColumnDef } from "@tanstack/react-table"
 import { Breadcrumbs } from "@/components/breadcrumbs"
 import { DataTable } from "@/components/data-table"
@@ -267,14 +268,51 @@ const columnsWithStatus: ColumnDef<ValidasiLelangan>[] = [
   },
 ]
 
+// Columns without select (for auction_staff: only Detail action, no bulk actions)
+const baseColumnsNoSelect = baseColumns.filter((c) => c.id !== "select")
+const columnsWithStatusNoSelect: ColumnDef<ValidasiLelangan>[] = [
+  ...baseColumnsNoSelect.slice(0, -1),
+  {
+    accessorKey: "status",
+    header: "Status",
+    cell: ({ row }) => {
+      const status = row.getValue("status") as ValidasiLelangan["status"]
+      if (!status) return null
+      return (
+        <Badge
+          variant="outline"
+          className="bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20"
+        >
+          {status}
+        </Badge>
+      )
+    },
+  },
+  {
+    accessorKey: "lastUpdatedAt",
+    header: "Last Updated At",
+  },
+]
+
 export default function ValidasiLelanganPage() {
   const router = useRouter()
+  const { data: session } = useSession()
+  const isAuctionStaff = useMemo(
+    () => session?.user?.roles?.some((r) => r.code === "auction_staff") ?? false,
+    [session?.user?.roles]
+  )
+
   const [pageSize, setPageSize] = useState(10)
   const [searchValue, setSearchValue] = useState("")
   const [activeTab, setActiveTab] = useState("dijadwalkan")
   const [selectedRows, setSelectedRows] = useState<ValidasiLelangan[]>([])
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false)
   const [resetSelectionKey, setResetSelectionKey] = useState(0)
+
+  const listColumns = isAuctionStaff ? baseColumnsNoSelect : baseColumns
+  const tervalidasiColumns = isAuctionStaff
+    ? columnsWithStatusNoSelect
+    : columnsWithStatus
 
   // Counts for each tab
   const dijadwalkanCount = dijadwalkanData.length
@@ -379,13 +417,13 @@ export default function ValidasiLelanganPage() {
         {/* Dijadwalkan View */}
         <TabsContent value="dijadwalkan" className="mt-0">
           <DataTable
-            columns={baseColumns}
+            columns={listColumns}
             data={dijadwalkanData}
             searchPlaceholder="Cari..."
             headerLeft={
               <div className="flex items-center gap-2">
                 <CardTitle className="text-xl">Daftar Validasi Lelang</CardTitle>
-                {selectedRows.length > 0 && (
+                {!isAuctionStaff && selectedRows.length > 0 && (
                   <span className="text-destructive font-semibold">
                     &middot; {selectedRows.length} Selected
                   </span>
@@ -421,7 +459,7 @@ export default function ValidasiLelanganPage() {
                   <SlidersHorizontal className="h-4 w-4" />
                   Filter
                 </Button>
-                {selectedRows.length > 0 && (
+                {!isAuctionStaff && selectedRows.length > 0 && (
                   <Button
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90 flex items-center gap-2"
                     onClick={handleBulkDelete}
@@ -437,23 +475,23 @@ export default function ValidasiLelanganPage() {
             searchValue={searchValue}
             onSearchChange={setSearchValue}
             onDetail={handleDetail}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onSelectionChange={setSelectedRows}
-            resetSelectionKey={resetSelectionKey}
+            onEdit={isAuctionStaff ? undefined : handleEdit}
+            onDelete={isAuctionStaff ? undefined : handleDelete}
+            onSelectionChange={isAuctionStaff ? undefined : setSelectedRows}
+            resetSelectionKey={isAuctionStaff ? undefined : resetSelectionKey}
           />
         </TabsContent>
 
         {/* Waiting for Approval View */}
         <TabsContent value="waiting-for-approval" className="mt-0">
           <DataTable
-            columns={baseColumns}
+            columns={listColumns}
             data={waitingForApprovalData}
             searchPlaceholder="Cari..."
             headerLeft={
               <div className="flex items-center gap-2">
                 <CardTitle className="text-xl">Daftar Validasi Lelang</CardTitle>
-                {selectedRows.length > 0 && (
+                {!isAuctionStaff && selectedRows.length > 0 && (
                   <span className="text-destructive font-semibold">
                     &middot; {selectedRows.length} Selected
                   </span>
@@ -489,7 +527,7 @@ export default function ValidasiLelanganPage() {
                   <SlidersHorizontal className="h-4 w-4" />
                   Filter
                 </Button>
-                {selectedRows.length > 0 && (
+                {!isAuctionStaff && selectedRows.length > 0 && (
                   <Button
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90 flex items-center gap-2"
                     onClick={handleBulkDelete}
@@ -505,23 +543,23 @@ export default function ValidasiLelanganPage() {
             searchValue={searchValue}
             onSearchChange={setSearchValue}
             onDetail={handleDetail}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onSelectionChange={setSelectedRows}
-            resetSelectionKey={resetSelectionKey}
+            onEdit={isAuctionStaff ? undefined : handleEdit}
+            onDelete={isAuctionStaff ? undefined : handleDelete}
+            onSelectionChange={isAuctionStaff ? undefined : setSelectedRows}
+            resetSelectionKey={isAuctionStaff ? undefined : resetSelectionKey}
           />
         </TabsContent>
 
         {/* Tervalidasi View */}
         <TabsContent value="tervalidasi" className="mt-0">
           <DataTable
-            columns={columnsWithStatus}
+            columns={tervalidasiColumns}
             data={tervalidasiData}
             searchPlaceholder="Cari..."
             headerLeft={
               <div className="flex items-center gap-2">
                 <CardTitle className="text-xl">Daftar Batch Lelang</CardTitle>
-                {selectedRows.length > 0 && (
+                {!isAuctionStaff && selectedRows.length > 0 && (
                   <span className="text-destructive font-semibold">
                     &middot; {selectedRows.length} Selected
                   </span>
@@ -557,7 +595,7 @@ export default function ValidasiLelanganPage() {
                   <SlidersHorizontal className="h-4 w-4" />
                   Filter
                 </Button>
-                {selectedRows.length > 0 && (
+                {!isAuctionStaff && selectedRows.length > 0 && (
                   <Button
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90 flex items-center gap-2"
                     onClick={handleBulkDelete}
@@ -573,10 +611,10 @@ export default function ValidasiLelanganPage() {
             searchValue={searchValue}
             onSearchChange={setSearchValue}
             onDetail={handleDetail}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onSelectionChange={setSelectedRows}
-            resetSelectionKey={resetSelectionKey}
+            onEdit={isAuctionStaff ? undefined : handleEdit}
+            onDelete={isAuctionStaff ? undefined : handleDelete}
+            onSelectionChange={isAuctionStaff ? undefined : setSelectedRows}
+            resetSelectionKey={isAuctionStaff ? undefined : resetSelectionKey}
           />
         </TabsContent>
       </Tabs>

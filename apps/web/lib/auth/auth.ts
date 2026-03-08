@@ -5,6 +5,24 @@ import "./types" // Import type augmentations
 
 const INTERNAL_API_URL = process.env.INTERNAL_API_URL || "http://localhost:8080/api"
 
+interface BackendCustomerLoginResponse {
+  data: {
+    customer: {
+      id: number
+      uuid: string
+      nik: string
+      name: string
+      email: string
+      ptId: string
+      branchId: string | null
+    }
+    token: {
+      accessToken: string
+      expiresIn: number
+    }
+  }
+}
+
 interface BackendLoginResponse {
   data: {
     user: {
@@ -91,6 +109,7 @@ export const authOptions: NextAuthOptions = {
             isAdministrator: loginResponse.data.user.isAdministrator,
             roles: loginResponse.data.user.roles,
             rolesIds: loginResponse.data.user.rolesIds,
+            accountType: "staff" as const,
             accessToken: loginResponse.data.token.accessToken,
             expiresIn: loginResponse.data.token.expiresIn,
           }
@@ -102,16 +121,88 @@ export const authOptions: NextAuthOptions = {
         }
       },
     }),
+    CredentialsProvider({
+      id: "customer-credentials",
+      name: "Customer",
+      credentials: {
+        nik: { label: "NIK", type: "text" },
+        pin: { label: "PIN", type: "password" },
+      },
+      async authorize(credentials) {
+        if (!credentials?.nik || !credentials?.pin) {
+          throw new Error("NIK dan PIN harus diisi")
+        }
+
+        try {
+          const response = await fetch(
+            `${INTERNAL_API_URL}/v1/auth/customer/login`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                loginType: "nik_pin",
+                nik: credentials.nik,
+                pin: credentials.pin,
+              }),
+            }
+          )
+
+          const data = await response.json()
+
+          if (!response.ok) {
+            throw new Error(data.message || "NIK atau PIN salah")
+          }
+
+          const loginResponse = data as BackendCustomerLoginResponse
+          const { customer, token } = loginResponse.data
+
+          return {
+            id: String(customer.id),
+            uuid: customer.uuid,
+            name: customer.name,
+            email: customer.email,
+            nik: customer.nik,
+            accountType: "customer" as const,
+            accessToken: token.accessToken,
+            expiresIn: token.expiresIn,
+          }
+        } catch (error) {
+          if (error instanceof Error) {
+            throw new Error(error.message)
+          }
+          throw new Error("NIK atau PIN salah")
+        }
+      },
+    }),
   ],
   callbacks: {
     async jwt({ token, user }) {
       // Initial sign in
       if (user) {
-        return {
+        const accountType = user.accountType ?? "staff"
+        const baseToken = {
           ...token,
           id: Number(user.id),
           uuid: user.uuid,
           email: user.email,
+          accountType,
+          accessToken: user.accessToken,
+          expiresIn: user.expiresIn,
+          accessTokenExpires: Date.now() + user.expiresIn * 1000,
+        }
+
+        if (accountType === "customer") {
+          return {
+            ...baseToken,
+            name: user.name,
+            nik: user.nik,
+          }
+        }
+
+        return {
+          ...baseToken,
           fullName: user.fullName,
           phoneNumber: user.phoneNumber,
           companyId: user.companyId,
@@ -123,10 +214,6 @@ export const authOptions: NextAuthOptions = {
           isAdministrator: user.isAdministrator,
           roles: user.roles,
           rolesIds: user.rolesIds,
-          accessToken: user.accessToken,
-          expiresIn: user.expiresIn,
-          // Calculate when the access token expires
-          accessTokenExpires: Date.now() + user.expiresIn * 1000,
         }
       }
 
@@ -136,37 +223,50 @@ export const authOptions: NextAuthOptions = {
       }
 
       // Access token has expired, mark it as an error
-      // The backend doesn't have a refresh token endpoint, so we'll require re-login
       return {
         ...token,
         error: "RefreshAccessTokenError" as const,
       }
     },
     async session({ session, token }) {
-      // Send properties to the client
-      session.user = {
-        id: token.id,
-        uuid: token.uuid,
-        email: token.email,
-        fullName: token.fullName,
-        phoneNumber: token.phoneNumber,
-        companyId: token.companyId,
-        branchId: token.branchId,
-        ownedCompanyId: token.ownedCompanyId,
-        activeStatus: token.activeStatus,
-        isEmailVerified: token.isEmailVerified,
-        isPhoneVerified: token.isPhoneVerified,
-        isAdministrator: token.isAdministrator,
-        roles: token.roles,
-        rolesIds: token.rolesIds,
-        createdAt: "",
-        updatedAt: "",
-      }
+      session.accountType = token.accountType ?? "staff"
       session.accessToken = token.accessToken
       session.expiresIn = token.expiresIn
 
       if (token.error) {
         session.error = token.error
+      }
+
+      if (token.accountType === "customer") {
+        session.user = {
+          id: token.id,
+          uuid: token.uuid,
+          name: token.name ?? "",
+          email: token.email ?? "",
+          nik: token.nik ?? "",
+        }
+      } else {
+        session.user = {
+          id: token.id,
+          uuid: token.uuid,
+          email: token.email ?? "",
+          fullName: token.fullName ?? "",
+          phoneNumber: token.phoneNumber ?? null,
+          companyId: token.companyId ?? null,
+          branchId: token.branchId ?? null,
+          ownedCompanyId: token.ownedCompanyId ?? null,
+          activeStatus: (token.activeStatus ?? "active") as
+            | "active"
+            | "inactive"
+            | "suspended",
+          isEmailVerified: token.isEmailVerified ?? false,
+          isPhoneVerified: token.isPhoneVerified ?? false,
+          isAdministrator: token.isAdministrator ?? false,
+          roles: token.roles ?? [],
+          rolesIds: token.rolesIds ?? [],
+          createdAt: "",
+          updatedAt: "",
+        }
       }
 
       return session

@@ -48,7 +48,9 @@ const stockOpnameSchema = z.object({
     required_error: "Tanggal harus diisi",
   }),
   toko: z.array(z.string()).min(1, "Toko harus dipilih minimal satu"),
-  petugasSO: z.array(z.string()).optional(),
+  petugasSO: z
+    .array(z.string())
+    .min(1, "Petugas SO harus dipilih minimal satu"),
   syaratMata: z.array(z.string()).optional(),
   jumlahItemMata: z
     .string()
@@ -155,8 +157,7 @@ export function EditJadwalSODialog({
         id: session.uuid,
         tanggal: session.startDate ? new Date(session.startDate) : undefined,
         toko: session.storeId ? [session.storeId] : [],
-        // Petugas and Syarat Mata are UI-only fields for now since they are not stored on the session entity
-        petugasSO: [],
+        petugasSO: session.assignedTo ? [session.assignedTo] : [],
         syaratMata: [],
         jumlahItemMata: "10",
         catatan: session.notes ?? "",
@@ -184,10 +185,12 @@ export function EditJadwalSODialog({
     const startDate = pendingValues.tanggal ? format(pendingValues.tanggal, "yyyy-MM-dd") : undefined
     const notes = pendingValues.catatan?.trim() || undefined
     const storeId = pendingValues.toko[0] // Only take the first one since DB stores 1 storeId
+    const assignedTo = pendingValues.petugasSO[0]
 
     const payload: UpdateStockOpnameSessionDto = {
       storeId,
       startDate,
+      assignedTo,
       notes,
     }
     
@@ -324,7 +327,9 @@ export function EditJadwalSODialog({
                     <MultiSelectCombobox
                       options={petugasSOOptions}
                       selected={field.value ?? []}
-                      onSelectedChange={field.onChange}
+                      onSelectedChange={(values) =>
+                        field.onChange(values.slice(-1))
+                      }
                       placeholder="Pilih Petugas"
                       searchPlaceholder="Cari Petugas..."
                       emptyMessage="Petugas tidak ditemukan"

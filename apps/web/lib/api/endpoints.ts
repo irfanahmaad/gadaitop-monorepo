@@ -8,6 +8,7 @@ export const endpoints = {
   // Auth
   auth: {
     login: baseUrl("auth/login"),
+    customerLogin: baseUrl("auth/customer/login"),
     register: baseUrl("auth/register"),
     logout: baseUrl("auth/logout"),
     me: baseUrl("auth/me"),

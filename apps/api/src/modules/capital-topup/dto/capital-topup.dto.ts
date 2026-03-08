@@ -19,8 +19,11 @@ export class CapitalTopupDto {
   createdAt: Date;
   store?: { uuid: string; shortName: string };
   pt?: { uuid: string; companyName: string };
+  createdBy?: { fullName: string };
 
-  constructor(record: CapitalTopupEntity & { store?: any; pt?: any }) {
+  constructor(
+    record: CapitalTopupEntity & { store?: any; pt?: any; requester?: any },
+  ) {
     this.uuid = record.uuid;
     this.topupCode = record.topupCode;
     this.storeId = record.storeId;
@@ -41,6 +44,9 @@ export class CapitalTopupDto {
     }
     if (record.pt) {
       this.pt = { uuid: record.pt.uuid, companyName: record.pt.companyName };
+    }
+    if (record.requester) {
+      this.createdBy = { fullName: record.requester.fullName ?? '-' };
     }
   }
 }

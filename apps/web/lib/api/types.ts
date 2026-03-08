@@ -219,6 +219,7 @@ export interface Branch {
   address: string
   phone: string
   city: string
+  imageUrl?: string | null
   companyId: string
   isBorrowed: boolean
   actualOwnerId: string | null
@@ -241,10 +242,12 @@ export interface CreateBranchDto {
   phone: string
   city: string
   companyId: string
+  imageUrl?: string
   isBorrowed?: boolean
 }
 
 export interface UpdateBranchDto {
+  imageUrl?: string | null
   shortName?: string
   fullName?: string
   address?: string
@@ -617,12 +620,15 @@ export interface ConfirmNkbDto {
 }
 
 export interface RejectNkbDto {
-  rejectionReason: string
+  /** Optional rejection reason (API field: reason) */
+  reason?: string
 }
 
 export interface QueryNkbDto extends PageOptions {
   spkId?: string
   status?: NkbStatus
+  /** Comma-separated statuses, e.g. "confirmed,rejected". When set, backend returns NKBs with status in this list. */
+  statusIn?: string
   type?: NkbType
   ptId?: string
   branchId?: string
@@ -804,10 +810,15 @@ export interface StockOpnameSessionListItem {
   totalItemsCounted: number
   variancesCount: number
   createdAt: string
+  updatedAt?: string
+  assignedTo: string | null
+  assignee?: Pick<User, "uuid" | "fullName"> | null
+  /** Fallback for older rows without assigned petugas */
+  creatorFullName?: string
 }
 
 export type StockOpnameStatus =
-  | "scheduled"
+  | "draft"
   | "in_progress"
   | "completed"
   | "approved"
@@ -855,7 +866,9 @@ export interface StockOpnameSession {
   scheduledDate: string
   status: StockOpnameStatus
   store?: Branch
-  assignedTo?: User
+  assignedTo: string | null
+  assignee?: Pick<User, "uuid" | "fullName"> | null
+  creatorFullName?: string
   items: StockOpnameItem[]
   notes?: string | null
   createdAt: string
@@ -866,12 +879,14 @@ export interface CreateStockOpnameDto {
   storeId: string
   startDate: string
   ptId?: string
+  assignedTo?: string
   notes?: string
 }
 
 export interface UpdateStockOpnameSessionDto {
   storeId?: string
   startDate?: string
+  assignedTo?: string
   notes?: string
 }
 

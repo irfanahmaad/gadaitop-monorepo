@@ -53,6 +53,7 @@ export class StockOpnameService {
     const qbOptions: QueryBuilderOptionsType<StockOpnameSessionEntity> = {
       ...queryDto,
       where,
+      relation: { creator: true, assignee: true },
       orderBy: sortAttribute(queryDto.sortBy, {
         createdAt: { createdAt: true },
       }) ?? { createdAt: 'DESC' } as any,
@@ -76,6 +77,7 @@ export class StockOpnameService {
       where: { uuid },
       relations: [
         'creator',
+        'assignee',
         'items',
         'items.spkItem',
         'items.spkItem.itemType',
@@ -102,6 +104,7 @@ export class StockOpnameService {
       startDate: new Date(createDto.startDate),
       status: StockOpnameSessionStatusEnum.Draft,
       createdBy,
+      assignedTo: createDto.assignedTo ?? null,
       notes: createDto.notes ?? null,
     });
     const saved = await this.sessionRepository.save(session);
@@ -129,6 +132,9 @@ export class StockOpnameService {
     }
     if (updateDto.startDate !== undefined) {
       session.startDate = new Date(updateDto.startDate);
+    }
+    if (updateDto.assignedTo !== undefined) {
+      session.assignedTo = updateDto.assignedTo;
     }
     if (updateDto.notes !== undefined) {
       session.notes = updateDto.notes;

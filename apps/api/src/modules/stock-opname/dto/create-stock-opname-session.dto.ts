@@ -11,6 +11,10 @@ export class CreateStockOpnameSessionDto {
   startDate: string;
 
   @IsOptional()
+  @IsUUID()
+  assignedTo?: string;
+
+  @IsOptional()
   @IsString()
   notes?: string;
 }

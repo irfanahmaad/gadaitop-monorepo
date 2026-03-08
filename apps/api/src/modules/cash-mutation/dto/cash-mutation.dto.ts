@@ -17,8 +17,9 @@ export class CashMutationDto {
   referenceId: string | null;
   createdBy: string;
   createdAt: Date;
+  store?: { uuid: string; shortName: string; fullName: string; branchCode: string };
 
-  constructor(record: CashMutationEntity) {
+  constructor(record: CashMutationEntity & { store?: any }) {
     this.id = record.id;
     this.ptId = record.ptId;
     this.storeId = record.storeId;
@@ -33,5 +34,13 @@ export class CashMutationDto {
     this.referenceId = record.referenceId ?? null;
     this.createdBy = record.createdBy;
     this.createdAt = record.createdAt;
+    if (record.store) {
+      this.store = {
+        uuid: record.store.uuid,
+        shortName: record.store.shortName,
+        fullName: record.store.fullName,
+        branchCode: record.store.branchCode,
+      };
+    }
   }
 }

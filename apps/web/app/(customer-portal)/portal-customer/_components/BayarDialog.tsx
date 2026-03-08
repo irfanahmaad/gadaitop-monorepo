@@ -60,7 +60,6 @@ export function BayarDialog({
   const [metodePembayaran, setMetodePembayaran] = useState("cash")
   const [totalBayarPokok, setTotalBayarPokok] = useState("")
 
-  // Set default value based on type when dialog opens
   React.useEffect(() => {
     if (open) {
       if (type === "lunas") {
@@ -136,7 +135,6 @@ export function BayarDialog({
         </DialogHeader>
 
         <div className="flex flex-col gap-6 pt-2">
-          {/* Metode Pembayaran */}
           <div className="flex flex-col gap-3">
             <div>
               <p className="text-sm font-semibold">Metode Pembayaran</p>
@@ -162,7 +160,6 @@ export function BayarDialog({
             </RadioGroup>
           </div>
 
-          {/* Nominal Pembayaran */}
           <div className="flex flex-col gap-3">
             <p className="text-sm font-semibold">Nominal Pembayaran</p>
             <div className="flex flex-col gap-1.5">
@@ -186,7 +183,6 @@ export function BayarDialog({
             </div>
           </div>
 
-          {/* Informasi Pembayaran Bulan Ini */}
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-2">
               <span className="text-red-500">🏷</span>
@@ -223,7 +219,6 @@ export function BayarDialog({
           </div>
         </div>
 
-        {/* Footer Buttons */}
         <div className="flex items-center justify-center gap-3 pt-4">
           <Button
             variant="outline"

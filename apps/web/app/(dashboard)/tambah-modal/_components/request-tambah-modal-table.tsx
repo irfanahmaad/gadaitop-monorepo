@@ -24,10 +24,11 @@ type RequestTambahModalTableProps = {
   searchValue: string
   onSearchChange: (value: string) => void
   onOpenFilter?: () => void
-  onApprove: (row: RequestTambahModal) => void
-  onReject: (row: RequestTambahModal) => void
+  onApprove?: (row: RequestTambahModal) => void
+  onReject?: (row: RequestTambahModal) => void
   onDetail?: (row: RequestTambahModal) => void
   onEdit?: (row: RequestTambahModal) => void
+  onDelete?: (row: RequestTambahModal) => void
   onBulkDelete?: (rows: RequestTambahModal[]) => void
   resetSelectionKey?: number | string
 }
@@ -44,6 +45,7 @@ export function RequestTambahModalTable({
   onReject,
   onDetail,
   onEdit,
+  onDelete,
   onBulkDelete,
   resetSelectionKey,
 }: RequestTambahModalTableProps) {
@@ -52,12 +54,15 @@ export function RequestTambahModalTable({
   const columns = useMemo(
     () => [
       ...getRequestColumns(),
-      getRequestActionColumn(onApprove, onReject, {
+      getRequestActionColumn({
+        onApprove,
+        onReject,
         onEdit,
         onDetail,
+        onDelete,
       }),
     ],
-    [onApprove, onReject, onEdit, onDetail]
+    [onApprove, onReject, onEdit, onDetail, onDelete]
   )
 
   if (isLoading) {

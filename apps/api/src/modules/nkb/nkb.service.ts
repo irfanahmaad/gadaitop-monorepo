@@ -40,7 +40,15 @@ export class NkbService {
     if (queryDto.spkId) {
       where.spkId = queryDto.spkId;
     }
-    if (queryDto.status) {
+    if (queryDto.statusIn) {
+      const statuses = queryDto.statusIn
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean) as NkbStatusEnum[];
+      if (statuses.length > 0) {
+        where.status = statuses.length === 1 ? statuses[0] : (statuses as any);
+      }
+    } else if (queryDto.status) {
       where.status = queryDto.status;
     }
     if (queryDto.paymentType) {

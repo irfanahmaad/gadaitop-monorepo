@@ -5,6 +5,7 @@ import { createContext } from "react"
 import { createContextualCan, useAbility } from "@casl/react"
 import { useSession } from "next-auth/react"
 
+import type { AuthUser } from "@/lib/auth/types"
 import {
   createAbilityFromPermissions,
   createEmptyAbility,
@@ -41,24 +42,28 @@ export function AbilityProvider({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession()
 
   const ability = React.useMemo(() => {
-    // If not authenticated or loading, return empty ability
-    if (status !== "authenticated" || !session?.user?.roles) {
+    // If not authenticated, loading, or customer session (no roles), return empty ability
+    const staffUser = session?.user as AuthUser | undefined
+    const hasRoles = staffUser && "roles" in staffUser && Array.isArray(staffUser.roles) && staffUser.roles.length > 0
+    if (status !== "authenticated" || !hasRoles) {
       return createEmptyAbility()
     }
 
+    const roles = staffUser.roles
+
     // Flatten permissions from all user roles
-    const permissions = flattenRolesPermissions(session.user.roles)
+    const permissions = flattenRolesPermissions(roles)
 
     // Collect role codes (e.g. ["owner", "company_admin"])
-    const roleCodes = session.user.roles.map((r) => r.code)
+    const roleCodes = roles.map((r) => r.code)
 
     // Debug: Log permissions (remove in production)
     if (process.env.NODE_ENV === "development") {
       console.log("CASL Debug - Session:", {
-        roles: session.user.roles,
+        roles,
         roleCodes,
         permissions,
-        rolesCount: session.user.roles.length,
+        rolesCount: roles.length,
         permissionsCount: permissions.length,
       })
     }

@@ -13,7 +13,7 @@ export interface UserRole {
   }>
 }
 
-// Extended user type matching backend UserEntity
+// Extended user type matching backend UserEntity (staff)
 export interface AuthUser {
   id: number
   uuid: string
@@ -33,10 +33,29 @@ export interface AuthUser {
   updatedAt: string
 }
 
+// Customer session user (portal customer)
+export interface AuthCustomer {
+  id: number
+  uuid: string
+  name: string
+  email: string
+  nik: string
+  /** Customers have no roles; present for Session union compatibility */
+  roles?: never
+  companyId?: never
+  branchId?: never
+  ownedCompanyId?: never
+  fullName?: never
+}
+
+// Session discriminator
+export type AccountType = "staff" | "customer"
+
 // Module augmentation for next-auth
 declare module "next-auth" {
   interface Session extends DefaultSession {
-    user: AuthUser
+    user: AuthUser | AuthCustomer
+    accountType: AccountType
     accessToken: string
     expiresIn: number
     error?: "RefreshAccessTokenError"
@@ -46,17 +65,20 @@ declare module "next-auth" {
     id: string
     uuid: string
     email: string
-    fullName: string
-    phoneNumber: string | null
-    companyId: string | null
-    branchId: string | null
-    ownedCompanyId: string | null
-    activeStatus: "active" | "inactive" | "suspended"
-    isEmailVerified: boolean
-    isPhoneVerified: boolean
-    isAdministrator: boolean
-    roles: UserRole[]
-    rolesIds: number[]
+    fullName?: string
+    name?: string
+    phoneNumber?: string | null
+    companyId?: string | null
+    branchId?: string | null
+    ownedCompanyId?: string | null
+    activeStatus?: "active" | "inactive" | "suspended"
+    isEmailVerified?: boolean
+    isPhoneVerified?: boolean
+    isAdministrator?: boolean
+    roles?: UserRole[]
+    rolesIds?: number[]
+    nik?: string
+    accountType: AccountType
     accessToken: string
     expiresIn: number
   }
@@ -67,17 +89,20 @@ declare module "next-auth/jwt" {
     id: number
     uuid: string
     email: string
-    fullName: string
-    phoneNumber: string | null
-    companyId: string | null
-    branchId: string | null
-    ownedCompanyId: string | null
-    activeStatus: "active" | "inactive" | "suspended"
-    isEmailVerified: boolean
-    isPhoneVerified: boolean
-    isAdministrator: boolean
-    roles: UserRole[]
-    rolesIds: number[]
+    fullName?: string
+    name?: string
+    phoneNumber?: string | null
+    companyId?: string | null
+    branchId?: string | null
+    ownedCompanyId?: string | null
+    activeStatus?: "active" | "inactive" | "suspended"
+    isEmailVerified?: boolean
+    isPhoneVerified?: boolean
+    isAdministrator?: boolean
+    roles?: UserRole[]
+    rolesIds?: number[]
+    nik?: string
+    accountType: AccountType
     accessToken: string
     expiresIn: number
     accessTokenExpires: number

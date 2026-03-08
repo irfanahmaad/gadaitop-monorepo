@@ -25,7 +25,10 @@ export const stockOpnameKeys = {
 }
 
 // Get stock opname sessions list
-export function useStockOpnameSessions(options?: PageOptions) {
+export function useStockOpnameSessions(
+  options?: PageOptions,
+  queryOptions?: { enabled?: boolean }
+) {
   return useQuery({
     queryKey: stockOpnameKeys.list(options),
     queryFn: () =>
@@ -33,6 +36,7 @@ export function useStockOpnameSessions(options?: PageOptions) {
         endpoints.stockOpname.list,
         options
       ),
+    enabled: queryOptions?.enabled,
   })
 }
 

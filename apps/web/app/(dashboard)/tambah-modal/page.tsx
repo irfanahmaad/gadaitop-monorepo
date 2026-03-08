@@ -48,6 +48,7 @@ import {
   useCreateCapitalTopup,
   useUpdateCapitalTopup,
   useBulkDeleteCapitalTopups,
+  useDeleteCapitalTopup,
 } from "@/lib/react-query/hooks/use-capital-topups"
 import { useBranches } from "@/lib/react-query/hooks/use-branches"
 import { useCompanies } from "@/lib/react-query/hooks/use-companies"
@@ -137,6 +138,9 @@ function TambahModalPageContent() {
   const isCompanyAdmin =
     user?.roles?.some((r) => r.code === "company_admin") ?? false
   const isSuperAdmin = user?.roles?.some((r) => r.code === "owner") ?? false
+  const isBranchStaff =
+    user?.roles?.some((r) => r.code === "branch_staff") ?? false
+  const sessionBranchId = user?.branchId ?? ""
 
   const effectiveCompanyId = isCompanyAdmin ? (user?.companyId ?? null) : null
 
@@ -173,8 +177,9 @@ function TambahModalPageContent() {
   const [selectedBranch, setSelectedBranch] = useState<string>("")
   const validBranch =
     selectedBranch && branchOptions.some((b) => b.value === selectedBranch)
-  const effectiveBranch =
-    (validBranch ? selectedBranch : null) ?? branchOptions[0]?.value ?? ""
+  const effectiveBranch = isBranchStaff
+    ? sessionBranchId
+    : (validBranch ? selectedBranch : null) ?? branchOptions[0]?.value ?? ""
 
   useEffect(() => {
     setSelectedBranch("")
@@ -202,18 +207,18 @@ function TambahModalPageContent() {
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false)
   const [bulkDeleteRows, setBulkDeleteRows] = useState<RequestTambahModal[]>([])
   const [resetSelectionKey, setResetSelectionKey] = useState(0)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleteRow, setDeleteRow] = useState<RequestTambahModal | null>(null)
 
-  const requestListOptions = useMemo(() => {
-    const filter: Record<string, string> = { status: "pending" }
-    if (effectiveBranch) filter.storeId = effectiveBranch
-    return { page: 1, pageSize, filter }
-  }, [effectiveBranch, pageSize])
+  const requestListOptions = useMemo(
+    () => ({ page: 1, pageSize, filter: { status: "pending" } }),
+    [pageSize]
+  )
 
-  const historyListOptions = useMemo(() => {
-    const filter: Record<string, string> = {}
-    if (effectiveBranch) filter.storeId = effectiveBranch
-    return { page: 1, pageSize: historyPageSize, filter }
-  }, [effectiveBranch, historyPageSize])
+  const historyListOptions = useMemo(
+    () => ({ page: 1, pageSize: historyPageSize, filter: {} }),
+    [historyPageSize]
+  )
 
   const { data: requestData, isLoading: isLoadingRequest } =
     useCapitalTopups(requestListOptions)
@@ -225,6 +230,7 @@ function TambahModalPageContent() {
   const createMutation = useCreateCapitalTopup()
   const updateMutation = useUpdateCapitalTopup()
   const bulkDeleteMutation = useBulkDeleteCapitalTopups()
+  const deleteMutation = useDeleteCapitalTopup()
 
   const requestRows = useMemo(() => {
     const list = requestData?.data ?? []
@@ -314,9 +320,15 @@ function TambahModalPageContent() {
 
   const handleTambahDataConfirm = useCallback(
     async (data: { nominal: number; storeId?: string }) => {
-      const storeId = data.storeId ?? effectiveBranch ?? branchOptions[0]?.value
+      const storeId = isBranchStaff
+        ? sessionBranchId || effectiveBranch || branchOptions[0]?.value
+        : data.storeId ?? effectiveBranch ?? branchOptions[0]?.value
       if (!storeId) {
-        toast.error("Pilih toko terlebih dahulu")
+        toast.error(
+          isBranchStaff
+            ? "Toko pada sesi pengguna tidak ditemukan"
+            : "Pilih toko terlebih dahulu"
+        )
         return
       }
       try {
@@ -331,7 +343,7 @@ function TambahModalPageContent() {
         throw new Error("Create failed")
       }
     },
-    [effectiveBranch, branchOptions, createMutation]
+    [isBranchStaff, sessionBranchId, effectiveBranch, branchOptions, createMutation]
   )
 
   const handleEditConfirm = useCallback(
@@ -370,6 +382,23 @@ function TambahModalPageContent() {
     }
   }, [bulkDeleteRows, bulkDeleteMutation])
 
+  const handleDelete = useCallback((row: RequestTambahModal) => {
+    setDeleteRow(row)
+    setDeleteDialogOpen(true)
+  }, [])
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!deleteRow) return
+    try {
+      await deleteMutation.mutateAsync(deleteRow.uuid)
+      toast.success("Sukses! Data berhasil dihapus.")
+      setDeleteDialogOpen(false)
+      setDeleteRow(null)
+    } catch {
+      toast.error("Gagal menghapus data")
+    }
+  }, [deleteRow, deleteMutation])
+
   const handleExport = useCallback(() => {
     window.print()
   }, [])
@@ -383,6 +412,10 @@ function TambahModalPageContent() {
 
   const filterConfigWithBranches = useMemo(() => {
     const base = [...activeFilterConfigBase]
+    if (isBranchStaff) {
+      return base.filter((f) => f.key !== "toko")
+    }
+
     const tokoIdx = base.findIndex((f) => f.key === "toko")
     if (tokoIdx >= 0 && branchOptions.length > 0) {
       base[tokoIdx] = {
@@ -394,7 +427,7 @@ function TambahModalPageContent() {
       }
     }
     return base
-  }, [activeFilterConfigBase, branchOptions])
+  }, [activeFilterConfigBase, branchOptions, isBranchStaff])
 
   return (
     <div className="flex flex-col gap-6">
@@ -448,56 +481,72 @@ function TambahModalPageContent() {
         </div>
       </div>
 
-      <Tabs
-        value={activeTab}
-        onValueChange={setActiveTab}
-        className="flex flex-col gap-4"
-      >
-        <TabsList className="w-fit">
-          <TabsTrigger value="request" className="relative">
-            Request Tambah Modal
-            <Badge
-              variant="secondary"
-              className="bg-destructive/10 text-destructive hover:bg-destructive/20 ml-2 rounded-full px-2 py-0"
-            >
-              {pendingCount}
-            </Badge>
-          </TabsTrigger>
-          <TabsTrigger value="history">History Tambah Modal</TabsTrigger>
-        </TabsList>
+      {isBranchStaff ? (
+        <RequestTambahModalTable
+          data={filteredRequestData}
+          isLoading={isLoadingRequest}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+          searchValue={searchValue}
+          onSearchChange={setSearchValue}
+          onOpenFilter={() => setFilterDialogOpen(true)}
+          onDetail={handleDetail}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          resetSelectionKey={resetSelectionKey}
+        />
+      ) : (
+        <Tabs
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="flex flex-col gap-4"
+        >
+          <TabsList className="w-fit">
+            <TabsTrigger value="request" className="relative">
+              Request Tambah Modal
+              <Badge
+                variant="secondary"
+                className="bg-destructive/10 text-destructive hover:bg-destructive/20 ml-2 rounded-full px-2 py-0"
+              >
+                {pendingCount}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="history">History Tambah Modal</TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="request" className="mt-0">
-          <RequestTambahModalTable
-            data={filteredRequestData}
-            isLoading={isLoadingRequest}
-            pageSize={pageSize}
-            onPageSizeChange={setPageSize}
-            searchValue={searchValue}
-            onSearchChange={setSearchValue}
-            onOpenFilter={() => setFilterDialogOpen(true)}
-            onApprove={handleApprove}
-            onReject={handleReject}
-            onDetail={handleDetail}
-            onEdit={isCompanyAdmin ? undefined : handleEdit}
-            onBulkDelete={handleBulkDelete}
-            resetSelectionKey={resetSelectionKey}
-          />
-        </TabsContent>
+          <TabsContent value="request" className="mt-0">
+            <RequestTambahModalTable
+              data={filteredRequestData}
+              isLoading={isLoadingRequest}
+              pageSize={pageSize}
+              onPageSizeChange={setPageSize}
+              searchValue={searchValue}
+              onSearchChange={setSearchValue}
+              onOpenFilter={() => setFilterDialogOpen(true)}
+              onApprove={handleApprove}
+              onReject={handleReject}
+              onDetail={handleDetail}
+              onEdit={isCompanyAdmin ? undefined : handleEdit}
+              onBulkDelete={handleBulkDelete}
+              resetSelectionKey={resetSelectionKey}
+            />
+          </TabsContent>
 
-        <TabsContent value="history" className="mt-0">
-          <HistoryTambahModalTable
-            data={filteredHistoryData}
-            isLoading={isLoadingHistory}
-            pageSize={historyPageSize}
-            onPageSizeChange={setHistoryPageSize}
-            searchValue={historySearchValue}
-            onSearchChange={setHistorySearchValue}
-            onOpenFilter={() => setFilterDialogOpen(true)}
-            onDetail={handleDetail}
-            onExport={handleExport}
-          />
-        </TabsContent>
-      </Tabs>
+          <TabsContent value="history" className="mt-0">
+            <HistoryTambahModalTable
+              data={filteredHistoryData}
+              isLoading={isLoadingHistory}
+              pageSize={historyPageSize}
+              onPageSizeChange={setHistoryPageSize}
+              searchValue={historySearchValue}
+              onSearchChange={setHistorySearchValue}
+              onOpenFilter={() => setFilterDialogOpen(true)}
+              onDetail={handleDetail}
+              onExport={handleExport}
+            />
+          </TabsContent>
+        </Tabs>
+      )}
 
       <FilterDialog
         open={filterDialogOpen}
@@ -528,8 +577,8 @@ function TambahModalPageContent() {
         onOpenChange={setTambahDataDialogOpen}
         onConfirm={handleTambahDataConfirm}
         isSubmitting={createMutation.isPending}
-        branchOptions={branchOptions}
-        selectedBranch={effectiveBranch}
+        branchOptions={isBranchStaff ? [] : branchOptions}
+        selectedBranch={isBranchStaff ? undefined : effectiveBranch}
       />
 
       <EditRequestDialog
@@ -552,6 +601,18 @@ function TambahModalPageContent() {
         onConfirm={handleBulkDeleteConfirm}
         title="Apakah Anda Yakin?"
         description={`Anda akan menghapus ${bulkDeleteRows.length} request tambah modal.`}
+        note="Data yang dihapus tidak dapat dikembalikan."
+        confirmLabel="Ya"
+        cancelLabel="Batal"
+        variant="destructive"
+      />
+
+      <ConfirmationDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={handleDeleteConfirm}
+        title="Apakah Anda Yakin?"
+        description="Anda akan menghapus 1 request tambah modal."
         note="Data yang dihapus tidak dapat dikembalikan."
         confirmLabel="Ya"
         cancelLabel="Batal"

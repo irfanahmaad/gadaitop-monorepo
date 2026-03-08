@@ -25,8 +25,17 @@ export class SpkDto {
   customer?: { uuid: string; name: string; nik: string };
   store?: { uuid: string; shortName: string; branchCode: string };
   pt?: { uuid: string; companyName: string };
+  createdBy?: { uuid: string; fullName: string } | null;
 
-  constructor(record: SpkRecordEntity & { items?: any[]; customer?: any; store?: any; pt?: any }) {
+  constructor(
+    record: SpkRecordEntity & {
+      items?: any[];
+      customer?: any;
+      store?: any;
+      pt?: any;
+      creator?: { uuid: string; fullName: string } | null;
+    },
+  ) {
     this.uuid = record.uuid;
     this.spkNumber = record.spkNumber;
     this.internalSpkNumber = record.internalSpkNumber ?? null;
@@ -66,6 +75,12 @@ export class SpkDto {
       this.pt = {
         uuid: record.pt.uuid,
         companyName: record.pt.companyName,
+      };
+    }
+    if (record.creator) {
+      this.createdBy = {
+        uuid: record.creator.uuid,
+        fullName: record.creator.fullName,
       };
     }
   }

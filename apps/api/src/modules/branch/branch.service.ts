@@ -91,6 +91,7 @@ export class BranchService {
 
     const branch = this.branchRepository.create({
       ...createDto,
+      imageUrl: createDto.imageUrl ?? null,
       status: createDto.isBorrowed
         ? BranchStatusEnum.PendingApproval
         : BranchStatusEnum.Active,

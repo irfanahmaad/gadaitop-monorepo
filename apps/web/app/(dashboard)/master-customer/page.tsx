@@ -463,7 +463,7 @@ export default function MasterCustomerPage() {
           searchValue={searchValue}
           onSearchChange={setSearchValue}
           onDetail={handleDetail}
-          onEdit={handleEdit}
+          onEdit={isCompanyAdmin ? undefined : handleEdit}
           onDelete={isBranchStaff ? handleDelete : undefined}
           customActions={
             isBranchStaff

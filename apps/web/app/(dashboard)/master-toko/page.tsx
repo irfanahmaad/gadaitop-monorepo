@@ -36,6 +36,7 @@ import {
   Check,
   X,
   Trash2,
+  Store,
 } from "lucide-react"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { toast } from "sonner"
@@ -51,6 +52,7 @@ import {
   useRejectBorrowRequest,
 } from "@/lib/react-query/hooks/use-borrow-requests"
 import { useCompanies } from "@/lib/react-query/hooks/use-companies"
+import { usePublicUrl } from "@/lib/react-query/hooks/use-upload"
 import type { Branch, BorrowRequest } from "@/lib/api/types"
 import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/card"
 import { Skeleton } from "@workspace/ui/components/skeleton"
@@ -86,7 +88,7 @@ function mapBranchToToko(b: Branch): Toko {
   const company = b.company as { companyName?: string } | undefined
   return {
     id: b.uuid,
-    foto: "",
+    foto: b.imageUrl ?? "",
     kodeLokasi: b.branchCode,
     namaPT: company?.companyName ?? "",
     namaToko: b.fullName,
@@ -94,6 +96,19 @@ function mapBranchToToko(b: Branch): Toko {
     noTelpToko: b.phone ?? "",
     kota: b.city ?? "",
   }
+}
+
+function TokoFotoCell({ imageKey, namaToko }: { imageKey: string; namaToko: string }) {
+  const { data: publicUrlData } = usePublicUrl(imageKey)
+  const url = imageKey ? publicUrlData?.url : undefined
+  return (
+    <Avatar className="size-10">
+      <AvatarImage src={url} alt={namaToko} />
+      <AvatarFallback>
+        <Store className="size-5" />
+      </AvatarFallback>
+    </Avatar>
+  )
 }
 
 function mapBorrowRequestToRequestToko(r: BorrowRequest): RequestToko {
@@ -180,10 +195,10 @@ const tokoColumns: ColumnDef<Toko>[] = [
     accessorKey: "foto",
     header: "Foto",
     cell: ({ row }) => (
-      <Avatar className="h-10 w-10">
-        <AvatarImage src={row.getValue("foto")} alt="Toko photo" />
-        <AvatarFallback>IMG</AvatarFallback>
-      </Avatar>
+      <TokoFotoCell
+        imageKey={row.getValue("foto") as string}
+        namaToko={row.original.namaToko}
+      />
     ),
   },
   {
@@ -243,10 +258,10 @@ const requestColumns: ColumnDef<RequestToko>[] = [
     accessorKey: "foto",
     header: "Foto",
     cell: ({ row }) => (
-      <Avatar className="h-10 w-10">
-        <AvatarImage src={row.getValue("foto")} alt="Toko photo" />
-        <AvatarFallback>IMG</AvatarFallback>
-      </Avatar>
+      <TokoFotoCell
+        imageKey={row.getValue("foto") as string}
+        namaToko={row.original.namaToko}
+      />
     ),
   },
   {
@@ -326,6 +341,7 @@ export default function MasterTokoPage() {
         fullName: true,
         city: true,
         phone: true,
+        imageUrl: true,
         status: true,
         isBorrowed: true,
         companyId: true,

@@ -43,6 +43,7 @@ import {
 } from "@workspace/ui/components/select"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { useCreateBranch } from "@/lib/react-query/hooks/use-branches"
+import { useUploadFile } from "@/lib/react-query/hooks/use-upload"
 import { useAuth } from "@/lib/react-query/hooks/use-auth"
 import { useCompanies } from "@/lib/react-query/hooks/use-companies"
 
@@ -97,7 +98,9 @@ export default function TambahMasterTokoPage() {
     return list.map((c) => ({ value: c.uuid, label: c.companyName }))
   }, [companiesData])
 
-  const { mutateAsync: createBranch, isPending: isSubmitting } = useCreateBranch()
+  const { mutateAsync: createBranch, isPending: isSubmitting } =
+    useCreateBranch()
+  const uploadFileMutation = useUploadFile()
 
   const form = useForm<TokoFormValues>({
     resolver: zodResolver(tokoSchema),
@@ -144,6 +147,19 @@ export default function TambahMasterTokoPage() {
       if (!companyId) {
         throw new Error("Company ID PT belum dipilih atau tidak ditemukan")
       }
+
+      let imageUrl: string | undefined
+      if (values.image instanceof File) {
+        const file = values.image
+        const ext = file.name.split(".").pop() || "jpg"
+        const key = `branches/${companyId}/foto-${Date.now()}.${ext}`
+        const { key: s3Key } = await uploadFileMutation.mutateAsync({
+          file,
+          key,
+        })
+        imageUrl = s3Key
+      }
+
       await createBranch({
         branchCode: values.kodeLokasi,
         shortName: values.alias,
@@ -152,6 +168,7 @@ export default function TambahMasterTokoPage() {
         phone: (values.noTelepon ?? "").trim() || "-",
         city: (values.kota ?? "").trim() || "-",
         companyId,
+        ...(imageUrl && { imageUrl }),
       })
       toast.success("Data Toko berhasil ditambahkan")
       setConfirmOpen(false)
@@ -201,7 +218,7 @@ export default function TambahMasterTokoPage() {
                               <img
                                 src={previewImage}
                                 alt="Preview"
-                                className="size-full object-cover rounded-full overflow-hidden"
+                                className="size-full overflow-hidden rounded-full object-cover"
                               />
                               <label
                                 htmlFor="image-upload-edit"
@@ -258,7 +275,7 @@ export default function TambahMasterTokoPage() {
                       Detail Toko
                     </h2>
                   </div>
-                  <div className="grid gap-6 md:grid-cols-2 items-start">
+                  <div className="grid items-start gap-6 md:grid-cols-2">
                     {isSuperAdmin && (
                       <FormField
                         control={form.control}
@@ -399,7 +416,10 @@ export default function TambahMasterTokoPage() {
                             onValueChange={field.onChange}
                           >
                             <FormControl>
-                              <SelectTrigger className="w-full">
+                              <SelectTrigger
+                                className="w-full"
+                                clearable={true}
+                              >
                                 <SelectValue placeholder="Pilih PT" />
                               </SelectTrigger>
                             </FormControl>

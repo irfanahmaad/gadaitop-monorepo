@@ -20,10 +20,11 @@ export class CashDepositDto {
   notes: string | null;
   rejectionReason: string | null;
   createdAt: Date;
-  store?: { uuid: string; shortName: string; branchCode: string };
+  store?: { uuid: string; shortName: string; branchCode: string; fullName?: string };
   pt?: { uuid: string; companyName: string };
+  createdBy?: { fullName: string; email: string; imageUrl?: string | null };
 
-  constructor(record: CashDepositEntity & { store?: any; pt?: any }) {
+  constructor(record: CashDepositEntity & { store?: any; pt?: any; requester?: any }) {
     this.uuid = record.uuid;
     this.depositCode = record.depositCode;
     this.storeId = record.storeId;
@@ -52,6 +53,13 @@ export class CashDepositDto {
       this.pt = {
         uuid: record.pt.uuid,
         companyName: record.pt.companyName,
+      };
+    }
+    if (record.requester) {
+      this.createdBy = {
+        fullName: record.requester.fullName ?? '',
+        email: record.requester.email ?? '',
+        imageUrl: record.requester.imageUrl ?? null,
       };
     }
   }
