@@ -165,6 +165,7 @@ export const endpoints = {
     detail: (id: string) => baseUrl(`stock-opname/${id}`),
     create: baseUrl("stock-opname"),
     update: (id: string) => baseUrl(`stock-opname/${id}`),
+    delete: (id: string) => baseUrl(`stock-opname/${id}`),
     updateItems: (id: string) => baseUrl(`stock-opname/${id}/items`),
     itemCondition: (id: string, itemId: string) =>
       baseUrl(`stock-opname/${id}/items/${itemId}/condition`),

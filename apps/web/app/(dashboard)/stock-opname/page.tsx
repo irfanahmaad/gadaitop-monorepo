@@ -40,6 +40,7 @@ import type { ScheduleItem } from "./_components/StockOpnameScheduleList"
 import {
   useStockOpnameSessions,
   useStockOpnameSession,
+  useDeleteStockOpname,
   stockOpnameKeys,
 } from "@/lib/react-query/hooks/use-stock-opname"
 import { useQueryClient } from "@tanstack/react-query"
@@ -47,6 +48,7 @@ import { useBranches } from "@/lib/react-query/hooks/use-branches"
 import type { StockOpnameSessionListItem } from "@/lib/api/types"
 import { format } from "date-fns"
 import { id } from "date-fns/locale"
+import { toast } from "sonner"
 
 // Row type for table and calendar (mapped from API)
 export type StockOpnameRow = {
@@ -321,6 +323,8 @@ export default function StockOpnamePage() {
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false)
   const [resetSelectionKey, setResetSelectionKey] = useState(0)
 
+  const deleteStockOpname = useDeleteStockOpname()
+
   // Branch lookup for store names
   const { data: branchesData } = useBranches({ pageSize: 500 })
   const storeNameById = useMemo(() => {
@@ -544,11 +548,17 @@ export default function StockOpnamePage() {
   }
 
   const handleConfirmDelete = () => {
-    if (itemToDelete) {
-      // Backend has no delete endpoint for stock opname sessions; placeholder for future
-      setItemToDelete(null)
-      setIsConfirmDialogOpen(false)
-    }
+    if (!itemToDelete) return
+    deleteStockOpname.mutate(itemToDelete.id, {
+      onSuccess: () => {
+        toast.success("Stock Opname berhasil dihapus")
+        setItemToDelete(null)
+        setIsConfirmDialogOpen(false)
+      },
+      onError: () => {
+        toast.error("Gagal menghapus Stock Opname")
+      },
+    })
   }
 
   const handleBulkDelete = () => {
@@ -556,11 +566,21 @@ export default function StockOpnamePage() {
   }
 
   const handleConfirmBulkDelete = () => {
-    // TODO: Wire to delete API when available
-    console.log("Bulk delete Stock Opname:", selectedRows)
-    setIsBulkDeleteDialogOpen(false)
-    setSelectedRows([])
-    setResetSelectionKey((k) => k + 1)
+    const ids = selectedRows.map((r) => r.id)
+    Promise.all(ids.map((id) => deleteStockOpname.mutateAsync(id)))
+      .then(() => {
+        toast.success(`${ids.length} Stock Opname berhasil dihapus`)
+        setIsBulkDeleteDialogOpen(false)
+        setSelectedRows([])
+        setResetSelectionKey((k) => k + 1)
+      })
+      .catch(() => {
+        toast.error("Gagal menghapus Stock Opname")
+        queryClient.invalidateQueries({ queryKey: stockOpnameKeys.lists() })
+        setIsBulkDeleteDialogOpen(false)
+        setSelectedRows([])
+        setResetSelectionKey((k) => k + 1)
+      })
   }
 
   return (
@@ -955,7 +975,9 @@ export default function StockOpnamePage() {
         open={isConfirmDialogOpen}
         onOpenChange={setIsConfirmDialogOpen}
         onConfirm={handleConfirmDelete}
+        title="Hapus Stock Opname"
         description="Anda akan menghapus data Stock Opname dari dalam sistem."
+        variant="destructive"
       />
 
       {/* Confirmation Dialog for Bulk Delete */}

@@ -1,5 +1,6 @@
 import {
   Controller,
+  Delete,
   Get,
   Post,
   Put,
@@ -125,5 +126,16 @@ export class StockOpnameController {
     const user = (req as any).user;
     const userPtId = user?.companyId ?? user?.ownedCompanyId ?? undefined;
     return this.stockOpnameService.findOne(id, userPtId);
+  }
+
+  @Delete(':id')
+  @Auth([{ action: AclAction.DELETE, subject: AclSubject.STOCK_OPNAME_SCHEDULE }])
+  async remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
+  ): Promise<void> {
+    const user = (req as any).user;
+    const userPtId = user?.companyId ?? user?.ownedCompanyId ?? undefined;
+    return this.stockOpnameService.remove(id, userPtId);
   }
 }

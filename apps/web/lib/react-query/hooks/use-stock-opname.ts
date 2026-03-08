@@ -175,3 +175,19 @@ export function useApproveStockOpname() {
     },
   })
 }
+
+// Delete stock opname session (draft only)
+export function useDeleteStockOpname() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiClient.delete<void>(endpoints.stockOpname.delete(id)),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({
+        queryKey: stockOpnameKeys.detail(id),
+      })
+      queryClient.invalidateQueries({ queryKey: stockOpnameKeys.lists() })
+    },
+  })
+}

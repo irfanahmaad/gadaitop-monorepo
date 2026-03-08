@@ -356,6 +356,44 @@ export class StockOpnameService {
     return this.findOne(sessionUuid, userPtId);
   }
 
+  async remove(sessionUuid: string, userPtId?: string): Promise<void> {
+    const session = await this.sessionRepository.findOne({
+      where: { uuid: sessionUuid },
+    });
+    if (!session) {
+      throw new NotFoundException('Stock opname session not found');
+    }
+    if (userPtId && session.ptId !== userPtId) {
+      throw new ForbiddenException('Session does not belong to your company');
+    }
+    if (session.status !== StockOpnameSessionStatusEnum.Draft) {
+      throw new BadRequestException(
+        'Only draft sessions can be deleted. Session is already in progress or completed.',
+      );
+    }
+    await this.itemRepository
+      .createQueryBuilder()
+      .delete()
+      .where('so_session_id = :sessionUuid', { sessionUuid })
+      .execute();
+    await this.sessionStoreRepository
+      .createQueryBuilder()
+      .delete()
+      .where('so_session_id = :sessionUuid', { sessionUuid })
+      .execute();
+    await this.sessionAssigneeRepository
+      .createQueryBuilder()
+      .delete()
+      .where('so_session_id = :sessionUuid', { sessionUuid })
+      .execute();
+    await this.sessionPawnTermRepository
+      .createQueryBuilder()
+      .delete()
+      .where('so_session_id = :sessionUuid', { sessionUuid })
+      .execute();
+    await this.sessionRepository.delete({ uuid: sessionUuid });
+  }
+
   private async recomputeSessionCounts(sessionUuid: string): Promise<void> {
     const session = await this.sessionRepository.findOne({
       where: { uuid: sessionUuid },
