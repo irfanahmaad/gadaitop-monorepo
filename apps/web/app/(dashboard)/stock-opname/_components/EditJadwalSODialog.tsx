@@ -156,8 +156,10 @@ export function EditJadwalSODialog({
       form.reset({
         id: session.uuid,
         tanggal: session.startDate ? new Date(session.startDate) : undefined,
-        toko: session.storeId ? [session.storeId] : [],
-        petugasSO: session.assignedTo ? [session.assignedTo] : [],
+        toko: session.storeIds?.length ? session.storeIds : [],
+        petugasSO: session.assignees?.length
+          ? session.assignees.map((a) => a.uuid)
+          : [],
         syaratMata: [],
         jumlahItemMata: "10",
         catatan: session.notes ?? "",
@@ -184,16 +186,14 @@ export function EditJadwalSODialog({
     }
     const startDate = pendingValues.tanggal ? format(pendingValues.tanggal, "yyyy-MM-dd") : undefined
     const notes = pendingValues.catatan?.trim() || undefined
-    const storeId = pendingValues.toko[0] // Only take the first one since DB stores 1 storeId
-    const assignedTo = pendingValues.petugasSO[0]
 
     const payload: UpdateStockOpnameSessionDto = {
-      storeId,
+      storeIds: pendingValues.toko,
       startDate,
-      assignedTo,
+      assignedToIds: pendingValues.petugasSO.length > 0 ? pendingValues.petugasSO : undefined,
       notes,
     }
-    
+
     try {
       await updateMutation.mutateAsync({
         id: pendingValues.id,

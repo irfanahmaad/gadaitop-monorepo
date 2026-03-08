@@ -93,22 +93,24 @@ function formatLastUpdated(isoDate: string | undefined | null): string {
   }
 }
 
-function mapSessionToRow(
-  session: StockOpnameSessionListItem,
-  storeNameById: Map<string, string>
-): StockOpnameRow {
+function mapSessionToRow(session: StockOpnameSessionListItem): StockOpnameRow {
+  const storeCount = session.stores?.length ?? session.storeIds?.length ?? 0
+  const assigneeCount = session.assignees?.length ?? 0
   return {
     id: session.uuid,
     idSO: session.sessionCode,
     tanggal: formatTanggal(session.startDate),
-    toko: storeNameById.get(session.storeId) ?? session.storeId,
-    petugas: session.assignee?.fullName ?? session.creatorFullName ?? "—",
+    toko: storeCount > 0 ? `${storeCount} Toko` : "—",
+    petugas:
+      assigneeCount > 0
+        ? `${assigneeCount} Petugas`
+        : session.creatorFullName ?? "—",
     lastUpdatedAt: formatLastUpdated(
       session.updatedAt ?? session.createdAt
     ),
     status: STATUS_DISPLAY[session.status],
-    tokoNumber: session.storeId ? "1" : "—",
-    petugasNumber: session.assignee ? "1" : "—",
+    tokoNumber: storeCount > 0 ? String(storeCount) : "—",
+    petugasNumber: assigneeCount > 0 ? String(assigneeCount) : "—",
     syaratMataNumber: "—",
     itemCount:
       session.totalItemsCounted != null
@@ -472,11 +474,13 @@ export default function StockOpnamePage() {
       })
     }
 
-    // Toko filter (store name)
+    // Toko filter (store name) — match if any session store is in selected toko
     if (toko.length) {
       filtered = filtered.filter((s) => {
-        const storeName = storeNameById.get(s.storeId) ?? s.storeId
-        return toko.includes(storeName)
+        const storeNames = (s.stores ?? []).map(
+          (st) => st.shortName ?? st.fullName ?? storeNameById.get(st.uuid) ?? st.uuid
+        )
+        return storeNames.some((name) => toko.includes(name))
       })
     }
 
@@ -494,7 +498,7 @@ export default function StockOpnamePage() {
     }
 
     // tipeBarang: session list doesn't include item types; no client-side filter
-    return filtered.map((s) => mapSessionToRow(s, storeNameById))
+    return filtered.map((s) => mapSessionToRow(s))
   }, [
     listResponse?.data,
     storeNameById,

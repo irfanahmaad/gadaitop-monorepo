@@ -3,9 +3,11 @@ import { Column, Entity, Index, JoinColumn, ManyToOne, OneToMany, Relation } fro
 import { AbstractEntity } from '../../../common/abstract.entity';
 import { StockOpnameSessionStatusEnum } from '../../../constants/stock-opname-session-status';
 import { StockOpnameItemEntity } from './stock-opname-item.entity';
+import { StockOpnameSessionAssigneeEntity } from './stock-opname-session-assignee.entity';
+import { StockOpnameSessionStoreEntity } from './stock-opname-session-store.entity';
 
 @Entity({ name: 'stock_opname_sessions' })
-@Index(['ptId', 'storeId', 'status'])
+@Index(['ptId', 'status'])
 export class StockOpnameSessionEntity extends AbstractEntity {
   @Column({ type: 'varchar', length: 50, unique: true })
   @Index()
@@ -19,13 +21,17 @@ export class StockOpnameSessionEntity extends AbstractEntity {
   @JoinColumn({ name: 'pt_id', referencedColumnName: 'uuid' })
   pt: Relation<any>;
 
-  @Column({ type: 'uuid' })
-  @Index()
-  storeId: string;
+  @OneToMany(
+    () => StockOpnameSessionStoreEntity,
+    (s) => s.session,
+  )
+  sessionStores: Relation<StockOpnameSessionStoreEntity[]>;
 
-  @ManyToOne('BranchEntity', { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'store_id', referencedColumnName: 'uuid' })
-  store: Relation<any>;
+  @OneToMany(
+    () => StockOpnameSessionAssigneeEntity,
+    (a) => a.session,
+  )
+  sessionAssignees: Relation<StockOpnameSessionAssigneeEntity[]>;
 
   @Column({ type: 'date' })
   @Index()

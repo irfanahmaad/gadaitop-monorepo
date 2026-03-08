@@ -179,11 +179,20 @@ export default function StockOpnameDetailPage() {
     [pawnTermsData?.data]
   )
 
-  // Resolve store name
-  const storeName = useMemo(() => {
-    if (!session) return ""
-    return storeNameById.get(session.storeId) ?? session.storeId ?? ""
+  // Resolve store names and assignee names from session
+  const storeNamesStr = useMemo(() => {
+    if (!session?.stores?.length) return ""
+    return session.stores
+      .map((s) => s.shortName ?? s.fullName ?? storeNameById.get(s.uuid) ?? s.uuid)
+      .join(", ")
   }, [session, storeNameById])
+
+  const assigneeNamesStr = useMemo(() => {
+    if (!session?.assignees?.length) return session?.creatorFullName ?? "—"
+    return session.assignees
+      .map((a) => a.fullName ?? a.name ?? a.uuid)
+      .join(", ")
+  }, [session])
 
   // Map API items to table format and apply mata rules
   const { items, mataRuleNames } = useMemo(() => {
@@ -230,8 +239,8 @@ export default function StockOpnameDetailPage() {
         noSPK: spkNumber,
         namaBarang: description,
         tipeBarang: typeName,
-        toko: storeName,
-        petugas: session.assignee?.fullName ?? session.creatorFullName ?? "—",
+        toko: storeNamesStr || "—",
+        petugas: assigneeNamesStr,
         statusScan: isCounted ? ("Terscan" as const) : ("Belum Terscan" as const),
         isMata,
         mataRuleName,
@@ -239,7 +248,7 @@ export default function StockOpnameDetailPage() {
     })
 
     return { items: mapped, mataRuleNames: Array.from(ruleNamesSet) }
-  }, [session, storeName, pawnTerms])
+  }, [session, storeNamesStr, assigneeNamesStr, pawnTerms])
 
   const handleItemDetail = (item: StockOpnameItem) => {
     const apiItem = session?.items?.find(
@@ -353,7 +362,6 @@ export default function StockOpnameDetailPage() {
       ) : session ? (
         <DetailSO
           session={session}
-          storeName={storeName}
           mataRuleNames={mataRuleNames}
         />
       ) : null}

@@ -53,8 +53,11 @@ export class StockOpnameController {
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateDto: UpdateStockOpnameSessionDto,
+    @Req() req: Request,
   ): Promise<StockOpnameSessionDto> {
-    return this.stockOpnameService.update(id, updateDto);
+    const user = (req as any).user;
+    const userPtId = user?.companyId ?? user?.ownedCompanyId ?? undefined;
+    return this.stockOpnameService.update(id, updateDto, userPtId);
   }
 
   @Put(':id/items')
@@ -66,7 +69,8 @@ export class StockOpnameController {
   ): Promise<StockOpnameSessionDto> {
     const user = (req as any).user;
     const countedBy = user?.uuid ?? '';
-    return this.stockOpnameService.updateItems(id, dto, countedBy);
+    const userPtId = user?.companyId ?? user?.ownedCompanyId ?? undefined;
+    return this.stockOpnameService.updateItems(id, dto, countedBy, userPtId);
   }
 
   @Post(':id/items/:itemId/condition')
@@ -79,15 +83,25 @@ export class StockOpnameController {
   ): Promise<void> {
     const user = (req as any).user;
     const countedBy = user?.uuid ?? '';
-    return this.stockOpnameService.recordCondition(id, itemId, dto, countedBy);
+    const userPtId = user?.companyId ?? user?.ownedCompanyId ?? undefined;
+    return this.stockOpnameService.recordCondition(
+      id,
+      itemId,
+      dto,
+      countedBy,
+      userPtId,
+    );
   }
 
   @Put(':id/complete')
   @Auth([{ action: AclAction.UPDATE, subject: AclSubject.STOCK_OPNAME_EXECUTION }])
   async complete(
     @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
   ): Promise<StockOpnameSessionDto> {
-    return this.stockOpnameService.complete(id);
+    const user = (req as any).user;
+    const userPtId = user?.companyId ?? user?.ownedCompanyId ?? undefined;
+    return this.stockOpnameService.complete(id, userPtId);
   }
 
   @Put(':id/approve')
@@ -98,14 +112,18 @@ export class StockOpnameController {
   ): Promise<StockOpnameSessionDto> {
     const user = (req as any).user;
     const approvedBy = user?.uuid ?? '';
-    return this.stockOpnameService.approve(id, approvedBy);
+    const userPtId = user?.companyId ?? user?.ownedCompanyId ?? undefined;
+    return this.stockOpnameService.approve(id, approvedBy, userPtId);
   }
 
   @Get(':id')
   @Auth([{ action: AclAction.READ, subject: AclSubject.STOCK_OPNAME_SCHEDULE }])
   async findOne(
     @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
   ): Promise<StockOpnameSessionDto> {
-    return this.stockOpnameService.findOne(id);
+    const user = (req as any).user;
+    const userPtId = user?.companyId ?? user?.ownedCompanyId ?? undefined;
+    return this.stockOpnameService.findOne(id, userPtId);
   }
 }

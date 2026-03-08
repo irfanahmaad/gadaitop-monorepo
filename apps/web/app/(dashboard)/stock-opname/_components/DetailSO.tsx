@@ -25,8 +25,6 @@ type DetailSOProps = {
   data?: StockOpnameDetail | null
   /** API session data — preferred over `data` */
   session?: StockOpnameSession | null
-  /** Resolved store name (from branch lookup) */
-  storeName?: string
   /** Mata rule names matched for display */
   mataRuleNames?: string[]
 }
@@ -90,7 +88,6 @@ function formatLastUpdated(isoDate: string | undefined | null): string {
 export function DetailSO({
   data,
   session,
-  storeName,
   mataRuleNames,
 }: DetailSOProps) {
   // Prefer API session data, fall back to legacy dummy style
@@ -98,17 +95,24 @@ export function DetailSO({
     if (session) {
       const displayStatus =
         STATUS_MAP[session.status] ?? "Dijadwalkan"
+      const tokoNames = (session.stores ?? []).map(
+        (s) => s.shortName ?? s.fullName ?? s.uuid
+      )
+      let petugasNames = (session.assignees ?? []).map(
+        (a) => a.fullName ?? a.name ?? a.uuid
+      )
+      if (petugasNames.length === 0 && session.creatorFullName) {
+        petugasNames = [session.creatorFullName]
+      }
       return {
         idSO: session.sessionCode ?? session.uuid,
         tanggal: formatDate(session.startDate ?? session.scheduledDate ?? session.createdAt),
-        toko: storeName ? [storeName] : [],
+        toko: tokoNames,
         syaratMata: mataRuleNames ?? [],
         lastUpdatedAt: formatLastUpdated(
           session.updatedAt ?? session.createdAt
         ),
-        petugasSO: [
-          session.assignee?.fullName ?? session.creatorFullName ?? "—",
-        ],
+        petugasSO: petugasNames.length > 0 ? petugasNames : ["—"],
         uangDiToko: 0,
         totalUangDiMutasi: 0,
         catatan: session.notes ?? "",
@@ -117,7 +121,7 @@ export function DetailSO({
     }
     if (data) return data
     return null
-  }, [session, data, storeName, mataRuleNames])
+  }, [session, data, mataRuleNames])
 
   if (!displayData) return null
 

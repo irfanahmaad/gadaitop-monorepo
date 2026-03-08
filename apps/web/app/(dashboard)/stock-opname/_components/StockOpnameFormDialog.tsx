@@ -177,25 +177,16 @@ export function StockOpnameFormDialog({
     }
     const startDate = format(pendingValues.tanggal, "yyyy-MM-dd")
     const notes = pendingValues.catatan?.trim() || undefined
-    const assignedTo = pendingValues.petugasSO[0]
-    const payloads: CreateStockOpnameDto[] = pendingValues.toko.map(
-      (storeId) => ({
-        ptId,
-        storeId,
-        startDate,
-        assignedTo,
-        notes,
-      })
-    )
+    const payload: CreateStockOpnameDto = {
+      ptId,
+      storeIds: pendingValues.toko,
+      startDate,
+      assignedToIds: pendingValues.petugasSO.length > 0 ? pendingValues.petugasSO : undefined,
+      notes,
+    }
     try {
-      await Promise.all(
-        payloads.map((dto) => createMutation.mutateAsync(dto))
-      )
-      toast.success(
-        payloads.length === 1
-          ? "Jadwal SO berhasil dibuat."
-          : `${payloads.length} jadwal SO berhasil dibuat.`
-      )
+      await createMutation.mutateAsync(payload)
+      toast.success("Jadwal SO berhasil dibuat.")
       onSuccess?.()
       setConfirmOpen(false)
       setPendingValues(null)

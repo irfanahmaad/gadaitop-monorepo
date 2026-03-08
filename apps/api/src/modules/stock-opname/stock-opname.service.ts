@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -7,13 +8,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { type FindOptionsWhere, Repository } from 'typeorm';
 
 import { PageMetaDto } from '../../common/dtos/page-meta.dto';
-import {
-  DynamicQueryBuilder,
-  QueryBuilderOptionsType,
-  sortAttribute,
-} from '../../common/helpers/query-builder';
 import { StockOpnameSessionStatusEnum } from '../../constants/stock-opname-session-status';
 import { StockOpnameSessionEntity } from './entities/stock-opname-session.entity';
+import { StockOpnameSessionStoreEntity } from './entities/stock-opname-session-store.entity';
+import { StockOpnameSessionAssigneeEntity } from './entities/stock-opname-session-assignee.entity';
 import { StockOpnameItemEntity } from './entities/stock-opname-item.entity';
 import { StockOpnameSessionDto } from './dto/stock-opname-session.dto';
 import { CreateStockOpnameSessionDto } from './dto/create-stock-opname-session.dto';
@@ -27,6 +25,10 @@ export class StockOpnameService {
   constructor(
     @InjectRepository(StockOpnameSessionEntity)
     private sessionRepository: Repository<StockOpnameSessionEntity>,
+    @InjectRepository(StockOpnameSessionStoreEntity)
+    private sessionStoreRepository: Repository<StockOpnameSessionStoreEntity>,
+    @InjectRepository(StockOpnameSessionAssigneeEntity)
+    private sessionAssigneeRepository: Repository<StockOpnameSessionAssigneeEntity>,
     @InjectRepository(StockOpnameItemEntity)
     private itemRepository: Repository<StockOpnameItemEntity>,
   ) {}
@@ -37,33 +39,42 @@ export class StockOpnameService {
   ): Promise<{ data: StockOpnameSessionDto[]; meta: PageMetaDto }> {
     const where: FindOptionsWhere<StockOpnameSessionEntity> = {};
 
+    // PT scoping: when user has company scope, use it and ignore client ptId
     if (userPtId) {
       where.ptId = userPtId;
-    }
-    if (queryDto.ptId) {
+    } else if (queryDto.ptId) {
       where.ptId = queryDto.ptId;
-    }
-    if (queryDto.storeId) {
-      where.storeId = queryDto.storeId;
     }
     if (queryDto.status) {
       where.status = queryDto.status;
     }
 
-    const qbOptions: QueryBuilderOptionsType<StockOpnameSessionEntity> = {
-      ...queryDto,
-      where,
-      relation: { creator: true, assignee: true },
-      orderBy: sortAttribute(queryDto.sortBy, {
-        createdAt: { createdAt: true },
-      }) ?? { createdAt: 'DESC' } as any,
-    };
+    let qb = StockOpnameSessionEntity.createQueryBuilder('session')
+      .leftJoinAndSelect('session.creator', 'creator')
+      .leftJoinAndSelect('session.sessionStores', 'sessionStores')
+      .leftJoinAndSelect('sessionStores.store', 'store')
+      .leftJoinAndSelect('session.sessionAssignees', 'sessionAssignees')
+      .leftJoinAndSelect('sessionAssignees.user', 'assigneeUser');
 
-    const dynamicQueryBuilder = new DynamicQueryBuilder(this.sessionRepository.metadata);
-    const [sessions, count] = await dynamicQueryBuilder.buildDynamicQuery(
-      StockOpnameSessionEntity.createQueryBuilder('session'),
-      qbOptions,
-    );
+    if (where.ptId) {
+      qb = qb.andWhere('session.ptId = :ptId', { ptId: where.ptId });
+    }
+    if (where.status) {
+      qb = qb.andWhere('session.status = :status', { status: where.status });
+    }
+    if (queryDto.storeId) {
+      qb = qb.andWhere(
+        'EXISTS (SELECT 1 FROM stock_opname_session_stores ss WHERE ss.so_session_id = session.uuid AND ss.store_id = :storeId)',
+        { storeId: queryDto.storeId },
+      );
+    }
+
+    const [sessions, count] = await qb
+      .orderBy('session.createdAt', 'DESC')
+      .skip(((queryDto.page ?? 1) - 1) * (queryDto.pageSize ?? 10))
+      .take(queryDto.pageSize ?? 10)
+      .getManyAndCount();
+
     const data = sessions.map((s) => new StockOpnameSessionDto(s));
     const meta = new PageMetaDto({
       pageOptionsDto: queryDto,
@@ -72,12 +83,15 @@ export class StockOpnameService {
     return { data, meta };
   }
 
-  async findOne(uuid: string): Promise<StockOpnameSessionDto> {
+  async findOne(uuid: string, userPtId?: string): Promise<StockOpnameSessionDto> {
     const session = await this.sessionRepository.findOne({
       where: { uuid },
       relations: [
         'creator',
-        'assignee',
+        'sessionStores',
+        'sessionStores.store',
+        'sessionAssignees',
+        'sessionAssignees.user',
         'items',
         'items.spkItem',
         'items.spkItem.itemType',
@@ -88,6 +102,9 @@ export class StockOpnameService {
       throw new NotFoundException(
         `Stock opname session with UUID ${uuid} not found`,
       );
+    }
+    if (userPtId && session.ptId !== userPtId) {
+      throw new ForbiddenException('Session does not belong to your company');
     }
     return new StockOpnameSessionDto(session);
   }
@@ -100,47 +117,92 @@ export class StockOpnameService {
     const session = this.sessionRepository.create({
       sessionCode,
       ptId: createDto.ptId,
-      storeId: createDto.storeId,
       startDate: new Date(createDto.startDate),
       status: StockOpnameSessionStatusEnum.Draft,
       createdBy,
-      assignedTo: createDto.assignedTo ?? null,
       notes: createDto.notes ?? null,
     });
     const saved = await this.sessionRepository.save(session);
+
+    for (const storeId of createDto.storeIds) {
+      await this.sessionStoreRepository.save(
+        this.sessionStoreRepository.create({
+          session: saved,
+          store: { uuid: storeId },
+        }),
+      );
+    }
+    for (const userId of createDto.assignedToIds ?? []) {
+      await this.sessionAssigneeRepository.save(
+        this.sessionAssigneeRepository.create({
+          session: saved,
+          user: { uuid: userId },
+        }),
+      );
+    }
     return this.findOne(saved.uuid);
   }
 
   async update(
     sessionUuid: string,
     updateDto: UpdateStockOpnameSessionDto,
+    userPtId?: string,
   ): Promise<StockOpnameSessionDto> {
     const session = await this.sessionRepository.findOne({
       where: { uuid: sessionUuid },
+      relations: ['sessionStores', 'sessionAssignees'],
     });
     if (!session) {
       throw new NotFoundException('Stock opname session not found');
+    }
+    if (userPtId && session.ptId !== userPtId) {
+      throw new ForbiddenException('Session does not belong to your company');
     }
     if (session.status !== StockOpnameSessionStatusEnum.Draft) {
       throw new BadRequestException(
         'Only draft sessions can be updated',
       );
     }
-    
-    if (updateDto.storeId !== undefined) {
-      session.storeId = updateDto.storeId;
-    }
+
     if (updateDto.startDate !== undefined) {
       session.startDate = new Date(updateDto.startDate);
-    }
-    if (updateDto.assignedTo !== undefined) {
-      session.assignedTo = updateDto.assignedTo;
     }
     if (updateDto.notes !== undefined) {
       session.notes = updateDto.notes;
     }
-    
     await this.sessionRepository.save(session);
+
+    if (updateDto.storeIds !== undefined) {
+      await this.sessionStoreRepository
+        .createQueryBuilder()
+        .delete()
+        .where('so_session_id = :sessionUuid', { sessionUuid })
+        .execute();
+      for (const storeId of updateDto.storeIds) {
+        await this.sessionStoreRepository.save(
+          this.sessionStoreRepository.create({
+            session: { uuid: sessionUuid },
+            store: { uuid: storeId },
+          }),
+        );
+      }
+    }
+    if (updateDto.assignedToIds !== undefined) {
+      await this.sessionAssigneeRepository
+        .createQueryBuilder()
+        .delete()
+        .where('so_session_id = :sessionUuid', { sessionUuid })
+        .execute();
+      for (const userId of updateDto.assignedToIds) {
+        await this.sessionAssigneeRepository.save(
+          this.sessionAssigneeRepository.create({
+            session: { uuid: sessionUuid },
+            user: { uuid: userId },
+          }),
+        );
+      }
+    }
+
     return this.findOne(sessionUuid);
   }
 
@@ -148,6 +210,7 @@ export class StockOpnameService {
     sessionUuid: string,
     dto: UpdateStockOpnameItemsDto,
     countedBy: string,
+    userPtId?: string,
   ): Promise<StockOpnameSessionDto> {
     const session = await this.sessionRepository.findOne({
       where: { uuid: sessionUuid },
@@ -155,6 +218,9 @@ export class StockOpnameService {
     });
     if (!session) {
       throw new NotFoundException('Stock opname session not found');
+    }
+    if (userPtId && session.ptId !== userPtId) {
+      throw new ForbiddenException('Session does not belong to your company');
     }
     if (
       session.status !== StockOpnameSessionStatusEnum.Draft &&
@@ -174,7 +240,7 @@ export class StockOpnameService {
       }
     }
     await this.recomputeSessionCounts(sessionUuid);
-    return this.findOne(sessionUuid);
+    return this.findOne(sessionUuid, userPtId);
   }
 
   async recordCondition(
@@ -182,7 +248,17 @@ export class StockOpnameService {
     itemId: string,
     dto: RecordConditionDto,
     countedBy: string,
+    userPtId?: string,
   ): Promise<void> {
+    const session = await this.sessionRepository.findOne({
+      where: { uuid: sessionUuid },
+    });
+    if (!session) {
+      throw new NotFoundException('Stock opname session not found');
+    }
+    if (userPtId && session.ptId !== userPtId) {
+      throw new ForbiddenException('Session does not belong to your company');
+    }
     const soItem = await this.itemRepository.findOne({
       where: { soSessionId: sessionUuid, uuid: itemId },
     });
@@ -197,12 +273,15 @@ export class StockOpnameService {
     await this.itemRepository.save(soItem);
   }
 
-  async complete(sessionUuid: string): Promise<StockOpnameSessionDto> {
+  async complete(sessionUuid: string, userPtId?: string): Promise<StockOpnameSessionDto> {
     const session = await this.sessionRepository.findOne({
       where: { uuid: sessionUuid },
     });
     if (!session) {
       throw new NotFoundException('Stock opname session not found');
+    }
+    if (userPtId && session.ptId !== userPtId) {
+      throw new ForbiddenException('Session does not belong to your company');
     }
     if (
       session.status !== StockOpnameSessionStatusEnum.Draft &&
@@ -213,18 +292,22 @@ export class StockOpnameService {
     session.status = StockOpnameSessionStatusEnum.Completed;
     session.endDate = new Date();
     await this.sessionRepository.save(session);
-    return this.findOne(sessionUuid);
+    return this.findOne(sessionUuid, userPtId);
   }
 
   async approve(
     sessionUuid: string,
     approvedBy: string,
+    userPtId?: string,
   ): Promise<StockOpnameSessionDto> {
     const session = await this.sessionRepository.findOne({
       where: { uuid: sessionUuid },
     });
     if (!session) {
       throw new NotFoundException('Stock opname session not found');
+    }
+    if (userPtId && session.ptId !== userPtId) {
+      throw new ForbiddenException('Session does not belong to your company');
     }
     if (session.status !== StockOpnameSessionStatusEnum.Completed) {
       throw new BadRequestException('Only completed sessions can be approved');
@@ -233,7 +316,7 @@ export class StockOpnameService {
     session.approvedBy = approvedBy;
     session.approvedAt = new Date();
     await this.sessionRepository.save(session);
-    return this.findOne(sessionUuid);
+    return this.findOne(sessionUuid, userPtId);
   }
 
   private async recomputeSessionCounts(sessionUuid: string): Promise<void> {

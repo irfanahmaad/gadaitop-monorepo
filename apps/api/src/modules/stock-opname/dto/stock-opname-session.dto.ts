@@ -2,11 +2,15 @@ import { StockOpnameSessionStatusEnum } from '../../../constants/stock-opname-se
 import { StockOpnameSessionEntity } from '../entities/stock-opname-session.entity';
 import { StockOpnameItemDto } from './stock-opname-item.dto';
 
+export type StoreSummary = { uuid: string; shortName?: string; fullName?: string };
+export type AssigneeSummary = { uuid: string; fullName?: string; name?: string; email?: string };
+
 export class StockOpnameSessionDto {
   uuid: string;
   sessionCode: string;
   ptId: string;
-  storeId: string;
+  storeIds: string[];
+  stores: StoreSummary[];
   startDate: Date;
   endDate: Date | null;
   status: StockOpnameSessionStatusEnum;
@@ -16,24 +20,31 @@ export class StockOpnameSessionDto {
   createdAt: Date;
   updatedAt: Date;
   notes: string | null;
-  /** Assigned staff (petugas SO) — from session creator or assignee */
-  assignedTo: { uuid: string; fullName?: string; name?: string; email?: string } | null;
-  assignee?: { uuid: string; fullName: string } | null;
-  /** Kept as fallback for older rows without `assigned_to` */
+  assignees: AssigneeSummary[];
   creatorFullName?: string;
   items?: StockOpnameItemDto[];
 
   constructor(
     session: StockOpnameSessionEntity & {
       items?: any[];
-      assignee?: { uuid: string; fullName: string };
+      sessionStores?: Array<{ store?: { uuid: string; shortName?: string; fullName?: string } }>;
+      sessionAssignees?: Array<{
+        user?: { uuid: string; fullName?: string; name?: string; email?: string };
+      }>;
       creator?: { fullName: string };
     },
   ) {
     this.uuid = session.uuid;
     this.sessionCode = session.sessionCode;
     this.ptId = session.ptId;
-    this.storeId = session.storeId;
+    this.storeIds = (session.sessionStores ?? [])
+      .map((ss) => ss.store?.uuid)
+      .filter((id): id is string => !!id);
+    this.stores = (session.sessionStores ?? []).map((ss) => ({
+      uuid: ss.store?.uuid ?? '',
+      shortName: ss.store?.shortName,
+      fullName: ss.store?.fullName,
+    }));
     this.startDate = session.startDate;
     this.endDate = session.endDate ?? null;
     this.status = session.status;
@@ -43,31 +54,18 @@ export class StockOpnameSessionDto {
     this.createdAt = session.createdAt;
     this.updatedAt = session.updatedAt ?? session.createdAt;
     this.notes = session.notes ?? null;
-    this.assignee = session.assignee
-      ? {
-          uuid: session.assignee.uuid,
-          fullName: session.assignee.fullName,
-        }
-      : null;
+    this.assignees = (session.sessionAssignees ?? []).map((sa) => {
+      const u = sa.user;
+      return {
+        uuid: u?.uuid ?? '',
+        fullName: u?.fullName ?? u?.name,
+        name: u?.name ?? u?.fullName,
+        email: u?.email,
+      };
+    });
     this.creatorFullName = session.creator?.fullName;
     if (session.items?.length) {
       this.items = session.items.map((i) => new StockOpnameItemDto(i));
-    }
-    if (session.creator) {
-      const c = session.creator;
-      this.assignedTo = {
-        uuid: c.uuid,
-        fullName: c.fullName ?? c.name,
-        name: c.name ?? c.fullName,
-        email: c.email,
-      };
-    } else if (session.assignee) {
-      this.assignedTo = {
-        uuid: session.assignee.uuid,
-        fullName: session.assignee.fullName,
-      };
-    } else {
-      this.assignedTo = null;
     }
   }
 }

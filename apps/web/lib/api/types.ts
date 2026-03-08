@@ -797,12 +797,26 @@ export type StockOpnameSessionStatus =
   | "completed"
   | "approved"
 
+export type StockOpnameStoreSummary = {
+  uuid: string
+  shortName?: string
+  fullName?: string
+}
+
+export type StockOpnameAssigneeSummary = {
+  uuid: string
+  fullName?: string
+  name?: string
+  email?: string
+}
+
 /** Backend list response item (matches StockOpnameSessionDto) */
 export interface StockOpnameSessionListItem {
   uuid: string
   sessionCode: string
   ptId: string
-  storeId: string
+  storeIds: string[]
+  stores: StockOpnameStoreSummary[]
   startDate: string
   endDate: string | null
   status: StockOpnameSessionStatus
@@ -811,9 +825,7 @@ export interface StockOpnameSessionListItem {
   variancesCount: number
   createdAt: string
   updatedAt?: string
-  assignedTo: string | null
-  assignee?: Pick<User, "uuid" | "fullName"> | null
-  /** Fallback for older rows without assigned petugas */
+  assignees: StockOpnameAssigneeSummary[]
   creatorFullName?: string
 }
 
@@ -861,13 +873,12 @@ export interface StockOpnameSession {
   uuid: string
   sessionCode: string
   ptId: string
-  storeId: string
+  storeIds: string[]
+  stores: StockOpnameStoreSummary[]
   startDate?: string
   scheduledDate: string
   status: StockOpnameStatus
-  store?: Branch
-  assignedTo: string | null
-  assignee?: Pick<User, "uuid" | "fullName"> | null
+  assignees: StockOpnameAssigneeSummary[]
   creatorFullName?: string
   items: StockOpnameItem[]
   notes?: string | null
@@ -876,26 +887,24 @@ export interface StockOpnameSession {
 }
 
 export interface CreateStockOpnameDto {
-  storeId: string
+  ptId: string
+  storeIds: string[]
   startDate: string
-  ptId?: string
-  assignedTo?: string
+  assignedToIds?: string[]
   notes?: string
 }
 
 export interface UpdateStockOpnameSessionDto {
-  storeId?: string
+  storeIds?: string[]
   startDate?: string
-  assignedTo?: string
+  assignedToIds?: string[]
   notes?: string
 }
 
 export interface UpdateStockOpnameItemsDto {
   items: {
     itemId: string
-    counted: boolean
-    condition?: string
-    notes?: string
+    countedQuantity: number
   }[]
 }
 

@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { StockOpnameSessionEntity } from './entities/stock-opname-session.entity';
+import { StockOpnameSessionStoreEntity } from './entities/stock-opname-session-store.entity';
+import { StockOpnameSessionAssigneeEntity } from './entities/stock-opname-session-assignee.entity';
 import { StockOpnameItemEntity } from './entities/stock-opname-item.entity';
 import { SoPriorityRuleEntity } from './entities/so-priority-rule.entity';
 import { StockOpnameController } from './stock-opname.controller';
@@ -13,6 +15,8 @@ import { SoPriorityRuleService } from './so-priority-rule.service';
   imports: [
     TypeOrmModule.forFeature([
       StockOpnameSessionEntity,
+      StockOpnameSessionStoreEntity,
+      StockOpnameSessionAssigneeEntity,
       StockOpnameItemEntity,
       SoPriorityRuleEntity,
     ]),
