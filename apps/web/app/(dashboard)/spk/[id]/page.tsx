@@ -31,9 +31,16 @@ import {
   User,
   ClipboardList,
   QrCode,
-  ExternalLink,
   Download,
+  X,
 } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@workspace/ui/components/dialog"
 import { toast } from "sonner"
 import { Badge } from "@workspace/ui/components/badge"
 import { useSpk, useSpkNkb } from "@/lib/react-query/hooks/use-spk"
@@ -155,6 +162,120 @@ const nkbColumns: ColumnDef<NKBRow>[] = [
   },
 ]
 
+// Read-only NKB info dialog (popup on Detail action in Daftar NKB table)
+function NKBInfoDialog({
+  open,
+  onOpenChange,
+  nkb,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  nkb: Nkb | (Record<string, unknown> & { id?: string; uuid?: string }) | null
+}) {
+  if (!nkb) return null
+
+  const n = nkb as Record<string, unknown>
+  const paymentType =
+    (n.paymentType as string) ?? (n.type as string) ?? ""
+  const amount =
+    typeof n.amount === "number"
+      ? n.amount
+      : Number(n.amountPaid ?? 0)
+  const status = (n.status as string) ?? "pending"
+  const statusLabel = NKB_STATUS_LABEL[status] ?? status
+  const isApproved = status === "confirmed"
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent showCloseButton={false} className="sm:max-w-lg">
+        <DialogHeader>
+          <div className="flex items-center justify-between gap-4">
+            <DialogTitle className="text-xl font-bold">
+              Informasi NKB
+            </DialogTitle>
+            <Badge
+              className={
+                isApproved
+                  ? "bg-green-100 text-green-800 hover:bg-green-100 dark:bg-green-900 dark:text-green-300"
+                  : "bg-red-100 text-red-800 hover:bg-red-100 dark:bg-red-900 dark:text-red-300"
+              }
+            >
+              {statusLabel}
+            </Badge>
+          </div>
+        </DialogHeader>
+
+        <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-2">
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-muted-foreground text-sm font-medium">
+                Nomor NKB
+              </label>
+              <p className="text-base">{(n.nkbNumber as string) ?? ""}</p>
+            </div>
+            <div className="space-y-2">
+              <label className="text-muted-foreground text-sm font-medium">
+                Jenis Pembayaran
+              </label>
+              <p className="text-base">
+                {NKB_TYPE_LABEL[paymentType] ?? paymentType}
+              </p>
+            </div>
+            <div className="space-y-2">
+              <label className="text-muted-foreground text-sm font-medium">
+                Total Pembayaran
+              </label>
+              <p className="text-base">
+                Rp {formatCurrency(amount)},-
+              </p>
+            </div>
+          </div>
+          <div className="space-y-4">
+            {(n.spk as { spkNumber?: string })?.spkNumber != null &&
+              (n.spk as { spkNumber?: string }).spkNumber !== "" && (
+                <div className="space-y-2">
+                  <label className="text-muted-foreground text-sm font-medium">
+                    Nomor SPK
+                  </label>
+                  <p className="text-base">
+                    {(n.spk as { spkNumber?: string }).spkNumber}
+                  </p>
+                </div>
+              )}
+            <div className="space-y-2">
+              <label className="text-muted-foreground text-sm font-medium">
+                Tanggal & Waktu
+              </label>
+              <p className="text-base">
+                {formatDate((n.createdAt as string) ?? "")}
+              </p>
+            </div>
+            {status === "rejected" && n.rejectionReason != null ? (
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-muted-foreground text-sm font-medium">
+                  Alasan Ditolak
+                </label>
+                <p className="text-base">{String(n.rejectionReason)}</p>
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        <DialogFooter className="flex-row gap-2 sm:justify-end">
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            className="flex items-center gap-2"
+          >
+            <X className="size-4" />
+            Tutup
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 function DetailSPKSkeleton() {
   return (
     <Card>
@@ -242,6 +363,10 @@ export default function SPKDetailPage() {
   const [pageSize, setPageSize] = useState(10)
   const [searchValue, setSearchValue] = useState("")
   const [qrDialogOpen, setQrDialogOpen] = useState(false)
+  const [isNkbDetailDialogOpen, setIsNkbDetailDialogOpen] = useState(false)
+  const [selectedNkbForDetail, setSelectedNkbForDetail] = useState<
+    Nkb | (Record<string, unknown> & { id?: string; uuid?: string }) | null
+  >(null)
   const { user } = useAuth()
   const isCompanyAdmin =
     user?.roles?.some((r) => r.code === "company_admin") ?? false
@@ -250,11 +375,16 @@ export default function SPKDetailPage() {
   const { data: nkbData } = useSpkNkb(id)
 
   const spk = spkData
-  const nkbRows = useMemo(() => {
+  const nkbList = useMemo(() => {
     const raw = nkbData
-    const list: Nkb[] = Array.isArray(raw) ? raw : (raw as unknown as { data?: Nkb[] })?.data ?? []
-    return list.map((n) => mapNkbToRow(n, spk?.spkNumber ?? ""))
-  }, [nkbData, spk?.spkNumber])
+    return Array.isArray(raw)
+      ? raw
+      : (raw as unknown as { data?: Nkb[] })?.data ?? []
+  }, [nkbData])
+
+  const nkbRows = useMemo(() => {
+    return nkbList.map((n) => mapNkbToRow(n, spk?.spkNumber ?? ""))
+  }, [nkbList, spk?.spkNumber])
 
   const filteredNKB = useMemo(() => {
     if (!searchValue.trim()) return nkbRows
@@ -266,9 +396,18 @@ export default function SPKDetailPage() {
     )
   }, [nkbRows, searchValue])
 
-  const handleDetail = () => {
-    // TODO: Navigate to NKB detail
-    toast.info("TODO: Navigate to NKB detail")
+  const handleDetail = (row: NKBRow) => {
+    const nkb = nkbList.find(
+      (n) =>
+        (n as { uuid?: string }).uuid === row.id ||
+        (n as { id?: string }).id === row.id
+    )
+    if (!nkb) {
+      toast.error("Data NKB tidak ditemukan")
+      return
+    }
+    setSelectedNkbForDetail(nkb)
+    setIsNkbDetailDialogOpen(true)
   }
 
   const handleDownloadFile = () => {
@@ -524,6 +663,14 @@ export default function SPKDetailPage() {
           title="QR Code SPK"
         />
       ) : null}
+      <NKBInfoDialog
+        open={isNkbDetailDialogOpen}
+        onOpenChange={(open) => {
+          setIsNkbDetailDialogOpen(open)
+          if (!open) setSelectedNkbForDetail(null)
+        }}
+        nkb={selectedNkbForDetail}
+      />
     </div>
   )
 }

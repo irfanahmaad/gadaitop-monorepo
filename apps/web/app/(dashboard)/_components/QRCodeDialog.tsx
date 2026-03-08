@@ -33,37 +33,37 @@ export function QRCodeDialog({
   const getCanvas = () =>
     document.getElementById(canvasId) as HTMLCanvasElement | null
 
-  const handlePrint = () => {
-    const canvas = getCanvas()
-    if (!canvas) return
+  // const handlePrint = () => {
+  //   const canvas = getCanvas()
+  //   if (!canvas) return
 
-    const pngData = canvas.toDataURL("image/png")
-    const printWindow = window.open("", "_blank")
-    if (!printWindow) return
+  //   const pngData = canvas.toDataURL("image/png")
+  //   const printWindow = window.open("", "_blank")
+  //   if (!printWindow) return
 
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>${title} - ${value}</title>
-          <style>
-            body { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; font-family: system-ui, sans-serif; }
-            h1 { margin-bottom: 1rem; font-size: 1.25rem; }
-            img { max-width: 256px; height: auto; }
-          </style>
-        </head>
-        <body>
-          <h1>${title}</h1>
-          <p>${value}</p>
-          <img src="${pngData}" alt="QR Code" />
-        </body>
-      </html>
-    `)
-    printWindow.document.close()
-    printWindow.focus()
-    printWindow.print()
-    printWindow.close()
-  }
+  //   printWindow.document.write(`
+  //     <!DOCTYPE html>
+  //     <html>
+  //       <head>
+  //         <title>${title} - ${value}</title>
+  //         <style>
+  //           body { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; font-family: system-ui, sans-serif; }
+  //           h1 { margin-bottom: 1rem; font-size: 1.25rem; }
+  //           img { max-width: 256px; height: auto; }
+  //         </style>
+  //       </head>
+  //       <body>
+  //         <h1>${title}</h1>
+  //         <p>${value}</p>
+  //         <img src="${pngData}" alt="QR Code" />
+  //       </body>
+  //     </html>
+  //   `)
+  //   printWindow.document.close()
+  //   printWindow.focus()
+  //   printWindow.print()
+  //   printWindow.close()
+  // }
 
   const handleDownload = () => {
     const canvas = getCanvas()
@@ -87,13 +87,8 @@ export function QRCodeDialog({
         <Separator />
 
         <div className="flex flex-col items-center gap-4 py-4">
-          <div className="flex items-center justify-center rounded-lg bg-muted/50 p-4">
-            <QRCodeCanvas
-              id={canvasId}
-              value={value}
-              size={200}
-              level="M"
-            />
+          <div className="bg-muted/50 flex items-center justify-center rounded-lg p-4">
+            <QRCodeCanvas id={canvasId} value={value} size={200} level="M" />
           </div>
           <p className="font-mono text-sm font-medium">{value}</p>
         </div>
@@ -111,10 +106,10 @@ export function QRCodeDialog({
             <Download className="size-4" />
             Download QR
           </Button>
-          <Button variant="outline" onClick={handlePrint} className="gap-2">
+          {/* <Button variant="outline" onClick={handlePrint} className="gap-2">
             <Printer className="size-4" />
             Print QR
-          </Button>
+          </Button> */}
         </DialogFooter>
       </DialogContent>
     </Dialog>

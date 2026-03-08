@@ -618,12 +618,15 @@ export interface ConfirmNkbDto {
 }
 
 export interface RejectNkbDto {
-  rejectionReason: string
+  /** Optional rejection reason (API field: reason) */
+  reason?: string
 }
 
 export interface QueryNkbDto extends PageOptions {
   spkId?: string
   status?: NkbStatus
+  /** Comma-separated statuses, e.g. "confirmed,rejected". When set, backend returns NKBs with status in this list. */
+  statusIn?: string
   type?: NkbType
   ptId?: string
   branchId?: string

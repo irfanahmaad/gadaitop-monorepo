@@ -1,8 +1,10 @@
 "use client"
-import React, { useMemo } from "react"
+import React, { useCallback, useMemo } from "react"
 import { useParams, useRouter } from "next/navigation"
+import { toast } from "sonner"
 import { useAuth } from "@/lib/react-query/hooks/use-auth"
 import { Breadcrumbs } from "@/components/breadcrumbs"
+import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { Button } from "@workspace/ui/components/button"
 import { Card, CardContent, CardHeader } from "@workspace/ui/components/card"
 import { Skeleton } from "@workspace/ui/components/skeleton"
@@ -19,7 +21,11 @@ import {
   StockOpnameItemTable,
   type StockOpnameItem,
 } from "../_components/StockOpnameItemTable"
-import { useStockOpnameSession } from "@/lib/react-query/hooks/use-stock-opname"
+import {
+  useApproveStockOpname,
+  useCompleteStockOpname,
+  useStockOpnameSession,
+} from "@/lib/react-query/hooks/use-stock-opname"
 import { useBranches } from "@/lib/react-query/hooks/use-branches"
 import { usePawnTerms } from "@/lib/react-query/hooks/use-pawn-terms"
 import { matchSpkItemToMataRules } from "@/lib/utils/mata-rule-matcher"
@@ -117,6 +123,39 @@ export default function StockOpnameDetailPage() {
   } = useStockOpnameSession(slug)
 
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false)
+  const [isApproveConfirmOpen, setIsApproveConfirmOpen] = React.useState(false)
+
+  const completeMutation = useCompleteStockOpname()
+  const approveMutation = useApproveStockOpname()
+
+  const canApprove =
+    isCompanyAdmin &&
+    session &&
+    ["in_progress", "completed"].includes(session.status)
+
+  const handleApproveConfirm = useCallback(async () => {
+    if (!slug || !session || !canApprove) return
+    const isPending = completeMutation.isPending || approveMutation.isPending
+    if (isPending) return
+    try {
+      if (session.status === "in_progress") {
+        await completeMutation.mutateAsync(slug)
+      }
+      await approveMutation.mutateAsync(slug)
+      toast.success("Stock opname berhasil disetujui")
+      setIsApproveConfirmOpen(false)
+      refetch()
+    } catch {
+      toast.error("Gagal menyetujui stock opname")
+    }
+  }, [
+    slug,
+    session,
+    canApprove,
+    completeMutation,
+    approveMutation,
+    refetch,
+  ])
 
 
   // Fetch branches for store name resolution
@@ -254,18 +293,24 @@ export default function StockOpnameDetailPage() {
               <Button
                 variant="destructive"
                 className="gap-2"
-                disabled={isCompanyAdmin}
+                disabled={!canApprove}
               >
                 Approval
                 <ChevronDown className="size-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem className="gap-2">
+              <DropdownMenuItem
+                className="gap-2"
+                onClick={() => setIsApproveConfirmOpen(true)}
+              >
                 <CheckCheck className="size-4" />
                 Setujui
               </DropdownMenuItem>
-              <DropdownMenuItem className="gap-2">
+              <DropdownMenuItem
+                className="gap-2"
+                onClick={() => toast.info("Fitur segera hadir")}
+              >
                 <Hand className="size-4" />
                 Tolak / Retur
               </DropdownMenuItem>
@@ -280,6 +325,18 @@ export default function StockOpnameDetailPage() {
         onClose={() => setIsEditDialogOpen(false)}
         session={session ?? null}
         onSuccess={() => refetch()}
+      />
+
+      <ConfirmationDialog
+        open={isApproveConfirmOpen}
+        onOpenChange={setIsApproveConfirmOpen}
+        onConfirm={handleApproveConfirm}
+        title="Setujui Stock Opname?"
+        description="Anda akan menyetujui stock opname ini."
+        note="Pastikan kembali sebelum menyetujui."
+        confirmLabel="Ya"
+        cancelLabel="Batal"
+        variant="info"
       />
 
       {/* Detail SO Section */}
