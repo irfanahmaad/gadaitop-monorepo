@@ -12,18 +12,66 @@ Tests:
 Usage:
     .venv/bin/python apps/web/e2e/test_super_admin_full.py
 
+  BASE_URL is taken from NEXTAUTH_URL (env var, then apps/web/.env.local, then .env).
+  For staging, set NEXTAUTH_URL in .env.local or run:
+    NEXTAUTH_URL=https://staging.example.com python apps/web/e2e/test_super_admin_full.py
+
+  Optional: E2E_EMAIL, E2E_PASSWORD for login credentials.
+
 Requires: Playwright (pip install playwright && playwright install chromium)
 """
 
 import sys
 import os
+import re
 import time
 import traceback
+from pathlib import Path
 from playwright.sync_api import sync_playwright, Page
 
-BASE_URL = "http://localhost:3000"
-EMAIL = "admin@gadaitop.com"
-PASSWORD = "admin123"
+# Resolve apps/web root (parent of e2e/)
+WEB_ROOT = Path(__file__).resolve().parent.parent
+
+
+def _load_env_file(path: Path) -> dict[str, str]:
+    """Parse .env-style file into key=value dict. Strips optional quotes."""
+    out = {}
+    if not path.is_file():
+        return out
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            m = re.match(r"([A-Za-z_][A-Za-z0-9_]*)=(.*)$", line)
+            if m:
+                key, val = m.group(1), m.group(2).strip()
+                if (val.startswith('"') and val.endswith('"')) or (
+                    val.startswith("'") and val.endswith("'")
+                ):
+                    val = val[1:-1]
+                out[key] = val
+    return out
+
+
+def _get_base_url() -> str:
+    # 1. Explicit env var (e.g. CI or: NEXTAUTH_URL=... python test_super_admin_full.py)
+    url = os.environ.get("NEXTAUTH_URL", "").strip()
+    if url:
+        return url.rstrip("/")
+    # 2. .env.local then .env in apps/web
+    for name in (".env.local", ".env"):
+        env_path = WEB_ROOT / name
+        env = _load_env_file(env_path)
+        url = env.get("NEXTAUTH_URL", "").strip()
+        if url:
+            return url.rstrip("/")
+    return "http://localhost:3000"
+
+
+BASE_URL = _get_base_url()
+EMAIL = os.environ.get("E2E_EMAIL", "admin@gadaitop.com")
+PASSWORD = os.environ.get("E2E_PASSWORD", "admin123")
 SCREENSHOT_DIR = os.path.join(os.path.dirname(__file__), "screenshots")
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -569,6 +617,7 @@ def test_sidebar_navigation(page: Page):
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
+    print(f"\n  BASE_URL: {BASE_URL}\n")
     passed = 0
     failed = 0
     errors = []

@@ -176,6 +176,22 @@ export function useApproveStockOpname() {
   })
 }
 
+// Reopen stock opname session back to draft (Admin PT - reject/return)
+export function useReopenStockOpname() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiClient.put<StockOpnameSession>(endpoints.stockOpname.reopen(id)),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({
+        queryKey: stockOpnameKeys.detail(id),
+      })
+      queryClient.invalidateQueries({ queryKey: stockOpnameKeys.lists() })
+    },
+  })
+}
+
 // Delete stock opname session (draft only)
 export function useDeleteStockOpname() {
   const queryClient = useQueryClient()

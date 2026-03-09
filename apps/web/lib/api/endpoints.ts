@@ -173,6 +173,7 @@ export const endpoints = {
       baseUrl(`stock-opname/${id}/items/${itemId}/condition`),
     complete: (id: string) => baseUrl(`stock-opname/${id}/complete`),
     approve: (id: string) => baseUrl(`stock-opname/${id}/approve`),
+    reopen: (id: string) => baseUrl(`stock-opname/${id}/reopen`),
   },
 
   // Cash Deposits

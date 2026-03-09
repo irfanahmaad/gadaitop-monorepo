@@ -21,11 +21,10 @@ import {
   StockOpnameItemTable,
   type StockOpnameItem,
 } from "../_components/StockOpnameItemTable"
-import { StockOpnameItemDetailDialog } from "../_components/StockOpnameItemDetailDialog"
-import type { StockOpnameItem as ApiStockOpnameItem } from "@/lib/api/types"
 import {
   useApproveStockOpname,
   useCompleteStockOpname,
+  useReopenStockOpname,
   useStockOpnameSession,
 } from "@/lib/react-query/hooks/use-stock-opname"
 import { useBranches } from "@/lib/react-query/hooks/use-branches"
@@ -50,7 +49,7 @@ function DetailSOSkeleton() {
             <Skeleton className="h-1 w-8 rounded-full" />
             <Skeleton className="h-5 w-24" />
           </div>
-          <div className="grid gap-6 md:grid-cols-2 items-start">
+          <div className="grid items-start gap-6 md:grid-cols-2">
             {Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="space-y-2">
                 <Skeleton className="h-4 w-32" />
@@ -119,7 +118,9 @@ export default function StockOpnameDetailPage() {
     () => user?.roles?.some((r) => r.code === "stock_auditor") ?? false,
     [user]
   )
-  const stockListHref = isStockAuditor ? "/stock-opname/auditor" : "/stock-opname"
+  const stockListHref = isStockAuditor
+    ? "/stock-opname/auditor"
+    : "/stock-opname"
 
   // Fetch stock opname session detail from API
   const {
@@ -130,17 +131,19 @@ export default function StockOpnameDetailPage() {
   } = useStockOpnameSession(slug)
 
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false)
-  const [itemDetailDialogOpen, setItemDetailDialogOpen] = React.useState(false)
-  const [selectedApiItem, setSelectedApiItem] = React.useState<ApiStockOpnameItem | null>(null)
   const [isApproveConfirmOpen, setIsApproveConfirmOpen] = React.useState(false)
+  const [isReopenConfirmOpen, setIsReopenConfirmOpen] = React.useState(false)
 
   const completeMutation = useCompleteStockOpname()
   const approveMutation = useApproveStockOpname()
+  const reopenMutation = useReopenStockOpname()
 
   const canApprove =
     isCompanyAdmin &&
     session &&
     ["in_progress", "completed"].includes(session.status)
+
+  const canReopen = isCompanyAdmin && session && session.status === "completed"
 
   const handleApproveConfirm = useCallback(async () => {
     if (!slug || !session || !canApprove) return
@@ -157,15 +160,22 @@ export default function StockOpnameDetailPage() {
     } catch {
       toast.error("Gagal menyetujui stock opname")
     }
-  }, [
-    slug,
-    session,
-    canApprove,
-    completeMutation,
-    approveMutation,
-    refetch,
-  ])
+  }, [slug, session, canApprove, completeMutation, approveMutation, refetch])
 
+  const handleReopenConfirm = useCallback(async () => {
+    if (!slug || !session || !canReopen) return
+    if (reopenMutation.isPending) return
+    try {
+      await reopenMutation.mutateAsync(slug)
+      toast.success(
+        "Stock opname dikembalikan ke status dijadwalkan. Staff SO dapat melakukan scan ulang."
+      )
+      setIsReopenConfirmOpen(false)
+      refetch()
+    } catch {
+      toast.error("Gagal mengembalikan stock opname ke dijadwalkan")
+    }
+  }, [slug, session, canReopen, reopenMutation, refetch])
 
   // Fetch branches for store name resolution
   const { data: branchesData } = useBranches({ pageSize: 500 })
@@ -188,7 +198,9 @@ export default function StockOpnameDetailPage() {
   const storeNamesStr = useMemo(() => {
     if (!session?.stores?.length) return ""
     return session.stores
-      .map((s) => s.shortName ?? s.fullName ?? storeNameById.get(s.uuid) ?? s.uuid)
+      .map(
+        (s) => s.shortName ?? s.fullName ?? storeNameById.get(s.uuid) ?? s.uuid
+      )
       .join(", ")
   }, [session, storeNameById])
 
@@ -201,16 +213,19 @@ export default function StockOpnameDetailPage() {
 
   // Map API items to table format and apply mata rules
   const { items, mataRuleNames } = useMemo(() => {
-    if (!session?.items?.length) return { items: [], mataRuleNames: [] as string[] }
+    if (!session?.items?.length)
+      return { items: [], mataRuleNames: [] as string[] }
 
     const ruleNamesSet = new Set<string>()
     const mapped: StockOpnameItem[] = session.items.map((apiItem) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const si = (apiItem as any).spkItem ?? apiItem.spkItem
       const spkNumber = si?.spk?.spkNumber ?? "—"
       const description = si?.description ?? "—"
       const typeName = si?.itemType?.typeName ?? "—"
       const photoUrl = si?.evidencePhotos?.[0] ?? ""
-      const isCounted = apiItem.countedQuantity != null && apiItem.countedQuantity > 0
+      const isCounted =
+        apiItem.countedQuantity != null && apiItem.countedQuantity > 0
 
       // Apply mata rule if spkItem is available
       let isMata = false
@@ -222,15 +237,17 @@ export default function StockOpnameDetailPage() {
           itemTypeId: si.itemTypeId ?? "",
           description: si.description ?? "",
           appraisedValue: si.appraisedValue ?? "0",
-          estimatedValue: si.appraisedValue
-            ? parseFloat(si.appraisedValue)
-            : 0,
+          estimatedValue: si.appraisedValue ? parseFloat(si.appraisedValue) : 0,
           itemType: si.itemType
             ? { uuid: si.itemType.uuid, typeName: si.itemType.typeName }
             : undefined,
         } as SpkItem
         const ptId = session.ptId ?? ""
-        const mataResult = matchSpkItemToMataRules(spkItemForMata, pawnTerms, ptId)
+        const mataResult = matchSpkItemToMataRules(
+          spkItemForMata,
+          pawnTerms,
+          ptId
+        )
         isMata = mataResult.isMata
         mataRuleName = mataResult.mataRuleName
         if (isMata && mataRuleName) {
@@ -246,7 +263,9 @@ export default function StockOpnameDetailPage() {
         tipeBarang: typeName,
         toko: storeNamesStr || "—",
         petugas: assigneeNamesStr,
-        statusScan: isCounted ? ("Terscan" as const) : ("Belum Terscan" as const),
+        statusScan: isCounted
+          ? ("Terscan" as const)
+          : ("Belum Terscan" as const),
         isMata,
         mataRuleName,
       }
@@ -256,11 +275,7 @@ export default function StockOpnameDetailPage() {
   }, [session, storeNamesStr, assigneeNamesStr, pawnTerms])
 
   const handleItemDetail = (item: StockOpnameItem) => {
-    const apiItem = session?.items?.find(
-      (i) => (i as ApiStockOpnameItem).uuid === item.id || (i as ApiStockOpnameItem).id === item.id
-    ) as ApiStockOpnameItem | undefined
-    setSelectedApiItem(apiItem ?? null)
-    setItemDetailDialogOpen(true)
+    router.push(`/stock-opname/${slug}/item/${item.id}`)
   }
 
   if (isError && !isLoading) {
@@ -315,7 +330,7 @@ export default function StockOpnameDetailPage() {
               <Button
                 variant="destructive"
                 className="gap-2"
-                disabled={!canApprove}
+                disabled={!canApprove && !canReopen}
               >
                 Approval
                 <ChevronDown className="size-4" />
@@ -325,13 +340,15 @@ export default function StockOpnameDetailPage() {
               <DropdownMenuItem
                 className="gap-2"
                 onClick={() => setIsApproveConfirmOpen(true)}
+                disabled={!canApprove}
               >
                 <CheckCheck className="size-4" />
                 Setujui
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="gap-2"
-                onClick={() => toast.info("Fitur segera hadir")}
+                onClick={() => setIsReopenConfirmOpen(true)}
+                disabled={!canReopen}
               >
                 <Hand className="size-4" />
                 Tolak / Retur
@@ -361,14 +378,23 @@ export default function StockOpnameDetailPage() {
         variant="info"
       />
 
+      <ConfirmationDialog
+        open={isReopenConfirmOpen}
+        onOpenChange={setIsReopenConfirmOpen}
+        onConfirm={handleReopenConfirm}
+        title="Tolak / Retur Stock Opname?"
+        description="Stock opname akan dikembalikan ke status dijadwalkan dan data hasil scan sebelumnya akan direset."
+        note="Pastikan Anda benar-benar ingin mengembalikan stock opname ini untuk dilakukan ulang."
+        confirmLabel="Ya"
+        cancelLabel="Batal"
+        variant="info"
+      />
+
       {/* Detail SO Section */}
       {isLoading ? (
         <DetailSOSkeleton />
       ) : session ? (
-        <DetailSO
-          session={session}
-          mataRuleNames={mataRuleNames}
-        />
+        <DetailSO session={session} mataRuleNames={mataRuleNames} />
       ) : null}
 
       {/* Daftar Item Section */}
@@ -377,12 +403,6 @@ export default function StockOpnameDetailPage() {
       ) : (
         <StockOpnameItemTable data={items} onDetailAction={handleItemDetail} />
       )}
-
-      <StockOpnameItemDetailDialog
-        open={itemDetailDialogOpen}
-        onOpenChange={setItemDetailDialogOpen}
-        apiItem={selectedApiItem}
-      />
     </div>
   )
 }

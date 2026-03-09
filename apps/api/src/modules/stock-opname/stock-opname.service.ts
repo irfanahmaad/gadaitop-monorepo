@@ -485,6 +485,51 @@ export class StockOpnameService {
     return this.findOne(sessionUuid, userPtId);
   }
 
+  async reopen(
+    sessionUuid: string,
+    userPtId?: string,
+  ): Promise<StockOpnameSessionDto> {
+    const session = await this.sessionRepository.findOne({
+      where: { uuid: sessionUuid },
+      relations: ['items'],
+    });
+    if (!session) {
+      throw new NotFoundException('Stock opname session not found');
+    }
+    if (userPtId && session.ptId !== userPtId) {
+      throw new ForbiddenException('Session does not belong to your company');
+    }
+    if (session.status !== StockOpnameSessionStatusEnum.Completed) {
+      throw new BadRequestException(
+        'Only completed sessions can be returned to draft',
+      );
+    }
+
+    // Reset per-item counting and condition so staff can rescan
+    if (session.items?.length) {
+      for (const item of session.items) {
+        item.countedQuantity = null;
+        item.conditionAfter = null;
+        item.conditionNotes = null;
+        item.damagePhotos = null;
+        item.countedBy = null;
+        item.countedAt = null;
+        await this.itemRepository.save(item);
+      }
+    }
+
+    // Reset session status and aggregates back to draft
+    session.status = StockOpnameSessionStatusEnum.Draft;
+    session.endDate = null;
+    session.approvedBy = null;
+    session.approvedAt = null;
+    session.totalItemsCounted = 0;
+    session.variancesCount = 0;
+    await this.sessionRepository.save(session);
+
+    return this.findOne(sessionUuid, userPtId);
+  }
+
   async remove(sessionUuid: string, userPtId?: string): Promise<void> {
     const session = await this.sessionRepository.findOne({
       where: { uuid: sessionUuid },

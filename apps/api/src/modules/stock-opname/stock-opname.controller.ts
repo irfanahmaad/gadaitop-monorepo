@@ -117,6 +117,17 @@ export class StockOpnameController {
     return this.stockOpnameService.approve(id, approvedBy, userPtId);
   }
 
+  @Put(':id/reopen')
+  @Auth([{ action: AclAction.UPDATE, subject: AclSubject.STOCK_OPNAME_SCHEDULE }])
+  async reopen(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
+  ): Promise<StockOpnameSessionDto> {
+    const user = (req as any).user;
+    const userPtId = user?.companyId ?? user?.ownedCompanyId ?? undefined;
+    return this.stockOpnameService.reopen(id, userPtId);
+  }
+
   @Get(':id')
   @Auth([{ action: AclAction.READ, subject: AclSubject.STOCK_OPNAME_SCHEDULE }])
   async findOne(

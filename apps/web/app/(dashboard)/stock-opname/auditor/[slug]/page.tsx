@@ -49,11 +49,16 @@ import {
   AvatarImage,
   AvatarFallback,
 } from "@workspace/ui/components/avatar"
-import { Package, Eye, Keyboard, MoreHorizontal, QrCode } from "lucide-react"
+import { Package, Eye, Keyboard, MoreHorizontal, QrCode, Send } from "lucide-react"
 import { format } from "date-fns"
 import { id as idLocale } from "date-fns/locale"
 import { SearchIcon } from "lucide-react"
-import { useStockOpnameSession } from "@/lib/react-query/hooks/use-stock-opname"
+import { toast } from "sonner"
+import { ConfirmationDialog } from "@/components/confirmation-dialog"
+import {
+  useStockOpnameSession,
+  useCompleteStockOpname,
+} from "@/lib/react-query/hooks/use-stock-opname"
 import { usePawnTerms } from "@/lib/react-query/hooks/use-pawn-terms"
 import { matchSpkItemToMataRules } from "@/lib/utils/mata-rule-matcher"
 import type { SpkItem, PawnTerm } from "@/lib/api/types"
@@ -283,7 +288,10 @@ export default function StockOpnameAuditorDetailPage() {
     data: session,
     isLoading: isSessionLoading,
     isError,
+    refetch,
   } = useStockOpnameSession(slug, { enabled: !!slug && !!user })
+
+  const completeMutation = useCompleteStockOpname()
 
   const { data: pawnTermsData } = usePawnTerms({ pageSize: 500 })
   const pawnTerms = useMemo(
@@ -308,6 +316,7 @@ export default function StockOpnameAuditorDetailPage() {
   const { items } = useMemo(() => {
     if (session?.items?.length) {
       const mapped: StockOpnameItem[] = session.items.map((apiItem) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const si = (apiItem as any).spkItem ?? apiItem.spkItem
         const spkNumber = si?.spk?.spkNumber ?? "—"
         const description = si?.description ?? "—"
@@ -325,7 +334,9 @@ export default function StockOpnameAuditorDetailPage() {
             itemTypeId: si.itemTypeId ?? "",
             description: si.description ?? "",
             appraisedValue: si.appraisedValue ?? "0",
-            estimatedValue: si.appraisedValue ? parseFloat(si.appraisedValue) : 0,
+            estimatedValue: si.appraisedValue
+              ? parseFloat(si.appraisedValue)
+              : 0,
             itemType: si.itemType
               ? { uuid: si.itemType.uuid, typeName: si.itemType.typeName }
               : undefined,
@@ -370,6 +381,7 @@ export default function StockOpnameAuditorDetailPage() {
   const [scanDialogOpen, setScanDialogOpen] = useState(false)
   const [manualScanOpen, setManualScanOpen] = useState(false)
   const [manualScanValue, setManualScanValue] = useState("")
+  const [submitConfirmOpen, setSubmitConfirmOpen] = useState(false)
 
   const openPenilaianForValue = (value: string) => {
     const trimmed = value.trim()
@@ -392,6 +404,25 @@ export default function StockOpnameAuditorDetailPage() {
   const totalItems = items.length
   const progressPercent =
     totalItems > 0 ? Math.round((terscanCount / totalItems) * 100) : 0
+
+  const allItemsScanned = totalItems > 0 && belumTerscanCount === 0
+  const canSubmit =
+    allItemsScanned &&
+    session != null &&
+    ["draft", "in_progress"].includes(session.status)
+
+  const handleSubmitConfirm = async () => {
+    if (!slug || !canSubmit) return
+    if (completeMutation.isPending) return
+    try {
+      await completeMutation.mutateAsync(slug)
+      toast.success("Stock opname berhasil disubmit, menunggu approval")
+      setSubmitConfirmOpen(false)
+      refetch()
+    } catch {
+      toast.error("Gagal submit stock opname")
+    }
+  }
 
   const filteredItems = useMemo(() => {
     if (activeTab === "belum-terscan") {
@@ -449,22 +480,49 @@ export default function StockOpnameAuditorDetailPage() {
   return (
     <div className="flex flex-col gap-6">
       {/* Header */}
-      <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-bold">
-          {isLoading ? (
-            <Skeleton className="inline-block h-8 w-24" />
-          ) : (
-            (session?.sessionCode ?? slug)
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-2xl font-bold">
+            {isLoading ? (
+              <Skeleton className="inline-block h-8 w-24" />
+            ) : (
+              (session?.sessionCode ?? slug)
+            )}
+          </h1>
+          <Breadcrumbs
+            items={[
+              { label: "Pages", href: "/" },
+              { label: "Stock Opname", href: "/stock-opname/auditor" },
+              { label: "Detail Batch", className: "text-destructive" },
+            ]}
+          />
+        </div>
+
+        {!isLoading &&
+          session &&
+          ["draft", "in_progress"].includes(session.status) && (
+            <Button
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-2"
+              disabled={!canSubmit || completeMutation.isPending}
+              onClick={() => setSubmitConfirmOpen(true)}
+            >
+              <Send className="size-4" />
+              {completeMutation.isPending ? "Submitting..." : "Submit"}
+            </Button>
           )}
-        </h1>
-        <Breadcrumbs
-          items={[
-            { label: "Pages", href: "/" },
-            { label: "Stock Opname", href: "/stock-opname/auditor" },
-            { label: "Detail Batch", className: "text-destructive" },
-          ]}
-        />
       </div>
+
+      <ConfirmationDialog
+        open={submitConfirmOpen}
+        onOpenChange={setSubmitConfirmOpen}
+        onConfirm={handleSubmitConfirm}
+        title="Submit Stock Opname?"
+        description="Anda akan mengirimkan hasil stock opname ini untuk di-review oleh Admin PT."
+        note="Pastikan semua item sudah di-scan sebelum submit."
+        confirmLabel="Ya"
+        cancelLabel="Batal"
+        variant="info"
+      />
 
       {/* Detail Stock Opname Card */}
       {isLoading ? (
@@ -767,7 +825,8 @@ export default function StockOpnameAuditorDetailPage() {
             <DialogTitle>Masukkan No. SPK atau Item ID</DialogTitle>
           </DialogHeader>
           <p className="text-muted-foreground text-sm">
-            Jika tidak memakai kamera, ketik No. SPK (contoh: SPK-001) atau UUID item stock opname, lalu Buka Penilaian.
+            Jika tidak memakai kamera, ketik No. SPK (contoh: SPK-001) atau UUID
+            item stock opname, lalu Buka Penilaian.
           </p>
           <Input
             placeholder="No. SPK atau Item ID"
@@ -802,14 +861,10 @@ export default function StockOpnameAuditorDetailPage() {
         open={scanDialogOpen}
         onOpenChange={setScanDialogOpen}
         onScan={(value) => {
-          const item = items.find(
-            (i) => i.id === value || i.noSPK === value
-          )
+          const item = items.find((i) => i.id === value || i.noSPK === value)
           const itemId = item?.id ?? value
           setScanDialogOpen(false)
-          router.push(
-            `/stock-opname/auditor/${slug}/item/${itemId}/penilaian`
-          )
+          router.push(`/stock-opname/auditor/${slug}/item/${itemId}/penilaian`)
         }}
       />
       <QRCodeDialog

@@ -160,6 +160,7 @@ export {
   useApproveStockOpname,
   useCompleteStockOpname,
   useCreateStockOpname,
+  useReopenStockOpname,
   useRecordItemCondition,
   useStockOpnameSession,
   useStockOpnameSessions,
