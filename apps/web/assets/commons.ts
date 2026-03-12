@@ -12,6 +12,10 @@ import imgMetricsDashboard4 from "public/commons/img_metrics-dashboard-4.png"
 import imgPortalCustomer from "public/commons/img_portal-customer.png"
 import imgLoginPortalCustomer from "public/commons/img_login-portal-customer.png"
 
+// Payment
+import imgPaymentInProcess from "public/commons/img_payment-in-process.png"
+import imgPaymentSuccess from "public/commons/img_payment-success.png"
+
 export {
   imgLogoGadaiTopImgOnly,
   imgLogoGadaiTop,
@@ -22,4 +26,6 @@ export {
   imgMetricsDashboard4,
   imgPortalCustomer,
   imgLoginPortalCustomer,
+  imgPaymentInProcess,
+  imgPaymentSuccess,
 }

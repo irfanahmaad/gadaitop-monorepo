@@ -390,11 +390,7 @@ export type SpkStatus =
   | "auctioned"
   | "closed"
 
-export type SpkItemStatus =
-  | "in_storage"
-  | "in_auction"
-  | "sold"
-  | "returned"
+export type SpkItemStatus = "in_storage" | "in_auction" | "sold" | "returned"
 
 export interface SpkItem {
   id?: string
@@ -414,6 +410,7 @@ export interface SpkItem {
 }
 
 export interface Spk {
+  pt: { companyName?: string | undefined } | undefined
   id?: string
   uuid: string
   spkNumber: string
@@ -473,12 +470,13 @@ export interface ConfirmSpkDto {
 }
 
 export interface ExtendSpkDto {
-  extensionDays: number
-  interestPayment: number
+  amountPaid: number
+  paymentMethod?: "cash" | "transfer"
 }
 
 export interface RedeemSpkDto {
-  amountPaid: number
+  amountPaid?: number
+  paymentMethod?: "cash" | "transfer"
 }
 
 export interface QuerySpkDto extends PageOptions {
@@ -603,6 +601,7 @@ export interface Nkb {
   spk?: Spk
   customer?: Customer
   confirmedBy?: User
+  confirmedAt?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -937,11 +936,7 @@ export interface ItemConditionDto {
 }
 
 /** Backend RecordConditionDto - conditionAfter, conditionNotes, damagePhotos */
-export type SpkItemConditionEnum =
-  | "excellent"
-  | "good"
-  | "fair"
-  | "poor"
+export type SpkItemConditionEnum = "excellent" | "good" | "fair" | "poor"
 
 export interface RecordConditionDto {
   conditionAfter: SpkItemConditionEnum
@@ -979,7 +974,10 @@ export interface CashDeposit {
   updatedAt: string
 }
 
-export type CashDepositPaymentMethod = 'bank_transfer' | 'qris' | 'virtual_account'
+export type CashDepositPaymentMethod =
+  | "bank_transfer"
+  | "qris"
+  | "virtual_account"
 
 export interface CreateCashDepositDto {
   storeId: string
@@ -1179,7 +1177,10 @@ export interface StockOpnameReport {
 // ==========================================
 
 /** Item condition codes returned by API (English) */
-export type PawnTermItemCondition = "present_and_matching" | "present_but_mismatch" | "none"
+export type PawnTermItemCondition =
+  | "present_and_matching"
+  | "present_but_mismatch"
+  | "none"
 
 export interface PawnTerm {
   id?: string

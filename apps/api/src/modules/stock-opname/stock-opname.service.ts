@@ -9,7 +9,6 @@ import { DataSource, In, type FindOptionsWhere, Repository } from 'typeorm';
 
 import { PageMetaDto } from '../../common/dtos/page-meta.dto';
 import { SpkItemStatusEnum } from '../../constants/spk-item-status';
-import { SpkStatusEnum } from '../../constants/spk-status';
 import { StockOpnameSessionStatusEnum } from '../../constants/stock-opname-session-status';
 import { PawnTermEntity } from '../pawn-term/entities/pawn-term.entity';
 import { SpkItemEntity } from '../spk/entities/spk-item.entity';
@@ -24,13 +23,6 @@ import { QueryStockOpnameDto } from './dto/query-stock-opname.dto';
 import { UpdateStockOpnameItemsDto } from './dto/update-stock-opname-items.dto';
 import { RecordConditionDto } from './dto/record-condition.dto';
 import { UpdateStockOpnameSessionDto } from './dto/update-stock-opname-session.dto';
-
-/** SPK statuses where items are still in scope (belum lunas, belum dilelang). */
-const SPK_SCOPE_STATUSES = [
-  SpkStatusEnum.Active,
-  SpkStatusEnum.Extended,
-  SpkStatusEnum.Overdue,
-];
 
 @Injectable()
 export class StockOpnameService {
@@ -196,8 +188,8 @@ export class StockOpnameService {
   }
 
   /**
-   * Select eligible SPK items (belum lunas, belum dilelang) matching pawn terms
-   * and create stock_opname_items. Limits to mataItemCount when specified.
+   * Select eligible in-storage items matching pawn terms and create
+   * stock_opname_items. Limits to mataItemCount when specified.
    */
   private async materializeScopeItems(
     manager: import('typeorm').EntityManager,
@@ -221,9 +213,6 @@ export class StockOpnameService {
         storeIds: createDto.storeIds,
       })
       .andWhere('spk.ptId = :ptId', { ptId: createDto.ptId })
-      .andWhere('spk.status IN (:...statuses)', {
-        statuses: SPK_SCOPE_STATUSES,
-      })
       .getMany();
 
     const pawnTerms = await manager.getRepository(PawnTermEntity).find({

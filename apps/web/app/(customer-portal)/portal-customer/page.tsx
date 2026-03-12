@@ -9,9 +9,14 @@ import { DataTable } from "@/components/data-table"
 import { useFilterParams, FilterConfig } from "@/hooks/use-filter-params"
 import { Skeleton } from "@workspace/ui/components/skeleton"
 import { Card, CardContent, CardHeader } from "@workspace/ui/components/card"
+import { toast } from "sonner"
 import { BayarDialog } from "./_components/BayarDialog"
 import { useCustomerAuth } from "@/lib/react-query/hooks/use-auth"
-import { useSpkList } from "@/lib/react-query/hooks/use-spk"
+import {
+  useSpkList,
+  useExtendSpk,
+  useRedeemSpk,
+} from "@/lib/react-query/hooks/use-spk"
 import type { Spk } from "@/lib/api/types"
 
 const formatCurrency = (amount: number): string =>
@@ -48,8 +53,8 @@ function getStoreName(spk: Spk): string {
 }
 
 function getCompanyName(spk: Spk): string {
-  const store = spk.store as { company?: { companyName?: string } } | undefined
-  return store?.company?.companyName ?? "-"
+  const pt = spk.pt as { companyName?: string } | undefined
+  return pt?.companyName ?? "-"
 }
 
 const filterConfig: FilterConfig[] = [
@@ -150,9 +155,12 @@ export default function PortalCustomerPage() {
   const [bayarType, setBayarType] = useState<"cicil" | "lunas">("cicil")
   const [selectedRow, setSelectedRow] = useState<Spk | null>(null)
 
+  const extendSpk = useExtendSpk()
+  const redeemSpk = useRedeemSpk()
+  const isPaymentSubmitting = extendSpk.isPending || redeemSpk.isPending
+
   const listOptions = useMemo(() => {
     const filter: Record<string, string | number> = {}
-    if (customer?.uuid) filter.customerId = customer.uuid
     const nominalRange = filterValues.nominalRange as
       | { from?: number | string | null; to?: number | string | null }
       | undefined
@@ -168,7 +176,7 @@ export default function PortalCustomerPage() {
       query: searchValue || undefined,
       filter: Object.keys(filter).length ? filter : undefined,
     }
-  }, [page, pageSize, searchValue, customer?.uuid, filterValues])
+  }, [page, pageSize, searchValue, filterValues])
 
   const { data, isLoading, isError } = useSpkList(listOptions, {
     enabled: !!customer?.uuid,
@@ -195,18 +203,40 @@ export default function PortalCustomerPage() {
   }, [])
 
   const handleBayarConfirm = useCallback(
-    (data: {
+    async (data: {
       type: "cicil" | "lunas"
-      metodePembayaran: string
-      totalBayarPokok: number
+      spkId: string
+      paymentMethod: string
+      amountPaid: number
       totalBunga: number
       totalDenda: number
       grandTotal: number
     }) => {
-      // TODO: handle payment confirmation (API call, etc.)
-      console.log("Payment confirmed:", { ...data, spk: selectedRow })
+      if (!selectedRow) return
+      const paymentMethod = data.paymentMethod as "cash" | "transfer"
+      try {
+        if (data.type === "cicil") {
+          const result = await extendSpk.mutateAsync({
+            id: data.spkId,
+            data: { amountPaid: data.amountPaid, paymentMethod },
+          })
+          router.push(
+            `/portal-customer/payment-process?nkbId=${result.nkbId}&spkId=${data.spkId}&method=${paymentMethod}`
+          )
+        } else {
+          const result = await redeemSpk.mutateAsync({
+            id: data.spkId,
+            data: { amountPaid: data.amountPaid, paymentMethod },
+          })
+          router.push(
+            `/portal-customer/payment-process?nkbId=${result.nkbId}&spkId=${data.spkId}&method=${paymentMethod}`
+          )
+        }
+      } catch {
+        toast.error("Gagal mengajukan pembayaran")
+      }
     },
-    [selectedRow]
+    [selectedRow, extendSpk, redeemSpk, router]
   )
 
   if (!customer?.uuid) {
@@ -270,19 +300,22 @@ export default function PortalCustomerPage() {
         />
       )}
 
-      <BayarDialog
-        open={bayarDialogOpen}
-        onOpenChange={setBayarDialogOpen}
-        type={bayarType}
-        nominal={
-          selectedRow
-            ? Number(
-                selectedRow.totalAmount ?? selectedRow.principalAmount ?? 0
-              )
-            : 0
-        }
-        onConfirm={handleBayarConfirm}
-      />
+      {selectedRow && (
+        <BayarDialog
+          open={bayarDialogOpen}
+          onOpenChange={setBayarDialogOpen}
+          type={bayarType}
+          spkId={selectedRow.uuid}
+          remainingBalance={Number(
+            (selectedRow as { remainingBalance?: number }).remainingBalance ??
+              selectedRow.totalAmount ??
+              selectedRow.principalAmount ??
+              0
+          )}
+          onConfirm={handleBayarConfirm}
+          isSubmitting={isPaymentSubmitting}
+        />
+      )}
     </div>
   )
 }

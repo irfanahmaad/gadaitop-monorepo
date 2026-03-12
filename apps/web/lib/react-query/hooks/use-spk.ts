@@ -98,11 +98,15 @@ export function useExtendSpk() {
 
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: ExtendSpkDto }) =>
-      apiClient.put<Spk, ExtendSpkDto>(endpoints.spk.extend(id), data),
+      apiClient.put<{ nkbNumber: string; nkbId: string }, ExtendSpkDto>(
+        endpoints.spk.extend(id),
+        data
+      ),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: spkKeys.detail(variables.id) })
       queryClient.invalidateQueries({ queryKey: spkKeys.lists() })
       queryClient.invalidateQueries({ queryKey: spkKeys.history(variables.id) })
+      queryClient.invalidateQueries({ queryKey: spkKeys.nkb(variables.id) })
     },
   })
 }
@@ -113,11 +117,15 @@ export function useRedeemSpk() {
 
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: RedeemSpkDto }) =>
-      apiClient.put<Spk, RedeemSpkDto>(endpoints.spk.redeem(id), data),
+      apiClient.put<{ nkbNumber: string; nkbId: string }, RedeemSpkDto>(
+        endpoints.spk.redeem(id),
+        data
+      ),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: spkKeys.detail(variables.id) })
       queryClient.invalidateQueries({ queryKey: spkKeys.lists() })
       queryClient.invalidateQueries({ queryKey: spkKeys.history(variables.id) })
+      queryClient.invalidateQueries({ queryKey: spkKeys.nkb(variables.id) })
     },
   })
 }

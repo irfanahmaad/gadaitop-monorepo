@@ -35,16 +35,21 @@ interface BayarDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   type: BayarType
-  /** The nominal value from the SPK row, used as default for "lunas" */
-  nominal?: number
+  spkId: string
+  /** Remaining balance (total amount) for lunas - input is disabled and forced to this value */
+  remainingBalance: number
+  /** Default amount for cicil when user can adjust */
+  defaultCicilAmount?: number
   onConfirm?: (data: {
     type: BayarType
-    metodePembayaran: string
-    totalBayarPokok: number
+    spkId: string
+    paymentMethod: string
+    amountPaid: number
     totalBunga: number
     totalDenda: number
     grandTotal: number
-  }) => void
+  }) => void | Promise<void>
+  isSubmitting?: boolean
 }
 
 const BUNGA_PERCENT = 5
@@ -54,22 +59,27 @@ export function BayarDialog({
   open,
   onOpenChange,
   type,
-  nominal = 0,
+  spkId,
+  remainingBalance,
+  defaultCicilAmount = 200_000,
   onConfirm,
+  isSubmitting = false,
 }: BayarDialogProps) {
   const [metodePembayaran, setMetodePembayaran] = useState("cash")
   const [totalBayarPokok, setTotalBayarPokok] = useState("")
+  const [isLocalSubmitting, setIsLocalSubmitting] = useState(false)
+  const isSubmittingState = isSubmitting || isLocalSubmitting
 
   React.useEffect(() => {
     if (open) {
       if (type === "lunas") {
-        setTotalBayarPokok(formatCurrency(nominal))
+        setTotalBayarPokok(formatCurrency(remainingBalance))
       } else {
-        setTotalBayarPokok(formatCurrency(200_000))
+        setTotalBayarPokok(formatCurrency(defaultCicilAmount))
       }
       setMetodePembayaran("cash")
     }
-  }, [open, type, nominal])
+  }, [open, type, remainingBalance, defaultCicilAmount])
 
   const bayarPokokValue = useMemo(
     () => parseCurrency(totalBayarPokok),
@@ -104,18 +114,27 @@ export function BayarDialog({
     []
   )
 
-  const handleConfirm = useCallback(() => {
-    onConfirm?.({
-      type,
-      metodePembayaran,
-      totalBayarPokok: bayarPokokValue,
-      totalBunga,
-      totalDenda,
-      grandTotal,
-    })
-    onOpenChange(false)
+  const handleConfirm = useCallback(async () => {
+    if (isSubmittingState) return
+
+    setIsLocalSubmitting(true)
+    try {
+      await onConfirm?.({
+        type,
+        spkId,
+        paymentMethod: metodePembayaran,
+        amountPaid: bayarPokokValue,
+        totalBunga,
+        totalDenda,
+        grandTotal,
+      })
+      onOpenChange(false)
+    } finally {
+      setIsLocalSubmitting(false)
+    }
   }, [
     type,
+    spkId,
     metodePembayaran,
     bayarPokokValue,
     totalBunga,
@@ -123,6 +142,7 @@ export function BayarDialog({
     grandTotal,
     onConfirm,
     onOpenChange,
+    isSubmittingState,
   ])
 
   const title = type === "cicil" ? "Bayar Cicil" : "Bayar Lunas"
@@ -143,6 +163,7 @@ export function BayarDialog({
             <RadioGroup
               value={metodePembayaran}
               onValueChange={setMetodePembayaran}
+              disabled={isSubmittingState}
               className="flex flex-row gap-6"
             >
               <div className="flex items-center gap-2">
@@ -176,7 +197,9 @@ export function BayarDialog({
                   inputMode="numeric"
                   value={totalBayarPokok ? `Rp ${totalBayarPokok},-` : ""}
                   onChange={handleInputChange}
-                  className="border-input bg-background placeholder:text-muted-foreground/60 h-12 w-full rounded-md border pl-14 pr-3 text-sm shadow-xs outline-none focus-visible:border-ring/30 focus-visible:ring-ring/20 focus-visible:ring-[3px]"
+                  disabled={type === "lunas" || isSubmittingState}
+                  readOnly={type === "lunas"}
+                  className="border-input bg-background placeholder:text-muted-foreground/60 h-12 w-full rounded-md border pl-14 pr-3 text-sm shadow-xs outline-none focus-visible:border-ring/30 focus-visible:ring-ring/20 focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-70"
                   placeholder="Rp 0,-"
                 />
               </div>
@@ -224,6 +247,7 @@ export function BayarDialog({
             variant="outline"
             onClick={() => onOpenChange(false)}
             className="gap-2"
+            disabled={isSubmittingState}
           >
             <X className="h-4 w-4" />
             Batal
@@ -232,9 +256,10 @@ export function BayarDialog({
             variant="destructive"
             onClick={handleConfirm}
             className="gap-2"
+            disabled={isSubmittingState}
           >
             <KeyRound className="h-4 w-4" />
-            Konfirmasi Pembayaran
+            {isSubmittingState ? "Memproses..." : "Konfirmasi Pembayaran"}
           </Button>
         </div>
       </DialogContent>

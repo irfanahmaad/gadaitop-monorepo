@@ -32,11 +32,15 @@ export function useNkbList(options?: QueryNkbDto) {
 }
 
 // Get single NKB
-export function useNkb(id: string) {
+export function useNkb(
+  id: string,
+  queryOptions?: { enabled?: boolean; refetchInterval?: number }
+) {
   return useQuery({
     queryKey: nkbKeys.detail(id),
     queryFn: () => apiClient.get<Nkb>(endpoints.nkb.detail(id)),
-    enabled: !!id,
+    enabled: queryOptions?.enabled ?? !!id,
+    refetchInterval: queryOptions?.refetchInterval,
   })
 }
 

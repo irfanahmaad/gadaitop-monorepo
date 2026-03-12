@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -84,16 +85,27 @@ export class NkbService {
       }) ?? { createdAt: 'DESC' } as any,
     };
 
-    // Apply ptId and storeId directly to nkb entity
+    // Apply PT/store scope. For older NKB rows where ptId/storeId may be null,
+    // fall back to the related SPK scope to keep them visible.
     const qb = NkbRecordEntity.createQueryBuilder('nkb');
+    qb.leftJoin('nkb.spk', 'spk_scope');
     if (userPtId) {
-      qb.andWhere('nkb.ptId = :ptId', { ptId: userPtId });
+      qb.andWhere(
+        '(nkb.ptId = :userPtId OR (nkb.ptId IS NULL AND spk_scope.ptId = :userPtId))',
+        { userPtId },
+      );
     }
     if (queryDto.ptId) {
-      qb.andWhere('nkb.ptId = :ptId', { ptId: queryDto.ptId });
+      qb.andWhere(
+        '(nkb.ptId = :queryPtId OR (nkb.ptId IS NULL AND spk_scope.ptId = :queryPtId))',
+        { queryPtId: queryDto.ptId },
+      );
     }
     if (queryDto.branchId) {
-      qb.andWhere('nkb.storeId = :storeId', { storeId: queryDto.branchId });
+      qb.andWhere(
+        '(nkb.storeId = :queryStoreId OR (nkb.storeId IS NULL AND spk_scope.storeId = :queryStoreId))',
+        { queryStoreId: queryDto.branchId },
+      );
     }
     if (queryDto.dateFrom) {
       qb.andWhere('nkb.createdAt >= :dateFrom', {
@@ -126,6 +138,20 @@ export class NkbService {
     });
     if (!record) {
       throw new NotFoundException(`NKB with UUID ${uuid} not found`);
+    }
+    return new NkbDto(record);
+  }
+
+  async findOneForCustomer(uuid: string, customerId: string): Promise<NkbDto> {
+    const record = await this.nkbRepository.findOne({
+      where: { uuid },
+      relations: ['spk', 'spk.customer', 'spk.store', 'spk.pt'],
+    });
+    if (!record) {
+      throw new NotFoundException(`NKB with UUID ${uuid} not found`);
+    }
+    if (record.spk?.customerId !== customerId) {
+      throw new ForbiddenException('You do not have access to this NKB');
     }
     return new NkbDto(record);
   }

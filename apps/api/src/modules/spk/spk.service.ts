@@ -38,6 +38,7 @@ import { CreateSpkDto } from './dto/create-spk.dto';
 import { QuerySpkDto } from './dto/query-spk.dto';
 import { ConfirmSpkDto } from './dto/confirm-spk.dto';
 import { ExtendSpkDto } from './dto/extend-spk.dto';
+import { RedeemSpkDto } from './dto/redeem-spk.dto';
 import { InterestCalculatorService } from './services/interest-calculator.service';
 
 @Injectable()
@@ -102,34 +103,45 @@ export class SpkService {
     }
 
     const isOverdue = queryDto.status === SpkStatusEnum.Overdue;
+    const isCustomerScoped = !!queryDto.customerId;
     const qbOptions: QueryBuilderOptionsType<SpkRecordEntity> = {
       ...queryDto,
       // When loading overdue SPKs we need items + itemType; a restrictive select
       // would override leftJoinAndSelect and leave items empty, so omit select.
-      ...(!isOverdue && {
-        select: {
-          spkNumber: true,
-          internalSpkNumber: true,
-          customerSpkNumber: true,
-          principalAmount: true,
-          tenor: true,
-          interestRate: true,
-          totalAmount: true,
-          remainingBalance: true,
-          dueDate: true,
-          status: true,
-          customer: {
-            id: true,
-            name: true,
-          },
-          store: {
-            id: true,
-          },
-          pt: {
-            id: true,
-          },
-        } as any,
-      }),
+      // Similarly, when the query is scoped by customerId (customer portal),
+      // we omit select so we can load related entities (items, store, pt) fully.
+      ...(!isOverdue &&
+        !isCustomerScoped && {
+          select: {
+            spkNumber: true,
+            internalSpkNumber: true,
+            customerSpkNumber: true,
+            principalAmount: true,
+            tenor: true,
+            interestRate: true,
+            totalAmount: true,
+            remainingBalance: true,
+            dueDate: true,
+            status: true,
+            customer: {
+              id: true,
+              uuid: true,
+              name: true,
+              nik: true,
+            },
+            store: {
+              id: true,
+              uuid: true,
+              shortName: true,
+              branchCode: true,
+            },
+            pt: {
+              id: true,
+              uuid: true,
+              companyName: true,
+            },
+          } as any,
+        }),
       relation: {
         customer: true,
         store: true,
@@ -137,6 +149,11 @@ export class SpkService {
         ...(isOverdue && {
           items: { itemType: true },
           creator: true,
+        }),
+        // For customer-scoped queries (customer portal), always load items so
+        // the frontend can display Nama Item from the first item's description.
+        ...(isCustomerScoped && !isOverdue && {
+          items: true,
         }),
       },
       where,
@@ -178,6 +195,17 @@ export class SpkService {
   async findOne(uuid: string): Promise<SpkDto> {
     const record = await this.spkRepository.findOne({
       where: { uuid },
+      relations: ['customer', 'store', 'pt', 'items', 'items.itemType'],
+    });
+    if (!record) {
+      throw new NotFoundException(`SPK with UUID ${uuid} not found`);
+    }
+    return new SpkDto(record);
+  }
+
+  async findOneForCustomer(uuid: string, customerId: string): Promise<SpkDto> {
+    const record = await this.spkRepository.findOne({
+      where: { uuid, customerId },
       relations: ['customer', 'store', 'pt', 'items', 'items.itemType'],
     });
     if (!record) {
@@ -336,7 +364,7 @@ export class SpkService {
     uuid: string,
     dto: ExtendSpkDto,
     createdBy: string | null,
-  ): Promise<{ nkbNumber: string }> {
+  ): Promise<{ nkbNumber: string; nkbId: string }> {
     const spk = await this.spkRepository.findOne({
       where: { uuid },
       relations: ['pt'],
@@ -352,26 +380,38 @@ export class SpkService {
         'Only active or extended SPK can request extension',
       );
     }
+
+    const existingPendingNkb = await this.findPendingNkb(spk.uuid);
+    if (existingPendingNkb) {
+      return {
+        nkbNumber: existingPendingNkb.nkbNumber,
+        nkbId: existingPendingNkb.uuid,
+      };
+    }
+
     const nkbNumber = await this.generateNkbNumber();
+    const paymentMethod = dto.paymentMethod ?? NkbPaymentMethodEnum.Cash;
     const nkb = this.nkbRepository.create({
       nkbNumber,
+      ptId: spk.ptId,
+      storeId: spk.storeId,
       spkId: spk.uuid,
       amountPaid: String(dto.amountPaid),
       paymentType: NkbPaymentTypeEnum.Renewal,
-      paymentMethod: NkbPaymentMethodEnum.Cash,
+      paymentMethod,
       status: NkbStatusEnum.Pending,
       createdBy,
       isCustomerInitiated: !createdBy,
     });
-    await this.nkbRepository.save(nkb);
-    return { nkbNumber };
+    const saved = await this.nkbRepository.save(nkb);
+    return { nkbNumber, nkbId: saved.uuid };
   }
 
   async redeem(
     uuid: string,
-    amountPaid?: number,
-    createdBy?: string | null,
-  ): Promise<{ nkbNumber: string }> {
+    dto: RedeemSpkDto,
+    createdBy: string | null,
+  ): Promise<{ nkbNumber: string; nkbId: string }> {
     const spk = await this.spkRepository.findOne({
       where: { uuid },
     });
@@ -386,21 +426,33 @@ export class SpkService {
         'Only active or extended SPK can be redeemed',
       );
     }
+
+    const existingPendingNkb = await this.findPendingNkb(spk.uuid);
+    if (existingPendingNkb) {
+      return {
+        nkbNumber: existingPendingNkb.nkbNumber,
+        nkbId: existingPendingNkb.uuid,
+      };
+    }
+
     const amount =
-      amountPaid ?? Number(spk.remainingBalance);
+      dto.amountPaid ?? Number(spk.remainingBalance);
+    const paymentMethod = dto.paymentMethod ?? NkbPaymentMethodEnum.Cash;
     const nkbNumber = await this.generateNkbNumber();
     const nkb = this.nkbRepository.create({
       nkbNumber,
+      ptId: spk.ptId,
+      storeId: spk.storeId,
       spkId: spk.uuid,
       amountPaid: String(amount),
       paymentType: NkbPaymentTypeEnum.FullRedemption,
-      paymentMethod: NkbPaymentMethodEnum.Cash,
+      paymentMethod,
       status: NkbStatusEnum.Pending,
-      createdBy: createdBy ?? null,
+      createdBy,
       isCustomerInitiated: !createdBy,
     });
-    await this.nkbRepository.save(nkb);
-    return { nkbNumber };
+    const saved = await this.nkbRepository.save(nkb);
+    return { nkbNumber, nkbId: saved.uuid };
   }
 
   async getHistory(uuid: string): Promise<unknown[]> {
@@ -447,6 +499,33 @@ export class SpkService {
       );
     }
     return candidate;
+  }
+
+  private async findPendingNkb(
+    spkId: string,
+  ): Promise<Pick<NkbRecordEntity, 'uuid' | 'nkbNumber'> | null> {
+    const pendingNkb = await this.nkbRepository.findOne({
+      select: {
+        uuid: true,
+        nkbNumber: true,
+      },
+      where: {
+        spkId,
+        status: NkbStatusEnum.Pending,
+      },
+      order: {
+        createdAt: 'DESC',
+      },
+    });
+
+    if (!pendingNkb) {
+      return null;
+    }
+
+    return {
+      uuid: pendingNkb.uuid,
+      nkbNumber: pendingNkb.nkbNumber,
+    };
   }
 
   private async generateNkbNumber(): Promise<string> {

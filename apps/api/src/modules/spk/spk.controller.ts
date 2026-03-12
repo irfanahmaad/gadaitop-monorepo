@@ -34,6 +34,13 @@ export class SpkController {
   ): Promise<{ data: SpkDto[]; meta: PageMetaDto }> {
     const user = (req as any).user;
     const userPtId = user?.companyId ?? user?.ownedCompanyId ?? undefined;
+
+    // When called from the customer portal, always scope results to the
+    // authenticated customer, ignoring any client-supplied customerId.
+    if (user?.isCustomer && user.customerId) {
+      queryDto.customerId = user.customerId;
+    }
+
     return this.spkService.findAll(queryDto, userPtId);
   }
 
@@ -59,13 +66,33 @@ export class SpkController {
 
   @Get(':id/history')
   @Auth([{ action: AclAction.READ, subject: AclSubject.SPK }])
-  async getHistory(@Param('id', ParseUUIDPipe) id: string): Promise<unknown[]> {
+  async getHistory(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
+  ): Promise<unknown[]> {
+    const user = (req as any).user;
+
+    if (user?.isCustomer && user.customerId) {
+      await this.spkService.findOneForCustomer(id, user.customerId);
+      return this.spkService.getHistory(id);
+    }
+
     return this.spkService.getHistory(id);
   }
 
   @Get(':id/nkb')
   @Auth([{ action: AclAction.READ, subject: AclSubject.SPK }])
-  async getNkb(@Param('id', ParseUUIDPipe) id: string): Promise<unknown[]> {
+  async getNkb(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
+  ): Promise<unknown[]> {
+    const user = (req as any).user;
+
+    if (user?.isCustomer && user.customerId) {
+      await this.spkService.findOneForCustomer(id, user.customerId);
+      return this.spkService.getNkb(id);
+    }
+
     return this.spkService.getNkb(id);
   }
 
@@ -75,9 +102,14 @@ export class SpkController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ExtendSpkDto,
     @Req() req: Request,
-  ): Promise<{ nkbNumber: string }> {
+  ): Promise<{ nkbNumber: string; nkbId: string }> {
     const user = (req as any).user;
     const createdBy = user?.uuid ?? null;
+
+    if (user?.isCustomer && user.customerId) {
+      await this.spkService.findOneForCustomer(id, user.customerId);
+    }
+
     return this.spkService.extend(id, dto, createdBy);
   }
 
@@ -87,15 +119,29 @@ export class SpkController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: RedeemSpkDto,
     @Req() req: Request,
-  ): Promise<{ nkbNumber: string }> {
+  ): Promise<{ nkbNumber: string; nkbId: string }> {
     const user = (req as any).user;
     const createdBy = user?.uuid ?? null;
-    return this.spkService.redeem(id, dto.amountPaid, createdBy);
+
+    if (user?.isCustomer && user.customerId) {
+      await this.spkService.findOneForCustomer(id, user.customerId);
+    }
+
+    return this.spkService.redeem(id, dto, createdBy);
   }
 
   @Get(':id')
   @Auth([{ action: AclAction.READ, subject: AclSubject.SPK }])
-  async findOne(@Param('id', ParseUUIDPipe) id: string): Promise<SpkDto> {
+  async findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
+  ): Promise<SpkDto> {
+    const user = (req as any).user;
+
+    if (user?.isCustomer && user.customerId) {
+      return this.spkService.findOneForCustomer(id, user.customerId);
+    }
+
     return this.spkService.findOne(id);
   }
 }

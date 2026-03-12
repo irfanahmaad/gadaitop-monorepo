@@ -5,6 +5,7 @@ import { ForbiddenException, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
 import { PERMISSION_CHECKER_KEY } from '../decorators/permission.decorator';
+import { AclAction, AclSubject } from '../constants/acl';
 
 import type {
   ForcedSubject,
@@ -44,6 +45,28 @@ export class PermissionsGuard implements CanActivate {
     }
 
     const currentUser = context.switchToHttp().getRequest().user;
+
+    // Customer JWTs don't carry role-based permissions (roles is empty), so
+    // CASL would normally reject them for any protected route. For customer
+    // portal we allow authenticated customers to access SPK read/update
+    // (extend/redeem) and NKB read (polling payment status); data scoping is
+    // enforced separately in the SPK/NKB layer.
+    if (currentUser?.isCustomer) {
+      const isSpkAllowed = rules.every(
+        (rule) =>
+          (rule.action === AclAction.READ || rule.action === AclAction.UPDATE) &&
+          rule.subject === AclSubject.SPK,
+      );
+      const isNkbReadOnly = rules.every(
+        (rule) =>
+          rule.action === AclAction.READ && rule.subject === AclSubject.NKB,
+      );
+
+      if (isSpkAllowed || isNkbReadOnly) {
+        return true;
+      }
+    }
+
     const roles: RoleEntity[] = currentUser?.roles || [];
 
     const permissions: IAbility[] = flatMap(roles, 'permissions');

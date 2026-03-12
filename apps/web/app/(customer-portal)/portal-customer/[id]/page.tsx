@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useMemo } from "react"
+import React, { useState, useMemo, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { ColumnDef } from "@tanstack/react-table"
 import { Breadcrumbs } from "@/components/breadcrumbs"
@@ -20,8 +20,15 @@ import {
 } from "@workspace/ui/components/avatar"
 import { Badge } from "@workspace/ui/components/badge"
 import { Package, Banknote, CreditCard } from "lucide-react"
-import { useSpk, useSpkNkb } from "@/lib/react-query/hooks/use-spk"
-import type { Spk, Nkb } from "@/lib/api/types"
+import { toast } from "sonner"
+import { BayarDialog } from "../_components/BayarDialog"
+import {
+  useSpk,
+  useSpkNkb,
+  useExtendSpk,
+  useRedeemSpk,
+} from "@/lib/react-query/hooks/use-spk"
+import type { Nkb } from "@/lib/api/types"
 
 const formatCurrency = (amount: number): string =>
   new Intl.NumberFormat("id-ID", {
@@ -191,6 +198,13 @@ export default function PortalCustomerDetailPage() {
   const { data: spk, isLoading: spkLoading, isError: spkError } = useSpk(id)
   const { data: nkbList = [], isLoading: nkbLoading } = useSpkNkb(id)
 
+  const [bayarDialogOpen, setBayarDialogOpen] = useState(false)
+  const [bayarType, setBayarType] = useState<"cicil" | "lunas">("cicil")
+
+  const extendSpk = useExtendSpk()
+  const redeemSpk = useRedeemSpk()
+  const isPaymentSubmitting = extendSpk.isPending || redeemSpk.isPending
+
   const firstItem = useMemo(() => {
     const items = spk?.items
     if (!items?.length) return null
@@ -200,13 +214,51 @@ export default function PortalCustomerDetailPage() {
   const itemName = firstItem?.description ?? spk?.spkNumber ?? "-"
   const photoUrl = firstItem?.photoUrl
 
-  const handleBayarCicil = () => {
-    // TODO: open BayarDialog
-  }
+  const handleBayarCicil = useCallback(() => {
+    setBayarType("cicil")
+    setBayarDialogOpen(true)
+  }, [])
 
-  const handleBayarLunas = () => {
-    // TODO: open BayarDialog
-  }
+  const handleBayarLunas = useCallback(() => {
+    setBayarType("lunas")
+    setBayarDialogOpen(true)
+  }, [])
+
+  const handleBayarConfirm = useCallback(
+    async (data: {
+      type: "cicil" | "lunas"
+      spkId: string
+      paymentMethod: string
+      amountPaid: number
+      totalBunga: number
+      totalDenda: number
+      grandTotal: number
+    }) => {
+      const paymentMethod = data.paymentMethod as "cash" | "transfer"
+      try {
+        if (data.type === "cicil") {
+          const result = await extendSpk.mutateAsync({
+            id: data.spkId,
+            data: { amountPaid: data.amountPaid, paymentMethod },
+          })
+          router.push(
+            `/portal-customer/payment-process?nkbId=${result.nkbId}&spkId=${data.spkId}&method=${paymentMethod}`
+          )
+        } else {
+          const result = await redeemSpk.mutateAsync({
+            id: data.spkId,
+            data: { amountPaid: data.amountPaid, paymentMethod },
+          })
+          router.push(
+            `/portal-customer/payment-process?nkbId=${result.nkbId}&spkId=${data.spkId}&method=${paymentMethod}`
+          )
+        }
+      } catch {
+        toast.error("Gagal mengajukan pembayaran")
+      }
+    },
+    [extendSpk, redeemSpk, router]
+  )
 
   if (!id) {
     return (
@@ -343,6 +395,23 @@ export default function PortalCustomerDetailPage() {
             initialPageSize={10}
           />
         )
+      )}
+
+      {spk && (
+        <BayarDialog
+          open={bayarDialogOpen}
+          onOpenChange={setBayarDialogOpen}
+          type={bayarType}
+          spkId={spk.uuid}
+          remainingBalance={Number(
+            (spk as { remainingBalance?: number }).remainingBalance ??
+              spk.totalAmount ??
+              spk.principalAmount ??
+              0
+          )}
+          onConfirm={handleBayarConfirm}
+          isSubmitting={isPaymentSubmitting}
+        />
       )}
     </div>
   )

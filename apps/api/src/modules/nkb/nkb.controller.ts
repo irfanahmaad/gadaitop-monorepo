@@ -71,7 +71,16 @@ export class NkbController {
 
   @Get(':id')
   @Auth([{ action: AclAction.READ, subject: AclSubject.NKB }])
-  async findOne(@Param('id', ParseUUIDPipe) id: string): Promise<NkbDto> {
+  async findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
+  ): Promise<NkbDto> {
+    const user = (req as any).user;
+
+    if (user?.isCustomer && user.customerId) {
+      return this.nkbService.findOneForCustomer(id, user.customerId);
+    }
+
     return this.nkbService.findOne(id);
   }
 }
