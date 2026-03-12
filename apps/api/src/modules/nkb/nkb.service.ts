@@ -16,6 +16,12 @@ import {
 import { NkbPaymentTypeEnum } from '../../constants/nkb-payment-type';
 import { NkbStatusEnum } from '../../constants/nkb-status';
 import { SpkStatusEnum } from '../../constants/spk-status';
+import { BranchEntity } from '../branch/entities/branch.entity';
+import { CompanyEntity } from '../company/entities/company.entity';
+import {
+  InterestCalculatorService,
+  type SpkForCalculation,
+} from '../spk/services/interest-calculator.service';
 import { NkbRecordEntity } from './entities/nkb-record.entity';
 import { SpkRecordEntity } from '../spk/entities/spk-record.entity';
 import { NkbDto } from './dto/nkb.dto';
@@ -30,6 +36,11 @@ export class NkbService {
     private nkbRepository: Repository<NkbRecordEntity>,
     @InjectRepository(SpkRecordEntity)
     private spkRepository: Repository<SpkRecordEntity>,
+    @InjectRepository(CompanyEntity)
+    private companyRepository: Repository<CompanyEntity>,
+    @InjectRepository(BranchEntity)
+    private branchRepository: Repository<BranchEntity>,
+    private interestCalculator: InterestCalculatorService,
   ) {}
 
   async findAll(
@@ -165,13 +176,14 @@ export class NkbService {
     }
     if (
       spk.status !== SpkStatusEnum.Active &&
-      spk.status !== SpkStatusEnum.Extended
+      spk.status !== SpkStatusEnum.Extended &&
+      spk.status !== SpkStatusEnum.Overdue
     ) {
       throw new BadRequestException(
-        'NKB can only be created for active or extended SPK',
+        'NKB can only be created for active, extended, or overdue SPK',
       );
     }
-    const nkbNumber = await this.generateNkbNumber();
+    const nkbNumber = await this.generateNkbNumber(createDto.storeId);
     const nkb = this.nkbRepository.create({
       nkbNumber,
       ptId: createDto.ptId,
@@ -208,15 +220,62 @@ export class NkbService {
       where: { uuid: nkb.spkId },
     });
     if (spk) {
-      const remaining = Number(spk.remainingBalance) - Number(nkb.amountPaid);
-      spk.remainingBalance = String(Math.max(0, remaining));
-      if (remaining <= 0) {
+      const amountPaid = Number(nkb.amountPaid);
+      const company = await this.companyRepository.findOne({
+        where: { uuid: spk.ptId },
+      });
+      const config = company
+        ? {
+            earlyInterestRate: Number(company.earlyInterestRate ?? 5),
+            normalInterestRate: Number(company.normalInterestRate ?? 10),
+            adminFeeRate: Number(company.adminFeeRate ?? 0),
+            insuranceFee: Number(company.insuranceFee ?? 0),
+            latePenaltyRate: Number(company.latePenaltyRate ?? 2),
+            minPrincipalPayment: Number(company.minPrincipalPayment ?? 50000),
+            earlyPaymentDays: Number(company.earlyPaymentDays ?? 15),
+          }
+        : null;
+
+      if (nkb.paymentType === NkbPaymentTypeEnum.FullRedemption) {
+        spk.remainingBalance = '0';
         spk.status = SpkStatusEnum.Redeemed;
       } else if (
         nkb.paymentType === NkbPaymentTypeEnum.Renewal &&
-        (spk.status === SpkStatusEnum.Active || spk.status === SpkStatusEnum.Extended)
+        config
       ) {
+        const spkForCalc: SpkForCalculation = {
+          principalAmount: Number(spk.principalAmount),
+          tenor: spk.tenor,
+          interestRate: Number(spk.interestRate),
+          adminFee: Number(spk.adminFee ?? 0),
+          totalAmount: Number(spk.totalAmount),
+          remainingBalance: Number(spk.remainingBalance),
+          dueDate: spk.dueDate,
+          ...(spk as any),
+        };
+        const paymentDate = new Date();
+        const extResult = this.interestCalculator.calculateExtension(
+          spkForCalc,
+          paymentDate,
+          amountPaid,
+          config,
+        );
+        spk.remainingBalance = String(extResult.newRemainingBalance);
+        spk.dueDate = extResult.newDueDate;
         spk.status = SpkStatusEnum.Extended;
+      } else {
+        const remaining = Number(spk.remainingBalance) - amountPaid;
+        spk.remainingBalance = String(Math.max(0, remaining));
+        if (remaining <= 0) {
+          spk.status = SpkStatusEnum.Redeemed;
+        } else if (
+          nkb.paymentType === NkbPaymentTypeEnum.Renewal &&
+          (spk.status === SpkStatusEnum.Active ||
+            spk.status === SpkStatusEnum.Extended ||
+            spk.status === SpkStatusEnum.Overdue)
+        ) {
+          spk.status = SpkStatusEnum.Extended;
+        }
       }
       await this.spkRepository.save(spk);
     }
@@ -242,8 +301,12 @@ export class NkbService {
     return this.findOne(uuid);
   }
 
-  private async generateNkbNumber(): Promise<string> {
-    const prefix = 'NKB';
+  private async generateNkbNumber(storeId: string): Promise<string> {
+    const store = await this.branchRepository.findOne({
+      where: { uuid: storeId },
+      select: ['branchCode'],
+    });
+    const locationCode = store?.branchCode ?? 'LOC';
     const datePart = new Date()
       .toISOString()
       .slice(0, 10)
@@ -252,8 +315,8 @@ export class NkbService {
     let exists = true;
     let attempts = 0;
     while (exists && attempts < 100) {
-      const random = Math.floor(100000 + Math.random() * 900000);
-      candidate = `${prefix}${datePart}${random}`;
+      const random = Math.floor(1000 + Math.random() * 9000);
+      candidate = `${locationCode}-NKB-${datePart}-${random}`;
       const found = await this.nkbRepository.findOne({
         where: { nkbNumber: candidate },
       });

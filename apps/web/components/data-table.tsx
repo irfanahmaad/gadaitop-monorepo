@@ -61,6 +61,8 @@ interface CustomAction<TData> {
   icon?: React.ReactNode
   onClick: (row: TData) => void
   variant?: "default" | "destructive"
+  /** When true, this action is hidden for the row */
+  hidden?: (row: TData) => boolean
 }
 
 interface DataTableProps<TData, TValue> {
@@ -221,16 +223,18 @@ export function DataTable<TData, TValue>({
                   Hapus
                 </DropdownMenuItem>
               )}
-              {customActions?.map((action, index) => (
-                <DropdownMenuItem
-                  key={index}
-                  onClick={() => action.onClick(row.original)}
-                  variant={action.variant}
-                >
-                  {action.icon}
-                  {action.label}
-                </DropdownMenuItem>
-              ))}
+              {customActions
+                ?.filter((action) => !action.hidden?.(row.original))
+                .map((action, index) => (
+                  <DropdownMenuItem
+                    key={index}
+                    onClick={() => action.onClick(row.original)}
+                    variant={action.variant}
+                  >
+                    {action.icon}
+                    {action.label}
+                  </DropdownMenuItem>
+                ))}
             </DropdownMenuContent>
           </DropdownMenu>
         )

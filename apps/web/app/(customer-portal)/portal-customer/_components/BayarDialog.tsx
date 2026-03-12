@@ -1,7 +1,9 @@
 "use client"
 
-import React, { useState, useMemo, useCallback } from "react"
+import React, { useState, useMemo, useCallback, useEffect } from "react"
 import { X, KeyRound } from "lucide-react"
+import { toast } from "sonner"
+import { useSpkCalculatePayment } from "@/lib/react-query/hooks/use-spk"
 import {
   Dialog,
   DialogContent,
@@ -52,8 +54,8 @@ interface BayarDialogProps {
   isSubmitting?: boolean
 }
 
-const BUNGA_PERCENT = 5
-const DENDA_PERCENT = 2
+/** Spec: batas bawah pokok untuk perpanjangan Rp 50.000 */
+const MIN_PRINCIPAL_RENEWAL = 50_000
 
 export function BayarDialog({
   open,
@@ -70,7 +72,46 @@ export function BayarDialog({
   const [isLocalSubmitting, setIsLocalSubmitting] = useState(false)
   const isSubmittingState = isSubmitting || isLocalSubmitting
 
-  React.useEffect(() => {
+  const bayarPokokValue = useMemo(
+    () => parseCurrency(totalBayarPokok),
+    [totalBayarPokok]
+  )
+
+  const calcType = type === "lunas" ? "redemption" : "renewal"
+  const calcAmount =
+    type === "lunas"
+      ? remainingBalance
+      : type === "cicil"
+        ? (bayarPokokValue || defaultCicilAmount)
+        : 0
+  const { data: calcData, isLoading: calcLoading } = useSpkCalculatePayment(
+    spkId,
+    calcType,
+    type === "lunas" ? undefined : calcAmount,
+    { enabled: open && !!spkId }
+  )
+
+  const totalBunga = useMemo(
+    () => calcData?.interestAmount ?? 0,
+    [calcData?.interestAmount]
+  )
+  const totalDenda = useMemo(
+    () => calcData?.latePenalty ?? 0,
+    [calcData?.latePenalty]
+  )
+  const grandTotal = useMemo(() => {
+    if (type === "lunas" && calcData?.totalDue != null) {
+      return calcData.totalDue
+    }
+    return bayarPokokValue + totalBunga + totalDenda
+  }, [type, calcData?.totalDue, bayarPokokValue, totalBunga, totalDenda])
+
+  const amountToSend =
+    type === "lunas"
+      ? (calcData?.totalDue ?? remainingBalance)
+      : bayarPokokValue + totalBunga + totalDenda
+
+  useEffect(() => {
     if (open) {
       if (type === "lunas") {
         setTotalBayarPokok(formatCurrency(remainingBalance))
@@ -80,26 +121,6 @@ export function BayarDialog({
       setMetodePembayaran("cash")
     }
   }, [open, type, remainingBalance, defaultCicilAmount])
-
-  const bayarPokokValue = useMemo(
-    () => parseCurrency(totalBayarPokok),
-    [totalBayarPokok]
-  )
-
-  const totalBunga = useMemo(
-    () => (bayarPokokValue * BUNGA_PERCENT) / 100,
-    [bayarPokokValue]
-  )
-
-  const totalDenda = useMemo(
-    () => (type === "lunas" ? (bayarPokokValue * DENDA_PERCENT) / 100 : 0),
-    [bayarPokokValue, type]
-  )
-
-  const grandTotal = useMemo(
-    () => bayarPokokValue + totalBunga + totalDenda,
-    [bayarPokokValue, totalBunga, totalDenda]
-  )
 
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -117,13 +138,20 @@ export function BayarDialog({
   const handleConfirm = useCallback(async () => {
     if (isSubmittingState) return
 
+    if (type === "cicil" && bayarPokokValue < MIN_PRINCIPAL_RENEWAL) {
+      toast.error(
+        `Minimum pembayaran pokok untuk perpanjangan adalah Rp ${MIN_PRINCIPAL_RENEWAL.toLocaleString("id-ID")}`
+      )
+      return
+    }
+
     setIsLocalSubmitting(true)
     try {
       await onConfirm?.({
         type,
         spkId,
         paymentMethod: metodePembayaran,
-        amountPaid: bayarPokokValue,
+        amountPaid: amountToSend,
         totalBunga,
         totalDenda,
         grandTotal,
@@ -137,6 +165,7 @@ export function BayarDialog({
     spkId,
     metodePembayaran,
     bayarPokokValue,
+    amountToSend,
     totalBunga,
     totalDenda,
     grandTotal,
@@ -216,18 +245,18 @@ export function BayarDialog({
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground text-sm">
-                  Total Bunga {BUNGA_PERCENT}%
+                  Total Bunga
                 </span>
                 <span className="text-sm">
-                  Rp {formatCurrency(totalBunga)}
+                  {calcLoading ? "..." : `Rp ${formatCurrency(totalBunga)}`}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground text-sm">
-                  Total Denda {DENDA_PERCENT}%
+                  Total Denda
                 </span>
                 <span className="text-sm">
-                  Rp {formatCurrency(totalDenda)},-
+                  {calcLoading ? "..." : `Rp ${formatCurrency(totalDenda)}`}
                 </span>
               </div>
               <div className="flex items-center justify-between">

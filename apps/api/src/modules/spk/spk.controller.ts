@@ -20,6 +20,10 @@ import { QuerySpkDto } from './dto/query-spk.dto';
 import { ConfirmSpkDto } from './dto/confirm-spk.dto';
 import { ExtendSpkDto } from './dto/extend-spk.dto';
 import { RedeemSpkDto } from './dto/redeem-spk.dto';
+import {
+  CalculatePaymentQueryDto,
+  CalculatePaymentType,
+} from './dto/calculate-payment-query.dto';
 import { PageMetaDto } from '../../common/dtos/page-meta.dto';
 
 @Controller({ path: 'spk', version: '1' })
@@ -78,6 +82,24 @@ export class SpkController {
     }
 
     return this.spkService.getHistory(id);
+  }
+
+  @Get(':id/calculate-payment')
+  @Auth([{ action: AclAction.READ, subject: AclSubject.SPK }])
+  async calculatePayment(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() query: CalculatePaymentQueryDto,
+    @Req() req: Request,
+  ) {
+    const user = (req as any).user;
+    if (user?.isCustomer && user.customerId) {
+      await this.spkService.findOneForCustomer(id, user.customerId);
+    }
+    return this.spkService.calculatePayment(
+      id,
+      query.type as 'renewal' | 'redemption',
+      query.amountPaid,
+    );
   }
 
   @Get(':id/nkb')

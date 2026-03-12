@@ -57,8 +57,9 @@ export class InterestCalculatorService {
     const payDate = new Date(paymentDate);
     payDate.setHours(0, 0, 0, 0);
 
+    const startTime = (spk as any).createdAt?.getTime?.() ?? payDate.getTime();
     const daysFromStart = Math.floor(
-      (payDate.getTime() - (spk as any).createdAt?.getTime?.() ?? payDate.getTime()) / (1000 * 60 * 60 * 24),
+      (payDate.getTime() - startTime) / (1000 * 60 * 60 * 24),
     );
     const isEarly = daysFromStart < config.earlyPaymentDays;
     const rate = isEarly ? config.earlyInterestRate : config.normalInterestRate;
@@ -66,7 +67,7 @@ export class InterestCalculatorService {
     const adminFeeAmount = principal * (config.adminFeeRate / 100) + config.insuranceFee;
     const isOverdue = payDate > dueDate;
     const latePenalty = isOverdue
-      ? remaining * (config.latePenaltyRate / 100)
+      ? this.computeLatePenalty(remaining, dueDate, payDate, config)
       : 0;
     const totalDue = remaining + interestAmount + adminFeeAmount + latePenalty;
 
@@ -94,14 +95,17 @@ export class InterestCalculatorService {
     const payDate = new Date(paymentDate);
     payDate.setHours(0, 0, 0, 0);
 
+    const startTime = (spk as any).createdAt?.getTime?.() ?? payDate.getTime();
     const daysFromStart = Math.floor(
-      (payDate.getTime() - (spk as any).createdAt?.getTime?.() ?? payDate.getTime()) / (1000 * 60 * 60 * 24),
+      (payDate.getTime() - startTime) / (1000 * 60 * 60 * 24),
     );
     const isEarly = daysFromStart < config.earlyPaymentDays;
     const rate = isEarly ? config.earlyInterestRate : config.normalInterestRate;
     const interestAmount = (remaining * (rate / 100) * spk.tenor) / 365;
     const isOverdue = payDate > dueDate;
-    const latePenalty = isOverdue ? remaining * (config.latePenaltyRate / 100) : 0;
+    const latePenalty = isOverdue
+      ? this.computeLatePenalty(remaining, dueDate, payDate, config)
+      : 0;
     const totalInterestAndPenalty = interestAmount + latePenalty;
     const principalPaid = Math.max(0, amountPaid - totalInterestAndPenalty);
     const newRemainingBalance = Math.max(0, remaining - principalPaid);
@@ -118,6 +122,24 @@ export class InterestCalculatorService {
   }
 
   /**
+   * Compute late penalty with multi-month compounding.
+   * Spec: "Keterlambatan > 1 bulan: (d% × n bulan terlambat)"
+   */
+  private computeLatePenalty(
+    remaining: number,
+    dueDate: Date,
+    payDate: Date,
+    config: CompanyInterestConfig,
+  ): number {
+    const daysLate = Math.floor(
+      (payDate.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24),
+    );
+    if (daysLate <= 0) return 0;
+    const monthsLate = Math.max(1, Math.ceil(daysLate / 30));
+    return remaining * (config.latePenaltyRate / 100) * monthsLate;
+  }
+
+  /**
    * Calculate late penalty only (e.g. for display).
    */
   calculateLatePenalty(
@@ -131,6 +153,11 @@ export class InterestCalculatorService {
     const payDate = new Date(paymentDate);
     payDate.setHours(0, 0, 0, 0);
     if (payDate <= dueDate) return 0;
-    return remaining * (config.latePenaltyRate / 100);
+    return this.computeLatePenalty(
+      remaining,
+      dueDate,
+      payDate,
+      config,
+    );
   }
 }

@@ -39,7 +39,11 @@ import { QuerySpkDto } from './dto/query-spk.dto';
 import { ConfirmSpkDto } from './dto/confirm-spk.dto';
 import { ExtendSpkDto } from './dto/extend-spk.dto';
 import { RedeemSpkDto } from './dto/redeem-spk.dto';
-import { InterestCalculatorService } from './services/interest-calculator.service';
+import {
+  CompanyInterestConfig,
+  InterestCalculatorService,
+  type SpkForCalculation,
+} from './services/interest-calculator.service';
 
 @Injectable()
 export class SpkService {
@@ -374,10 +378,11 @@ export class SpkService {
     }
     if (
       spk.status !== SpkStatusEnum.Active &&
-      spk.status !== SpkStatusEnum.Extended
+      spk.status !== SpkStatusEnum.Extended &&
+      spk.status !== SpkStatusEnum.Overdue
     ) {
       throw new BadRequestException(
-        'Only active or extended SPK can request extension',
+        'Only active, extended, or overdue SPK can request extension',
       );
     }
 
@@ -389,7 +394,30 @@ export class SpkService {
       };
     }
 
-    const nkbNumber = await this.generateNkbNumber();
+    const company = await this.companyRepository.findOne({
+      where: { uuid: spk.ptId },
+    });
+    if (!company) {
+      throw new NotFoundException('Company (PT) not found');
+    }
+    const config = this.buildCompanyConfig(company);
+    const spkForCalc = this.buildSpkForCalculation(spk);
+    const paymentDate = new Date();
+    const extResult = this.interestCalculator.calculateExtension(
+      spkForCalc,
+      paymentDate,
+      dto.amountPaid,
+      config,
+    );
+    const minTotal = extResult.interestAmount + extResult.latePenalty + config.minPrincipalPayment;
+    if (dto.amountPaid < minTotal) {
+      throw new BadRequestException(
+        `Minimum payment for renewal: Rp ${Math.ceil(minTotal).toLocaleString('id-ID')} ` +
+          `(bunga + denda + pokok min. Rp ${config.minPrincipalPayment.toLocaleString('id-ID')})`,
+      );
+    }
+
+    const nkbNumber = await this.generateNkbNumber(spk.storeId);
     const paymentMethod = dto.paymentMethod ?? NkbPaymentMethodEnum.Cash;
     const nkb = this.nkbRepository.create({
       nkbNumber,
@@ -414,16 +442,18 @@ export class SpkService {
   ): Promise<{ nkbNumber: string; nkbId: string }> {
     const spk = await this.spkRepository.findOne({
       where: { uuid },
+      relations: ['pt'],
     });
     if (!spk) {
       throw new NotFoundException(`SPK with UUID ${uuid} not found`);
     }
     if (
       spk.status !== SpkStatusEnum.Active &&
-      spk.status !== SpkStatusEnum.Extended
+      spk.status !== SpkStatusEnum.Extended &&
+      spk.status !== SpkStatusEnum.Overdue
     ) {
       throw new BadRequestException(
-        'Only active or extended SPK can be redeemed',
+        'Only active, extended, or overdue SPK can be redeemed',
       );
     }
 
@@ -437,8 +467,28 @@ export class SpkService {
 
     const amount =
       dto.amountPaid ?? Number(spk.remainingBalance);
+    const company = await this.companyRepository.findOne({
+      where: { uuid: spk.ptId },
+    });
+    if (!company) {
+      throw new NotFoundException('Company (PT) not found');
+    }
+    const config = this.buildCompanyConfig(company);
+    const spkForCalc = this.buildSpkForCalculation(spk);
+    const paymentDate = new Date();
+    const redemptionResult = this.interestCalculator.calculateFullRedemption(
+      spkForCalc,
+      paymentDate,
+      config,
+    );
+    if (amount < redemptionResult.totalDue) {
+      throw new BadRequestException(
+        `Minimum payment for full redemption: Rp ${Math.ceil(redemptionResult.totalDue).toLocaleString('id-ID')} ` +
+          `(pokok + bunga + admin + denda)`,
+      );
+    }
     const paymentMethod = dto.paymentMethod ?? NkbPaymentMethodEnum.Cash;
-    const nkbNumber = await this.generateNkbNumber();
+    const nkbNumber = await this.generateNkbNumber(spk.storeId);
     const nkb = this.nkbRepository.create({
       nkbNumber,
       ptId: spk.ptId,
@@ -453,6 +503,67 @@ export class SpkService {
     });
     const saved = await this.nkbRepository.save(nkb);
     return { nkbNumber, nkbId: saved.uuid };
+  }
+
+  async calculatePayment(
+    uuid: string,
+    type: 'renewal' | 'redemption',
+    amountPaid?: number,
+  ): Promise<{
+    interestAmount: number;
+    latePenalty: number;
+    adminFeeAmount?: number;
+    principalPaid: number;
+    newRemainingBalance?: number;
+    newDueDate?: string;
+    totalDue?: number;
+  }> {
+    const spk = await this.spkRepository.findOne({
+      where: { uuid },
+      relations: ['pt'],
+    });
+    if (!spk) {
+      throw new NotFoundException(`SPK with UUID ${uuid} not found`);
+    }
+    const company = await this.companyRepository.findOne({
+      where: { uuid: spk.ptId },
+    });
+    if (!company) {
+      throw new NotFoundException('Company (PT) not found');
+    }
+    const config = this.buildCompanyConfig(company);
+    const spkForCalc = this.buildSpkForCalculation(spk);
+    const paymentDate = new Date();
+
+    if (type === 'redemption') {
+      const result = this.interestCalculator.calculateFullRedemption(
+        spkForCalc,
+        paymentDate,
+        config,
+      );
+      return {
+        interestAmount: result.interestAmount,
+        latePenalty: result.latePenalty,
+        adminFeeAmount: result.adminFeeAmount,
+        principalPaid: result.principalPaid,
+        totalDue: result.totalDue,
+      };
+    }
+
+    const amt = amountPaid ?? Number(spk.remainingBalance);
+    const result = this.interestCalculator.calculateExtension(
+      spkForCalc,
+      paymentDate,
+      amt,
+      config,
+    );
+    return {
+      interestAmount: result.interestAmount,
+      latePenalty: result.latePenalty,
+      principalPaid: result.principalPaid,
+      newRemainingBalance: result.newRemainingBalance,
+      newDueDate: result.newDueDate.toISOString().slice(0, 10),
+    };
   }
 
   async getHistory(uuid: string): Promise<unknown[]> {
@@ -474,6 +585,31 @@ export class SpkService {
       status: n.status,
       createdAt: n.createdAt,
     }));
+  }
+
+  private buildCompanyConfig(company: CompanyEntity): CompanyInterestConfig {
+    return {
+      earlyInterestRate: Number(company.earlyInterestRate ?? 5),
+      normalInterestRate: Number(company.normalInterestRate ?? 10),
+      adminFeeRate: Number(company.adminFeeRate ?? 0),
+      insuranceFee: Number(company.insuranceFee ?? 0),
+      latePenaltyRate: Number(company.latePenaltyRate ?? 2),
+      minPrincipalPayment: Number(company.minPrincipalPayment ?? 50000),
+      earlyPaymentDays: Number(company.earlyPaymentDays ?? 15),
+    };
+  }
+
+  private buildSpkForCalculation(spk: SpkRecordEntity): SpkForCalculation {
+    return {
+      principalAmount: Number(spk.principalAmount),
+      tenor: spk.tenor,
+      interestRate: Number(spk.interestRate),
+      adminFee: Number(spk.adminFee ?? 0),
+      totalAmount: Number(spk.totalAmount),
+      remainingBalance: Number(spk.remainingBalance),
+      dueDate: spk.dueDate,
+      ...(spk as any),
+    };
   }
 
   private async generateCustomerSpkNumber(): Promise<string> {
@@ -528,8 +664,12 @@ export class SpkService {
     };
   }
 
-  private async generateNkbNumber(): Promise<string> {
-    const prefix = 'NKB';
+  private async generateNkbNumber(storeId: string): Promise<string> {
+    const store = await this.branchRepository.findOne({
+      where: { uuid: storeId },
+      select: ['branchCode'],
+    });
+    const locationCode = store?.branchCode ?? 'LOC';
     const datePart = new Date()
       .toISOString()
       .slice(0, 10)
@@ -538,8 +678,8 @@ export class SpkService {
     let exists = true;
     let attempts = 0;
     while (exists && attempts < 100) {
-      const random = Math.floor(100000 + Math.random() * 900000);
-      candidate = `${prefix}${datePart}${random}`;
+      const random = Math.floor(1000 + Math.random() * 9000);
+      candidate = `${locationCode}-NKB-${datePart}-${random}`;
       const found = await this.nkbRepository.findOne({
         where: { nkbNumber: candidate },
       });

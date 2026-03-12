@@ -103,6 +103,10 @@ export const endpoints = {
     redeem: (id: string) => baseUrl(`spk/${id}/redeem`),
     history: (id: string) => baseUrl(`spk/${id}/history`),
     nkb: (id: string) => baseUrl(`spk/${id}/nkb`),
+    calculatePayment: (id: string, type: string, amountPaid?: number) =>
+      baseUrl(
+        `spk/${id}/calculate-payment?type=${type}${amountPaid != null ? `&amountPaid=${amountPaid}` : ""}`
+      ),
   },
 
   // Customers

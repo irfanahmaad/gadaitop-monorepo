@@ -55,7 +55,7 @@ import {
 } from "@/lib/react-query/hooks/use-customers"
 import { useItemTypes } from "@/lib/react-query/hooks/use-item-types"
 import { useCatalogs } from "@/lib/react-query/hooks/use-catalogs"
-import { useCreateSpk } from "@/lib/react-query/hooks/use-spk"
+import { useCreateSpk, useConfirmSpk } from "@/lib/react-query/hooks/use-spk"
 import { ApiClientError } from "@/lib/api/client"
 
 // Enum mapping for dropdown values
@@ -88,8 +88,8 @@ const spkSchema = z
     fotoBarang: z.array(z.instanceof(File)).min(0).optional(),
     pin: z
       .string()
-      .min(4, "PIN minimal 4 karakter")
-      .max(6, "PIN maksimal 6 karakter"),
+      .length(6, "PIN harus 6 digit")
+      .regex(/^\d{6}$/, "PIN harus berupa 6 digit angka"),
   })
   .refine(
     (data) => {
@@ -154,7 +154,7 @@ export default function TambahSPKPage() {
   const hargaAcuan = form.watch("hargaAcuan") || "0"
   const jumlahSPK = form.watch("jumlahSPK")
   const pin = form.watch("pin") || ""
-  const isPinValid = pin.length >= 4
+  const isPinValid = pin.length === 6
 
   // --- API Hooks ---
 
@@ -240,6 +240,7 @@ export default function TambahSPKPage() {
   }, [form])
 
   const createSpkMutation = useCreateSpk()
+  const confirmSpkMutation = useConfirmSpk()
 
   // --- Handlers ---
   const handleCustomerMasukkanPin = () => {
@@ -342,7 +343,7 @@ export default function TambahSPKPage() {
       const appraisedValue = parseCurrencyInput(values.hargaAcuan || "0") || 0
 
       // Map to CreateSpkDto
-      await createSpkMutation.mutateAsync({
+      const createdSpk = await createSpkMutation.mutateAsync({
         customerId: customerItem.uuid,
         storeId: storeIdToUse,
         ptId: ptId,
@@ -364,6 +365,12 @@ export default function TambahSPKPage() {
         ],
       })
 
+      // Confirm SPK with customer PIN to activate it (Draft -> Active)
+      await confirmSpkMutation.mutateAsync({
+        id: createdSpk.uuid,
+        data: { pin: values.pin },
+      })
+
       toast.success("Data SPK berhasil ditambahkan")
       setConfirmOpen(false)
       router.push("/spk")
@@ -380,6 +387,10 @@ export default function TambahSPKPage() {
         message =
           "Cabang toko tidak ditemukan. Silakan pilih cabang lain atau hubungi admin."
       }
+      if (message.includes("Invalid PIN") || message.includes("PIN")) {
+        message =
+          "PIN tidak valid. Pastikan customer memasukkan PIN yang benar (6 digit)."
+      }
 
       toast.error(message)
     }
@@ -393,7 +404,8 @@ export default function TambahSPKPage() {
     hargaAcuanNum > 0 &&
     jumlahSPKNum > hargaAcuanNum
 
-  const isSubmitting = createSpkMutation.isPending
+  const isSubmitting =
+    createSpkMutation.isPending || confirmSpkMutation.isPending
 
   return (
     <div className="flex flex-col gap-6">

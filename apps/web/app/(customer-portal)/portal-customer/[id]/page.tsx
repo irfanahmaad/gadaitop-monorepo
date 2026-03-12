@@ -61,6 +61,29 @@ function getNkbStatusLabel(status: string): string {
   return map[status] ?? status
 }
 
+const SPK_STATUS_LABELS: Record<string, string> = {
+  draft: "Draft",
+  active: "Aktif",
+  extended: "Diperpanjang",
+  redeemed: "Ditebus",
+  overdue: "Jatuh Tempo",
+  auctioned: "Dilelang",
+  closed: "Ditutup",
+}
+
+const SPK_STATUS_VARIANT: Record<
+  string,
+  "default" | "secondary" | "destructive" | "outline"
+> = {
+  draft: "outline",
+  active: "default",
+  extended: "secondary",
+  redeemed: "secondary",
+  overdue: "destructive",
+  auctioned: "destructive",
+  closed: "outline",
+}
+
 function getNkbTypeLabel(type: string): string {
   const map: Record<string, string> = {
     full_redemption: "Pelunasan",
@@ -205,6 +228,9 @@ export default function PortalCustomerDetailPage() {
   const redeemSpk = useRedeemSpk()
   const isPaymentSubmitting = extendSpk.isPending || redeemSpk.isPending
 
+  const canPay =
+    spk?.status !== "redeemed" && spk?.status !== "closed"
+
   const firstItem = useMemo(() => {
     const items = spk?.items
     if (!items?.length) return null
@@ -313,23 +339,25 @@ export default function PortalCustomerDetailPage() {
           <CardHeader>
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <CardTitle className="text-xl">Detail Item</CardTitle>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  className="gap-2 border-destructive text-destructive hover:bg-destructive/10"
-                  onClick={handleBayarCicil}
-                >
-                  <CreditCard className="size-4" />
-                  Bayar Cicil
-                </Button>
-                <Button
-                  className="gap-2 bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  onClick={handleBayarLunas}
-                >
-                  <Banknote className="size-4" />
-                  Bayar Lunas
-                </Button>
-              </div>
+              {canPay && (
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="gap-2 border-destructive text-destructive hover:bg-destructive/10"
+                    onClick={handleBayarCicil}
+                  >
+                    <CreditCard className="size-4" />
+                    Bayar Cicil
+                  </Button>
+                  <Button
+                    className="gap-2 bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={handleBayarLunas}
+                  >
+                    <Banknote className="size-4" />
+                    Bayar Lunas
+                  </Button>
+                </div>
+              )}
             </div>
           </CardHeader>
           <CardContent>
@@ -375,6 +403,20 @@ export default function PortalCustomerDetailPage() {
                       Jatuh Tempo
                     </label>
                     <p className="text-base">{formatDate(spk.dueDate ?? "")}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-muted-foreground text-sm font-medium">
+                      Status
+                    </label>
+                    <p className="text-base">
+                      <Badge
+                        variant={
+                          SPK_STATUS_VARIANT[spk.status ?? ""] ?? "outline"
+                        }
+                      >
+                        {SPK_STATUS_LABELS[spk.status ?? ""] ?? spk.status ?? "-"}
+                      </Badge>
+                    </p>
                   </div>
                 </div>
               </div>

@@ -56,6 +56,32 @@ export function useSpkHistory(id: string) {
   })
 }
 
+// Calculate payment preview (interest, penalty, total)
+export function useSpkCalculatePayment(
+  spkId: string,
+  type: "renewal" | "redemption",
+  amountPaid?: number,
+  options?: { enabled?: boolean }
+) {
+  return useQuery({
+    queryKey: [...spkKeys.detail(spkId), "calculate", type, amountPaid],
+    queryFn: () => {
+      const params = new URLSearchParams({ type })
+      if (amountPaid != null) params.set("amountPaid", String(amountPaid))
+      return apiClient.get<{
+        interestAmount: number
+        latePenalty: number
+        adminFeeAmount?: number
+        principalPaid: number
+        newRemainingBalance?: number
+        newDueDate?: string
+        totalDue?: number
+      }>(`${endpoints.spk.detail(spkId)}/calculate-payment?${params}`)
+    },
+    enabled: (options?.enabled ?? true) && !!spkId,
+  })
+}
+
 // Get SPK NKB records
 export function useSpkNkb(id: string) {
   return useQuery({

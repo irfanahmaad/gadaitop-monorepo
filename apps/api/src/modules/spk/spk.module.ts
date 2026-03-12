@@ -28,6 +28,6 @@ import { InterestCalculatorService } from './services/interest-calculator.servic
   ],
   controllers: [SpkController],
   providers: [SpkService, InterestCalculatorService],
-  exports: [SpkService],
+  exports: [SpkService, InterestCalculatorService],
 })
 export class SpkModule {}

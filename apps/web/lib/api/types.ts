@@ -466,7 +466,7 @@ export interface CreateSpkDto {
 }
 
 export interface ConfirmSpkDto {
-  customerPin: string
+  pin: string
 }
 
 export interface ExtendSpkDto {

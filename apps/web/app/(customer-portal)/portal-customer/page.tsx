@@ -8,6 +8,7 @@ import { Breadcrumbs } from "@/components/breadcrumbs"
 import { DataTable } from "@/components/data-table"
 import { useFilterParams, FilterConfig } from "@/hooks/use-filter-params"
 import { Skeleton } from "@workspace/ui/components/skeleton"
+import { Badge } from "@workspace/ui/components/badge"
 import { Card, CardContent, CardHeader } from "@workspace/ui/components/card"
 import { toast } from "sonner"
 import { BayarDialog } from "./_components/BayarDialog"
@@ -55,6 +56,29 @@ function getStoreName(spk: Spk): string {
 function getCompanyName(spk: Spk): string {
   const pt = spk.pt as { companyName?: string } | undefined
   return pt?.companyName ?? "-"
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  draft: "Draft",
+  active: "Aktif",
+  extended: "Diperpanjang",
+  redeemed: "Ditebus",
+  overdue: "Jatuh Tempo",
+  auctioned: "Dilelang",
+  closed: "Ditutup",
+}
+
+const STATUS_VARIANT: Record<
+  string,
+  "default" | "secondary" | "destructive" | "outline"
+> = {
+  draft: "outline",
+  active: "default",
+  extended: "secondary",
+  redeemed: "secondary",
+  overdue: "destructive",
+  auctioned: "destructive",
+  closed: "outline",
 }
 
 const filterConfig: FilterConfig[] = [
@@ -107,6 +131,17 @@ const columns: ColumnDef<Spk>[] = [
     header: "Tanggal & Waktu SPK",
     cell: ({ row }) => formatDate(row.original.createdAt ?? ""),
   },
+  {
+    id: "status",
+    header: "Status",
+    cell: ({ row }) => {
+      const status = row.original.status ?? "draft"
+      const label = STATUS_LABELS[status] ?? status
+      return (
+        <Badge variant={STATUS_VARIANT[status] ?? "outline"}>{label}</Badge>
+      )
+    },
+  },
 ]
 
 function TableSkeleton() {
@@ -134,6 +169,7 @@ function TableSkeleton() {
               <Skeleton className="h-10 w-28" />
               <Skeleton className="h-10 w-24" />
               <Skeleton className="h-10 flex-1" />
+              <Skeleton className="h-10 w-20" />
               <Skeleton className="h-10 w-10" />
             </div>
           ))}
@@ -274,11 +310,15 @@ export default function PortalCustomerPage() {
               label: "Bayar Cicil",
               icon: <Wallet className="mr-2 h-4 w-4" />,
               onClick: handleBayarCicil,
+              hidden: (row) =>
+                row.status === "redeemed" || row.status === "closed",
             },
             {
               label: "Bayar Lunas",
               icon: <HandCoins className="mr-2 h-4 w-4" />,
               onClick: handleBayarLunas,
+              hidden: (row) =>
+                row.status === "redeemed" || row.status === "closed",
             },
           ]}
           filterConfig={filterConfig}
