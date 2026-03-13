@@ -10,6 +10,7 @@ import { DataSource, In, type FindOptionsWhere, Repository } from 'typeorm';
 import { PageMetaDto } from '../../common/dtos/page-meta.dto';
 import { SpkItemStatusEnum } from '../../constants/spk-item-status';
 import { StockOpnameSessionStatusEnum } from '../../constants/stock-opname-session-status';
+import { CashMutationService } from '../cash-mutation/cash-mutation.service';
 import { PawnTermEntity } from '../pawn-term/entities/pawn-term.entity';
 import { SpkItemEntity } from '../spk/entities/spk-item.entity';
 import { StockOpnameSessionEntity } from './entities/stock-opname-session.entity';
@@ -41,6 +42,7 @@ export class StockOpnameService {
     private spkItemRepository: Repository<SpkItemEntity>,
     @InjectRepository(PawnTermEntity)
     private pawnTermRepository: Repository<PawnTermEntity>,
+    private cashMutationService: CashMutationService,
     private dataSource: DataSource,
   ) {}
 
@@ -123,13 +125,76 @@ export class StockOpnameService {
     if (userPtId && session.ptId !== userPtId) {
       throw new ForbiddenException('Session does not belong to your company');
     }
-    return new StockOpnameSessionDto(session);
+    const dto = new StockOpnameSessionDto(session);
+    const storeIds = (session.sessionStores ?? [])
+      .map((ss) => (ss as any).store?.uuid)
+      .filter((id): id is string => !!id);
+    const storeBalances: Record<string, number> = {};
+    let totalBalance = 0;
+    for (const storeId of storeIds) {
+      try {
+        const { balance } = await this.cashMutationService.getBalance(storeId);
+        storeBalances[storeId] = balance;
+        totalBalance += balance;
+      } catch {
+        storeBalances[storeId] = 0;
+      }
+    }
+    dto.storeBalances = storeBalances;
+    dto.totalStoreBalance = totalBalance;
+    return dto;
+  }
+
+  /**
+   * Check for overlapping sessions: same store + same date, status not approved.
+   */
+  private async checkOverlappingSessions(
+    storeIds: string[],
+    startDate: Date,
+    excludeSessionUuid?: string,
+  ): Promise<void> {
+    const dateStr = startDate.toISOString().slice(0, 10);
+
+    let qb = this.sessionRepository
+      .createQueryBuilder('s')
+      .innerJoin(
+        'stock_opname_session_stores',
+        'ss',
+        'ss.so_session_id = s.uuid',
+      )
+      .where('s.status IN (:...statuses)', {
+        statuses: [
+          StockOpnameSessionStatusEnum.Draft,
+          StockOpnameSessionStatusEnum.InProgress,
+          StockOpnameSessionStatusEnum.Completed,
+        ],
+      })
+      .andWhere('s.start_date::text = :dateStr', { dateStr })
+      .andWhere('ss.store_id IN (:...storeIds)', { storeIds });
+
+    if (excludeSessionUuid) {
+      qb = qb.andWhere('s.uuid != :excludeUuid', {
+        excludeUuid: excludeSessionUuid,
+      });
+    }
+
+    const overlappingSessions = await qb.getCount();
+
+    if (overlappingSessions > 0) {
+      throw new BadRequestException(
+        'Sudah terdapat jadwal Stock Opname untuk toko yang sama pada tanggal tersebut. Satu toko hanya dapat divalidasi sekali per hari.',
+      );
+    }
   }
 
   async create(
     createDto: CreateStockOpnameSessionDto,
     createdBy: string,
   ): Promise<StockOpnameSessionDto> {
+    await this.checkOverlappingSessions(
+      createDto.storeIds,
+      new Date(createDto.startDate),
+    );
     const sessionCode = await this.generateSessionCode();
 
     const savedUuid = await this.dataSource.transaction(async (manager) => {
@@ -287,7 +352,12 @@ export class StockOpnameService {
   ): Promise<StockOpnameSessionDto> {
     const session = await this.sessionRepository.findOne({
       where: { uuid: sessionUuid },
-      relations: ['sessionStores', 'sessionAssignees', 'sessionPawnTerms'],
+      relations: [
+        'sessionStores',
+        'sessionStores.store',
+        'sessionAssignees',
+        'sessionPawnTerms',
+      ],
     });
     if (!session) {
       throw new NotFoundException('Stock opname session not found');
@@ -298,6 +368,21 @@ export class StockOpnameService {
     if (session.status !== StockOpnameSessionStatusEnum.Draft) {
       throw new BadRequestException(
         'Only draft sessions can be updated',
+      );
+    }
+
+    const storeIds =
+      updateDto.storeIds ??
+      session.sessionStores?.map((ss) => (ss as any).store?.uuid).filter((id): id is string => !!id) ??
+      [];
+    const startDate = updateDto.startDate !== undefined
+      ? new Date(updateDto.startDate)
+      : session.startDate;
+    if (storeIds.length > 0) {
+      await this.checkOverlappingSessions(
+        storeIds as string[],
+        startDate,
+        sessionUuid,
       );
     }
 
@@ -428,9 +513,37 @@ export class StockOpnameService {
     await this.itemRepository.save(soItem);
   }
 
+  async start(sessionUuid: string, userPtId?: string): Promise<StockOpnameSessionDto> {
+    const session = await this.sessionRepository.findOne({
+      where: { uuid: sessionUuid },
+    });
+    if (!session) {
+      throw new NotFoundException('Stock opname session not found');
+    }
+    if (userPtId && session.ptId !== userPtId) {
+      throw new ForbiddenException('Session does not belong to your company');
+    }
+    if (session.status !== StockOpnameSessionStatusEnum.Draft) {
+      throw new BadRequestException(
+        'Only draft sessions can be started. Session is already in progress, completed, or approved.',
+      );
+    }
+    session.status = StockOpnameSessionStatusEnum.InProgress;
+    await this.sessionRepository.save(session);
+    return this.findOne(sessionUuid, userPtId);
+  }
+
   async complete(sessionUuid: string, userPtId?: string): Promise<StockOpnameSessionDto> {
     const session = await this.sessionRepository.findOne({
       where: { uuid: sessionUuid },
+      relations: [
+        'items',
+        'items.spkItem',
+        'items.spkItem.itemType',
+        'sessionPawnTerms',
+        'sessionPawnTerms.pawnTerm',
+        'sessionPawnTerms.pawnTerm.itemType',
+      ],
     });
     if (!session) {
       throw new NotFoundException('Stock opname session not found');
@@ -444,6 +557,36 @@ export class StockOpnameService {
     ) {
       throw new BadRequestException('Session already completed or approved');
     }
+
+    // Validate all items have been counted
+    for (const item of session.items ?? []) {
+      if (item.countedQuantity == null || item.countedQuantity < 0) {
+        throw new BadRequestException(
+          'Semua item wajib telah dihitung (counted). Silakan lengkapi penilaian untuk semua item.',
+        );
+      }
+    }
+
+    // Validate mata items have condition and photo evidence
+    const pawnTerms = session.sessionPawnTerms?.map((spt) => spt.pawnTerm).filter(Boolean) ?? [];
+    for (const item of session.items ?? []) {
+      const spkItem = item.spkItem;
+      if (!spkItem) continue;
+      const isMata = this.isItemMata(spkItem, pawnTerms, session.ptId);
+      if (isMata) {
+        if (!item.conditionAfter) {
+          throw new BadRequestException(
+            'Semua item Syarat Mata wajib memiliki hasil penilaian kondisi. Silakan lengkapi penilaian untuk semua item.',
+          );
+        }
+        if (!item.damagePhotos?.length) {
+          throw new BadRequestException(
+            'Semua item Syarat Mata wajib dilampirkan bukti foto. Silakan upload foto untuk item yang belum memiliki bukti.',
+          );
+        }
+      }
+    }
+
     session.status = StockOpnameSessionStatusEnum.Completed;
     session.endDate = new Date();
     await this.sessionRepository.save(session);
@@ -575,6 +718,35 @@ export class StockOpnameService {
     session.totalItemsCounted = totalCounted;
     session.variancesCount = variances;
     await this.sessionRepository.save(session);
+  }
+
+  /**
+   * Check if an SPK item matches any session pawn term (mata criteria).
+   */
+  private isItemMata(
+    spkItem: { itemTypeId?: string; itemType?: { uuid?: string }; appraisedValue?: string },
+    pawnTerms: Array<{
+      itemTypeId?: string;
+      itemType?: { uuid?: string };
+      loanLimitMin?: string;
+      loanLimitMax?: string;
+      ptId?: string;
+    }>,
+    ptId?: string,
+  ): boolean {
+    if (!pawnTerms?.length) return false;
+    const itemTypeId = spkItem.itemTypeId ?? spkItem.itemType?.uuid;
+    const value = parseFloat(spkItem.appraisedValue ?? '0') || 0;
+    for (const term of pawnTerms) {
+      if (ptId && term.ptId !== ptId) continue;
+      const termItemTypeId = term.itemTypeId ?? term.itemType?.uuid;
+      const typeMatches = itemTypeId && termItemTypeId && itemTypeId === termItemTypeId;
+      if (!typeMatches) continue;
+      const min = parseFloat(term.loanLimitMin ?? '0') || 0;
+      const max = parseFloat(term.loanLimitMax ?? '0') || Infinity;
+      if (value >= min && value <= max) return true;
+    }
+    return false;
   }
 
   private async generateSessionCode(): Promise<string> {

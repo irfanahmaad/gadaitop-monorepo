@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
+import { CashMutationModule } from '../cash-mutation/cash-mutation.module';
 import { PawnTermEntity } from '../pawn-term/entities/pawn-term.entity';
 import { SpkItemEntity } from '../spk/entities/spk-item.entity';
 import { StockOpnameSessionEntity } from './entities/stock-opname-session.entity';
@@ -16,6 +17,7 @@ import { SoPriorityRuleService } from './so-priority-rule.service';
 
 @Module({
   imports: [
+    CashMutationModule,
     TypeOrmModule.forFeature([
       StockOpnameSessionEntity,
       StockOpnameSessionStoreEntity,

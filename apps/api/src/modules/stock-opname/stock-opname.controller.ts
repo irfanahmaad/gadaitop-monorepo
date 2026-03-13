@@ -94,6 +94,17 @@ export class StockOpnameController {
     );
   }
 
+  @Put(':id/start')
+  @Auth([{ action: AclAction.UPDATE, subject: AclSubject.STOCK_OPNAME_EXECUTION }])
+  async start(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
+  ): Promise<StockOpnameSessionDto> {
+    const user = (req as any).user;
+    const userPtId = user?.companyId ?? user?.ownedCompanyId ?? undefined;
+    return this.stockOpnameService.start(id, userPtId);
+  }
+
   @Put(':id/complete')
   @Auth([{ action: AclAction.UPDATE, subject: AclSubject.STOCK_OPNAME_EXECUTION }])
   async complete(

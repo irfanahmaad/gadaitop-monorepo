@@ -839,6 +839,7 @@ export interface StockOpnameSessionListItem {
   variancesCount: number
   createdAt: string
   updatedAt?: string
+  approvedAt?: string | null
   assignees: StockOpnameAssigneeSummary[]
   creatorFullName?: string
 }
@@ -901,6 +902,11 @@ export interface StockOpnameSession {
   notes?: string | null
   createdAt: string
   updatedAt: string
+  approvedAt?: string | null
+  /** Balance per store (store uuid -> balance) for cash verification */
+  storeBalances?: Record<string, number>
+  /** Sum of all store balances (uang di toko) */
+  totalStoreBalance?: number
 }
 
 export interface CreateStockOpnameDto {

@@ -175,6 +175,7 @@ export const endpoints = {
     updateItems: (id: string) => baseUrl(`stock-opname/${id}/items`),
     itemCondition: (id: string, itemId: string) =>
       baseUrl(`stock-opname/${id}/items/${itemId}/condition`),
+    start: (id: string) => baseUrl(`stock-opname/${id}/start`),
     complete: (id: string) => baseUrl(`stock-opname/${id}/complete`),
     approve: (id: string) => baseUrl(`stock-opname/${id}/approve`),
     reopen: (id: string) => baseUrl(`stock-opname/${id}/reopen`),

@@ -77,6 +77,7 @@ export type StockOpnameItem = {
   statusScan: "Belum Terscan" | "Terscan"
   isMata?: boolean
   mataRuleName?: string
+  countedAt?: string | null
 }
 
 type StockOpnameItemTableProps = {

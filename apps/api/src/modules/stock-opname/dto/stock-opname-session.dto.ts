@@ -29,10 +29,15 @@ export class StockOpnameSessionDto {
   variancesCount: number;
   createdAt: Date;
   updatedAt: Date;
+  approvedAt: Date | null;
   notes: string | null;
   assignees: AssigneeSummary[];
   creatorFullName?: string;
   items?: StockOpnameItemDto[];
+  /** Balance per store (store uuid -> balance) for cash verification */
+  storeBalances?: Record<string, number>;
+  /** Sum of all store balances for the session (uang di toko) */
+  totalStoreBalance?: number;
 
   constructor(
     session: StockOpnameSessionEntity & {
@@ -86,6 +91,7 @@ export class StockOpnameSessionDto {
     this.variancesCount = session.variancesCount ?? 0;
     this.createdAt = session.createdAt;
     this.updatedAt = session.updatedAt ?? session.createdAt;
+    this.approvedAt = session.approvedAt ?? null;
     this.notes = session.notes ?? null;
     this.assignees = (session.sessionAssignees ?? []).map((sa) => {
       const u = sa.user;

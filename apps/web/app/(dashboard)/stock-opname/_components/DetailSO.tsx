@@ -125,8 +125,8 @@ export function DetailSO({
           session.updatedAt ?? session.createdAt
         ),
         petugasSO: petugasNames.length > 0 ? petugasNames : ["—"],
-        uangDiToko: 0,
-        totalUangDiMutasi: 0,
+        uangDiToko: session.totalStoreBalance ?? 0,
+        totalUangDiMutasi: session.totalStoreBalance ?? 0,
         catatan: session.notes ?? "",
         status: displayStatus,
       }

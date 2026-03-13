@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useMemo, useState } from "react"
+import React, { useEffect, useMemo, useRef, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { useAuth } from "@/lib/react-query/hooks/use-auth"
 import { ColumnDef } from "@tanstack/react-table"
@@ -57,6 +57,7 @@ import { toast } from "sonner"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import {
   useStockOpnameSession,
+  useStartStockOpname,
   useCompleteStockOpname,
 } from "@/lib/react-query/hooks/use-stock-opname"
 import { usePawnTerms } from "@/lib/react-query/hooks/use-pawn-terms"
@@ -230,7 +231,8 @@ function createItemColumns(
     {
       id: "tanggalValidasi",
       header: "Tanggal Validasi",
-      cell: () => "—",
+      cell: ({ row }) =>
+        formatLastUpdated(row.original.countedAt ?? undefined),
     },
     {
       accessorKey: "statusScan",
@@ -291,6 +293,7 @@ export default function StockOpnameAuditorDetailPage() {
     refetch,
   } = useStockOpnameSession(slug, { enabled: !!slug && !!user })
 
+  const startMutation = useStartStockOpname()
   const completeMutation = useCompleteStockOpname()
 
   const { data: pawnTermsData } = usePawnTerms({ pageSize: 500 })
@@ -312,6 +315,14 @@ export default function StockOpnameAuditorDetailPage() {
       .map((a) => a.fullName ?? a.name ?? a.uuid)
       .join(", ")
   }, [session])
+
+  const latestCountedAt = useMemo(() => {
+    const dates = (session?.items ?? [])
+      .map((i) => (i as { countedAt?: string | null }).countedAt)
+      .filter((d): d is string => d != null && d !== "")
+    if (dates.length === 0) return undefined
+    return dates.reduce((a, b) => (a > b ? a : b))
+  }, [session?.items])
 
   const { items } = useMemo(() => {
     if (session?.items?.length) {
@@ -364,6 +375,7 @@ export default function StockOpnameAuditorDetailPage() {
             : ("Belum Terscan" as const),
           isMata,
           mataRuleName,
+          countedAt: apiItem.countedAt ?? null,
         }
       })
       return { items: mapped }
@@ -382,15 +394,21 @@ export default function StockOpnameAuditorDetailPage() {
   const [manualScanOpen, setManualScanOpen] = useState(false)
   const [manualScanValue, setManualScanValue] = useState("")
   const [submitConfirmOpen, setSubmitConfirmOpen] = useState(false)
+  const hasStartedRef = useRef(false)
 
   const openPenilaianForValue = (value: string) => {
     const trimmed = value.trim()
     if (!trimmed) return
     const item = items.find((i) => i.id === trimmed || i.noSPK === trimmed)
-    const itemId = item?.id ?? trimmed
     setManualScanOpen(false)
     setManualScanValue("")
-    router.push(`/stock-opname/auditor/${slug}/item/${itemId}/penilaian`)
+    if (item) {
+      router.push(`/stock-opname/auditor/${slug}/item/${item.id}/penilaian`)
+    } else {
+      toast.error(
+        `Item dengan No. SPK atau ID "${trimmed}" tidak ditemukan dalam batch ini.`
+      )
+    }
   }
 
   const belumTerscanCount = useMemo(
@@ -450,6 +468,20 @@ export default function StockOpnameAuditorDetailPage() {
       router.replace("/stock-opname")
     }
   }, [user, isStockAuditor, router])
+
+  // Auto-start session when auditor opens a draft session (Draft -> InProgress)
+  useEffect(() => {
+    if (
+      slug &&
+      session?.status === "draft" &&
+      !hasStartedRef.current &&
+      !startMutation.isPending
+    ) {
+      hasStartedRef.current = true
+      startMutation.mutate(slug)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- startMutation is stable, we only want to run when slug/session status changes
+  }, [slug, session?.status, startMutation.isPending])
 
   const isLoading = isAuthLoading || isSessionLoading
 
@@ -547,7 +579,9 @@ export default function StockOpnameAuditorDetailPage() {
                   <label className="text-muted-foreground text-sm font-medium">
                     Tanggal Validasi
                   </label>
-                  <p className="text-base">—</p>
+                  <p className="text-base">
+                    {formatLastUpdated(latestCountedAt)}
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <label className="text-muted-foreground text-sm font-medium">
@@ -862,9 +896,16 @@ export default function StockOpnameAuditorDetailPage() {
         onOpenChange={setScanDialogOpen}
         onScan={(value) => {
           const item = items.find((i) => i.id === value || i.noSPK === value)
-          const itemId = item?.id ?? value
           setScanDialogOpen(false)
-          router.push(`/stock-opname/auditor/${slug}/item/${itemId}/penilaian`)
+          if (item) {
+            router.push(
+              `/stock-opname/auditor/${slug}/item/${item.id}/penilaian`
+            )
+          } else {
+            toast.error(
+              `Item dengan No. SPK atau ID "${value}" tidak ditemukan dalam batch ini.`
+            )
+          }
         }}
       />
       <QRCodeDialog

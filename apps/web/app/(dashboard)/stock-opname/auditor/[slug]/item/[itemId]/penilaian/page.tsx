@@ -10,6 +10,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@workspace/ui/components/breadcrumb"
+import { Badge } from "@workspace/ui/components/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/card"
 import { Button } from "@workspace/ui/components/button"
 import { Textarea } from "@workspace/ui/components/textarea"
@@ -20,15 +21,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@workspace/ui/components/select"
-import { ChevronRight, ImagePlus, Trash2, X } from "lucide-react"
+import { ChevronRight, Eye, ImagePlus, Trash2, X } from "lucide-react"
 import { toast } from "sonner"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import {
+  useStockOpnameSession,
   useRecordItemCondition,
   useUpdateStockOpnameItems,
 } from "@/lib/react-query/hooks/use-stock-opname"
 import { useUploadFile } from "@/lib/react-query/hooks/use-upload"
-import type { SpkItemConditionEnum } from "@/lib/api/types"
+import { usePawnTerms } from "@/lib/react-query/hooks/use-pawn-terms"
+import { matchSpkItemToMataRules } from "@/lib/utils/mata-rule-matcher"
+import type { PawnTerm, SpkItem, SpkItemConditionEnum } from "@/lib/api/types"
 
 const penilaianOptions = [
   { value: "ada-sesuai", label: "Ada & Kondisi Sesuai" },
@@ -60,9 +64,47 @@ export default function PenilaianBarangPage() {
   const objectUrlsRef = React.useRef<Set<string>>(new Set())
 
   const [penilaian, setPenilaian] = React.useState("")
-  const [alamat, setAlamat] = React.useState("")
+  const [alasan, setAlasan] = React.useState("")
   const [images, setImages] = React.useState<ImageEntry[]>([])
   const [confirmOpen, setConfirmOpen] = React.useState(false)
+
+  const { data: session } = useStockOpnameSession(slug, { enabled: !!slug })
+  const { data: pawnTermsData } = usePawnTerms({ pageSize: 500 })
+  const allPawnTerms = React.useMemo(
+    () => (pawnTermsData?.data ?? []) as PawnTerm[],
+    [pawnTermsData?.data]
+  )
+  const sessionPawnTermIds = React.useMemo(
+    () => new Set(session?.pawnTermIds ?? []),
+    [session?.pawnTermIds]
+  )
+  const pawnTerms = React.useMemo(
+    () => allPawnTerms.filter((pt) => sessionPawnTermIds.has(pt.uuid)),
+    [allPawnTerms, sessionPawnTermIds]
+  )
+  const currentItem = React.useMemo(() => {
+    if (!session?.items?.length) return null
+    return session.items.find(
+      (i) => i.uuid === itemId || i.id === itemId || (i as { itemId?: string }).itemId === itemId
+    )
+  }, [session?.items, itemId])
+  const spkItem = currentItem?.spkItem
+  const isMata = React.useMemo(() => {
+    if (!spkItem || !session?.ptId || !pawnTerms.length) return false
+    const spkItemForMata: SpkItem = {
+      uuid: spkItem.uuid ?? "",
+      spkId: spkItem.spkId ?? "",
+      itemTypeId: spkItem.itemTypeId ?? "",
+      description: spkItem.description ?? "",
+      appraisedValue: spkItem.appraisedValue ?? "0",
+      estimatedValue:
+        typeof spkItem.appraisedValue === "string"
+          ? parseFloat(spkItem.appraisedValue) || 0
+          : Number(spkItem.appraisedValue) || 0,
+      itemType: spkItem.itemType,
+    } as SpkItem
+    return matchSpkItemToMataRules(spkItemForMata, pawnTerms, session.ptId).isMata
+  }, [spkItem, pawnTerms, session?.ptId])
 
   const updateItems = useUpdateStockOpnameItems()
   const recordCondition = useRecordItemCondition()
@@ -77,6 +119,14 @@ export default function PenilaianBarangPage() {
   }
 
   const handleSimpanClick = () => {
+    if (!penilaian) {
+      toast.error("Pilih penilaian terlebih dahulu")
+      return
+    }
+    if (isMata && images.length === 0) {
+      toast.error("Item Syarat Mata wajib dilampirkan bukti foto")
+      return
+    }
     setConfirmOpen(true)
   }
 
@@ -112,7 +162,7 @@ export default function PenilaianBarangPage() {
         itemId,
         data: {
           conditionAfter: mapPenilaianToCondition(penilaian),
-          conditionNotes: alamat || undefined,
+          conditionNotes: alasan || undefined,
           damagePhotos:
             uploadedKeys.length > 0 ? uploadedKeys : undefined,
         },
@@ -128,7 +178,7 @@ export default function PenilaianBarangPage() {
     slug,
     itemId,
     penilaian,
-    alamat,
+    alasan,
     images,
     updateItems,
     recordCondition,
@@ -182,7 +232,7 @@ export default function PenilaianBarangPage() {
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbLink href="/stock-opname">
+              <BreadcrumbLink href="/stock-opname/auditor">
                 Stock Opname
               </BreadcrumbLink>
             </BreadcrumbItem>
@@ -209,7 +259,18 @@ export default function PenilaianBarangPage() {
       {/* Data Card: Data Penilaian */}
       <Card>
         <CardHeader>
-          <CardTitle>Data Penilaian</CardTitle>
+          <div className="flex items-center gap-2">
+            <CardTitle>Data Penilaian</CardTitle>
+            {isMata && (
+              <Badge
+                variant="outline"
+                className="bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20"
+              >
+                <Eye className="mr-1 size-3" />
+                Syarat Mata
+              </Badge>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="space-y-8">
           {/* Form fields */}
@@ -234,12 +295,12 @@ export default function PenilaianBarangPage() {
           </div>
           <div className="space-y-2">
             <label className="text-muted-foreground text-sm font-medium">
-              Alamat
+              Alasan
             </label>
             <Textarea
-              value={alamat}
-              onChange={(e) => setAlamat(e.target.value)}
-              placeholder="Masukkan alamat..."
+              value={alasan}
+              onChange={(e) => setAlasan(e.target.value)}
+              placeholder="Masukkan alasan..."
               className="min-h-[100px] resize-y"
               rows={4}
             />
@@ -249,7 +310,15 @@ export default function PenilaianBarangPage() {
           <div className="space-y-2">
             <label className="text-muted-foreground text-sm font-medium">
               Gambar Barang
+              {isMata && (
+                <span className="text-destructive ml-1">*</span>
+              )}
             </label>
+            {isMata && (
+              <p className="text-muted-foreground text-xs">
+                Item Syarat Mata wajib dilampirkan bukti foto kondisi barang.
+              </p>
+            )}
             <div className="flex flex-wrap gap-3 items-center">
               <input
                 ref={fileInputRef}
@@ -304,7 +373,11 @@ export default function PenilaianBarangPage() {
               type="button"
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={handleSimpanClick}
-              disabled={isSubmitting}
+              disabled={
+                isSubmitting ||
+                !penilaian ||
+                (isMata && images.length === 0)
+              }
             >
               {isSubmitting ? "Menyimpan..." : "Simpan"}
             </Button>

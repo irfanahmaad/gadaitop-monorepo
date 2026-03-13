@@ -144,6 +144,22 @@ export function useRecordItemCondition() {
   })
 }
 
+// Start stock opname session (Draft -> InProgress)
+export function useStartStockOpname() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiClient.put<StockOpnameSession>(endpoints.stockOpname.start(id)),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({
+        queryKey: stockOpnameKeys.detail(id),
+      })
+      queryClient.invalidateQueries({ queryKey: stockOpnameKeys.lists() })
+    },
+  })
+}
+
 // Complete stock opname session
 export function useCompleteStockOpname() {
   const queryClient = useQueryClient()
