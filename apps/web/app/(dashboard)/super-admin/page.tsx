@@ -8,6 +8,7 @@ import { Button } from "@workspace/ui/components/button"
 import { DataTable } from "@/components/data-table"
 import { PlusIcon } from "lucide-react"
 import { useSuperAdmins, useDeleteSuperAdmin } from "@/lib/react-query/hooks"
+import { usePublicUrl } from "@/lib/react-query/hooks/use-upload"
 import type { User } from "@/lib/api/types"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { toast } from "sonner"
@@ -17,16 +18,56 @@ import {
   CardContent,
   CardHeader,
 } from "@workspace/ui/components/card"
+import { Avatar, AvatarFallback, AvatarImage } from "@workspace/ui/components/avatar"
+import { User as UserIcon } from "lucide-react"
 
-// Column definitions
+function SuperAdminAvatarCell({ imageKey, name }: { imageKey: string; name: string }) {
+  const { data: publicUrlData } = usePublicUrl(imageKey)
+  const initials = name
+    ? name
+        .split(" ")
+        .map((w) => w[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
+    : ""
+  return (
+    <Avatar className="size-10">
+      <AvatarImage src={imageKey ? publicUrlData?.url : undefined} alt={name} />
+      <AvatarFallback>
+        {initials || <UserIcon className="size-5" />}
+      </AvatarFallback>
+    </Avatar>
+  )
+}
+
+// Column definitions – spec: No, Photo, Full Name, Email, Phone Number, Actions
 const columns: ColumnDef<User>[] = [
   {
-    accessorKey: "id",
-    header: "ID",
+    id: "no",
+    header: "No",
+    cell: ({ row, table }) => {
+      const p = table.getState().pagination
+      const no = (p?.pageIndex ?? 0) * (p?.pageSize ?? 10) + row.index + 1
+      return <span className="text-sm">{no}</span>
+    },
+    enableSorting: false,
+  },
+  {
+    id: "foto",
+    header: "Foto",
+    accessorFn: (row) => row.imageUrl ?? "",
+    cell: ({ row }) => (
+      <SuperAdminAvatarCell
+        imageKey={row.original.imageUrl ?? ""}
+        name={row.original.fullName ?? ""}
+      />
+    ),
+    enableSorting: false,
   },
   {
     accessorKey: "fullName",
-    header: "Nama",
+    header: "Nama Lengkap",
   },
   {
     accessorKey: "email",
@@ -35,7 +76,7 @@ const columns: ColumnDef<User>[] = [
   {
     accessorKey: "phoneNumber",
     header: "No. Telepon",
-    cell: ({ row }) => row.getValue("phoneNumber") || "-",
+    cell: ({ row }) => (row.getValue("phoneNumber") as string) || "-",
   },
   {
     accessorKey: "activeStatus",

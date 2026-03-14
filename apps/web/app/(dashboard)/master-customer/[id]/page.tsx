@@ -95,13 +95,14 @@ function mapCustomerToDetail(
   const namaLengkap = c.name ?? "—"
   const foto = c.selfiePhotoUrl ?? ""
   const rawDob = c.dob
-  const tanggalLahir = rawDob
-    ? new Date(rawDob).toLocaleDateString("id-ID", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      })
-    : "—"
+  const tanggalLahir = (() => {
+    if (!rawDob) return "—"
+    const d = new Date(rawDob)
+    if (Number.isNaN(d.getTime())) return "—"
+    const day = String(d.getDate()).padStart(2, "0")
+    const month = String(d.getMonth() + 1).padStart(2, "0")
+    return `${day}-${month}-${d.getFullYear()}`
+  })()
   return {
     id,
     foto,

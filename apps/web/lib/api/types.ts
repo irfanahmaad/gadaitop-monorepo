@@ -577,6 +577,9 @@ export interface UpdateCustomerDto {
   village?: string
   phone2?: string
   email?: string
+  gender?: 'male' | 'female'
+  /** ISO date YYYY-MM-DD */
+  dob?: string
   ktpPhotoUrl?: string
   selfiePhotoUrl?: string
 }

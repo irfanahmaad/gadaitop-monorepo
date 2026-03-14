@@ -1,4 +1,5 @@
-import { IsEmail, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsEmail, IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
+import { GenderEnum } from '../../../constants/gender';
 
 export class UpdateCustomerDto {
   @IsOptional()
@@ -24,6 +25,14 @@ export class UpdateCustomerDto {
   @IsString()
   @MaxLength(100)
   birthPlace?: string;
+
+  @IsOptional()
+  @IsEnum(GenderEnum)
+  gender?: GenderEnum;
+
+  @IsOptional()
+  @IsString()
+  dob?: string;
 
   @IsOptional()
   @IsString()

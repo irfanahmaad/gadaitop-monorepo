@@ -117,6 +117,7 @@ export default function TambahSPKPage() {
     Array<{ file: File; preview: string }>
   >([])
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [pinSetViaPopup, setPinSetViaPopup] = useState(false)
 
   const { user } = useAuth()
   const isBranchStaff = user?.roles?.some((r) => r.code === "branch_staff") ?? false
@@ -234,6 +235,7 @@ export default function TambahSPKPage() {
       if (event.data?.type === "PIN_SET" && event.data?.pin) {
         form.setValue("pin", event.data.pin)
         form.trigger("pin")
+        setPinSetViaPopup(true)
       }
     }
     return () => channel.close()
@@ -244,6 +246,7 @@ export default function TambahSPKPage() {
 
   // --- Handlers ---
   const handleCustomerMasukkanPin = () => {
+    setPinSetViaPopup(false)
     form.setFocus("pin")
     window.open(
       "/input-pin",
@@ -921,7 +924,7 @@ export default function TambahSPKPage() {
                                 placeholder="••••••••"
                                 icon={<Lock className="size-4" />}
                                 className="flex-1"
-                                readOnly={!!form.watch("pin")} // read-only if it's already filled via channel
+                                readOnly={pinSetViaPopup}
                                 {...field}
                               />
                               <Button

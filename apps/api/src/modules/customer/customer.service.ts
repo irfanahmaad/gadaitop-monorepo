@@ -162,7 +162,11 @@ export class CustomerService {
       throw new NotFoundException(`Customer with UUID ${uuid} not found`);
     }
 
-    Object.assign(customer, updateDto);
+    const { dob: dobStr, ...rest } = updateDto;
+    Object.assign(customer, rest);
+    if (dobStr != null) {
+      customer.dob = new Date(dobStr);
+    }
     const updated = await this.customerRepository.save(customer);
 
     return new CustomerDto(updated);

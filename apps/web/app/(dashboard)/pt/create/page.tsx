@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -87,6 +87,19 @@ export default function PTCreatePage() {
     },
   })
 
+  // Keep preview in sync with form image (fixes preview not showing on create)
+  const imageValue = form.watch("image")
+  useEffect(() => {
+    if (imageValue instanceof File) {
+      const url = URL.createObjectURL(imageValue)
+      setPreviewImage(url)
+      return () => URL.revokeObjectURL(url)
+    }
+    if (!imageValue) {
+      setPreviewImage(null)
+    }
+  }, [imageValue])
+
   const handleImageChange = (
     e: React.ChangeEvent<HTMLInputElement>,
     field: { onChange: (value: File | undefined) => void }
@@ -94,12 +107,9 @@ export default function PTCreatePage() {
     const file = e.target.files?.[0]
     if (file) {
       field.onChange(file)
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setPreviewImage(reader.result as string)
-      }
-      reader.readAsDataURL(file)
+      // Preview is synced via useEffect from form.watch("image")
     }
+    e.target.value = ""
   }
 
   const handleRemoveImage = (field: {
@@ -162,17 +172,19 @@ export default function PTCreatePage() {
                           <FormControl>
                             <div className="space-y-4">
                               {previewImage ? (
-                                <div className="border-input bg-muted/50 relative aspect-square w-48 overflow-hidden rounded-full border-2 border-dashed">
-                                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                                  <img
-                                    src={previewImage}
-                                    alt="Preview"
-                                    className="h-full w-full object-cover"
-                                  />
+                                <div className="relative inline-block aspect-square w-48">
+                                  <div className="border-input bg-muted/50 h-full w-full overflow-hidden rounded-full border-2 border-dashed">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                      src={previewImage}
+                                      alt="Preview"
+                                      className="h-full w-full object-cover"
+                                    />
+                                  </div>
                                   <button
                                     type="button"
                                     onClick={() => handleRemoveImage(field)}
-                                    className="bg-destructive hover:bg-destructive/90 absolute top-2 right-2 z-10 rounded-full p-1.5 text-white shadow-sm transition-colors"
+                                    className="bg-destructive hover:bg-destructive/90 absolute top-2 right-2 z-50 rounded-full p-1.5 text-white shadow-md transition-colors"
                                     aria-label="Hapus gambar"
                                   >
                                     <X className="size-4" />

@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { useRouter, useParams } from "next/navigation"
+import { format, parse, isValid } from "date-fns"
 import {
   User,
   Mail,
@@ -58,7 +59,13 @@ const customerEditSchema = z.object({
   jenisKelamin: z.string().optional(),
   nik: z.string().optional(),
   tempatLahir: z.string().optional(),
-  tanggalLahir: z.string().optional(),
+  tanggalLahir: z
+    .string()
+    .optional()
+    .refine(
+      (val) => !val?.trim() || ddMmYyyyToIso(val ?? "") !== null,
+      "Format: DD-MM-YYYY (contoh: 31-12-1990)"
+    ),
   kota: z.string().optional(),
   kecamatan: z.string().optional(),
   kelurahan: z.string().optional(),
@@ -82,6 +89,31 @@ const customerEditSchema = z.object({
 })
 
 type CustomerEditFormValues = z.infer<typeof customerEditSchema>
+
+/** Convert API ISO date (YYYY-MM-DD) to display format DD-MM-YYYY. */
+function isoToDdMmYyyy(iso: string | undefined | null): string {
+  if (!iso?.trim()) return ""
+  try {
+    const d = new Date(iso)
+    if (!isValid(d)) return iso
+    return format(d, "dd-MM-yyyy")
+  } catch {
+    return iso
+  }
+}
+
+/** Parse DD-MM-YYYY to ISO (YYYY-MM-DD) for API. */
+function ddMmYyyyToIso(value: string): string | null {
+  if (!value?.trim()) return null
+  const trimmed = value.trim()
+  try {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed
+    const parsed = parse(trimmed, "d-M-yyyy", new Date())
+    return isValid(parsed) ? format(parsed, "yyyy-MM-dd") : null
+  } catch {
+    return null
+  }
+}
 
 export default function EditMasterCustomerPage() {
   const router = useRouter()
@@ -119,7 +151,7 @@ export default function EditMasterCustomerPage() {
 
   useEffect(() => {
     if (customer) {
-      const dobStr = customer.dob ? String(customer.dob) : ""
+      const dobStr = isoToDdMmYyyy(customer.dob)
       form.reset({
         namaCustomer: customer.name || "",
         jenisKelamin:
@@ -189,6 +221,7 @@ export default function EditMasterCustomerPage() {
     }
 
     const address = (values.alamat ?? "").trim() || "-"
+    const dobIso = ddMmYyyyToIso(values.tanggalLahir ?? "")
 
     setIsSubmitting(true)
     try {
@@ -204,6 +237,13 @@ export default function EditMasterCustomerPage() {
         selfiePhotoUrl = s3Key
       }
 
+      const gender =
+        values.jenisKelamin === "Perempuan"
+          ? "female"
+          : values.jenisKelamin === "Laki-laki"
+            ? "male"
+            : undefined
+
       await updateCustomerMutation.mutateAsync({
         id,
         data: {
@@ -212,10 +252,12 @@ export default function EditMasterCustomerPage() {
           city: (values.kota ?? "").trim() || undefined,
           phone,
           email,
+          gender,
           birthPlace: (values.tempatLahir ?? "").trim() || undefined,
           subDistrict: (values.kecamatan ?? "").trim() || undefined,
           village: (values.kelurahan ?? "").trim() || undefined,
           phone2: (values.telepon2 ?? "").trim() || undefined,
+          ...(dobIso && { dob: dobIso }),
           ...(selfiePhotoUrl !== undefined && { selfiePhotoUrl }),
         },
       })
@@ -327,16 +369,18 @@ export default function EditMasterCustomerPage() {
                       <FormControl>
                         <div className="relative">
                           {previewImage ? (
-                            <div className="border-input bg-muted/50 relative aspect-square w-48 overflow-hidden rounded-full border-2 border-dashed">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={previewImage}
-                                alt="Preview"
-                                className="size-full object-cover"
-                              />
+                            <div className="relative inline-block aspect-square w-48">
+                              <div className="border-input bg-muted/50 h-full w-full overflow-hidden rounded-full border-2 border-dashed">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={previewImage}
+                                  alt="Preview"
+                                  className="size-full object-cover"
+                                />
+                              </div>
                               <label
                                 htmlFor="image-upload-edit"
-                                className="bg-destructive hover:bg-destructive/90 absolute right-0 bottom-0 z-10 flex size-10 cursor-pointer items-center justify-center rounded-full text-white shadow-sm transition-colors"
+                                className="bg-destructive hover:bg-destructive/90 absolute right-0 bottom-0 z-50 flex size-10 cursor-pointer items-center justify-center rounded-full text-white shadow-sm transition-colors"
                                 aria-label="Ubah gambar"
                               >
                                 <Pencil className="size-4" />
@@ -420,7 +464,7 @@ export default function EditMasterCustomerPage() {
                             <RadioGroup
                               onValueChange={field.onChange}
                               value={field.value}
-                              className="pointer-events-none flex gap-6 opacity-50"
+                              className="flex gap-6"
                             >
                               <div className="flex items-center space-x-2">
                                 <RadioGroupItem
@@ -495,6 +539,9 @@ export default function EditMasterCustomerPage() {
                           <FormControl>
                             <Input
                               type="text"
+                              placeholder="DD-MM-YYYY (contoh: 31-12-1990)"
+                              inputMode="numeric"
+                              autoComplete="bday"
                               icon={<Calendar className="size-4" />}
                               {...field}
                             />

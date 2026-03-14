@@ -274,16 +274,18 @@ export default function TambahMasterTokoPage() {
                       <FormControl>
                         <div className="relative">
                           {previewImage ? (
-                            <div className="border-input bg-muted/50 relative aspect-square w-48 rounded-full border-2 border-dashed">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={previewImage}
-                                alt="Preview"
-                                className="size-full overflow-hidden rounded-full object-cover"
-                              />
+                            <div className="relative inline-block aspect-square w-48">
+                              <div className="border-input bg-muted/50 h-full w-full overflow-hidden rounded-full border-2 border-dashed">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={previewImage}
+                                  alt="Preview"
+                                  className="size-full object-cover"
+                                />
+                              </div>
                               <label
                                 htmlFor="image-upload-edit"
-                                className="bg-destructive hover:bg-destructive/90 absolute right-0 bottom-0 z-10 flex size-10 cursor-pointer items-center justify-center rounded-full text-white shadow-sm transition-colors"
+                                className="bg-destructive hover:bg-destructive/90 absolute right-0 bottom-0 z-50 flex size-10 cursor-pointer items-center justify-center rounded-full text-white shadow-sm transition-colors"
                                 aria-label="Ubah gambar"
                               >
                                 <Pencil className="size-4" />

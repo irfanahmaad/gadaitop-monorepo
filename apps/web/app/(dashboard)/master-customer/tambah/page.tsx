@@ -82,7 +82,12 @@ const customerSchema = z.object({
     .string()
     .max(50, "Tanggal Lahir maksimal 50 karakter")
     .optional()
-    .or(z.literal("")),
+    .or(z.literal(""))
+    .refine(
+      (val) =>
+        !val?.trim() || parseDobToIso(val ?? "") !== null,
+      "Format: DD-MM-YYYY (contoh: 31-12-1990)"
+    ),
   kota: z
     .string()
     .max(100, "Kota maksimal 100 karakter")
@@ -129,13 +134,19 @@ const customerSchema = z.object({
 
 type CustomerFormValues = z.infer<typeof customerSchema>
 
+const DOB_ISO_FORMAT = "yyyy-MM-dd"
+
+/** Parse DD-MM-YYYY or YYYY-MM-DD to ISO (YYYY-MM-DD). */
 function parseDobToIso(value: string): string | null {
   if (!value?.trim()) return null
   const trimmed = value.trim()
   try {
     if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed
-    const parsed = parse(trimmed, "d MMMM yyyy", new Date(), { locale: id })
-    return format(parsed, "yyyy-MM-dd")
+    const parsed =
+      /^\d{1,2}-\d{1,2}-\d{4}$/.test(trimmed)
+        ? parse(trimmed, "d-M-yyyy", new Date())
+        : parse(trimmed, "d MMMM yyyy", new Date(), { locale: id })
+    return format(parsed, DOB_ISO_FORMAT)
   } catch {
     return null
   }
@@ -192,6 +203,7 @@ export default function TambahMasterCustomerPage() {
   const [previewImage, setPreviewImage] = useState<string | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [pinSetViaPopup, setPinSetViaPopup] = useState(false)
 
   const form = useForm<CustomerFormValues>({
     resolver: zodResolver(customerSchema),
@@ -220,10 +232,29 @@ export default function TambahMasterCustomerPage() {
       if (event.data?.type === "PIN_SET" && event.data?.pin) {
         form.setValue("pin", event.data.pin)
         form.trigger("pin")
+        setPinSetViaPopup(true)
       }
     }
     return () => channel.close()
   }, [form])
+
+  // Keep preview in sync with form image so photo shows when selected
+  const imageValue = form.watch("image")
+  useEffect(() => {
+    if (imageValue instanceof File) {
+      const url = URL.createObjectURL(imageValue)
+      setPreviewImage(url)
+      return () => URL.revokeObjectURL(url)
+    }
+    if (!imageValue) {
+      setPreviewImage(null)
+    }
+  }, [imageValue])
+
+  const handleRemoveImage = (field: { onChange: (value: undefined) => void }) => {
+    field.onChange(undefined)
+    setPreviewImage(null)
+  }
 
   const handleImageChange = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -232,12 +263,9 @@ export default function TambahMasterCustomerPage() {
     const file = e.target.files?.[0]
     if (file) {
       field.onChange(file)
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setPreviewImage(reader.result as string)
-      }
-      reader.readAsDataURL(file)
+      // Preview is synced via useEffect from form.watch("image")
     }
+    e.target.value = ""
   }
 
   const handleScan = () => {
@@ -270,7 +298,7 @@ export default function TambahMasterCustomerPage() {
     const dobIso = parseDobToIso(values.tanggalLahir ?? "")
     if (!dobIso) {
       toast.error(
-        "Tanggal lahir wajib diisi dengan format yang valid (contoh: 20 November 1990 atau YYYY-MM-DD)"
+        "Tanggal lahir wajib diisi dengan format DD-MM-YYYY (contoh: 31-12-1990)"
       )
       return
     }
@@ -398,18 +426,28 @@ export default function TambahMasterCustomerPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormControl>
-                        <div className="relative">
+                        <div className="flex flex-col items-center gap-3">
                           {previewImage ? (
-                            <div className="border-input bg-muted/50 relative aspect-square w-48 rounded-full border-2 border-dashed">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={previewImage}
-                                alt="Preview"
-                                className="size-full object-cover"
-                              />
+                            <div className="relative inline-block aspect-square w-48">
+                              <div className="border-input bg-muted/50 h-full w-full overflow-hidden rounded-full border-2 border-dashed">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={previewImage}
+                                  alt="Preview"
+                                  className="size-full object-cover"
+                                />
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveImage(field)}
+                                className="bg-destructive hover:bg-destructive/90 absolute top-2 right-2 z-50 rounded-full p-1.5 text-white shadow-md transition-colors"
+                                aria-label="Hapus gambar"
+                              >
+                                <X className="size-4" />
+                              </button>
                               <label
                                 htmlFor="image-upload-edit"
-                                className="bg-destructive hover:bg-destructive/90 absolute right-0 bottom-0 z-10 flex size-10 cursor-pointer items-center justify-center rounded-full text-white shadow-sm transition-colors"
+                                className="bg-destructive hover:bg-destructive/90 absolute bottom-2 right-2 z-50 flex size-10 cursor-pointer items-center justify-center rounded-full text-white shadow-md transition-colors"
                                 aria-label="Ubah gambar"
                               >
                                 <Pencil className="size-4" />
@@ -572,7 +610,9 @@ export default function TambahMasterCustomerPage() {
                           <FormControl>
                             <Input
                               type="text"
-                              placeholder="Contoh: 20 November 1990"
+                              placeholder="DD-MM-YYYY (contoh: 31-12-1990)"
+                              inputMode="numeric"
+                              autoComplete="bday"
                               icon={<Calendar className="size-4" />}
                               {...field}
                             />
@@ -745,7 +785,7 @@ export default function TambahMasterCustomerPage() {
                                 placeholder="••••••••"
                                 icon={<Lock className="size-4" />}
                                 className="flex-1"
-                                readOnly={!!form.watch("pin")} // read-only if it's already filled via channel
+                                readOnly={pinSetViaPopup}
                                 {...field}
                               />
                               <Button

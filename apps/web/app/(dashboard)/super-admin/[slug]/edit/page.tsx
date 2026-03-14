@@ -308,17 +308,19 @@ export default function EditSuperAdminPage() {
                           <FormControl>
                             <div className="space-y-4">
                               {previewImage ? (
-                                <div className="border-input bg-muted/50 relative aspect-square w-48 overflow-hidden rounded-full border-2 border-dashed">
-                                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                                  <img
-                                    src={previewImage}
-                                    alt="Preview"
-                                    className="h-full w-full object-cover"
-                                  />
+                                <div className="relative inline-block aspect-square w-48">
+                                  <div className="border-input bg-muted/50 h-full w-full overflow-hidden rounded-full border-2 border-dashed">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                      src={previewImage}
+                                      alt="Preview"
+                                      className="h-full w-full object-cover"
+                                    />
+                                  </div>
                                   <button
                                     type="button"
                                     onClick={() => handleRemoveImage(field)}
-                                    className="bg-destructive hover:bg-destructive/90 absolute top-2 right-2 z-10 rounded-full p-1.5 text-white shadow-sm transition-colors"
+                                    className="bg-destructive hover:bg-destructive/90 absolute top-2 right-2 z-50 rounded-full p-1.5 text-white shadow-md transition-colors"
                                     aria-label="Hapus gambar"
                                   >
                                     <X className="size-4" />

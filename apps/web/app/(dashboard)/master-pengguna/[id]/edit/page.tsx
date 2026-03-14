@@ -428,14 +428,16 @@ export default function EditMasterPenggunaPage() {
                         <FormControl>
                           <div className="relative">
                             {previewImage ? (
-                              <div className="border-input bg-muted/50 relative aspect-square w-48 rounded-full border-2 border-dashed">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img
-                                  src={previewImage}
-                                  alt="Preview"
-                                  className="size-full overflow-hidden rounded-full object-cover"
-                                />
-                                <div className="absolute right-0 bottom-0 left-0 z-10 flex justify-between gap-2 p-1">
+                              <div className="relative inline-block aspect-square w-48">
+                                <div className="border-input bg-muted/50 h-full w-full overflow-hidden rounded-full border-2 border-dashed">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img
+                                    src={previewImage}
+                                    alt="Preview"
+                                    className="size-full object-cover"
+                                  />
+                                </div>
+                                <div className="absolute right-0 bottom-0 left-0 z-50 flex justify-between gap-2 p-1">
                                   <div></div>
                                   <label
                                     htmlFor="image-upload-edit"
