@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { BranchEntity } from '../branch/entities/branch.entity';
+import { CashMutationModule } from '../cash-mutation/cash-mutation.module';
 import { CompanyEntity } from '../company/entities/company.entity';
 import { InterestCalculatorService } from '../spk/services/interest-calculator.service';
 import { SpkModule } from '../spk/spk.module';
@@ -12,6 +13,7 @@ import { NkbService } from './nkb.service';
 
 @Module({
   imports: [
+    CashMutationModule,
     TypeOrmModule.forFeature([
       NkbRecordEntity,
       SpkRecordEntity,

@@ -16,6 +16,7 @@ import {
 import { NkbPaymentTypeEnum } from '../../constants/nkb-payment-type';
 import { NkbStatusEnum } from '../../constants/nkb-status';
 import { SpkStatusEnum } from '../../constants/spk-status';
+import { CashMutationService } from '../cash-mutation/cash-mutation.service';
 import { BranchEntity } from '../branch/entities/branch.entity';
 import { CompanyEntity } from '../company/entities/company.entity';
 import {
@@ -41,6 +42,7 @@ export class NkbService {
     @InjectRepository(BranchEntity)
     private branchRepository: Repository<BranchEntity>,
     private interestCalculator: InterestCalculatorService,
+    private cashMutationService: CashMutationService,
   ) {}
 
   async findAll(
@@ -278,6 +280,18 @@ export class NkbService {
         }
       }
       await this.spkRepository.save(spk);
+
+      const ptId = nkb.ptId ?? spk.ptId;
+      const storeId = nkb.storeId ?? spk.storeId;
+      if (ptId && storeId) {
+        await this.cashMutationService.createFromNkbPayment(
+          ptId,
+          storeId,
+          Number(nkb.amountPaid),
+          nkb.uuid,
+          confirmedBy,
+        );
+      }
     }
 
     return this.findOne(uuid);

@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { AuctionBatchItemEntity } from '../auction/entities/auction-batch-item.entity';
+import { CashMutationModule } from '../cash-mutation/cash-mutation.module';
 import { BranchEntity } from '../branch/entities/branch.entity';
 import { CompanyEntity } from '../company/entities/company.entity';
 import { CustomerEntity } from '../customer/entities/customer.entity';
@@ -15,6 +16,7 @@ import { InterestCalculatorService } from './services/interest-calculator.servic
 
 @Module({
   imports: [
+    CashMutationModule,
     TypeOrmModule.forFeature([
       SpkRecordEntity,
       SpkItemEntity,

@@ -28,6 +28,7 @@ import { NkbPaymentMethodEnum } from '../../constants/nkb-payment-method';
 import { NkbPaymentTypeEnum } from '../../constants/nkb-payment-type';
 import { NkbStatusEnum } from '../../constants/nkb-status';
 import { AuctionBatchItemEntity } from '../auction/entities/auction-batch-item.entity';
+import { CashMutationService } from '../cash-mutation/cash-mutation.service';
 import { BranchEntity } from '../branch/entities/branch.entity';
 import { CompanyEntity } from '../company/entities/company.entity';
 import { CustomerEntity } from '../customer/entities/customer.entity';
@@ -67,6 +68,7 @@ export class SpkService {
     @InjectRepository(AuctionBatchItemEntity)
     private batchItemRepository: Repository<AuctionBatchItemEntity>,
     private interestCalculator: InterestCalculatorService,
+    private cashMutationService: CashMutationService,
     private dataSource: DataSource,
   ) {}
 
@@ -259,6 +261,16 @@ export class SpkService {
       throw new BadRequestException('At least one item is required');
     }
 
+    const totalAppraisedValue = createDto.items.reduce(
+      (sum, item) => sum + item.appraisedValue,
+      0,
+    );
+    if (createDto.principalAmount > totalAppraisedValue) {
+      throw new BadRequestException(
+        'Nominal pinjaman tidak boleh melebihi harga acuan barang',
+      );
+    }
+
     const itemType = await this.itemTypeRepository.findOne({
       where: { uuid: createDto.items[0].itemTypeId },
     });
@@ -366,6 +378,15 @@ export class SpkService {
     spk.confirmedAt = new Date();
     spk.confirmedByPin = true;
     await this.spkRepository.save(spk);
+
+    await this.cashMutationService.createFromSpkDisbursement(
+      spk.ptId,
+      spk.storeId,
+      Number(spk.principalAmount),
+      spk.uuid,
+      spk.createdBy ?? '',
+    );
+
     return this.findOne(uuid);
   }
 

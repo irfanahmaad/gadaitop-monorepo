@@ -63,7 +63,7 @@ export class InterestCalculatorService {
     );
     const isEarly = daysFromStart < config.earlyPaymentDays;
     const rate = isEarly ? config.earlyInterestRate : config.normalInterestRate;
-    const interestAmount = (principal * (rate / 100) * daysFromStart) / spk.tenor;
+    const interestAmount = remaining * (rate / 100);
     const adminFeeAmount = principal * (config.adminFeeRate / 100) + config.insuranceFee;
     const isOverdue = payDate > dueDate;
     const latePenalty = isOverdue
@@ -95,22 +95,19 @@ export class InterestCalculatorService {
     const payDate = new Date(paymentDate);
     payDate.setHours(0, 0, 0, 0);
 
-    const startTime = (spk as any).createdAt?.getTime?.() ?? payDate.getTime();
-    const daysFromStart = Math.floor(
-      (payDate.getTime() - startTime) / (1000 * 60 * 60 * 24),
-    );
-    const isEarly = daysFromStart < config.earlyPaymentDays;
-    const rate = isEarly ? config.earlyInterestRate : config.normalInterestRate;
-    const interestAmount = (remaining * (rate / 100) * spk.tenor) / 365;
+    const rate = config.normalInterestRate;
+    const interestAmount = remaining * (rate / 100);
+    const adminFeeAmount =
+      remaining * (config.adminFeeRate / 100) + config.insuranceFee;
     const isOverdue = payDate > dueDate;
     const latePenalty = isOverdue
       ? this.computeLatePenalty(remaining, dueDate, payDate, config)
       : 0;
-    const totalInterestAndPenalty = interestAmount + latePenalty;
-    const principalPaid = Math.max(0, amountPaid - totalInterestAndPenalty);
+    const totalCharges = interestAmount + adminFeeAmount + latePenalty;
+    const principalPaid = Math.max(0, amountPaid - totalCharges);
     const newRemainingBalance = Math.max(0, remaining - principalPaid);
-    const newDueDate = new Date(payDate);
-    newDueDate.setDate(newDueDate.getDate() + spk.tenor);
+    const newDueDate = new Date(dueDate);
+    newDueDate.setDate(newDueDate.getDate() + 30);
 
     return {
       interestAmount,
