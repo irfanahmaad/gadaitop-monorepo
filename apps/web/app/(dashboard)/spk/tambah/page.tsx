@@ -171,13 +171,13 @@ export default function TambahSPKPage() {
   useEffect(() => {
     if (customerItem) {
       const currentName = form.getValues("namaCustomer")
-      const newName = customerItem.name || customerItem.fullName || ""
+      const newName = customerItem.name || ""
       if (currentName !== newName) {
         form.setValue("namaCustomer", newName)
       }
 
       const currentDob = form.getValues("tanggalLahir")
-      const newDob = customerItem.dob || customerItem.dateOfBirth || ""
+      const newDob = customerItem.dob || ""
       if (currentDob !== newDob) {
         form.setValue("tanggalLahir", newDob)
       }
@@ -498,7 +498,7 @@ export default function TambahSPKPage() {
                             <SelectContent>
                               {customerList.map((opt) => (
                                 <SelectItem key={opt.nik} value={opt.nik}>
-                                  {opt.nik} - {opt.name || opt.fullName || ""}
+                                  {opt.nik} - {opt.name || ""}
                                 </SelectItem>
                               ))}
                               {customerList.length === 0 && (

@@ -36,13 +36,18 @@ import {
   CardHeader,
   CardTitle,
 } from "@workspace/ui/components/card"
+import { Skeleton } from "@workspace/ui/components/skeleton"
 import {
   RadioGroup,
   RadioGroupItem,
 } from "@workspace/ui/components/radio-group"
 import { Label } from "@workspace/ui/components/label"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
-import { useCustomer, useUpdateCustomer } from "@/lib/react-query/hooks/use-customers"
+import {
+  useCustomer,
+  useUpdateCustomer,
+} from "@/lib/react-query/hooks/use-customers"
+import { usePublicUrl, useUploadFile } from "@/lib/react-query/hooks/use-upload"
 
 const customerEditSchema = z.object({
   image: z.union([z.instanceof(File), z.string()]).optional(),
@@ -85,6 +90,9 @@ export default function EditMasterCustomerPage() {
 
   const { data: customer, isLoading } = useCustomer(id)
   const updateCustomerMutation = useUpdateCustomer()
+  const uploadFileMutation = useUploadFile()
+  const existingImageKey = customer?.selfiePhotoUrl ?? ""
+  const { data: publicUrlData } = usePublicUrl(existingImageKey)
 
   const [previewImage, setPreviewImage] = useState<string | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -111,21 +119,37 @@ export default function EditMasterCustomerPage() {
 
   useEffect(() => {
     if (customer) {
+      const dobStr = customer.dob ? String(customer.dob) : ""
       form.reset({
-        namaCustomer: customer.fullName || customer.name || "",
-        jenisKelamin: customer.gender === "male" ? "Laki-laki" : customer.gender === "female" ? "Perempuan" : "Laki-laki",
+        namaCustomer: customer.name || "",
+        jenisKelamin:
+          customer.gender === "male"
+            ? "Laki-laki"
+            : customer.gender === "female"
+              ? "Perempuan"
+              : "Laki-laki",
         nik: customer.nik || "",
-        tanggalLahir: customer.dob || customer.dateOfBirth || "",
+        tempatLahir: customer.birthPlace || "",
+        tanggalLahir: dobStr,
         kota: customer.city || "",
+        kecamatan: customer.subDistrict || "",
+        kelurahan: customer.village || "",
         alamat: customer.address || "",
-        telepon1: customer.phoneNumber || customer.phone || "",
+        telepon1: customer.phone || "",
+        telepon2: customer.phone2 || "",
         email: customer.email || "",
       })
-      if (customer.ktpPhotoUrl || customer.selfiePhotoUrl) {
-        setPreviewImage(customer.ktpPhotoUrl || customer.selfiePhotoUrl || null)
-      }
     }
   }, [customer, form])
+
+  useEffect(() => {
+    if (form.getValues("image") instanceof File) return
+    if (existingImageKey && publicUrlData?.url) {
+      setPreviewImage(publicUrlData.url)
+    } else if (!existingImageKey) {
+      setPreviewImage(null)
+    }
+  }, [existingImageKey, publicUrlData?.url, form])
 
   const handleImageChange = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -168,14 +192,32 @@ export default function EditMasterCustomerPage() {
 
     setIsSubmitting(true)
     try {
+      let selfiePhotoUrl: string | undefined = undefined
+      if (values.image instanceof File) {
+        const file = values.image
+        const ext = file.name.split(".").pop() || "jpg"
+        const key = `customers/${id}/selfie-${Date.now()}.${ext}`
+        const { key: s3Key } = await uploadFileMutation.mutateAsync({
+          file,
+          key,
+        })
+        selfiePhotoUrl = s3Key
+      }
+
       await updateCustomerMutation.mutateAsync({
         id,
         data: {
-          fullName: values.namaCustomer,
+          name: values.namaCustomer,
           address,
-          phoneNumber: phone,
+          city: (values.kota ?? "").trim() || undefined,
+          phone,
           email,
-        }
+          birthPlace: (values.tempatLahir ?? "").trim() || undefined,
+          subDistrict: (values.kecamatan ?? "").trim() || undefined,
+          village: (values.kelurahan ?? "").trim() || undefined,
+          phone2: (values.telepon2 ?? "").trim() || undefined,
+          ...(selfiePhotoUrl !== undefined && { selfiePhotoUrl }),
+        },
       })
       toast.success("Data Customer berhasil diubah")
       setConfirmOpen(false)
@@ -193,8 +235,59 @@ export default function EditMasterCustomerPage() {
 
   if (!id || isLoading) {
     return (
-      <div className="flex h-full items-center justify-center p-8">
-        <Loader2 className="size-8 animate-spin text-muted-foreground" />
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex flex-col gap-2">
+            <Skeleton className="h-8 w-32" />
+            <Skeleton className="h-4 w-48" />
+          </div>
+        </div>
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-40" />
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 gap-8 lg:grid-cols-[250px_1fr]">
+              <div className="flex justify-center">
+                <Skeleton className="aspect-square w-48 rounded-full" />
+              </div>
+              <div className="space-y-8">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="size-6 rounded" />
+                    <Skeleton className="h-6 w-36" />
+                  </div>
+                  <div className="grid gap-6 md:grid-cols-2 items-start">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <div key={i} className="space-y-2">
+                        <Skeleton className="h-4 w-24" />
+                        <Skeleton className="h-10 w-full" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="size-6 rounded" />
+                    <Skeleton className="h-6 w-28" />
+                  </div>
+                  <div className="grid gap-6 md:grid-cols-2 items-start">
+                    {Array.from({ length: 7 }).map((_, i) => (
+                      <div key={i} className="space-y-2">
+                        <Skeleton className="h-4 w-20" />
+                        <Skeleton className="h-10 w-full" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex justify-end gap-4 pt-4">
+                  <Skeleton className="h-10 w-24" />
+                  <Skeleton className="h-10 w-24" />
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     )
   }
@@ -253,14 +346,13 @@ export default function EditMasterCustomerPage() {
                                   accept="image/*"
                                   className="hidden"
                                   onChange={(e) => handleImageChange(e, field)}
-                                  disabled
                                 />
                               </label>
                             </div>
                           ) : (
                             <label
                               htmlFor="image-upload"
-                              className="border-input bg-muted/50 hover:bg-muted flex aspect-square w-48 cursor-pointer flex-col items-center justify-center gap-3 rounded-full border-2 border-dashed transition-colors opacity-50 cursor-not-allowed"
+                              className="border-input bg-muted/50 hover:bg-muted flex aspect-square w-48 cursor-pointer flex-col items-center justify-center gap-3 rounded-full border-2 border-dashed transition-colors"
                             >
                               <div className="flex flex-col items-center gap-2">
                                 <div className="bg-primary/10 rounded-full p-3">
@@ -276,7 +368,6 @@ export default function EditMasterCustomerPage() {
                                 accept="image/*"
                                 className="hidden"
                                 onChange={(e) => handleImageChange(e, field)}
-                                disabled
                               />
                             </label>
                           )}
@@ -298,14 +389,15 @@ export default function EditMasterCustomerPage() {
                       Detail Customer
                     </h2>
                   </div>
-                  <div className="grid gap-6 md:grid-cols-2 items-start">
+                  <div className="grid items-start gap-6 md:grid-cols-2">
                     <FormField
                       control={form.control}
                       name="namaCustomer"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>
-                            Nama Customer <span className="text-destructive">*</span>
+                            Nama Customer{" "}
+                            <span className="text-destructive">*</span>
                           </FormLabel>
                           <FormControl>
                             <Input
@@ -328,8 +420,7 @@ export default function EditMasterCustomerPage() {
                             <RadioGroup
                               onValueChange={field.onChange}
                               value={field.value}
-                              className="flex gap-6 opacity-50 pointer-events-none"
-                              disabled
+                              className="pointer-events-none flex gap-6 opacity-50"
                             >
                               <div className="flex items-center space-x-2">
                                 <RadioGroupItem
@@ -366,14 +457,11 @@ export default function EditMasterCustomerPage() {
                       name="nik"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>
-                            NIK
-                          </FormLabel>
+                          <FormLabel>NIK</FormLabel>
                           <FormControl>
                             <Input
                               type="text"
                               icon={<IdCard className="size-4" />}
-                              disabled
                               {...field}
                             />
                           </FormControl>
@@ -391,7 +479,6 @@ export default function EditMasterCustomerPage() {
                             <Input
                               type="text"
                               icon={<MapPin className="size-4" />}
-                              disabled
                               {...field}
                             />
                           </FormControl>
@@ -409,7 +496,6 @@ export default function EditMasterCustomerPage() {
                             <Input
                               type="text"
                               icon={<Calendar className="size-4" />}
-                              disabled
                               {...field}
                             />
                           </FormControl>
@@ -428,7 +514,7 @@ export default function EditMasterCustomerPage() {
                       Detail Kontak
                     </h2>
                   </div>
-                  <div className="grid gap-6 md:grid-cols-2 items-start">
+                  <div className="grid items-start gap-6 md:grid-cols-2">
                     <FormField
                       control={form.control}
                       name="kota"
@@ -439,7 +525,6 @@ export default function EditMasterCustomerPage() {
                             <Input
                               type="text"
                               icon={<MapPin className="size-4" />}
-                              disabled
                               {...field}
                             />
                           </FormControl>
@@ -457,7 +542,6 @@ export default function EditMasterCustomerPage() {
                             <Input
                               type="text"
                               icon={<MapPin className="size-4" />}
-                              disabled
                               {...field}
                             />
                           </FormControl>
@@ -475,7 +559,6 @@ export default function EditMasterCustomerPage() {
                             <Input
                               type="text"
                               icon={<MapPin className="size-4" />}
-                              disabled
                               {...field}
                             />
                           </FormControl>
@@ -528,7 +611,6 @@ export default function EditMasterCustomerPage() {
                             <Input
                               type="tel"
                               icon={<Phone className="size-4" />}
-                              disabled
                               {...field}
                             />
                           </FormControl>

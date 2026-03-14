@@ -45,6 +45,18 @@ export class CustomerEntity extends AbstractEntity {
   @Index()
   phone: string;
 
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  birthPlace: string | null;
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  subDistrict: string | null;
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  village: string | null;
+
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  phone2: string | null;
+
   @Column({ type: 'varchar', length: 255 })
   @Index()
   email: string;

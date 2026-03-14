@@ -177,9 +177,7 @@ function flattenOverdueSpkToItemLelang(
     const ptId = spk.ptId ?? ""
     const storeId = spk.storeId ?? ""
     const namaNasabah =
-      (spk.customer as { fullName?: string })?.fullName ??
-      (spk.customer as { name?: string })?.name ??
-      "-"
+      (spk.customer as { name?: string })?.name ?? "-"
     const dueDate = spk.dueDate
       ? format(new Date(spk.dueDate), "d MMM yyyy", { locale: id })
       : "-"

@@ -53,10 +53,9 @@ const formatDate = (dateStr: string): string => {
   }
 }
 
-// Customer name: API may return customer.name (backend Dto) or customer.fullName
 function getCustomerName(spk: Spk): string {
-  const c = spk.customer as { fullName?: string; name?: string } | undefined
-  return c?.fullName ?? c?.name ?? "-"
+  const c = spk.customer as { name?: string } | undefined
+  return c?.name ?? "-"
 }
 
 function getCustomerPhotoUrl(spk: Spk): string | undefined {

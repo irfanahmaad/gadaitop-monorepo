@@ -50,6 +50,7 @@ import {
 import { useSpkList } from "@/lib/react-query/hooks/use-spk"
 import { useFilterParams, type FilterConfig } from "@/hooks/use-filter-params"
 import type { Customer, Spk } from "@/lib/api/types"
+import { usePublicUrl } from "@/lib/react-query/hooks/use-upload"
 import { GantiPinDialog } from "./_components/ganti-pin-dialog"
 
 const daftarSPKFilterConfig: FilterConfig[] = [
@@ -86,12 +87,14 @@ type CustomerDetail = {
   email: string
 }
 
-function mapCustomerToDetail(c: Customer | null | undefined): CustomerDetail | null {
+function mapCustomerToDetail(
+  c: Customer | null | undefined
+): CustomerDetail | null {
   if (!c) return null
   const id = String(c.id ?? c.uuid ?? "")
-  const namaLengkap = c.fullName ?? c.name ?? "—"
-  const foto = c.ktpPhotoUrl ?? c.selfiePhotoUrl ?? ""
-  const rawDob = c.dateOfBirth ?? c.dob
+  const namaLengkap = c.name ?? "—"
+  const foto = c.selfiePhotoUrl ?? ""
+  const rawDob = c.dob
   const tanggalLahir = rawDob
     ? new Date(rawDob).toLocaleDateString("id-ID", {
         day: "numeric",
@@ -106,13 +109,13 @@ function mapCustomerToDetail(c: Customer | null | undefined): CustomerDetail | n
     nik: c.nik ?? "—",
     tanggalLahir,
     jenisKelamin: c.gender ?? "—",
-    tempatLahir: "—",
+    tempatLahir: c.birthPlace ?? "—",
     kota: c.city ?? "—",
-    kelurahan: "—",
-    kecamatan: "—",
+    kelurahan: c.village ?? "—",
+    kecamatan: c.subDistrict ?? "—",
     alamat: c.address ?? "—",
-    telepon1: c.phone ?? c.phoneNumber ?? "—",
-    telepon2: "—",
+    telepon1: c.phone ?? "—",
+    telepon2: c.phone2 ?? "—",
     email: c.email ?? "—",
   }
 }
@@ -144,8 +147,7 @@ function formatSpkDateTime(iso: string): string {
 }
 
 function mapSpkToRow(spk: Spk): SPKRow {
-  const namaCustomer =
-    spk.customer?.fullName ?? spk.customer?.name ?? "—"
+  const namaCustomer = spk.customer?.name ?? "—"
   return {
     id: String(spk.id ?? spk.uuid),
     nomorSPK: spk.spkNumber ?? "—",
@@ -210,7 +212,7 @@ function DataCustomerSkeleton() {
                 <Skeleton className="size-6 rounded" />
                 <Skeleton className="h-6 w-36" />
               </div>
-              <div className="grid gap-6 md:grid-cols-2 items-start">
+              <div className="grid items-start gap-6 md:grid-cols-2">
                 {Array.from({ length: 5 }).map((_, i) => (
                   <div key={i} className="space-y-2">
                     <Skeleton className="h-4 w-24" />
@@ -224,7 +226,7 @@ function DataCustomerSkeleton() {
                 <Skeleton className="size-6 rounded" />
                 <Skeleton className="h-6 w-28" />
               </div>
-              <div className="grid gap-6 md:grid-cols-2 items-start">
+              <div className="grid items-start gap-6 md:grid-cols-2">
                 {Array.from({ length: 7 }).map((_, i) => (
                   <div key={i} className="space-y-2">
                     <Skeleton className="h-4 w-20" />
@@ -310,6 +312,8 @@ export default function MasterCustomerDetailPage() {
     () => mapCustomerToDetail(customerData),
     [customerData]
   )
+  const selfieKey = customer?.foto ?? ""
+  const { data: selfiePublicUrl } = usePublicUrl(selfieKey)
   const spkList = useMemo(() => {
     const list = spkData?.data ?? []
     return list.map(mapSpkToRow)
@@ -477,16 +481,17 @@ export default function MasterCustomerDetailPage() {
               <Trash2 className="size-4" />
               Hapus
             </Button>
-            {!customerData?.isBlacklisted && customerData?.status !== "blacklisted" && (
-              <Button
-                variant="destructive"
-                className="shrink-0 gap-2"
-                onClick={() => setBlacklistDialogOpen(true)}
-              >
-                <Ban className="size-4" />
-                Blacklist
-              </Button>
-            )}
+            {!customerData?.isBlacklisted &&
+              customerData?.status !== "blacklisted" && (
+                <Button
+                  variant="destructive"
+                  className="shrink-0 gap-2"
+                  onClick={() => setBlacklistDialogOpen(true)}
+                >
+                  <Ban className="size-4" />
+                  Blacklist
+                </Button>
+              )}
           </div>
         )}
       </div>
@@ -541,7 +546,7 @@ export default function MasterCustomerDetailPage() {
               {/* Profile Picture */}
               <div className="flex justify-center">
                 <Avatar className="size-48">
-                  <AvatarImage src={customer.foto} alt={customer.namaLengkap} />
+                  <AvatarImage src={selfieKey ? selfiePublicUrl?.url : undefined} alt={customer.namaLengkap} />
                   <AvatarFallback>
                     <User className="text-muted-foreground size-24" />
                   </AvatarFallback>
@@ -558,7 +563,7 @@ export default function MasterCustomerDetailPage() {
                       Detail Customer
                     </h2>
                   </div>
-                  <div className="grid gap-6 md:grid-cols-2 items-start">
+                  <div className="grid items-start gap-6 md:grid-cols-2">
                     <div className="space-y-2">
                       <label className="text-muted-foreground text-sm font-medium">
                         Nama Customer
@@ -600,7 +605,7 @@ export default function MasterCustomerDetailPage() {
                       Detail Kontak
                     </h2>
                   </div>
-                  <div className="grid gap-6 md:grid-cols-2 items-start">
+                  <div className="grid items-start gap-6 md:grid-cols-2">
                     <div className="space-y-2">
                       <label className="text-muted-foreground text-sm font-medium">
                         Kota

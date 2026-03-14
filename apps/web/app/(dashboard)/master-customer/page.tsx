@@ -23,7 +23,7 @@ import {
 } from "@workspace/ui/components/avatar"
 import { Card, CardContent, CardHeader } from "@workspace/ui/components/card"
 import { Skeleton } from "@workspace/ui/components/skeleton"
-import { SearchIcon, Plus, Lock, Trash2 } from "lucide-react"
+import { SearchIcon, Plus, Lock, Trash2, UserIcon } from "lucide-react"
 import { useAuth } from "@/lib/react-query/hooks/use-auth"
 import {
   useCustomers,
@@ -37,7 +37,27 @@ import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { GantiPinDialog } from "./[id]/_components/ganti-pin-dialog"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
+import { usePublicUrl } from "@/lib/react-query/hooks/use-upload"
 import type { Customer as ApiCustomer } from "@/lib/api/types"
+
+function CustomerImageCell({ imageKey, name }: { imageKey: string; name: string }) {
+  const { data: publicUrlData } = usePublicUrl(imageKey)
+  const getInitials = (n: string) =>
+    n
+      .split(" ")
+      .map((w) => w[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2)
+  return (
+    <Avatar className="h-10 w-10">
+      <AvatarImage src={imageKey ? publicUrlData?.url : undefined} alt={name} />
+      <AvatarFallback>
+        {name ? getInitials(name) : <UserIcon className="size-5" />}
+      </AvatarFallback>
+    </Avatar>
+  )
+}
 
 type CustomerRow = {
   id: string
@@ -59,10 +79,10 @@ function mapApiCustomerToRow(c: ApiCustomer): CustomerRow {
   const status = c.status ?? (c.isBlacklisted ? "blacklisted" : "active")
   return {
     id: c.uuid,
-    foto: c.ktpPhotoUrl ?? c.selfiePhotoUrl ?? "",
-    namaLengkap: c.name ?? c.fullName ?? "",
+    foto: c.selfiePhotoUrl ?? "",
+    namaLengkap: c.name ?? "",
     email: c.email ?? "",
-    noTelp: c.phone ?? c.phoneNumber ?? "",
+    noTelp: c.phone ?? "",
     alamat: [c.address, c.city].filter(Boolean).join(", ") ?? "",
     status: STATUS_MAP[status] ?? "Aktif",
   }
@@ -124,10 +144,10 @@ const customerColumns: ColumnDef<CustomerRow>[] = [
     accessorKey: "foto",
     header: "Foto",
     cell: ({ row }) => (
-      <Avatar className="h-10 w-10">
-        <AvatarImage src={row.getValue("foto")} alt="Customer photo" />
-        <AvatarFallback>IMG</AvatarFallback>
-      </Avatar>
+      <CustomerImageCell
+        imageKey={row.getValue("foto")}
+        name={row.original.namaLengkap}
+      />
     ),
   },
   {
@@ -191,7 +211,7 @@ export default function MasterCustomerPage() {
 
   const defaultPT =
     (isSuperAdmin && ptOptions[0]?.value) ||
-    (isCompanyAdmin ? effectiveCompanyId ?? null : null) ||
+    (isCompanyAdmin ? (effectiveCompanyId ?? null) : null) ||
     ""
   const effectivePT = selectedPT || defaultPT
 
@@ -308,11 +328,7 @@ export default function MasterCustomerPage() {
         toast.error("Gagal mengubah PIN. Periksa kembali data dan coba lagi.")
       }
     },
-    [
-      gantiPinCustomerId,
-      changePinMutation,
-      queryClient,
-    ]
+    [gantiPinCustomerId, changePinMutation, queryClient]
   )
 
   const handleTambahData = useCallback(() => {

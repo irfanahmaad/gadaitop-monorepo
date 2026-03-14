@@ -94,12 +94,19 @@ export class CustomerController {
   ): Promise<{ success: boolean }> {
     const user = (req as any).user;
     const roles = user?.roles ?? [];
-    const isCompanyAdmin = roles.some((r: { code?: string }) => r?.code === 'company_admin');
+    const isCompanyAdmin = roles.some(
+      (r: { code?: string }) => r?.code === 'company_admin',
+    );
     if (!changePinDto.oldPin && !isCompanyAdmin) {
-      throw new ForbiddenException('Only Admin PT can reset customer PIN without old PIN');
+      throw new ForbiddenException(
+        'Only Admin PT can reset customer PIN without old PIN',
+      );
     }
     const changedBy = user?.uuid ?? null;
-    const ipAddress = (req.headers['x-forwarded-for'] as string) ?? req.socket?.remoteAddress ?? undefined;
+    const ipAddress =
+      (req.headers['x-forwarded-for'] as string) ??
+      req.socket?.remoteAddress ??
+      undefined;
     const userAgent = req.headers['user-agent'];
     await this.customerService.changePin(
       id,

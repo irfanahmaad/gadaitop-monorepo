@@ -56,6 +56,7 @@ import {
 import { useAuth } from "@/lib/react-query/hooks/use-auth"
 import { useCompanies } from "@/lib/react-query/hooks/use-companies"
 import { useCreateCustomer } from "@/lib/react-query/hooks/use-customers"
+import { useUploadFile } from "@/lib/react-query/hooks/use-upload"
 
 const customerSchema = z.object({
   image: z.union([z.instanceof(File), z.string()]).optional(),
@@ -151,7 +152,7 @@ export default function TambahMasterCustomerPage() {
   const isSuperAdmin = user?.roles?.some((r) => r.code === "owner") ?? false
   const isBranchStaff =
     user?.roles?.some((r) => r.code === "branch_staff") ?? false
-  
+
   const effectiveCompanyId = user?.companyId ?? null
   const effectiveBranchId = user?.branchId ?? null
 
@@ -171,7 +172,11 @@ export default function TambahMasterCustomerPage() {
 
   const [selectedPT, setSelectedPT] = useState("")
   useEffect(() => {
-    if ((isCompanyAdmin || isBranchStaff) && effectiveCompanyId && !selectedPT) {
+    if (
+      (isCompanyAdmin || isBranchStaff) &&
+      effectiveCompanyId &&
+      !selectedPT
+    ) {
       setSelectedPT(effectiveCompanyId)
     }
   }, [isCompanyAdmin, isBranchStaff, effectiveCompanyId, selectedPT])
@@ -182,6 +187,7 @@ export default function TambahMasterCustomerPage() {
   }, [isSuperAdmin, ptOptions, selectedPT])
 
   const createCustomerMutation = useCreateCustomer()
+  const uploadFileMutation = useUploadFile()
 
   const [previewImage, setPreviewImage] = useState<string | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -288,18 +294,36 @@ export default function TambahMasterCustomerPage() {
 
     setIsSubmitting(true)
     try {
+      let selfiePhotoUrl: string | undefined = undefined
+      if (values.image instanceof File) {
+        const file = values.image
+        const ext = file.name.split(".").pop() || "jpg"
+        const key = `customers/new/selfie-${Date.now()}.${ext}`
+        const { key: s3Key } = await uploadFileMutation.mutateAsync({
+          file,
+          key,
+        })
+        selfiePhotoUrl = s3Key
+      }
+
       await createCustomerMutation.mutateAsync({
         nik: values.nik,
         pin,
-        name: values.namaCustomer, // fixed mapping to name
-        dob: dobIso, // fixed mapping to dob
+        name: values.namaCustomer,
+        dob: dobIso,
         gender: values.jenisKelamin === "Laki-laki" ? "male" : "female",
         address,
         city,
-        phone: phone, // fixed mapping to phone
+        phone,
         email,
+        birthPlace: (values.tempatLahir ?? "").trim() || undefined,
+        subDistrict: (values.kecamatan ?? "").trim() || undefined,
+        village: (values.kelurahan ?? "").trim() || undefined,
+        phone2: (values.telepon2 ?? "").trim() || undefined,
         ptId: selectedPT,
-        branchId: isBranchStaff && effectiveBranchId ? effectiveBranchId : undefined,
+        branchId:
+          isBranchStaff && effectiveBranchId ? effectiveBranchId : undefined,
+        ...(selfiePhotoUrl && { selfiePhotoUrl }),
       })
       toast.success("Data Customer berhasil ditambahkan")
       setConfirmOpen(false)
@@ -376,7 +400,7 @@ export default function TambahMasterCustomerPage() {
                       <FormControl>
                         <div className="relative">
                           {previewImage ? (
-                            <div className="border-input bg-muted/50 relative aspect-square w-48 overflow-hidden rounded-full border-2 border-dashed">
+                            <div className="border-input bg-muted/50 relative aspect-square w-48 rounded-full border-2 border-dashed">
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img
                                 src={previewImage}
@@ -438,7 +462,7 @@ export default function TambahMasterCustomerPage() {
                       Detail Customer
                     </h2>
                   </div>
-                  <div className="grid gap-6 md:grid-cols-2 items-start">
+                  <div className="grid items-start gap-6 md:grid-cols-2">
                     <FormField
                       control={form.control}
                       name="namaCustomer"
@@ -568,7 +592,7 @@ export default function TambahMasterCustomerPage() {
                       Detail Kontak
                     </h2>
                   </div>
-                  <div className="grid gap-6 md:grid-cols-2 items-start">
+                  <div className="grid items-start gap-6 md:grid-cols-2">
                     <FormField
                       control={form.control}
                       name="kota"
@@ -702,7 +726,9 @@ export default function TambahMasterCustomerPage() {
                   <div className="flex items-center gap-3">
                     <Lock className="text-destructive size-6" />
                     <h2 className="text-destructive text-lg font-semibold">
-                      {form.watch("pin") ? "Keamanan (PIN sudah Diinput)" : "Keamanan"}
+                      {form.watch("pin")
+                        ? "Keamanan (PIN sudah Diinput)"
+                        : "Keamanan"}
                     </h2>
                   </div>
                   <div className="w-full gap-6">

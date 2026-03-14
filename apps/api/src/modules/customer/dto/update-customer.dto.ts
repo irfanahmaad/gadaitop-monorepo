@@ -21,6 +21,26 @@ export class UpdateCustomerDto {
   phone?: string;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  birthPlace?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  subDistrict?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  village?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  phone2?: string;
+
+  @IsOptional()
   @IsEmail()
   @MaxLength(255)
   email?: string;

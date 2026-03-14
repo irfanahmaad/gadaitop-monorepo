@@ -424,8 +424,7 @@ export default function SPKDetailPage() {
   }
 
   const customerName = spk?.customer
-    ? ((spk.customer as { fullName?: string; name?: string }).fullName ??
-      (spk.customer as { name?: string }).name) ?? "-"
+    ? (spk.customer as { name?: string }).name ?? "-"
     : "-"
   const customerPhoto = spk?.customer
     ? (spk.customer as { ktpPhotoUrl?: string }).ktpPhotoUrl
@@ -434,7 +433,7 @@ export default function SPKDetailPage() {
     ? (spk.customer as { nik?: string }).nik ?? "-"
     : "-"
   const customerDob = spk?.customer
-    ? (spk.customer as { dateOfBirth?: string }).dateOfBirth ?? "-"
+    ? (spk.customer as { dob?: string }).dob ?? "-"
     : "-"
   const totalAmount = Number(spk?.totalAmount ?? spk?.principalAmount ?? 0)
   const remainingBalance = (spk as { remainingBalance?: string | number })?.remainingBalance

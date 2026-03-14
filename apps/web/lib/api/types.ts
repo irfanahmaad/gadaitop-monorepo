@@ -500,17 +500,16 @@ export interface Customer {
   id: number | string
   uuid: string
   nik: string
-  /** API may return `name`; frontend also supports `fullName` */
   name?: string
-  fullName?: string
-  dateOfBirth?: string
   dob?: string
   gender?: string
   address?: string
   city?: string
-  /** API may return `phone`; frontend also supports `phoneNumber` */
   phone?: string
-  phoneNumber?: string
+  birthPlace?: string | null
+  subDistrict?: string | null
+  village?: string | null
+  phone2?: string | null
   email?: string
   status?: CustomerStatus
   isBlacklisted?: boolean
@@ -544,6 +543,10 @@ export interface CreateCustomerDto {
   email: string
   gender?: "male" | "female"
   city?: string
+  birthPlace?: string
+  subDistrict?: string
+  village?: string
+  phone2?: string
   ptId?: string
   branchId?: string
   ktpPhotoUrl?: string
@@ -551,10 +554,17 @@ export interface CreateCustomerDto {
 }
 
 export interface UpdateCustomerDto {
-  fullName?: string
-  phoneNumber?: string
-  email?: string
+  name?: string
   address?: string
+  city?: string
+  phone?: string
+  birthPlace?: string
+  subDistrict?: string
+  village?: string
+  phone2?: string
+  email?: string
+  ktpPhotoUrl?: string
+  selfiePhotoUrl?: string
 }
 
 export interface ScanKtpDto {
