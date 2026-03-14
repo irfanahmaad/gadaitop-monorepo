@@ -23,7 +23,8 @@ import { UpdateCompanyDto } from './dto/update-company.dto';
 import { UpdateCompanyConfigDto } from './dto/update-company-config.dto';
 import { CreateCompanyWithAdminDto } from './dto/create-company-with-admin.dto';
 
-const OWNER_ROLE_CODE = 'owner';
+/** Role for Admin Primary when super admin creates a new PT: Admin PT (company-scoped), not Super Admin (owner). */
+const ADMIN_PT_ROLE_CODE = 'company_admin';
 
 @Injectable()
 export class CompanyService {
@@ -98,12 +99,12 @@ export class CompanyService {
       );
     }
 
-    // Find the owner role
-    const ownerRole = await this.roleRepository.findOne({
-      where: { code: OWNER_ROLE_CODE },
+    // Find the Admin PT role (Admin Primary gets company_admin, not owner/super-admin)
+    const adminPtRole = await this.roleRepository.findOne({
+      where: { code: ADMIN_PT_ROLE_CODE },
     });
-    if (!ownerRole) {
-      throw new BadRequestException('Owner role not found in the system');
+    if (!adminPtRole) {
+      throw new BadRequestException('Admin PT role not found in the system');
     }
 
     // Use transaction to create both user and company
@@ -112,7 +113,7 @@ export class CompanyService {
     await queryRunner.startTransaction();
 
     try {
-      // 1. Create the admin user (owner)
+      // 1. Create the admin user (Admin Primary with Admin PT role)
       const hashedPassword = await generateHash(createDto.password);
       const user = queryRunner.manager.create(UserEntity, {
         fullName: createDto.adminName,
@@ -120,7 +121,7 @@ export class CompanyService {
         password: hashedPassword,
         phoneNumber: createDto.adminPhone || null,
         activeStatus: ActiveStatusEnum.Active,
-        roles: [ownerRole],
+        roles: [adminPtRole],
       });
       const savedUser = await queryRunner.manager.save(user);
 
