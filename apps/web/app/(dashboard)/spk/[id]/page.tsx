@@ -47,6 +47,7 @@ import { useSpk, useSpkNkb } from "@/lib/react-query/hooks/use-spk"
 import type { Nkb } from "@/lib/api/types"
 import { QRCodeDialog } from "../../_components/QRCodeDialog"
 import { useAuth } from "../../../../lib/react-query/hooks/use-auth"
+import { usePublicUrl } from "@/lib/react-query/hooks/use-upload"
 
 const formatCurrency = (amount: number): string =>
   new Intl.NumberFormat("id-ID", {
@@ -63,6 +64,19 @@ const formatDate = (dateStr: string): string => {
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit",
+    })
+  } catch {
+    return dateStr
+  }
+}
+
+const formatDateOnly = (dateStr: string | undefined | null): string => {
+  if (!dateStr) return "-"
+  try {
+    return new Date(dateStr).toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
     })
   } catch {
     return dateStr
@@ -175,12 +189,9 @@ function NKBInfoDialog({
   if (!nkb) return null
 
   const n = nkb as Record<string, unknown>
-  const paymentType =
-    (n.paymentType as string) ?? (n.type as string) ?? ""
+  const paymentType = (n.paymentType as string) ?? (n.type as string) ?? ""
   const amount =
-    typeof n.amount === "number"
-      ? n.amount
-      : Number(n.amountPaid ?? 0)
+    typeof n.amount === "number" ? n.amount : Number(n.amountPaid ?? 0)
   const status = (n.status as string) ?? "pending"
   const statusLabel = NKB_STATUS_LABEL[status] ?? status
   const isApproved = status === "confirmed"
@@ -225,9 +236,7 @@ function NKBInfoDialog({
               <label className="text-muted-foreground text-sm font-medium">
                 Total Pembayaran
               </label>
-              <p className="text-base">
-                Rp {formatCurrency(amount)},-
-              </p>
+              <p className="text-base">Rp {formatCurrency(amount)},-</p>
             </div>
           </div>
           <div className="space-y-4">
@@ -293,7 +302,7 @@ function DetailSPKSkeleton() {
                 <Skeleton className="size-6 rounded" />
                 <Skeleton className="h-6 w-36" />
               </div>
-              <div className="grid gap-6 md:grid-cols-2 items-start">
+              <div className="grid items-start gap-6 md:grid-cols-2">
                 {Array.from({ length: 3 }).map((_, i) => (
                   <div key={i} className="space-y-2">
                     <Skeleton className="h-4 w-24" />
@@ -307,7 +316,7 @@ function DetailSPKSkeleton() {
                 <Skeleton className="size-6 rounded" />
                 <Skeleton className="h-6 w-28" />
               </div>
-              <div className="grid gap-6 md:grid-cols-2 items-start">
+              <div className="grid items-start gap-6 md:grid-cols-2">
                 {Array.from({ length: 5 }).map((_, i) => (
                   <div key={i} className="space-y-2">
                     <Skeleton className="h-4 w-32" />
@@ -379,7 +388,7 @@ export default function SPKDetailPage() {
     const raw = nkbData
     return Array.isArray(raw)
       ? raw
-      : (raw as unknown as { data?: Nkb[] })?.data ?? []
+      : ((raw as unknown as { data?: Nkb[] })?.data ?? [])
   }, [nkbData])
 
   const nkbRows = useMemo(() => {
@@ -424,19 +433,21 @@ export default function SPKDetailPage() {
   }
 
   const customerName = spk?.customer
-    ? (spk.customer as { name?: string }).name ?? "-"
+    ? ((spk.customer as { name?: string }).name ?? "-")
     : "-"
-  const customerPhoto = spk?.customer
-    ? (spk.customer as { ktpPhotoUrl?: string }).ktpPhotoUrl
+  const customerPhotoKey = spk?.customer
+    ? (spk.customer as { selfiePhotoUrl?: string }).selfiePhotoUrl
     : undefined
+  const { data: customerPhotoData } = usePublicUrl(customerPhotoKey ?? "")
   const customerNik = spk?.customer
-    ? (spk.customer as { nik?: string }).nik ?? "-"
+    ? ((spk.customer as { nik?: string }).nik ?? "-")
     : "-"
   const customerDob = spk?.customer
-    ? (spk.customer as { dob?: string }).dob ?? "-"
+    ? ((spk.customer as { dob?: string }).dob ?? "-")
     : "-"
   const totalAmount = Number(spk?.totalAmount ?? spk?.principalAmount ?? 0)
-  const remainingBalance = (spk as { remainingBalance?: string | number })?.remainingBalance
+  const remainingBalance = (spk as { remainingBalance?: string | number })
+    ?.remainingBalance
   const remainingBalanceNum =
     remainingBalance != null ? Number(remainingBalance) : totalAmount
 
@@ -513,7 +524,10 @@ export default function SPKDetailPage() {
             <div className="grid grid-cols-1 gap-8 lg:grid-cols-[250px_1fr]">
               <div className="flex justify-center">
                 <Avatar className="size-48">
-                  <AvatarImage src={customerPhoto} alt={customerName} />
+                  <AvatarImage
+                    src={customerPhotoKey ? customerPhotoData?.url : undefined}
+                    alt={customerName}
+                  />
                   <AvatarFallback>
                     <User className="text-muted-foreground size-24" />
                   </AvatarFallback>
@@ -528,7 +542,7 @@ export default function SPKDetailPage() {
                       Detail Customer
                     </h2>
                   </div>
-                  <div className="grid gap-6 md:grid-cols-2 items-start">
+                  <div className="grid items-start gap-6 md:grid-cols-2">
                     <div className="space-y-2">
                       <label className="text-muted-foreground text-sm font-medium">
                         NIK
@@ -545,7 +559,7 @@ export default function SPKDetailPage() {
                       <label className="text-muted-foreground text-sm font-medium">
                         Tanggal Lahir
                       </label>
-                      <p className="text-base">{customerDob}</p>
+                      <p className="text-base">{formatDateOnly(customerDob)}</p>
                     </div>
                   </div>
                 </div>
@@ -557,7 +571,7 @@ export default function SPKDetailPage() {
                       Detail SPK
                     </h2>
                   </div>
-                  <div className="grid gap-6 md:grid-cols-2 items-start">
+                  <div className="grid items-start gap-6 md:grid-cols-2">
                     <div className="space-y-2">
                       <label className="text-muted-foreground text-sm font-medium">
                         No. SPK
@@ -575,7 +589,7 @@ export default function SPKDetailPage() {
                         Jumlah SPK
                       </label>
                       <div className="flex items-center gap-2">
-                        <p className="text-base text-destructive underline">
+                        <p className="text-destructive text-base underline">
                           Rp {formatCurrency(totalAmount)}
                         </p>
                       </div>
@@ -604,55 +618,57 @@ export default function SPKDetailPage() {
 
       {loading ? (
         <DaftarNKBSkeleton />
-      ) : spk && (
-        <DataTable<NKBRow, unknown>
-          columns={nkbColumns as ColumnDef<NKBRow, unknown>[]}
-          data={filteredNKB}
-          title="Daftar NKB"
-          searchPlaceholder="Cari Nomor NKB / SPK"
-          headerRight={
-            <div className="flex w-full items-center gap-2 sm:w-auto">
-              <Select
-                value={pageSize.toString()}
-                onValueChange={(v) => setPageSize(Number(v))}
-              >
-                <SelectTrigger className="w-[100px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="10">10</SelectItem>
-                  <SelectItem value="25">25</SelectItem>
-                  <SelectItem value="50">50</SelectItem>
-                  <SelectItem value="100">100</SelectItem>
-                </SelectContent>
-              </Select>
-              <div className="w-full sm:w-auto sm:max-w-sm">
-                <Input
-                  placeholder="Cari Nomor NKB / SPK"
-                  value={searchValue}
-                  onChange={(e) => setSearchValue(e.target.value)}
-                  className="w-full"
-                />
-              </div>
-              <Button variant="outline" className="flex items-center gap-2">
+      ) : (
+        spk && (
+          <DataTable<NKBRow, unknown>
+            columns={nkbColumns as ColumnDef<NKBRow, unknown>[]}
+            data={filteredNKB}
+            title="Daftar NKB"
+            searchPlaceholder="Cari Nomor NKB / SPK"
+            headerRight={
+              <div className="flex w-full items-center gap-2 sm:w-auto">
+                <Select
+                  value={pageSize.toString()}
+                  onValueChange={(v) => setPageSize(Number(v))}
+                >
+                  <SelectTrigger className="w-[100px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="25">25</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                  </SelectContent>
+                </Select>
+                <div className="w-full sm:w-auto sm:max-w-sm">
+                  <Input
+                    placeholder="Cari Nomor NKB / SPK"
+                    value={searchValue}
+                    onChange={(e) => setSearchValue(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+                {/* <Button variant="outline" className="flex items-center gap-2">
                 <SlidersHorizontal className="h-4 w-4" />
                 Filter
-              </Button>
-            </div>
-          }
-          initialPageSize={pageSize}
-          onPageSizeChange={setPageSize}
-          searchValue={searchValue}
-          onSearchChange={setSearchValue}
-          onDetail={handleDetail}
-          customActions={[
-            {
-              label: "Download File",
-              icon: <Download className="mr-2 h-4 w-4" />,
-              onClick: handleDownloadFile,
-            },
-          ]}
-        />
+              </Button> */}
+              </div>
+            }
+            initialPageSize={pageSize}
+            onPageSizeChange={setPageSize}
+            searchValue={searchValue}
+            onSearchChange={setSearchValue}
+            onDetail={handleDetail}
+            customActions={[
+              {
+                label: "Download File",
+                icon: <Download className="mr-2 h-4 w-4" />,
+                onClick: handleDownloadFile,
+              },
+            ]}
+          />
+        )
       )}
       {spk?.spkNumber ? (
         <QRCodeDialog

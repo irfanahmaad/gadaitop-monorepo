@@ -56,6 +56,7 @@ import {
 import { useItemTypes } from "@/lib/react-query/hooks/use-item-types"
 import { useCatalogs } from "@/lib/react-query/hooks/use-catalogs"
 import { useCreateSpk, useConfirmSpk } from "@/lib/react-query/hooks/use-spk"
+import { usePublicUrl } from "@/lib/react-query/hooks/use-upload"
 import { ApiClientError } from "@/lib/api/client"
 
 // Enum mapping for dropdown values
@@ -110,9 +111,7 @@ type SPKFormValues = z.infer<typeof spkSchema>
 
 export default function TambahSPKPage() {
   const router = useRouter()
-  const [previewFotoCustomer, setPreviewFotoCustomer] = useState<string | null>(
-    null
-  )
+  const [customerPhotoRef, setCustomerPhotoRef] = useState<string | null>(null)
   const [previewFotoBarang, setPreviewFotoBarang] = useState<
     Array<{ file: File; preview: string }>
   >([])
@@ -120,7 +119,8 @@ export default function TambahSPKPage() {
   const [pinSetViaPopup, setPinSetViaPopup] = useState(false)
 
   const { user } = useAuth()
-  const isBranchStaff = user?.roles?.some((r) => r.code === "branch_staff") ?? false
+  const isBranchStaff =
+    user?.roles?.some((r) => r.code === "branch_staff") ?? false
   const { data: meData } = useAuthMe({
     enabled: isBranchStaff && !user?.branchId,
   })
@@ -183,17 +183,13 @@ export default function TambahSPKPage() {
         form.setValue("tanggalLahir", newDob)
       }
 
-      if (customerItem.ktpPhotoUrl || customerItem.selfiePhotoUrl) {
-        setPreviewFotoCustomer(
-          customerItem.selfiePhotoUrl || customerItem.ktpPhotoUrl || null
-        )
-      }
+      setCustomerPhotoRef(customerItem.selfiePhotoUrl || customerItem.ktpPhotoUrl || null)
     } else if (watchedNik?.length === 16 && !isLoadingCustomer) {
       if (form.getValues("namaCustomer") !== "") {
         form.setValue("namaCustomer", "")
         form.setValue("tanggalLahir", "")
-        setPreviewFotoCustomer(null)
       }
+      setCustomerPhotoRef(null)
     }
   }, [customerItem, watchedNik, isLoadingCustomer, form])
 
@@ -207,6 +203,16 @@ export default function TambahSPKPage() {
     filter: watchedTipeBarang ? { itemTypeId: watchedTipeBarang } : undefined,
   })
   const catalogOptions = catalogsData?.data ?? []
+
+  const isCustomerPhotoAbsoluteUrl =
+    typeof customerPhotoRef === "string" &&
+    /^https?:\/\//i.test(customerPhotoRef)
+  const { data: customerPhotoPublicUrlData } = usePublicUrl(
+    customerPhotoRef && !isCustomerPhotoAbsoluteUrl ? customerPhotoRef : ""
+  )
+  const previewFotoCustomer = isCustomerPhotoAbsoluteUrl
+    ? customerPhotoRef
+    : customerPhotoPublicUrlData?.url ?? null
 
   // Update Harga Acuan when Catalog is selected
   useEffect(() => {
@@ -247,12 +253,23 @@ export default function TambahSPKPage() {
   // --- Handlers ---
   const handleCustomerMasukkanPin = () => {
     setPinSetViaPopup(false)
-    form.setFocus("pin")
     window.open(
       "/input-pin",
       "InputPIN",
       "width=500,height=700,left=200,top=200"
     )
+  }
+
+  const handleInputMaksimumJumlahSPK = () => {
+    const maksimum = form.getValues("hargaAcuan") || ""
+    const maksimumNumber = parseCurrencyInput(maksimum)
+    if (!maksimum || !maksimumNumber || maksimumNumber <= 0) return
+
+    form.setValue("jumlahSPK", maksimum, {
+      shouldDirty: true,
+      shouldValidate: true,
+    })
+    form.trigger("jumlahSPK")
   }
 
   const handleMultipleImageChange = (
@@ -794,32 +811,44 @@ export default function TambahSPKPage() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>
-                            Jumlah Pinjaman{" "}
+                            Jumlah SPK{" "}
                             <span className="text-destructive">*</span>
                           </FormLabel>
                           <FormControl>
                             <div className="space-y-2">
-                              <Input
-                                type="text"
-                                placeholder="Contoh: 200.000"
-                                value={field.value}
-                                onChange={(e) =>
-                                  handleCurrencyChange(
-                                    e.target.value,
-                                    field,
-                                    "jumlahSPK"
-                                  )
-                                }
-                                icon={<>Rp</>}
-                              />
+                              <div className="relative">
+                                <Input
+                                  type="text"
+                                  placeholder="Contoh: 200.000"
+                                  value={field.value}
+                                  onChange={(e) =>
+                                    handleCurrencyChange(
+                                      e.target.value,
+                                      field,
+                                      "jumlahSPK"
+                                    )
+                                  }
+                                  icon={<>Rp</>}
+                                  className="pr-28"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={handleInputMaksimumJumlahSPK}
+                                  disabled={
+                                    !hargaAcuanNum ||
+                                    Number.isNaN(hargaAcuanNum) ||
+                                    hargaAcuanNum <= 0
+                                  }
+                                  className="text-primary absolute top-1/2 right-3 -translate-y-1/2 text-xs underline underline-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  Input Maksimum
+                                </button>
+                              </div>
                               {isJumlahSPKExceeded && (
                                 <p className="text-destructive text-sm">
                                   Jumlah SPK Tidak bisa melebihi Harga Acuan
                                 </p>
                               )}
-                              <p className="text-destructive text-sm">
-                                Input Maksimum
-                              </p>
                             </div>
                           </FormControl>
                           <FormMessage />
@@ -924,7 +953,8 @@ export default function TambahSPKPage() {
                                 placeholder="••••••••"
                                 icon={<Lock className="size-4" />}
                                 className="flex-1"
-                                readOnly={pinSetViaPopup}
+                                readOnly={isBranchStaff || pinSetViaPopup}
+                                disabled={isBranchStaff}
                                 {...field}
                               />
                               <Button

@@ -1,0 +1,125 @@
+---
+description: AWS S3 image handling with usePublicUrl hook for fetching public URLs
+globs: "**/app/(dashboard)/**/*.tsx"
+alwaysApply: true
+---
+
+# AWS S3 Image Handling
+
+All user-uploaded images (customer photos, product images, item photos, etc.) are stored in AWS S3. To display these images, you MUST use the `usePublicUrl` hook to fetch the public URL from the backend. NEVER use the raw S3 key directly as the image `src`.
+
+## Requirements
+
+### 1. Import the Hook
+
+**When displaying any S3-stored image:** Import `usePublicUrl` from the upload hooks:
+
+```tsx
+import { usePublicUrl } from "@/lib/react-query/hooks/use-upload"
+```
+
+### 2. Extract the Image Key
+
+**Get the S3 key from the API response.** Common field names:
+- `selfiePhotoUrl` — Customer selfie photos
+- `ktpPhotoUrl` — Customer KTP photos
+- `photoUrl` — General profile photos
+- `imageUrl` — Item/product images
+
+```tsx
+const photoKey = entity?.photoUrl ?? undefined
+```
+
+### 3. Use the Hook to Fetch Public URL
+
+**Call `usePublicUrl` with the image key:**
+
+```tsx
+const { data: photoData } = usePublicUrl(photoKey ?? "")
+```
+
+The hook:
+- Returns `data?.url` with the public URL
+- Is only enabled when a non-empty key is provided
+- Caches results based on the key
+
+### 4. Use the Fetched URL in Your Component
+
+**Pass `photoData?.url` to the image component, NOT the raw key:**
+
+```tsx
+<Avatar className="size-48">
+  <AvatarImage
+    src={photoKey ? photoData?.url : undefined}
+    alt={name}
+  />
+  <AvatarFallback>
+    <User className="text-muted-foreground size-24" />
+  </AvatarFallback>
+</Avatar>
+```
+
+**OR for standard img tags:**
+
+```tsx
+<img
+  src={photoKey ? photoData?.url : undefined}
+  alt={name}
+  className="size-48 object-cover rounded-full"
+/>
+```
+
+### 5. Reusable Image Cell Component (Optional)
+
+**For table columns** with repeated avatar/image cells, create a reusable component:
+
+```tsx
+function EntityImageCell({ imageKey, name }: { imageKey: string; name: string }) {
+  const { data: publicUrlData } = usePublicUrl(imageKey)
+  const getInitials = (n: string) =>
+    n
+      .split(" ")
+      .map((w) => w[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2)
+
+  return (
+    <Avatar className="h-10 w-10">
+      <AvatarImage src={imageKey ? publicUrlData?.url : undefined} alt={name} />
+      <AvatarFallback>
+        {name ? getInitials(name) : <UserIcon className="size-5" />}
+      </AvatarFallback>
+    </Avatar>
+  )
+}
+```
+
+## Common Mistakes to Avoid
+
+### ❌ WRONG: Direct use of S3 key
+```tsx
+<img src={customer.selfiePhotoUrl} alt={customer.name} />
+```
+
+### ✅ CORRECT: Fetch public URL first
+```tsx
+const { data: photoData } = usePublicUrl(customer.selfiePhotoUrl ?? "")
+<img src={customer.selfiePhotoUrl ? photoData?.url : undefined} alt={customer.name} />
+```
+
+## Reference Implementations
+
+Use these as the source of truth:
+
+- `apps/web/app/(dashboard)/master-customer/page.tsx` — CustomerImageCell component (lines 43-60)
+- `apps/web/app/(dashboard)/spk/[id]/page.tsx` — Customer avatar in SPK detail page (lines 438-441, 527-530)
+- `apps/web/lib/react-query/hooks/use-upload.ts` — The `usePublicUrl` hook implementation
+
+## Summary
+
+- ✅ ALWAYS use `usePublicUrl` hook for S3-stored images
+- ✅ Pass the S3 key to the hook, get back `data?.url`
+- ✅ Use the fetched URL in `<AvatarImage>`, `<img>`, or other image components
+- ✅ Handle missing keys gracefully (`?? ""` for the hook, conditional rendering for the src)
+- ❌ NEVER use raw S3 keys directly as image `src`

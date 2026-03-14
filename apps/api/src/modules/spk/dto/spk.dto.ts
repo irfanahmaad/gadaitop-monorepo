@@ -22,7 +22,7 @@ export class SpkDto {
   confirmedByPin: boolean;
   createdAt: Date;
   items?: SpkItemDto[];
-  customer?: { uuid: string; name: string; nik: string };
+  customer?: { uuid: string; name: string; nik: string; dob?: string; selfiePhotoUrl?: string | null };
   store?: { uuid: string; shortName: string; branchCode: string };
   pt?: { uuid: string; companyName: string };
   createdBy?: { uuid: string; fullName: string } | null;
@@ -62,6 +62,8 @@ export class SpkDto {
         uuid: record.customer.uuid,
         name: record.customer.name,
         nik: record.customer.nik,
+        dob: record.customer.dob,
+        selfiePhotoUrl: record.customer.selfiePhotoUrl,
       };
     }
     if (record.store) {
