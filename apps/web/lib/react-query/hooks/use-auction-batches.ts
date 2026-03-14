@@ -16,6 +16,7 @@ import type {
   ItemValidationDto,
   PageOptions,
   UpdateAuctionBatchDto,
+  UpdateAuctionItemStatusDto,
   UpdateBatchMarketingDto,
   UpdateBatchItemMarketingDto,
 } from "@/lib/api/types"
@@ -286,6 +287,32 @@ export function useUpdateBatchItemMarketing() {
     }) =>
       apiClient.patch<AuctionBatch, UpdateBatchItemMarketingDto>(
         endpoints.auctionBatches.updateItemMarketing(batchId, itemId),
+        data
+      ),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: auctionBatchKeys.detail(variables.batchId),
+      })
+    },
+  })
+}
+
+// Update item auction status (Admin PT, FR-132) – when batch is ready_for_auction
+export function useUpdateItemAuctionStatus() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      batchId,
+      itemId,
+      data,
+    }: {
+      batchId: string
+      itemId: string
+      data: UpdateAuctionItemStatusDto
+    }) =>
+      apiClient.put<AuctionBatch, UpdateAuctionItemStatusDto>(
+        endpoints.auctionBatches.updateItemAuctionStatus(batchId, itemId),
         data
       ),
     onSuccess: (_, variables) => {

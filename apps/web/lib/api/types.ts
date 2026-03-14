@@ -784,8 +784,17 @@ export interface AuctionItemDetail {
   validatedAt?: string | null
   marketingNotes?: string | null
   marketingAssets?: string[] | null
+  /** FR-132: ready | in_auction | sold | unsold */
+  auctionItemStatus?: string | null
   createdAt: string
   updatedAt: string
+}
+
+/** Payload for PUT auction-batches/:id/items/:itemId/auction-status (Admin PT). */
+export type AuctionItemStatus = "ready" | "in_auction" | "sold" | "unsold"
+
+export interface UpdateAuctionItemStatusDto {
+  auctionItemStatus: AuctionItemStatus
 }
 
 export interface AuctionBatch {

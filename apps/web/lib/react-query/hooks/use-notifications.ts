@@ -63,7 +63,26 @@ export function useMarkAsRead() {
 
   return useMutation({
     mutationFn: (id: string) =>
-      apiClient.put<void>(endpoints.notifications.markRead(id)),
+      apiClient.patch<void>(endpoints.notifications.markRead(id)),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({
+        queryKey: notificationKeys.detail(id),
+      })
+      queryClient.invalidateQueries({ queryKey: notificationKeys.lists() })
+      queryClient.invalidateQueries({
+        queryKey: notificationKeys.unreadCount(),
+      })
+    },
+  })
+}
+
+// Mark notification as unread
+export function useMarkAsUnread() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiClient.patch<void>(endpoints.notifications.markUnread(id)),
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({
         queryKey: notificationKeys.detail(id),

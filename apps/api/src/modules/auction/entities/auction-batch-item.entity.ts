@@ -1,6 +1,7 @@
 import { Column, Entity, Index, JoinColumn, ManyToOne, Relation } from 'typeorm';
 
 import { AbstractEntity } from '../../../common/abstract.entity';
+import { AuctionItemStatusEnum } from '../../../constants/auction-item-status';
 import { AuctionPickupStatusEnum } from '../../../constants/auction-pickup-status';
 import { AuctionValidationVerdictEnum } from '../../../constants/auction-validation-verdict';
 import { AuctionBatchEntity } from './auction-batch.entity';
@@ -62,4 +63,13 @@ export class AuctionBatchItemEntity extends AbstractEntity {
   /** Marketing-only asset URLs for this item; editable by Marketing role. */
   @Column({ name: 'marketing_assets', type: 'jsonb', nullable: true })
   marketingAssets: string[] | null;
+
+  /** FR-132: Auction item status (Admin PT) – ready, in_auction, sold, unsold. */
+  @Column({
+    name: 'auction_item_status',
+    type: 'enum',
+    enum: AuctionItemStatusEnum,
+    nullable: true,
+  })
+  auctionItemStatus: AuctionItemStatusEnum | null;
 }

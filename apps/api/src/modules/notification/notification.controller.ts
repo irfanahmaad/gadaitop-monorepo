@@ -74,6 +74,20 @@ export class NotificationController {
     return this.notificationService.markAsRead(id, recipientId);
   }
 
+  @Patch(':id/unread')
+  @Auth([])
+  async markAsUnread(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
+  ): Promise<NotificationDto> {
+    const user = (req as any).user;
+    const recipientId = user?.uuid;
+    if (!recipientId) {
+      throw new UnauthorizedException('User UUID is required for notifications');
+    }
+    return this.notificationService.markAsUnread(id, recipientId);
+  }
+
   @Post('read-all')
   @Auth([])
   async markAllAsRead(@Req() req: Request): Promise<{ count: number }> {

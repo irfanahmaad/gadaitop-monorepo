@@ -102,6 +102,20 @@ export class NotificationService {
     return new NotificationDto(notification);
   }
 
+  async markAsUnread(uuid: string, recipientId: string): Promise<NotificationDto> {
+    const notification = await this.notificationRepository.findOne({
+      where: { uuid, recipientId },
+    });
+    if (!notification) {
+      throw new NotFoundException(
+        `Notification with UUID ${uuid} not found for this user`,
+      );
+    }
+    notification.readAt = null;
+    await this.notificationRepository.save(notification);
+    return new NotificationDto(notification);
+  }
+
   async markAllAsRead(recipientId: string): Promise<{ count: number }> {
     const result = await this.notificationRepository
       .createQueryBuilder()

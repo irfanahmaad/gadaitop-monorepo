@@ -21,6 +21,7 @@ import {
   useUpdateBatchMarketing,
   useItemPickup,
   useItemValidation,
+  useUpdateItemAuctionStatus,
   auctionBatchKeys,
 } from "@/lib/react-query/hooks"
 import { useAuth } from "@/lib/react-query/hooks/use-auth"
@@ -105,6 +106,7 @@ type BatchItemRow = {
   statusPengambilan: string
   statusValidasi: string
   pickupStatus?: string
+  auctionItemStatus?: string | null
   isMata?: boolean
 }
 
@@ -173,6 +175,8 @@ function mapBatchToItemRows(
         : { isMata: false }
     const pickupStatus =
       (item as { pickupStatus?: string }).pickupStatus ?? "pending"
+    const auctionItemStatus = (item as { auctionItemStatus?: string | null })
+      .auctionItemStatus ?? null
     return {
       id: item.uuid,
       spkId,
@@ -186,6 +190,7 @@ function mapBatchToItemRows(
       statusPengambilan: pickedUp ? "Terscan" : "Belum Terscan",
       statusValidasi,
       pickupStatus,
+      auctionItemStatus,
       isMata: mataResult.isMata,
     }
   })
@@ -337,6 +342,7 @@ export default function LelanganDetailPage() {
   const assignMutation = useAssignAuctionBatch()
   const itemPickupMutation = useItemPickup()
   const itemValidationMutation = useItemValidation()
+  const updateItemAuctionStatusMutation = useUpdateItemAuctionStatus()
   const finalizeMutation = useFinalizeAuctionBatch()
   const cancelMutation = useCancelAuctionBatch()
   const deleteMutation = useDeleteAuctionBatch()
@@ -1047,6 +1053,7 @@ export default function LelanganDetailPage() {
                       <TableHead>Petugas</TableHead>
                       <TableHead>Status Pengambilan</TableHead>
                       <TableHead>Status Validasi</TableHead>
+                      <TableHead>Status Lelang</TableHead>
                       <TableHead className="w-[80px]">Action</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -1110,6 +1117,32 @@ export default function LelanganDetailPage() {
                             )}
                           >
                             {row.statusValidasi}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <span
+                            className={cn(
+                              "inline-flex rounded px-2 py-1 text-xs font-medium",
+                              row.auctionItemStatus === "ready"
+                                ? "bg-blue-500/10 text-blue-700 dark:text-blue-400"
+                                : row.auctionItemStatus === "in_auction"
+                                  ? "bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                                  : row.auctionItemStatus === "sold"
+                                    ? "bg-green-500/10 text-green-700 dark:text-green-400"
+                                    : row.auctionItemStatus === "unsold"
+                                      ? "bg-muted text-muted-foreground"
+                                      : "text-muted-foreground"
+                            )}
+                          >
+                            {row.auctionItemStatus === "ready"
+                              ? "Ready"
+                              : row.auctionItemStatus === "in_auction"
+                                ? "Sedang Lelang"
+                                : row.auctionItemStatus === "sold"
+                                  ? "Terjual"
+                                  : row.auctionItemStatus === "unsold"
+                                    ? "Tidak Terjual"
+                                    : "-"}
                           </span>
                         </TableCell>
                         <TableCell>
@@ -1210,6 +1243,115 @@ export default function LelanganDetailPage() {
                                     >
                                       <Box className="mr-2 size-4" />
                                       Retur
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                              {batch?.status === "ready_for_auction" &&
+                                canUpdateBatch && (
+                                  <>
+                                    <DropdownMenuItem
+                                      onClick={async () => {
+                                        if (!slug) return
+                                        try {
+                                          await updateItemAuctionStatusMutation.mutateAsync({
+                                            batchId: slug,
+                                            itemId: row.id,
+                                            data: {
+                                              auctionItemStatus: "ready",
+                                            },
+                                          })
+                                          toast.success("Item ditandai Ready")
+                                        } catch (err) {
+                                          toast.error(
+                                            (err as { message?: string })
+                                              ?.message ??
+                                              "Gagal memperbarui status lelang"
+                                          )
+                                        }
+                                      }}
+                                      disabled={
+                                        updateItemAuctionStatusMutation.isPending
+                                      }
+                                    >
+                                      Tandai Ready
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={async () => {
+                                        if (!slug) return
+                                        try {
+                                          await updateItemAuctionStatusMutation.mutateAsync({
+                                            batchId: slug,
+                                            itemId: row.id,
+                                            data: {
+                                              auctionItemStatus: "in_auction",
+                                            },
+                                          })
+                                          toast.success("Item ditandai Sedang Lelang")
+                                        } catch (err) {
+                                          toast.error(
+                                            (err as { message?: string })
+                                              ?.message ??
+                                              "Gagal memperbarui status lelang"
+                                          )
+                                        }
+                                      }}
+                                      disabled={
+                                        updateItemAuctionStatusMutation.isPending
+                                      }
+                                    >
+                                      Sedang Lelang
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={async () => {
+                                        if (!slug) return
+                                        try {
+                                          await updateItemAuctionStatusMutation.mutateAsync({
+                                            batchId: slug,
+                                            itemId: row.id,
+                                            data: {
+                                              auctionItemStatus: "sold",
+                                            },
+                                          })
+                                          toast.success("Item ditandai Terjual")
+                                        } catch (err) {
+                                          toast.error(
+                                            (err as { message?: string })
+                                              ?.message ??
+                                              "Gagal memperbarui status lelang"
+                                          )
+                                        }
+                                      }}
+                                      disabled={
+                                        updateItemAuctionStatusMutation.isPending
+                                      }
+                                    >
+                                      Terjual
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={async () => {
+                                        if (!slug) return
+                                        try {
+                                          await updateItemAuctionStatusMutation.mutateAsync({
+                                            batchId: slug,
+                                            itemId: row.id,
+                                            data: {
+                                              auctionItemStatus: "unsold",
+                                            },
+                                          })
+                                          toast.success("Item ditandai Tidak Terjual")
+                                        } catch (err) {
+                                          toast.error(
+                                            (err as { message?: string })
+                                              ?.message ??
+                                              "Gagal memperbarui status lelang"
+                                          )
+                                        }
+                                      }}
+                                      disabled={
+                                        updateItemAuctionStatusMutation.isPending
+                                      }
+                                    >
+                                      Tidak Terjual
                                     </DropdownMenuItem>
                                   </>
                                 )}

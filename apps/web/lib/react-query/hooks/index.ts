@@ -157,6 +157,7 @@ export {
   useRemoveItemFromBatch,
   useUpdateBatchItemMarketing,
   useUpdateBatchMarketing,
+  useUpdateItemAuctionStatus,
 } from "./use-auction-batches"
 
 // Stock Opname hooks
@@ -207,6 +208,7 @@ export {
   notificationKeys,
   useMarkAllAsRead,
   useMarkAsRead,
+  useMarkAsUnread,
   useNotification,
   useNotifications,
   useUnreadCount,

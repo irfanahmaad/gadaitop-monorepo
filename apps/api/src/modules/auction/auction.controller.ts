@@ -24,6 +24,7 @@ import { SubmitValidationDto } from './dto/submit-validation.dto';
 import { UpdateAuctionBatchDto } from './dto/update-auction-batch.dto';
 import { UpdateBatchMarketingDto } from './dto/update-batch-marketing.dto';
 import { UpdateBatchItemMarketingDto } from './dto/update-batch-item-marketing.dto';
+import { UpdateAuctionItemStatusDto } from './dto/update-auction-item-status.dto';
 import { PageMetaDto } from '../../common/dtos/page-meta.dto';
 
 function getReqUser(req: Request): { uuid?: string; companyId?: string; ownedCompanyId?: string } {
@@ -129,6 +130,19 @@ export class AuctionController {
     const userId = user?.uuid ?? '';
     const userPtId = user?.companyId ?? user?.ownedCompanyId ?? undefined;
     return this.auctionService.updateItemPickup(id, itemId, dto, userId, userPtId);
+  }
+
+  @Put(':id/items/:itemId/auction-status')
+  @Auth([{ action: AclAction.UPDATE, subject: AclSubject.AUCTION_BATCH }])
+  async updateItemAuctionStatus(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('itemId', ParseUUIDPipe) itemId: string,
+    @Body() dto: UpdateAuctionItemStatusDto,
+    @Req() req: Request,
+  ): Promise<AuctionBatchDto> {
+    const user = getReqUser(req);
+    const userPtId = user?.companyId ?? user?.ownedCompanyId ?? undefined;
+    return this.auctionService.updateItemAuctionStatus(id, itemId, dto, userPtId);
   }
 
   @Put(':id/items/:itemId/validation')

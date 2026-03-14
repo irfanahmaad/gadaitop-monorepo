@@ -1,3 +1,4 @@
+import { AuctionItemStatusEnum } from '../../../constants/auction-item-status';
 import { AuctionPickupStatusEnum } from '../../../constants/auction-pickup-status';
 import { AuctionValidationVerdictEnum } from '../../../constants/auction-validation-verdict';
 import { AuctionBatchItemEntity } from '../entities/auction-batch-item.entity';
@@ -13,6 +14,7 @@ export class AuctionBatchItemDto {
   validationPhotos: string[] | null;
   marketingNotes: string | null;
   marketingAssets: string[] | null;
+  auctionItemStatus: AuctionItemStatusEnum | null;
   validatedAt: Date | null;
   spk?: { spkNumber: string; uuid: string; items?: { itemType?: { typeName: string }; description: string; photoUrl?: string }[] };
   spkItem?: { itemType?: { typeName: string }; description: string; photoUrl?: string };
@@ -28,6 +30,7 @@ export class AuctionBatchItemDto {
     this.validationPhotos = item.validationPhotos ?? null;
     this.marketingNotes = item.marketingNotes ?? null;
     this.marketingAssets = item.marketingAssets ?? null;
+    this.auctionItemStatus = item.auctionItemStatus ?? null;
     this.validatedAt = item.validatedAt ?? null;
     const spkItem = item.spkItem;
     if (spkItem) {

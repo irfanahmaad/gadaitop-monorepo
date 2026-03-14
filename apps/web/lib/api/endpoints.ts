@@ -170,6 +170,8 @@ export const endpoints = {
     updateMarketing: (id: string) => baseUrl(`auction-batches/${id}/marketing`),
     updateItemMarketing: (id: string, itemId: string) =>
       baseUrl(`auction-batches/${id}/items/${itemId}/marketing`),
+    updateItemAuctionStatus: (id: string, itemId: string) =>
+      baseUrl(`auction-batches/${id}/items/${itemId}/auction-status`),
   },
 
   // Stock Opname
@@ -222,6 +224,7 @@ export const endpoints = {
     unreadCount: baseUrl("notifications/unread-count"),
     detail: (id: string) => baseUrl(`notifications/${id}`),
     markRead: (id: string) => baseUrl(`notifications/${id}/read`),
+    markUnread: (id: string) => baseUrl(`notifications/${id}/unread`),
     markAllRead: baseUrl("notifications/read-all"),
   },
 
