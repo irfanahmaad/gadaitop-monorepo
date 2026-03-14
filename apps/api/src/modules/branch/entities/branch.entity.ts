@@ -1,4 +1,4 @@
-import { Column, Entity, Index, JoinColumn, ManyToOne, OneToMany, Relation, Unique } from 'typeorm';
+import { Column, Entity, Index, JoinColumn, ManyToOne, OneToMany, Relation } from 'typeorm';
 
 import { AbstractEntity } from '../../../common/abstract.entity';
 import { BranchStatusEnum } from '../../../constants/branch-status';
@@ -9,13 +9,15 @@ import { BranchStatusEnum } from '../../../constants/branch-status';
  * - Toko harus dimiliki oleh sebuah PT
  * - Data toko hanya dapat dilihat oleh pemilik PT yang memiliki relasi
  * - Data: kode lokasi, nama toko (short), nama toko (long), alamat, telepon, kota, kode PT, pemilik
- * 
+ *
  * RS Section 8.1.d - Pinjam PT:
  * - Pemilik dapat memiliki toko di bawah naungan PT pemilik lain
  * - Toko aktif setelah pemilik yang PT-nya dipinjam mengkonfirmasi
+ *
+ * Uniqueness: branch_code (and company_id + branch_code) enforced by partial unique indexes
+ * WHERE deleted_at IS NULL so soft-deleted rows do not block reusing the same code.
  */
 @Entity({ name: 'branches' })
-@Unique(['companyId', 'branchCode'])
 @Index(['companyId', 'status'])
 @Index(['companyId', 'city'])
 export class BranchEntity extends AbstractEntity {
@@ -23,7 +25,7 @@ export class BranchEntity extends AbstractEntity {
   // BASIC INFO - RS: "Data: kode lokasi, nama toko (short/long), alamat, telepon, kota"
   // ============================================
 
-  @Column({ type: 'varchar', length: 20, unique: true })
+  @Column({ type: 'varchar', length: 20 })
   @Index()
   branchCode: string; // kode lokasi
 

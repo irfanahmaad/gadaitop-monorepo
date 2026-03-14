@@ -68,6 +68,7 @@ export const endpoints = {
     create: baseUrl("borrow-requests"),
     approve: (id: string) => baseUrl(`borrow-requests/${id}/approve`),
     reject: (id: string) => baseUrl(`borrow-requests/${id}/reject`),
+    revoke: (id: string) => baseUrl(`borrow-requests/${id}/revoke`),
   },
 
   // Devices

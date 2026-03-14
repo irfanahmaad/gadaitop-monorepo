@@ -1,6 +1,11 @@
 import { type FindOptionsWhere, Repository } from 'typeorm';
 
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 
 import { PageMetaDto } from '../../common/dtos/page-meta.dto';
@@ -9,7 +14,9 @@ import {
   DynamicQueryBuilder,
   QueryBuilderOptionsType,
 } from '../../common/helpers/query-builder';
+import { BranchStatusEnum } from '../../constants/branch-status';
 import { BorrowRequestStatusEnum } from '../../constants/borrow-request-status';
+import { BorrowRequestListView } from './dto/query-borrow-request.dto';
 import { BorrowRequestDto } from './dto/borrow-request.dto';
 import { CreateBorrowRequestDto } from './dto/create-borrow-request.dto';
 import { BorrowRequestEntity } from './entities/borrow-request.entity';
@@ -21,17 +28,28 @@ export class BorrowRequestService {
     private borrowRequestRepository: Repository<BorrowRequestEntity>,
   ) {}
 
-  async findAll(options: PageOptionsDto, requesterId?: string, targetCompanyId?: string): Promise<{
+  async findAll(
+    options: PageOptionsDto,
+    requesterId?: string,
+    targetCompanyId?: string,
+    view?: 'incoming' | 'outgoing',
+  ): Promise<{
     data: BorrowRequestDto[];
     meta: PageMetaDto;
   }> {
     const where: FindOptionsWhere<BorrowRequestEntity> = {};
 
-    if (requesterId) {
-      where.requesterId = requesterId;
-    }
-    if (targetCompanyId) {
+    if (view === BorrowRequestListView.Incoming && targetCompanyId) {
       where.targetCompanyId = targetCompanyId;
+    } else if (view === BorrowRequestListView.Outgoing && requesterId) {
+      where.requesterId = requesterId;
+    } else {
+      if (requesterId) {
+        where.requesterId = requesterId;
+      }
+      if (targetCompanyId) {
+        where.targetCompanyId = targetCompanyId;
+      }
     }
 
     const qbOptions: QueryBuilderOptionsType<BorrowRequestEntity> = {
@@ -144,6 +162,46 @@ export class BorrowRequestService {
     if (request.branch) {
       request.branch.status = 'inactive' as any;
       request.branch.rejectionReason = rejectionReason;
+      await this.borrowRequestRepository.manager.save(request.branch);
+    }
+
+    const updated = await this.borrowRequestRepository.save(request);
+    return new BorrowRequestDto(updated);
+  }
+
+  /**
+   * Revoke an approved borrow (main PT only). Ends the borrow: branch becomes inactive.
+   */
+  async revoke(
+    uuid: string,
+    processorId: string,
+    targetCompanyId: string | undefined,
+  ): Promise<BorrowRequestDto> {
+    const request = await this.borrowRequestRepository.findOne({
+      where: { uuid },
+      relations: ['branch'],
+    });
+
+    if (!request) {
+      throw new NotFoundException(`Borrow request with UUID ${uuid} not found`);
+    }
+
+    if (request.status !== BorrowRequestStatusEnum.Approved) {
+      throw new BadRequestException('Only approved borrow requests can be revoked');
+    }
+
+    if (!targetCompanyId || request.targetCompanyId !== targetCompanyId) {
+      throw new ForbiddenException(
+        'Only the target PT (main PT) can revoke this borrow request',
+      );
+    }
+
+    request.status = BorrowRequestStatusEnum.Revoked;
+    request.processedBy = processorId;
+    request.processedAt = new Date();
+
+    if (request.branch) {
+      request.branch.status = BranchStatusEnum.Inactive;
       await this.borrowRequestRepository.manager.save(request.branch);
     }
 

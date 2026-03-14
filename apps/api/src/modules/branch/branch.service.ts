@@ -6,7 +6,7 @@ import { BranchEntity } from './entities/branch.entity';
 import { BranchDto } from './dto/branch.dto';
 import { CreateBranchDto } from './dto/create-branch.dto';
 import { UpdateBranchDto } from './dto/update-branch.dto';
-import { QueryBranchDto } from './dto/query-branch.dto';
+import { BranchListView, QueryBranchDto } from './dto/query-branch.dto';
 import { BranchStatusEnum } from '../../constants/branch-status';
 import { PageMetaDto } from '../../common/dtos/page-meta.dto';
 import {
@@ -14,21 +14,29 @@ import {
   QueryBuilderOptionsType,
   sortAttribute,
 } from '../../common/helpers/query-builder';
+import { BorrowRequestService } from '../borrow-request/borrow-request.service';
 
 @Injectable()
 export class BranchService {
   constructor(
     @InjectRepository(BranchEntity)
     private branchRepository: Repository<BranchEntity>,
+    private borrowRequestService: BorrowRequestService,
   ) {}
 
-  async findAll(queryDto: QueryBranchDto, userCompanyId?: string): Promise<{
+  async findAll(
+    queryDto: QueryBranchDto,
+    userCompanyId?: string,
+    userId?: string,
+  ): Promise<{
     data: BranchDto[];
     meta: PageMetaDto;
   }> {
     const where: FindOptionsWhere<BranchEntity> = {};
 
-    if (userCompanyId) {
+    if (queryDto.view === BranchListView.BorrowedByMe && userId) {
+      where.actualOwnerId = userId;
+    } else if (userCompanyId) {
       where.companyId = userCompanyId;
     }
     if (queryDto.city) {
@@ -77,8 +85,12 @@ export class BranchService {
     return new BranchDto(branch);
   }
 
-  async create(createDto: CreateBranchDto, ownerId: string): Promise<BranchDto> {
-    // Check if branchCode already exists
+  async create(
+    createDto: CreateBranchDto,
+    ownerId: string,
+    userCompanyId?: string,
+  ): Promise<BranchDto> {
+    // Check if branchCode already exists (among non-deleted)
     const existing = await this.branchRepository.findOne({
       where: { branchCode: createDto.branchCode },
     });
@@ -89,16 +101,46 @@ export class BranchService {
       );
     }
 
+    // Pinjam PT: explicit flags from client, or branch under a different PT than current user's
+    const isPinjamPTByRequest =
+      !!createDto.isBorrowed && !!createDto.actualOwnerId;
+    const isPinjamPTByCompany =
+      !!userCompanyId &&
+      !!createDto.companyId &&
+      createDto.companyId !== userCompanyId;
+    const isPinjamPT = isPinjamPTByRequest || isPinjamPTByCompany;
+    const actualOwnerId = isPinjamPT
+      ? (createDto.actualOwnerId ?? ownerId)
+      : null;
+
     const branch = this.branchRepository.create({
       ...createDto,
       imageUrl: createDto.imageUrl ?? null,
-      status: createDto.isBorrowed
+      isBorrowed: isPinjamPT,
+      actualOwnerId,
+      status: isPinjamPT
         ? BranchStatusEnum.PendingApproval
         : BranchStatusEnum.Active,
       transactionSequence: 0,
     });
 
     const saved = await this.branchRepository.save(branch);
+
+    if (
+      isPinjamPT &&
+      saved.uuid &&
+      createDto.companyId &&
+      (actualOwnerId ?? createDto.actualOwnerId)
+    ) {
+      await this.borrowRequestService.create(
+        {
+          branchId: saved.uuid,
+          targetCompanyId: createDto.companyId,
+        },
+        actualOwnerId ?? createDto.actualOwnerId!,
+      );
+    }
+
     return new BranchDto(saved);
   }
 

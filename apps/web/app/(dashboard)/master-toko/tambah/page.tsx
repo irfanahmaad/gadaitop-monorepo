@@ -1,10 +1,10 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect, useMemo } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import {
   FileText,
   Phone,
@@ -71,7 +71,6 @@ const tokoSchema = z.object({
     .max(100, "Kota maksimal 100 karakter")
     .optional()
     .or(z.literal("")),
-  pinjamPT: z.string().optional().or(z.literal("")),
   alamat: z
     .string()
     .max(500, "Alamat maksimal 500 karakter")
@@ -84,26 +83,44 @@ type TokoFormValues = z.infer<typeof tokoSchema>
 
 export default function TambahMasterTokoPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const isPinjamPTFlow = searchParams.get("pinjamPT") === "1"
+
+  const schema = useMemo(
+    () =>
+      isPinjamPTFlow
+        ? tokoSchema.refine(
+            (data) => !!data.companyId?.trim(),
+            { message: "PT yang akan dipinjam wajib dipilih.", path: ["companyId"] }
+          )
+        : tokoSchema,
+    [isPinjamPTFlow]
+  )
   const [previewImage, setPreviewImage] = useState<string | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const { user } = useAuth()
   const isSuperAdmin = user?.roles?.some((r) => r.code === "owner") ?? false
+  const userCompanyId = user?.companyId ?? user?.ownedCompanyId ?? ""
 
   const { data: companiesData } = useCompanies(
-    isSuperAdmin ? { pageSize: 100 } : undefined
+    isSuperAdmin || isPinjamPTFlow ? { pageSize: 100 } : undefined
   )
 
   const ptOptions = React.useMemo(() => {
     const list = companiesData?.data ?? []
-    return list.map((c) => ({ value: c.uuid, label: c.companyName }))
-  }, [companiesData])
+    const options = list.map((c) => ({ value: c.uuid, label: c.companyName }))
+    if (isPinjamPTFlow && userCompanyId) {
+      return options.filter((opt) => opt.value !== userCompanyId)
+    }
+    return options
+  }, [companiesData, isPinjamPTFlow, userCompanyId])
 
   const { mutateAsync: createBranch, isPending: isSubmitting } =
     useCreateBranch()
   const uploadFileMutation = useUploadFile()
 
   const form = useForm<TokoFormValues>({
-    resolver: zodResolver(tokoSchema),
+    resolver: zodResolver(schema),
     defaultValues: {
       image: undefined,
       kodeLokasi: "",
@@ -111,11 +128,22 @@ export default function TambahMasterTokoPage() {
       alias: "",
       noTelepon: "",
       kota: "",
-      pinjamPT: "",
       alamat: "",
       companyId: "",
     },
   })
+
+  // Default PT to current user's company for normal create; when opening from Toko Pinjaman (pinjamPT=1) do NOT default so they must select target PT
+  useEffect(() => {
+    if (
+      isSuperAdmin &&
+      userCompanyId &&
+      !form.getValues("companyId") &&
+      !isPinjamPTFlow
+    ) {
+      form.setValue("companyId", userCompanyId)
+    }
+  }, [isSuperAdmin, userCompanyId, form, isPinjamPTFlow])
 
   const handleImageChange = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -143,10 +171,18 @@ export default function TambahMasterTokoPage() {
   const handleConfirmSubmit = async () => {
     const values = form.getValues()
     try {
-      const companyId = isSuperAdmin ? values.companyId : user?.companyId
+      // Use selected PT from form when Super Admin or in Pinjam PT flow; otherwise use current user's company
+      const companyId =
+        isSuperAdmin || isPinjamPTFlow
+          ? values.companyId
+          : user?.companyId
       if (!companyId) {
         throw new Error("Company ID PT belum dipilih atau tidak ditemukan")
       }
+
+      // When opened from Toko Pinjaman tab (?pinjamPT=1), always create as Pinjam PT (target PT + borrow request flow)
+      const isPinjamPT =
+        isPinjamPTFlow && !!companyId && !!user?.uuid
 
       let imageUrl: string | undefined
       if (values.image instanceof File) {
@@ -169,8 +205,20 @@ export default function TambahMasterTokoPage() {
         city: (values.kota ?? "").trim() || "-",
         companyId,
         ...(imageUrl && { imageUrl }),
+        ...(isPinjamPT &&
+          user?.uuid && {
+            isBorrowed: true,
+            actualOwnerId: user.uuid,
+          }),
       })
-      toast.success("Data Toko berhasil ditambahkan")
+
+      if (isPinjamPT) {
+        toast.success(
+          "Toko berhasil ditambahkan. Menunggu persetujuan pemilik PT."
+        )
+      } else {
+        toast.success("Data Toko berhasil ditambahkan")
+      }
       setConfirmOpen(false)
       router.push("/master-toko")
     } catch (error) {
@@ -186,19 +234,32 @@ export default function TambahMasterTokoPage() {
     <div className="flex flex-col gap-6">
       {/* Header section */}
       <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-bold">Tambah Data</h1>
+        <h1 className="text-2xl font-bold">
+          {isPinjamPTFlow ? "Tambah Toko Pinjaman" : "Tambah Data"}
+        </h1>
         <Breadcrumbs
           items={[
             { label: "Master Toko", href: "/master-toko" },
-            { label: "Tambah Data", className: "text-destructive" },
+            {
+              label: isPinjamPTFlow ? "Tambah Toko Pinjaman" : "Tambah Data",
+              className: "text-destructive",
+            },
           ]}
         />
+        {isPinjamPTFlow && (
+          <p className="text-muted-foreground text-sm">
+            Pilih PT yang akan dipinjam. Toko akan berstatus menunggu persetujuan
+            pemilik PT tersebut.
+          </p>
+        )}
       </div>
 
       {/* Data Toko card */}
       <Card>
         <CardHeader>
-          <CardTitle>Data Toko</CardTitle>
+          <CardTitle>
+            {isPinjamPTFlow ? "Data Toko Pinjaman" : "Data Toko"}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -276,35 +337,59 @@ export default function TambahMasterTokoPage() {
                     </h2>
                   </div>
                   <div className="grid items-start gap-6 md:grid-cols-2">
-                    {isSuperAdmin && (
+                    {(isSuperAdmin || isPinjamPTFlow) && (
                       <FormField
                         control={form.control}
                         name="companyId"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>
-                              PT <span className="text-destructive">*</span>
-                            </FormLabel>
-                            <Select
-                              value={field.value || ""}
-                              onValueChange={field.onChange}
-                            >
-                              <FormControl>
-                                <SelectTrigger className="w-full">
-                                  <SelectValue placeholder="Pilih PT" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {ptOptions.map((opt) => (
-                                  <SelectItem key={opt.value} value={opt.value}>
-                                    {opt.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
+                        render={({ field }) => {
+                          const selectedPtIsOther =
+                            !!field.value &&
+                            field.value !== user?.companyId &&
+                            field.value !== user?.ownedCompanyId
+                          return (
+                            <FormItem className="md:col-span-2">
+                              <FormLabel>
+                                PT <span className="text-destructive">*</span>
+                              </FormLabel>
+                              <Select
+                                value={field.value || ""}
+                                onValueChange={field.onChange}
+                              >
+                                <FormControl>
+                                  <SelectTrigger className="w-full">
+                                    <SelectValue
+                                      placeholder={
+                                        isPinjamPTFlow
+                                          ? "Pilih PT yang akan dipinjam"
+                                          : "Pilih PT"
+                                      }
+                                    />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {ptOptions.map((opt) => (
+                                    <SelectItem key={opt.value} value={opt.value}>
+                                      {opt.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              {isPinjamPTFlow && (
+                                <p className="text-muted-foreground text-sm">
+                                  Toko akan dibuat sebagai <strong>Pinjam PT</strong> dan
+                                  memerlukan persetujuan pemilik PT tersebut.
+                                </p>
+                              )}
+                              {!isPinjamPTFlow && selectedPtIsOther && (
+                                <p className="text-muted-foreground text-sm">
+                                  Toko akan dibuat sebagai <strong>Pinjam PT</strong> dan
+                                  memerlukan persetujuan pemilik PT tersebut.
+                                </p>
+                              )}
+                              <FormMessage />
+                            </FormItem>
+                          )
+                        }}
                       />
                     )}
                     <FormField
@@ -401,36 +486,6 @@ export default function TambahMasterTokoPage() {
                               {...field}
                             />
                           </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="pinjamPT"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Pinjam PT (Opsional)</FormLabel>
-                          <Select
-                            value={field.value || ""}
-                            onValueChange={field.onChange}
-                          >
-                            <FormControl>
-                              <SelectTrigger
-                                className="w-full"
-                                clearable={true}
-                              >
-                                <SelectValue placeholder="Pilih PT" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {ptOptions.map((opt) => (
-                                <SelectItem key={opt.value} value={opt.value}>
-                                  {opt.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
                           <FormMessage />
                         </FormItem>
                       )}

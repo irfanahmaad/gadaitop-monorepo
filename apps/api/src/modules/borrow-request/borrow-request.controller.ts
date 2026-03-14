@@ -16,8 +16,8 @@ import { UserEntity } from '../user/entities/user.entity';
 import { BorrowRequestService } from './borrow-request.service';
 import { BorrowRequestDto } from './dto/borrow-request.dto';
 import { CreateBorrowRequestDto } from './dto/create-borrow-request.dto';
+import { QueryBorrowRequestDto } from './dto/query-borrow-request.dto';
 import { RejectBorrowRequestDto } from './dto/reject-borrow-request.dto';
-import { PageOptionsDto } from '../../common/dtos/page-options.dto';
 import { PageMetaDto } from '../../common/dtos/page-meta.dto';
 
 @Controller({ path: 'borrow-requests', version: '1' })
@@ -27,16 +27,20 @@ export class BorrowRequestController {
   @Get()
   @Auth([])
   async findAll(
-    @Query() query: PageOptionsDto,
+    @Query() query: QueryBorrowRequestDto,
     @AuthUser() user: UserEntity,
     @RequestCompanyId() targetCompanyId: string | undefined,
   ): Promise<{
     data: BorrowRequestDto[];
     meta: PageMetaDto;
   }> {
-    console.log('targetCompanyId', targetCompanyId);
     const requesterId = user?.uuid ?? undefined;
-    return this.borrowRequestService.findAll(query, requesterId, targetCompanyId);
+    return this.borrowRequestService.findAll(
+      query,
+      requesterId,
+      targetCompanyId,
+      query.view,
+    );
   }
 
   @Get(':id')
@@ -74,5 +78,16 @@ export class BorrowRequestController {
   ): Promise<BorrowRequestDto> {
     const processorId = user?.uuid ?? '';
     return this.borrowRequestService.reject(id, processorId, rejectDto.rejectionReason);
+  }
+
+  @Patch(':id/revoke')
+  @Auth([])
+  async revoke(
+    @Param('id', ParseUUIDPipe) id: string,
+    @AuthUser() user: UserEntity,
+    @RequestCompanyId() targetCompanyId: string | undefined,
+  ): Promise<BorrowRequestDto> {
+    const processorId = user?.uuid ?? '';
+    return this.borrowRequestService.revoke(id, processorId, targetCompanyId);
   }
 }

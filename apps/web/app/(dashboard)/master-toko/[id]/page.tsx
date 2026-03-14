@@ -198,7 +198,82 @@ export default function MasterTokoDetailPage() {
     }
   }
 
-  if (!isLoading && branchData && !isSuperAdmin && branchData.companyId !== user?.companyId) {
+  const isTargetOwnerNotActualOwner =
+    !isLoading &&
+    !!branchData &&
+    !!user &&
+    (branchData.companyId === user.companyId ||
+      branchData.companyId === user.ownedCompanyId) &&
+    !!branchData.isBorrowed &&
+    branchData.actualOwnerId !== user.uuid
+
+  if (isTargetOwnerNotActualOwner && toko) {
+    return (
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-2xl font-bold">{toko.namaToko}</h1>
+          <Breadcrumbs
+            items={[
+              { label: "Master Toko", href: "/master-toko" },
+              { label: "Detail", className: "text-destructive" },
+            ]}
+          />
+        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Data Toko</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground mb-4 text-sm">
+              Toko ini dipinjam oleh pemilik lain; hanya informasi dasar yang
+              ditampilkan.
+            </p>
+            {branchData && (
+              <div className="mb-4 rounded-lg border bg-muted/30 p-3">
+                <p className="text-muted-foreground text-sm font-medium">
+                  Status persetujuan
+                </p>
+                <p className="text-base">
+                  {branchData.status === "pending_approval"
+                    ? "Menunggu persetujuan"
+                    : branchData.status === "active"
+                      ? "Disetujui"
+                      : branchData.status === "inactive"
+                        ? "Ditolak"
+                        : branchData.status ?? "—"}
+                </p>
+                {branchData.status === "inactive" &&
+                  branchData.rejectionReason && (
+                    <p className="text-muted-foreground mt-1 text-sm">
+                      Alasan: {branchData.rejectionReason}
+                    </p>
+                  )}
+              </div>
+            )}
+            <div className="grid gap-6 md:grid-cols-2 items-start">
+              <div className="space-y-2">
+                <label className="text-muted-foreground text-sm font-medium">
+                  Kode Lokasi
+                </label>
+                <p className="text-base">{toko.kodeLokasi}</p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-muted-foreground text-sm font-medium">
+                  Nama Toko
+                </label>
+                <p className="text-base">{toko.namaToko}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Button variant="outline" onClick={() => router.push("/master-toko")}>
+          Kembali ke Master Toko
+        </Button>
+      </div>
+    )
+  }
+
+  if (!isLoading && branchData && !isSuperAdmin && branchData.companyId !== user?.companyId && branchData.companyId !== user?.ownedCompanyId) {
     return (
       <div className="flex flex-col gap-6">
         <Breadcrumbs
@@ -318,6 +393,32 @@ export default function MasterTokoDetailPage() {
 
                 {/* Detail Information */}
                 <div className="space-y-8">
+                  {/* Approval status for Pinjam PT */}
+                  {branchData?.isBorrowed && (
+                    <div className="space-y-2 rounded-lg border bg-muted/30 p-4">
+                      <p className="text-muted-foreground text-sm font-medium">
+                        Status persetujuan Pinjam PT
+                      </p>
+                      <p className="text-base font-medium">
+                        {branchData.status === "pending_approval"
+                          ? "Menunggu persetujuan"
+                          : branchData.status === "active"
+                            ? "Disetujui"
+                            : branchData.status === "inactive"
+                              ? "Ditolak"
+                              : branchData.status === "draft"
+                                ? "Draft"
+                                : branchData.status ?? "—"}
+                      </p>
+                      {branchData.status === "inactive" &&
+                        branchData.rejectionReason && (
+                          <p className="text-muted-foreground text-sm">
+                            Alasan: {branchData.rejectionReason}
+                          </p>
+                        )}
+                    </div>
+                  )}
+
                   {/* Detail Toko */}
                   <div className="space-y-4">
                     <div className="flex items-center gap-3">

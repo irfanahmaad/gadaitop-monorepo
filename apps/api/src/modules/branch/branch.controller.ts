@@ -36,7 +36,8 @@ export class BranchController {
   }> {
     const user = (req as any).user;
     const userCompanyId = user?.companyId ?? user?.ownedCompanyId ?? undefined;
-    return this.branchService.findAll(queryDto, userCompanyId);
+    const userId = user?.uuid ?? undefined;
+    return this.branchService.findAll(queryDto, userCompanyId, userId);
   }
 
   @Get(':id')
@@ -53,7 +54,8 @@ export class BranchController {
   ): Promise<BranchDto> {
     const user = (req as any).user;
     const ownerId = user?.uuid ?? '';
-    return this.branchService.create(createDto, ownerId);
+    const userCompanyId = user?.companyId ?? user?.ownedCompanyId ?? undefined;
+    return this.branchService.create(createDto, ownerId, userCompanyId);
   }
 
   @Patch(':id')

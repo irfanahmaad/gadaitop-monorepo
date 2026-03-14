@@ -233,7 +233,11 @@ export interface Branch {
   owner?: User
 }
 
-export type BranchStatus = "pending" | "active" | "inactive" | "rejected"
+export type BranchStatus =
+  | "draft"
+  | "pending_approval"
+  | "active"
+  | "inactive"
 
 export interface CreateBranchDto {
   branchCode: string
@@ -245,6 +249,7 @@ export interface CreateBranchDto {
   companyId: string
   imageUrl?: string
   isBorrowed?: boolean
+  actualOwnerId?: string
 }
 
 export interface UpdateBranchDto {
@@ -257,11 +262,15 @@ export interface UpdateBranchDto {
   status?: BranchStatus
 }
 
+export type BranchListView = "company" | "borrowedByMe"
+
 export interface QueryBranchDto extends PageOptions {
   companyId?: string
   status?: BranchStatus
   city?: string
   branchCode?: string
+  /** When 'borrowedByMe', list branches where actualOwnerId = current user (Toko Pinjaman). */
+  view?: BranchListView
 }
 
 // Item Type types
@@ -299,6 +308,7 @@ export interface UpdateItemTypeDto {
 export interface BorrowRequest {
   id: string
   uuid: string
+  branchId?: string
   status: BorrowRequestStatus
   rejectionReason?: string
   requester?: User
@@ -309,7 +319,11 @@ export interface BorrowRequest {
   updatedAt: string
 }
 
-export type BorrowRequestStatus = "pending" | "approved" | "rejected"
+export type BorrowRequestStatus =
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "revoked"
 
 export interface CreateBorrowRequestDto {
   branchId: string

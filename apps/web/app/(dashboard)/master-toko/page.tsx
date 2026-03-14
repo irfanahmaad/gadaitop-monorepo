@@ -51,12 +51,18 @@ import {
   useBorrowRequests,
   useApproveBorrowRequest,
   useRejectBorrowRequest,
+  useRevokeBorrowRequest,
 } from "@/lib/react-query/hooks/use-borrow-requests"
 import { useCompanies } from "@/lib/react-query/hooks/use-companies"
 import { usePublicUrl } from "@/lib/react-query/hooks/use-upload"
 import type { Branch, BorrowRequest } from "@/lib/api/types"
 import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/card"
 import { Skeleton } from "@workspace/ui/components/skeleton"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@workspace/ui/components/tooltip"
 import { TolakBorrowRequestDialog } from "./_components/tolak-borrow-request-dialog"
 
 // Types for Toko Utama and Toko Pinjaman
@@ -69,6 +75,9 @@ type Toko = {
   alias: string
   noTelpToko: string
   kota: string
+  isBorrowed?: boolean
+  status?: string
+  rejectionReason?: string | null
 }
 
 // Type for Request
@@ -96,6 +105,9 @@ function mapBranchToToko(b: Branch): Toko {
     alias: b.shortName,
     noTelpToko: b.phone ?? "",
     kota: b.city ?? "",
+    isBorrowed: b.isBorrowed ?? false,
+    status: b.status,
+    rejectionReason: b.rejectionReason ?? null,
   }
 }
 
@@ -213,6 +225,16 @@ const tokoColumns: ColumnDef<Toko>[] = [
   {
     accessorKey: "namaToko",
     header: "Nama Toko",
+    cell: ({ row }) => (
+      <div className="flex items-center gap-2">
+        <span>{row.original.namaToko}</span>
+        {row.original.isBorrowed && (
+          <Badge variant="secondary" className="text-xs">
+            Pinjam PT
+          </Badge>
+        )}
+      </div>
+    ),
   },
   {
     accessorKey: "alias",
@@ -225,6 +247,49 @@ const tokoColumns: ColumnDef<Toko>[] = [
   {
     accessorKey: "kota",
     header: "Kota",
+  },
+  {
+    accessorKey: "status",
+    header: "Status",
+    cell: ({ row }) => {
+      const status = row.original.status
+      const rejectionReason = row.original.rejectionReason
+      const label =
+        status === "pending_approval"
+          ? "Menunggu persetujuan"
+          : status === "active"
+            ? "Aktif"
+            : status === "inactive"
+              ? "Nonaktif"
+              : status === "draft"
+                ? "Draft"
+                : status ?? "-"
+      const variant =
+        status === "pending_approval"
+          ? "outline"
+          : status === "active"
+            ? "default"
+            : status === "inactive"
+              ? "secondary"
+              : "outline"
+      const badge = (
+        <Badge variant={variant} className="text-xs w-fit">
+          {label}
+        </Badge>
+      )
+      if (status === "inactive" && rejectionReason) {
+        return (
+          <Tooltip>
+            <TooltipTrigger asChild>{badge}</TooltipTrigger>
+            <TooltipContent side="left" className="max-w-xs">
+              <p className="font-medium">Alasan penolakan</p>
+              <p className="mt-0.5 whitespace-pre-wrap">{rejectionReason}</p>
+            </TooltipContent>
+          </Tooltip>
+        )
+      }
+      return badge
+    },
   },
 ]
 
@@ -346,6 +411,7 @@ export default function MasterTokoPage() {
         status: true,
         isBorrowed: true,
         companyId: true,
+        rejectionReason: true,
         company: {
           id: true,
           uuid: true,
@@ -356,9 +422,38 @@ export default function MasterTokoPage() {
     { enabled: !!branchQueryCompanyId }
   )
 
+  const { data: borrowedBranchesData, isLoading: borrowedBranchesLoading } =
+    useBranches(
+      {
+        filter: { view: "borrowedByMe" },
+        pageSize: 100,
+        relation: { company: true },
+        select: {
+          uuid: true,
+          branchCode: true,
+          shortName: true,
+          fullName: true,
+          city: true,
+          phone: true,
+          imageUrl: true,
+          status: true,
+          isBorrowed: true,
+          companyId: true,
+          rejectionReason: true,
+          company: {
+            id: true,
+            uuid: true,
+            companyName: true,
+          },
+        },
+      },
+      { enabled: !!user?.uuid }
+    )
+
   const { data: borrowRequestsData, isLoading: borrowRequestsLoading } =
     useBorrowRequests({
-      pageSize: 10,
+      pageSize: 100,
+      filter: { view: "incoming" },
       relation: { branch: true, requester: true, targetCompany: true },
     })
 
@@ -366,16 +461,25 @@ export default function MasterTokoPage() {
   const deactivateBranchMutation = useDeactivateBranch()
   const approveBorrowRequestMutation = useApproveBorrowRequest()
   const rejectBorrowRequestMutation = useRejectBorrowRequest()
+  const revokeBorrowRequestMutation = useRevokeBorrowRequest()
+
+  const approvedBorrowByBranchId = useMemo(() => {
+    const list = borrowRequestsData?.data ?? []
+    const approved = list.filter((r) => r.status === "approved")
+    return new Map(
+      approved.map((r) => [r.branchId ?? (r.branch as { uuid?: string })?.uuid ?? "", r])
+    )
+  }, [borrowRequestsData])
 
   const tokoUtamaRows = useMemo(() => {
     const list = branchesData?.data ?? []
-    return list.filter((b) => !b.isBorrowed).map(mapBranchToToko)
+    return list.map(mapBranchToToko)
   }, [branchesData])
 
   const tokoPinjamanRows = useMemo(() => {
-    const list = branchesData?.data ?? []
-    return list.filter((b) => b.isBorrowed).map(mapBranchToToko)
-  }, [branchesData])
+    const list = borrowedBranchesData?.data ?? []
+    return list.map(mapBranchToToko)
+  }, [borrowedBranchesData])
 
   const requestRows = useMemo(() => {
     const list = borrowRequestsData?.data ?? []
@@ -397,6 +501,8 @@ export default function MasterTokoPage() {
   const [isTolakDialogOpen, setIsTolakDialogOpen] = useState(false)
   const [revokeRow, setRevokeRow] = useState<Toko | null>(null)
   const [isRevokeConfirmOpen, setIsRevokeConfirmOpen] = useState(false)
+  const [revokeMainPTRow, setRevokeMainPTRow] = useState<Toko | null>(null)
+  const [isRevokeMainPTDialogOpen, setIsRevokeMainPTDialogOpen] = useState(false)
   const [selectedTokoUtamaRows, setSelectedTokoUtamaRows] = useState<Toko[]>([])
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false)
   const [resetSelectionKey, setResetSelectionKey] = useState(0)
@@ -436,8 +542,11 @@ export default function MasterTokoPage() {
   }, [itemToDelete, deleteBranchMutation])
 
   const handleTambahData = useCallback(() => {
-    router.push("/master-toko/tambah")
-  }, [router])
+    const isFromTokoPinjaman = activeTab === "toko-pinjaman"
+    router.push(
+      isFromTokoPinjaman ? "/master-toko/tambah?pinjamPT=1" : "/master-toko/tambah"
+    )
+  }, [router, activeTab])
 
   const handleBulkDelete = useCallback(() => {
     setIsBulkDeleteDialogOpen(true)
@@ -475,6 +584,36 @@ export default function MasterTokoPage() {
       toast.error(message)
     }
   }, [revokeRow, deactivateBranchMutation])
+
+  const handleRevokeMainPT = useCallback((row: Toko) => {
+    setRevokeMainPTRow(row)
+    setIsRevokeMainPTDialogOpen(true)
+  }, [])
+
+  const handleRevokeMainPTConfirm = useCallback(async () => {
+    if (!revokeMainPTRow) return
+    const request = approvedBorrowByBranchId.get(revokeMainPTRow.id)
+    if (!request?.uuid) {
+      toast.error("Data permintaan pinjam tidak ditemukan")
+      return
+    }
+    try {
+      await revokeBorrowRequestMutation.mutateAsync(request.uuid)
+      setIsRevokeMainPTDialogOpen(false)
+      setRevokeMainPTRow(null)
+      toast.success("Akses Pinjam PT berhasil dicabut")
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Gagal mencabut akses Pinjam PT"
+      toast.error(message)
+    }
+  }, [
+    revokeMainPTRow,
+    approvedBorrowByBranchId,
+    revokeBorrowRequestMutation,
+  ])
 
   const handleSetujui = useCallback((row: RequestToko) => {
     setSetujuiRow(row)
@@ -524,6 +663,20 @@ export default function MasterTokoPage() {
       }
     },
     [rejectBorrowRequestMutation, queryClient]
+  )
+
+  const tokoUtamaCustomActions = useMemo(
+    () => [
+      {
+        label: "Cabut",
+        icon: <RotateCcw className="mr-2 size-4" />,
+        onClick: handleRevokeMainPT,
+        variant: "destructive" as const,
+        hidden: (row: Toko) =>
+          !row.isBorrowed || !approvedBorrowByBranchId.get(row.id),
+      },
+    ],
+    [handleRevokeMainPT, approvedBorrowByBranchId]
   )
 
   const tokoPinjamanCustomActions = useMemo(
@@ -582,13 +735,13 @@ export default function MasterTokoPage() {
             </Select>
           )}
 
-          {/* Tambah Data Button */}
+          {/* Tambah Data Button - from Toko Pinjaman tab goes to Pinjam PT flow */}
           <Button
             onClick={handleTambahData}
             className="bg-red-600 text-white hover:bg-red-700"
           >
             <Plus className="mr-2 h-4 w-4" />
-            Tambah Data
+            {activeTab === "toko-pinjaman" ? "Tambah Toko Pinjaman" : "Tambah Data"}
           </Button>
         </div>
       </div>
@@ -677,6 +830,7 @@ export default function MasterTokoPage() {
               onDetail={handleDetail}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              customActions={tokoUtamaCustomActions}
               onSelectionChange={setSelectedTokoUtamaRows}
               resetSelectionKey={resetSelectionKey}
             />
@@ -685,7 +839,7 @@ export default function MasterTokoPage() {
 
         {/* Toko Pinjaman Tab */}
         <TabsContent value="toko-pinjaman" className="mt-0">
-          {branchesLoading ? (
+          {borrowedBranchesLoading ? (
             <TableSkeleton />
           ) : (
             <DataTable
@@ -819,6 +973,19 @@ export default function MasterTokoPage() {
         confirmLabel="Ya, Revoke"
         cancelLabel="Batal"
         variant="info"
+      />
+
+      {/* Confirmation Dialog for Cabut (Main PT revoke) */}
+      <ConfirmationDialog
+        open={isRevokeMainPTDialogOpen}
+        onOpenChange={setIsRevokeMainPTDialogOpen}
+        onConfirm={handleRevokeMainPTConfirm}
+        title="Cabut akses Pinjam PT?"
+        description="Anda akan mencabut akses peminjam untuk toko ini. Toko akan dinonaktifkan bagi peminjam."
+        note="Pastikan kembali sebelum mencabut."
+        confirmLabel="Ya, Cabut"
+        cancelLabel="Batal"
+        variant="destructive"
       />
 
       {/* Tolak Request Dialog */}

@@ -85,3 +85,18 @@ export function useRejectBorrowRequest() {
     },
   })
 }
+
+// Revoke borrow request (main PT only)
+export function useRevokeBorrowRequest() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiClient.patch<BorrowRequest>(endpoints.borrowRequests.revoke(id)),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: borrowRequestKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: borrowRequestKeys.detail(id) })
+      queryClient.invalidateQueries({ queryKey: ["branches"] })
+    },
+  })
+}
