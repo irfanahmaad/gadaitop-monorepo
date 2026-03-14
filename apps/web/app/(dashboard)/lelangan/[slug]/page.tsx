@@ -15,6 +15,8 @@ import {
   useAuctionBatch,
   useFinalizeAuctionBatch,
   useCancelAuctionBatch,
+  useDeleteAuctionBatch,
+  useRemoveItemFromBatch,
   auctionBatchKeys,
 } from "@/lib/react-query/hooks/use-auction-batches"
 import { usePawnTerms } from "@/lib/react-query/hooks/use-pawn-terms"
@@ -29,7 +31,6 @@ import {
   CheckCircle,
   ChevronDown,
   SearchIcon,
-  SlidersHorizontal,
   User,
   MoreVertical,
   Eye,
@@ -70,6 +71,8 @@ import {
 import { toast } from "sonner"
 import { format } from "date-fns"
 import { id } from "date-fns/locale"
+import { useAppAbility } from "@/lib/casl/context"
+import { AclAction, AclSubject } from "@/lib/casl/types"
 import { cn } from "@workspace/ui/lib/utils"
 
 type BatchItemRow = {
@@ -87,30 +90,14 @@ type BatchItemRow = {
   isMata?: boolean
 }
 
-function batchStatusToLabel(status: string): string {
-  const map: Record<string, string> = {
-    draft: "Draft",
-    assigned: "Didistribusikan",
-    pickup_in_progress: "Diambil",
-    validation_pending: "Menunggu",
-    ready_for_auction: "Siap Lelang",
-    finalized: "OK by Admin",
-    cancelled: "Dibatalkan",
-    in_progress: "Dalam Proses",
-  }
-  return map[status] ?? status
-}
-
-function getAssigneeName(
-  assignedTo: string | { fullName?: string; name?: string } | undefined
+function formatAssignees(
+  assignees: { fullName?: string; name?: string }[] | undefined
 ): string {
-  if (!assignedTo) return "-"
-  if (typeof assignedTo === "string") return "Staff"
-  return (
-    (assignedTo as { fullName?: string }).fullName ??
-    (assignedTo as { name?: string }).name ??
-    "Staff"
-  )
+  if (!assignees?.length) return "-"
+  return assignees
+    .map((a) => a.fullName ?? a.name ?? "")
+    .filter(Boolean)
+    .join(", ") || "-"
 }
 
 function mapBatchToItemRows(
@@ -246,20 +233,94 @@ function ItemTableSkeleton() {
   )
 }
 
+type DetailBatchStatus =
+  | "Draft"
+  | "Didistribusikan"
+  | "Diambil"
+  | "Validasi"
+  | "Siap Lelang"
+  | "OK by Admin"
+  | "Dibatalkan"
+
+function detailStatusFromApi(status: string): DetailBatchStatus {
+  const map: Record<string, DetailBatchStatus> = {
+    draft: "Draft",
+    assigned: "Didistribusikan",
+    pickup_in_progress: "Diambil",
+    validation_pending: "Validasi",
+    ready_for_auction: "Siap Lelang",
+    finalized: "OK by Admin",
+    cancelled: "Dibatalkan",
+  }
+  return map[status] ?? "Draft"
+}
+
+function DetailStatusBadge({ status }: { status: DetailBatchStatus }) {
+  const config: Record<
+    DetailBatchStatus,
+    { label: string; className: string }
+  > = {
+    Draft: {
+      label: "Menunggu",
+      className:
+        "bg-gray-500/10 text-gray-700 dark:text-gray-400 border-gray-500/20",
+    },
+    Didistribusikan: {
+      label: "Menunggu",
+      className:
+        "bg-gray-500/10 text-gray-700 dark:text-gray-400 border-gray-500/20",
+    },
+    Diambil: {
+      label: "Diambil",
+      className:
+        "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/20",
+    },
+    Validasi: {
+      label: "Berjalan",
+      className:
+        "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20",
+    },
+    "Siap Lelang": {
+      label: "Tervalidasi",
+      className:
+        "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20",
+    },
+    "OK by Admin": {
+      label: "Tervalidasi",
+      className:
+        "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20",
+    },
+    Dibatalkan: {
+      label: "Dibatalkan",
+      className:
+        "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20",
+    },
+  }
+  const c = config[status] ?? config.Draft
+  return (
+    <Badge variant="outline" className={cn("shrink-0", c.className)}>
+      {c.label}
+    </Badge>
+  )
+}
+
 export default function LelanganDetailPage() {
   const params = useParams()
   const router = useRouter()
   const queryClient = useQueryClient()
+  const ability = useAppAbility()
   const slug = typeof params.slug === "string" ? params.slug : ""
 
   const { data: batch, isLoading, isError } = useAuctionBatch(slug)
   const finalizeMutation = useFinalizeAuctionBatch()
   const cancelMutation = useCancelAuctionBatch()
+  const deleteMutation = useDeleteAuctionBatch()
+  const removeItemMutation = useRemoveItemFromBatch()
 
-  const ptId =
-    (batch as { ptId?: string } | undefined)?.ptId ??
-    batch?.store?.companyId ??
-    ""
+  const canUpdateBatch = ability.can(AclAction.UPDATE, AclSubject.AUCTION_BATCH)
+  const canDeleteBatch = ability.can(AclAction.DELETE, AclSubject.AUCTION_BATCH)
+
+  const ptId = batch?.ptId ?? batch?.store?.companyId ?? ""
   const { data: pawnTermsData } = usePawnTerms(undefined)
   const pawnTerms = useMemo(
     () => pawnTermsData?.data ?? [],
@@ -296,16 +357,13 @@ export default function LelanganDetailPage() {
     )
   }, [itemRows, searchValue])
 
-  const assigneeName = batch
-    ? getAssigneeName(
-        (
-          batch as {
-            assignedTo?: string | { fullName?: string; name?: string }
-          }
-        ).assignedTo
-      )
+  const marketingNames = batch
+    ? formatAssignees(batch.marketingStaff)
     : "-"
-  const batchNotes = (batch as { notes?: string } | undefined)?.notes ?? "-"
+  const auctionStaffNames = batch
+    ? formatAssignees(batch.auctionStaff)
+    : "-"
+  const batchNotes = batch?.notes ?? "-"
   const lastUpdatedAt = batch?.updatedAt
     ? format(new Date(batch.updatedAt), "d MMMM yyyy HH:mm:ss", { locale: id })
     : "-"
@@ -332,18 +390,31 @@ export default function LelanganDetailPage() {
     }
   }
 
-  const handleDelete = () => {
+  const handleDeleteOrCancel = () => {
     if (!slug) return
-    cancelMutation.mutate(slug, {
-      onSuccess: () => {
-        toast.success("Batch berhasil dibatalkan")
-        setIsDeleteDialogOpen(false)
-        router.push("/lelangan")
-      },
-      onError: (err) => {
-        toast.error(err?.message ?? "Gagal membatalkan batch")
-      },
-    })
+    if (batch?.status === "draft") {
+      deleteMutation.mutate(slug, {
+        onSuccess: () => {
+          toast.success("Batch berhasil dihapus")
+          setIsDeleteDialogOpen(false)
+          router.push("/lelangan")
+        },
+        onError: (err) => {
+          toast.error((err as { message?: string })?.message ?? "Gagal menghapus batch")
+        },
+      })
+    } else {
+      cancelMutation.mutate(slug, {
+        onSuccess: () => {
+          toast.success("Batch berhasil dibatalkan")
+          setIsDeleteDialogOpen(false)
+          router.push("/lelangan")
+        },
+        onError: (err) => {
+          toast.error((err as { message?: string })?.message ?? "Gagal membatalkan batch")
+        },
+      })
+    }
   }
 
   const handleTolakRetur = () => {
@@ -360,14 +431,22 @@ export default function LelanganDetailPage() {
     })
   }
 
-  const handleRemoveFromBatch = () => {
-    if (!removeItemRow) return
-    // API for removing item from batch not yet available
-    toast.info(
-      "Fitur hapus item dari batch akan tersedia setelah dukungan API tersedia."
-    )
-    setIsRemoveItemDialogOpen(false)
-    setRemoveItemRow(null)
+  const handleRemoveFromBatch = async () => {
+    if (!removeItemRow || !slug) return
+    try {
+      await removeItemMutation.mutateAsync({
+        batchId: slug,
+        itemId: removeItemRow.id,
+      })
+      toast.success("Item berhasil dihapus dari batch")
+      setIsRemoveItemDialogOpen(false)
+      setRemoveItemRow(null)
+    } catch (err) {
+      toast.error(
+        (err as { message?: string })?.message ?? "Gagal menghapus item dari batch"
+      )
+      throw err
+    }
   }
 
   const handleClickBatchLelang = () => {
@@ -413,24 +492,29 @@ export default function LelanganDetailPage() {
         </div>
         {!isLoading && batch && (
           <div className="flex flex-wrap items-center gap-2">
-            {batch.status !== "cancelled" &&
+            {canDeleteBatch &&
+              batch.status !== "cancelled" &&
               batch.status !== "ready_for_auction" && (
                 <Button
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-2"
+                  variant="destructive"
+                  className="gap-2"
                   onClick={() => setIsDeleteDialogOpen(true)}
                 >
                   <Trash2 className="size-4" />
-                  Hapus
+                  {batch.status === "draft" ? "Hapus" : "Batalkan"}
                 </Button>
               )}
-            <Button
-              variant="outline"
-              className="gap-2"
-              onClick={handleClickBatchLelang}
-            >
-              <Pencil className="size-4" />
-              Edit
-            </Button>
+            {canUpdateBatch &&
+              (batch.status === "draft" || batch.status === "pickup_in_progress") && (
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={handleClickBatchLelang}
+              >
+                <Pencil className="size-4" />
+                Edit
+              </Button>
+            )}
             {batch?.status === "validation_pending" ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -498,58 +582,58 @@ export default function LelanganDetailPage() {
         <>
           <Card>
             <CardHeader>
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <CardTitle>Detail Batch</CardTitle>
-                <Badge
-                  variant="secondary"
-                  className="text-muted-foreground shrink-0 font-normal"
-                >
-                  {batchStatusToLabel(batch.status)}
-                </Badge>
-              </div>
+              <CardTitle>Data Batch Lelang</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <Box className="text-destructive size-6" />
-                  <h2 className="text-destructive text-lg font-semibold">
-                    Detail Katalog
-                  </h2>
+              <div className="grid grid-cols-1 gap-8 lg:grid-cols-[250px_1fr]">
+                <div className="flex justify-center">
+                  <div className="flex size-48 items-center justify-center rounded-full border-2 border-dashed border-muted-foreground/25 bg-muted/30">
+                    <DetailStatusBadge
+                      status={detailStatusFromApi(batch.status)}
+                    />
+                  </div>
                 </div>
-                <div className="grid gap-6 md:grid-cols-2 items-start">
-                  <div className="space-y-2">
-                    <label className="text-muted-foreground text-sm font-medium">
-                      ID Batch
-                    </label>
-                    <p className="text-base">{batch.batchCode}</p>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-muted-foreground text-sm font-medium">
-                      Nama Batch
-                    </label>
-                    <p className="text-base">
-                      {(batch as { name?: string }).name ??
-                        `Batch ${batch.batchCode}`}
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-muted-foreground text-sm font-medium">
-                      Marketing Staf
-                    </label>
-                    <p className="flex items-center gap-2 text-base">
-                      <User className="text-muted-foreground size-4" />
-                      {assigneeName}
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-muted-foreground text-sm font-medium">
-                      Staf Lelang
-                    </label>
-                    <p className="flex items-center gap-2 text-base">
-                      <User className="text-muted-foreground size-4" />
-                      {assigneeName}
-                    </p>
-                  </div>
+                <div className="space-y-8">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <Box className="text-destructive size-6" />
+                      <h2 className="text-destructive text-lg font-semibold">
+                        Detail Batch Lelang
+                      </h2>
+                    </div>
+                    <div className="grid gap-6 md:grid-cols-2 items-start">
+                      <div className="space-y-2">
+                        <label className="text-muted-foreground text-sm font-medium">
+                          ID Batch
+                        </label>
+                        <p className="text-base">{batch.batchCode}</p>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-muted-foreground text-sm font-medium">
+                          Nama Batch
+                        </label>
+                        <p className="text-base">
+                          {batch.name ?? `Batch ${batch.batchCode}`}
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-muted-foreground text-sm font-medium">
+                          Marketing Staf
+                        </label>
+                        <p className="flex items-center gap-2 text-base">
+                          <User className="text-muted-foreground size-4" />
+                          {marketingNames}
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-muted-foreground text-sm font-medium">
+                          Staf Lelang
+                        </label>
+                        <p className="flex items-center gap-2 text-base">
+                          <User className="text-muted-foreground size-4" />
+                          {auctionStaffNames}
+                        </p>
+                      </div>
                   <div className="space-y-2">
                     <label className="text-muted-foreground text-sm font-medium">
                       Toko
@@ -568,11 +652,13 @@ export default function LelanganDetailPage() {
                     </label>
                     <p className="text-base">{lastUpdatedAt}</p>
                   </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <label className="text-muted-foreground text-sm font-medium">
-                      Catatan
-                    </label>
-                    <p className="text-base">{batchNotes}</p>
+                      <div className="space-y-2 md:col-span-2">
+                        <label className="text-muted-foreground text-sm font-medium">
+                          Catatan
+                        </label>
+                        <p className="text-base">{batchNotes}</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -706,16 +792,20 @@ export default function LelanganDetailPage() {
                                 <QrCode className="mr-2 size-4" />
                                 QR SPK
                               </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setRemoveItemRow(row)
-                                  setIsRemoveItemDialogOpen(true)
-                                }}
-                                className="text-destructive focus:text-destructive"
-                              >
-                                <Trash2 className="mr-2 size-4" />
-                                Hapus dari Batch
-                              </DropdownMenuItem>
+                              {(batch?.status === "draft" ||
+                                batch?.status === "pickup_in_progress") &&
+                                canUpdateBatch && (
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      setRemoveItemRow(row)
+                                      setIsRemoveItemDialogOpen(true)
+                                    }}
+                                    className="text-destructive focus:text-destructive"
+                                  >
+                                    <Trash2 className="mr-2 size-4" />
+                                    Hapus dari Batch
+                                  </DropdownMenuItem>
+                                )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
@@ -759,10 +849,14 @@ export default function LelanganDetailPage() {
       <ConfirmationDialog
         open={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
-        onConfirm={handleDelete}
-        title="Hapus Batch"
-        description="Anda akan membatalkan batch ini. Tindakan ini tidak dapat dibatalkan."
-        confirmLabel="Hapus"
+        onConfirm={handleDeleteOrCancel}
+        title={batch?.status === "draft" ? "Hapus Batch" : "Batalkan Batch"}
+        description={
+          batch?.status === "draft"
+            ? "Anda akan menghapus batch draft ini."
+            : "Anda akan membatalkan batch ini. Tindakan ini tidak dapat dibatalkan."
+        }
+        confirmLabel={batch?.status === "draft" ? "Hapus" : "Batalkan"}
         variant="destructive"
       />
 

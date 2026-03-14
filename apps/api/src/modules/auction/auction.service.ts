@@ -1,10 +1,12 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { type FindOptionsWhere, In, Repository } from 'typeorm';
+import { DataSource, type FindOptionsWhere, In, Repository } from 'typeorm';
 
 import { PageMetaDto } from '../../common/dtos/page-meta.dto';
 import {
@@ -13,32 +15,60 @@ import {
   sortAttribute,
 } from '../../common/helpers/query-builder';
 import { AuctionBatchStatusEnum } from '../../constants/auction-batch-status';
+import { AuctionAssigneeRoleEnum } from '../../constants/auction-assignee-role';
 import { AuctionPickupStatusEnum } from '../../constants/auction-pickup-status';
 import { AuctionValidationVerdictEnum } from '../../constants/auction-validation-verdict';
 import { SpkStatusEnum } from '../../constants/spk-status';
 import { SpkItemStatusEnum } from '../../constants/spk-item-status';
+import { AuctionBatchAssigneeEntity } from './entities/auction-batch-assignee.entity';
 import { AuctionBatchEntity } from './entities/auction-batch.entity';
 import { AuctionBatchItemEntity } from './entities/auction-batch-item.entity';
 import { SpkRecordEntity } from '../spk/entities/spk-record.entity';
-import { SpkItemEntity } from '../spk/entities/spk-item.entity';
+import { SpkService } from '../spk/spk.service';
 import { AuctionBatchDto } from './dto/auction-batch.dto';
 import { CreateAuctionBatchDto } from './dto/create-auction-batch.dto';
-import { QueryAuctionBatchDto } from './dto/query-auction-batch.dto';
+import {
+  QueryAuctionBatchDto,
+  ValidasiLelanganTabEnum,
+} from './dto/query-auction-batch.dto';
 import { UpdatePickupDto } from './dto/update-pickup.dto';
 import { SubmitValidationDto } from './dto/submit-validation.dto';
 import { UpdateAuctionBatchDto } from './dto/update-auction-batch.dto';
 
+function getStatusesForTab(
+  assigneeRole: AuctionAssigneeRoleEnum,
+  tab: ValidasiLelanganTabEnum,
+): AuctionBatchStatusEnum[] {
+  switch (tab) {
+    case ValidasiLelanganTabEnum.Dijadwalkan:
+      return assigneeRole === AuctionAssigneeRoleEnum.AuctionStaff
+        ? [
+            AuctionBatchStatusEnum.Draft,
+            AuctionBatchStatusEnum.PickupInProgress,
+          ]
+        : [AuctionBatchStatusEnum.ValidationPending];
+    case ValidasiLelanganTabEnum.WaitingForApproval:
+      return [AuctionBatchStatusEnum.ValidationPending];
+    case ValidasiLelanganTabEnum.Tervalidasi:
+      return [AuctionBatchStatusEnum.ReadyForAuction];
+    default:
+      return [];
+  }
+}
+
 @Injectable()
 export class AuctionService {
+  private readonly logger = new Logger(AuctionService.name);
+
   constructor(
     @InjectRepository(AuctionBatchEntity)
-    private batchRepository: Repository<AuctionBatchEntity>,
+    private readonly batchRepository: Repository<AuctionBatchEntity>,
+    @InjectRepository(AuctionBatchAssigneeEntity)
+    private readonly batchAssigneeRepository: Repository<AuctionBatchAssigneeEntity>,
     @InjectRepository(AuctionBatchItemEntity)
-    private batchItemRepository: Repository<AuctionBatchItemEntity>,
-    @InjectRepository(SpkRecordEntity)
-    private spkRecordRepository: Repository<SpkRecordEntity>,
-    @InjectRepository(SpkItemEntity)
-    private spkItemRepository: Repository<SpkItemEntity>,
+    private readonly batchItemRepository: Repository<AuctionBatchItemEntity>,
+    private readonly spkService: SpkService,
+    private readonly dataSource: DataSource,
   ) {}
 
   async findAll(
@@ -56,25 +86,49 @@ export class AuctionService {
     if (queryDto.storeId) {
       where.storeId = queryDto.storeId;
     }
-    if (queryDto.status) {
+    const useTabFilter =
+      queryDto.tab != null &&
+      queryDto.assignedTo != null &&
+      queryDto.assigneeRole != null;
+    if (queryDto.status && !useTabFilter) {
       where.status = queryDto.status;
     }
+
+    const qb = this.batchRepository.createQueryBuilder('batch');
     if (queryDto.assignedTo) {
-      where.assignedTo = queryDto.assignedTo;
+      const assigneeCondition =
+        queryDto.assigneeRole != null
+          ? `EXISTS (SELECT 1 FROM auction_batch_assignees aba WHERE aba.auction_batch_id = batch.uuid AND aba.user_id = :assignedTo AND aba.role = :assigneeRole)`
+          : `EXISTS (SELECT 1 FROM auction_batch_assignees aba WHERE aba.auction_batch_id = batch.uuid AND aba.user_id = :assignedTo)`;
+      qb.andWhere(assigneeCondition, {
+        assignedTo: queryDto.assignedTo,
+        ...(queryDto.assigneeRole != null && {
+          assigneeRole: queryDto.assigneeRole,
+        }),
+      });
+    }
+    if (useTabFilter && queryDto.tab != null) {
+      const statuses = getStatusesForTab(queryDto.assigneeRole!, queryDto.tab);
+      qb.andWhere('batch.status IN (:...tabStatuses)', {
+        tabStatuses: statuses,
+      });
     }
 
     const qbOptions: QueryBuilderOptionsType<AuctionBatchEntity> = {
       ...queryDto,
       where,
+      relation: { batchAssignees: { user: true }, items: true, store: true },
       orderBy: sortAttribute(queryDto.sortBy, {
         createdAt: { createdAt: true },
         batchCode: { batchCode: true },
-      }) ?? { createdAt: 'DESC' } as any,
+      }) ?? ({ createdAt: 'DESC' } as any),
     };
 
-    const dynamicQueryBuilder = new DynamicQueryBuilder(this.batchRepository.metadata);
+    const dynamicQueryBuilder = new DynamicQueryBuilder(
+      this.batchRepository.metadata,
+    );
     const [batches, count] = await dynamicQueryBuilder.buildDynamicQuery(
-      AuctionBatchEntity.createQueryBuilder('batch'),
+      qb,
       qbOptions,
     );
     const data = batches.map((b) => new AuctionBatchDto(b));
@@ -85,7 +139,10 @@ export class AuctionService {
     return { data, meta };
   }
 
-  async findOne(uuid: string): Promise<AuctionBatchDto> {
+  async findOne(
+    uuid: string,
+    userPtId?: string,
+  ): Promise<AuctionBatchDto> {
     const batch = await this.batchRepository.findOne({
       where: { uuid },
       relations: [
@@ -94,26 +151,26 @@ export class AuctionService {
         'items.spkItem.spk',
         'items.spkItem.itemType',
         'store',
-        'assignee',
+        'batchAssignees',
+        'batchAssignees.user',
       ],
     });
     if (!batch) {
       throw new NotFoundException(`Auction batch with UUID ${uuid} not found`);
+    }
+    if (userPtId != null && batch.ptId !== userPtId) {
+      throw new ForbiddenException('Access denied to this auction batch');
     }
     return new AuctionBatchDto(batch);
   }
 
   async create(
     dto: CreateAuctionBatchDto,
-    _createdBy: string,
+    createdByUserId: string,
   ): Promise<AuctionBatchDto> {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const items = await this.spkItemRepository.find({
-      where: { uuid: In(dto.spkItemIds) },
-      relations: ['spk'],
-    });
+    const items = await this.spkService.findSpkItemsByIdsWithSpk(
+      dto.spkItemIds,
+    );
     if (items.length !== dto.spkItemIds.length) {
       throw new BadRequestException('One or more SPK item UUIDs not found');
     }
@@ -142,78 +199,176 @@ export class AuctionService {
       }
     }
 
-    const batchCode = await this.generateBatchCode();
-    const batch = this.batchRepository.create({
-      batchCode,
-      storeId: dto.storeId,
-      ptId: dto.ptId,
-      status: AuctionBatchStatusEnum.Draft,
-      notes: dto.notes ?? null,
-      name: dto.name ?? null,
-      assignedTo: dto.assignedTo ?? null,
-      assignedAt: dto.assignedTo ? new Date() : null,
-    });
-    const savedBatch = await this.batchRepository.save(batch);
+    const existingInBatch = await this.batchItemRepository
+      .createQueryBuilder('abi')
+      .innerJoin('abi.batch', 'b')
+      .where('b.status != :cancelled', {
+        cancelled: AuctionBatchStatusEnum.Cancelled,
+      })
+      .andWhere('abi.spkItemId IN (:...ids)', { ids: dto.spkItemIds })
+      .getMany();
+    if (existingInBatch.length > 0) {
+      const dupIds = existingInBatch.map((abi) => abi.spkItemId);
+      throw new BadRequestException(
+        `SPK item(s) already in an active batch: ${dupIds.join(', ')}`,
+      );
+    }
 
-    const batchItems = dto.spkItemIds.map((spkItemId) =>
-      this.batchItemRepository.create({
-        auctionBatchId: savedBatch.uuid,
-        spkItemId,
-        pickupStatus: AuctionPickupStatusEnum.Pending,
-      }),
-    );
-    await this.batchItemRepository.save(batchItems);
+    return this.dataSource.transaction(async (manager) => {
+      const batchCode = await this.generateBatchCode();
+      const batch = manager.create(AuctionBatchEntity, {
+        batchCode,
+        storeId: dto.storeId,
+        ptId: dto.ptId,
+        status: AuctionBatchStatusEnum.Draft,
+        notes: dto.notes ?? null,
+        name: dto.name ?? null,
+        createdBy: createdByUserId,
+      });
+      const savedBatch = await manager.save(AuctionBatchEntity, batch);
 
-    return this.findOne(savedBatch.uuid);
+      const batchItems = dto.spkItemIds.map((spkItemId) =>
+        manager.create(AuctionBatchItemEntity, {
+          auctionBatchId: savedBatch.uuid,
+          spkItemId,
+          pickupStatus: AuctionPickupStatusEnum.Pending,
+        }),
+      );
+      await manager.save(AuctionBatchItemEntity, batchItems);
+
+      for (const userId of dto.marketingStaffIds ?? []) {
+        await manager.save(
+          AuctionBatchAssigneeEntity,
+          manager.create(AuctionBatchAssigneeEntity, {
+            batch: { uuid: savedBatch.uuid },
+            user: { uuid: userId },
+            role: AuctionAssigneeRoleEnum.MarketingStaff,
+          }),
+        );
+      }
+      for (const userId of dto.auctionStaffIds ?? []) {
+        await manager.save(
+          AuctionBatchAssigneeEntity,
+          manager.create(AuctionBatchAssigneeEntity, {
+            batch: { uuid: savedBatch.uuid },
+            user: { uuid: userId },
+            role: AuctionAssigneeRoleEnum.AuctionStaff,
+          }),
+        );
+      }
+
+      return savedBatch.uuid;
+    }).then((uuid) => this.findOne(uuid));
   }
 
-  async assign(batchUuid: string, userId: string): Promise<AuctionBatchDto> {
-    const batch = await this.batchRepository.findOne({ where: { uuid: batchUuid } });
+  async assign(
+    batchUuid: string,
+    userId: string,
+    userPtId?: string,
+  ): Promise<AuctionBatchDto> {
+    const batch = await this.batchRepository.findOne({
+      where: { uuid: batchUuid },
+    });
     if (!batch) {
       throw new NotFoundException('Auction batch not found');
+    }
+    if (userPtId != null && batch.ptId !== userPtId) {
+      throw new ForbiddenException('Access denied to this auction batch');
     }
     if (batch.status !== AuctionBatchStatusEnum.Draft) {
       throw new BadRequestException(
         'Only draft batches can be assigned',
       );
     }
-    batch.assignedTo = userId;
-    batch.assignedAt = new Date();
+    const existingAssignment = await this.batchAssigneeRepository.findOne({
+      where: {
+        batch: { uuid: batchUuid },
+        user: { uuid: userId },
+        role: AuctionAssigneeRoleEnum.AuctionStaff,
+      },
+    });
+    if (!existingAssignment) {
+      await this.batchAssigneeRepository.save(
+        this.batchAssigneeRepository.create({
+          batch: { uuid: batchUuid },
+          user: { uuid: userId },
+          role: AuctionAssigneeRoleEnum.AuctionStaff,
+        }),
+      );
+    }
     batch.status = AuctionBatchStatusEnum.PickupInProgress;
+    batch.updatedBy = userId;
     await this.batchRepository.save(batch);
-    return this.findOne(batchUuid);
+    return this.findOne(batchUuid, userPtId);
   }
 
-  async update(batchUuid: string, dto: UpdateAuctionBatchDto): Promise<AuctionBatchDto> {
-    const batch = await this.batchRepository.findOne({ where: { uuid: batchUuid } });
+  async update(
+    batchUuid: string,
+    dto: UpdateAuctionBatchDto,
+    updatedByUserId: string,
+    userPtId?: string,
+  ): Promise<AuctionBatchDto> {
+    const batch = await this.batchRepository.findOne({
+      where: { uuid: batchUuid },
+    });
     if (!batch) {
       throw new NotFoundException('Auction batch not found');
+    }
+    if (userPtId != null && batch.ptId !== userPtId) {
+      throw new ForbiddenException('Access denied to this auction batch');
+    }
+    const allowedStatuses = [
+      AuctionBatchStatusEnum.Draft,
+      AuctionBatchStatusEnum.PickupInProgress,
+    ];
+    if (!allowedStatuses.includes(batch.status)) {
+      throw new BadRequestException(
+        'Only draft or pickup_in_progress batches can be updated',
+      );
     }
 
     if (dto.name !== undefined) {
       batch.name = dto.name ?? null;
     }
-    if (dto.assignedTo !== undefined) {
-      batch.assignedTo = dto.assignedTo ?? null;
-      if (dto.assignedTo) {
-        batch.assignedAt = new Date();
-      } else {
-        batch.assignedAt = null;
-      }
-    }
     if (dto.notes !== undefined) {
       batch.notes = dto.notes ?? null;
     }
-
+    if (dto.marketingStaffIds !== undefined || dto.auctionStaffIds !== undefined) {
+      await this.batchAssigneeRepository
+        .createQueryBuilder()
+        .delete()
+        .where('auction_batch_id = :batchUuid', { batchUuid })
+        .execute();
+      for (const userId of dto.marketingStaffIds ?? []) {
+        await this.batchAssigneeRepository.save(
+          this.batchAssigneeRepository.create({
+            batch: { uuid: batchUuid },
+            user: { uuid: userId },
+            role: AuctionAssigneeRoleEnum.MarketingStaff,
+          }),
+        );
+      }
+      for (const userId of dto.auctionStaffIds ?? []) {
+        await this.batchAssigneeRepository.save(
+          this.batchAssigneeRepository.create({
+            batch: { uuid: batchUuid },
+            user: { uuid: userId },
+            role: AuctionAssigneeRoleEnum.AuctionStaff,
+          }),
+        );
+      }
+    }
+    batch.updatedBy = updatedByUserId;
     await this.batchRepository.save(batch);
-    return this.findOne(batchUuid);
+    return this.findOne(batchUuid, userPtId);
   }
 
   async updateItemPickup(
     batchUuid: string,
     itemUuid: string,
     dto: UpdatePickupDto,
-    _userId: string,
+    userId: string,
+    userPtId?: string,
   ): Promise<AuctionBatchDto> {
     const batchItem = await this.batchItemRepository.findOne({
       where: { uuid: itemUuid, auctionBatchId: batchUuid },
@@ -230,25 +385,38 @@ export class AuctionService {
         'Batch not found or not in pickup_in_progress',
       );
     }
-    batchItem.pickupStatus = dto.pickupStatus;
-    batchItem.failureReason =
-      dto.pickupStatus === AuctionPickupStatusEnum.Failed
-        ? dto.failureReason ?? null
-        : null;
-    await this.batchItemRepository.save(batchItem);
-
-    const allItems = await this.batchItemRepository.find({
-      where: { auctionBatchId: batchUuid },
-    });
-    const allHaveResult = allItems.every(
-      (i) => i.pickupStatus !== AuctionPickupStatusEnum.Pending,
-    );
-    if (allHaveResult) {
-      batch.status = AuctionBatchStatusEnum.ValidationPending;
-      await this.batchRepository.save(batch);
+    if (userPtId != null && batch.ptId !== userPtId) {
+      throw new ForbiddenException('Access denied to this auction batch');
+    }
+    if (batchItem.pickupStatus !== AuctionPickupStatusEnum.Pending) {
+      throw new BadRequestException(
+        'Only items with pending pickup status can be updated',
+      );
     }
 
-    return this.findOne(batchUuid);
+    return this.dataSource.transaction(async (manager) => {
+      batchItem.pickupStatus = dto.pickupStatus;
+      batchItem.failureReason =
+        dto.pickupStatus === AuctionPickupStatusEnum.Failed
+          ? dto.failureReason ?? null
+          : null;
+      batchItem.updatedBy = userId;
+      await manager.save(AuctionBatchItemEntity, batchItem);
+
+      const allItems = await manager.find(AuctionBatchItemEntity, {
+        where: { auctionBatchId: batchUuid },
+      });
+      const allHaveResult = allItems.every(
+        (i) => i.pickupStatus !== AuctionPickupStatusEnum.Pending,
+      );
+      if (allHaveResult) {
+        batch.status = AuctionBatchStatusEnum.ValidationPending;
+        batch.updatedBy = userId;
+        await manager.save(AuctionBatchEntity, batch);
+      }
+
+      return this.findOne(batchUuid, userPtId);
+    });
   }
 
   async submitItemValidation(
@@ -256,6 +424,7 @@ export class AuctionService {
     itemUuid: string,
     dto: SubmitValidationDto,
     userId: string,
+    userPtId?: string,
   ): Promise<AuctionBatchDto> {
     const batchItem = await this.batchItemRepository.findOne({
       where: { uuid: itemUuid, auctionBatchId: batchUuid },
@@ -265,30 +434,46 @@ export class AuctionService {
     }
     const batch = await this.batchRepository.findOne({
       where: { uuid: batchUuid },
-      relations: ['items'],
     });
     if (!batch || batch.status !== AuctionBatchStatusEnum.ValidationPending) {
       throw new BadRequestException(
         'Batch not found or not in validation_pending',
       );
     }
+    if (userPtId != null && batch.ptId !== userPtId) {
+      throw new ForbiddenException('Access denied to this auction batch');
+    }
+    if (batchItem.validationVerdict != null) {
+      throw new BadRequestException(
+        'Item has already been validated; re-validation is not allowed',
+      );
+    }
+
     batchItem.validationVerdict = dto.verdict;
     batchItem.validationNotes = dto.notes ?? null;
     batchItem.validationPhotos = dto.validationPhotos ?? null;
     batchItem.validatedBy = userId;
     batchItem.validatedAt = new Date();
+    batchItem.updatedBy = userId;
     await this.batchItemRepository.save(batchItem);
 
-    return this.findOne(batchUuid);
+    return this.findOne(batchUuid, userPtId);
   }
 
-  async finalizeBatch(batchUuid: string): Promise<AuctionBatchDto> {
+  async finalizeBatch(
+    batchUuid: string,
+    userPtId?: string,
+    updatedByUserId?: string,
+  ): Promise<AuctionBatchDto> {
     const batch = await this.batchRepository.findOne({
       where: { uuid: batchUuid },
       relations: ['items'],
     });
     if (!batch) {
       throw new NotFoundException('Auction batch not found');
+    }
+    if (userPtId != null && batch.ptId !== userPtId) {
+      throw new ForbiddenException('Access denied to this auction batch');
     }
     if (batch.status !== AuctionBatchStatusEnum.ValidationPending) {
       throw new BadRequestException(
@@ -306,26 +491,34 @@ export class AuctionService {
       );
     }
 
-    batch.status = AuctionBatchStatusEnum.ReadyForAuction;
-    await this.batchRepository.save(batch);
+    const okItemIds = items
+      .filter((bi) => bi.validationVerdict === AuctionValidationVerdictEnum.Ok && bi.spkItemId)
+      .map((bi) => bi.spkItemId);
 
-    for (const bi of items) {
-      const spkItem = bi.spkItem as SpkItemEntity;
-      if (spkItem && bi.validationVerdict === AuctionValidationVerdictEnum.Ok) {
-        spkItem.status = SpkItemStatusEnum.InAuction;
-        await this.spkItemRepository.save(spkItem);
+    return this.dataSource.transaction(async (manager) => {
+      batch.status = AuctionBatchStatusEnum.ReadyForAuction;
+      batch.updatedBy = updatedByUserId ?? null;
+      await manager.save(AuctionBatchEntity, batch);
+
+      if (okItemIds.length > 0) {
+        await this.spkService.markSpkItemsAsInAuction(okItemIds);
       }
-    }
-
-    return this.findOne(batchUuid);
+    }).then(() => this.findOne(batchUuid, userPtId));
   }
 
-  async cancel(batchUuid: string): Promise<AuctionBatchDto> {
+  async cancel(
+    batchUuid: string,
+    userPtId?: string,
+    updatedByUserId?: string,
+  ): Promise<AuctionBatchDto> {
     const batch = await this.batchRepository.findOne({
       where: { uuid: batchUuid },
     });
     if (!batch) {
       throw new NotFoundException('Auction batch not found');
+    }
+    if (userPtId != null && batch.ptId !== userPtId) {
+      throw new ForbiddenException('Access denied to this auction batch');
     }
     if (
       batch.status === AuctionBatchStatusEnum.ReadyForAuction ||
@@ -336,8 +529,75 @@ export class AuctionService {
       );
     }
     batch.status = AuctionBatchStatusEnum.Cancelled;
+    batch.updatedBy = updatedByUserId ?? null;
     await this.batchRepository.save(batch);
-    return this.findOne(batchUuid);
+    return this.findOne(batchUuid, userPtId);
+  }
+
+  async remove(
+    batchUuid: string,
+    userPtId?: string,
+  ): Promise<void> {
+    const batch = await this.batchRepository.findOne({
+      where: { uuid: batchUuid },
+    });
+    if (!batch) {
+      throw new NotFoundException('Auction batch not found');
+    }
+    if (userPtId != null && batch.ptId !== userPtId) {
+      throw new ForbiddenException('Access denied to this auction batch');
+    }
+    if (batch.status !== AuctionBatchStatusEnum.Draft) {
+      throw new BadRequestException(
+        'Only draft batches can be deleted',
+      );
+    }
+    await this.batchAssigneeRepository
+      .createQueryBuilder()
+      .delete()
+      .where('auction_batch_id = :batchUuid', { batchUuid })
+      .execute();
+    await this.batchItemRepository
+      .createQueryBuilder()
+      .delete()
+      .where('auction_batch_id = :batchUuid', { batchUuid })
+      .execute();
+    await this.batchRepository.delete({ uuid: batchUuid });
+  }
+
+  async removeItemFromBatch(
+    batchUuid: string,
+    batchItemUuid: string,
+    userPtId?: string,
+  ): Promise<AuctionBatchDto> {
+    const batch = await this.batchRepository.findOne({
+      where: { uuid: batchUuid },
+    });
+    if (!batch) {
+      throw new NotFoundException('Auction batch not found');
+    }
+    if (userPtId != null && batch.ptId !== userPtId) {
+      throw new ForbiddenException('Access denied to this auction batch');
+    }
+    if (
+      batch.status !== AuctionBatchStatusEnum.Draft &&
+      batch.status !== AuctionBatchStatusEnum.PickupInProgress
+    ) {
+      throw new BadRequestException(
+        'Item can only be removed from draft or pickup_in_progress batches',
+      );
+    }
+    const batchItem = await this.batchItemRepository.findOne({
+      where: { uuid: batchItemUuid, auctionBatchId: batchUuid },
+    });
+    if (!batchItem) {
+      throw new NotFoundException('Auction batch item not found');
+    }
+    await this.batchItemRepository.delete({
+      uuid: batchItemUuid,
+      auctionBatchId: batchUuid,
+    });
+    return this.findOne(batchUuid, userPtId);
   }
 
   private async generateBatchCode(): Promise<string> {

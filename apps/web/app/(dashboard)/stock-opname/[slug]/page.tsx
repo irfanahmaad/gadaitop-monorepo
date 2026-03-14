@@ -314,7 +314,7 @@ export default function StockOpnameDetailPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          {session?.status === "draft" && !isCompanyAdmin ? (
+          {session?.status === "draft" ? (
             <Button
               variant="outline"
               className="gap-2"

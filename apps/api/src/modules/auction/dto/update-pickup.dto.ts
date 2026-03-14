@@ -1,4 +1,4 @@
-import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsString, ValidateIf } from 'class-validator';
 
 import { AuctionPickupStatusEnum } from '../../../constants/auction-pickup-status';
 
@@ -7,7 +7,8 @@ export class UpdatePickupDto {
   pickupStatus: AuctionPickupStatusEnum;
 
   /** Required when pickupStatus is 'failed'. */
-  @IsOptional()
+  @ValidateIf((o) => o.pickupStatus === AuctionPickupStatusEnum.Failed)
+  @IsNotEmpty({ message: 'failureReason is required when pickup status is failed' })
   @IsString()
   failureReason?: string;
 }

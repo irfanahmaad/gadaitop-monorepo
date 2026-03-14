@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -22,6 +23,10 @@ import { SubmitValidationDto } from './dto/submit-validation.dto';
 import { UpdateAuctionBatchDto } from './dto/update-auction-batch.dto';
 import { PageMetaDto } from '../../common/dtos/page-meta.dto';
 
+function getReqUser(req: Request): { uuid?: string; companyId?: string; ownedCompanyId?: string } {
+  return (req as any).user ?? {};
+}
+
 @Controller({ path: 'auction-batches', version: '1' })
 export class AuctionController {
   constructor(private readonly auctionService: AuctionService) {}
@@ -32,7 +37,7 @@ export class AuctionController {
     @Query() queryDto: QueryAuctionBatchDto,
     @Req() req: Request,
   ): Promise<{ data: AuctionBatchDto[]; meta: PageMetaDto }> {
-    const user = (req as any).user;
+    const user = getReqUser(req);
     const userPtId = user?.companyId ?? user?.ownedCompanyId ?? undefined;
     return this.auctionService.findAll(queryDto, userPtId);
   }
@@ -41,8 +46,11 @@ export class AuctionController {
   @Auth([{ action: AclAction.READ, subject: AclSubject.AUCTION_BATCH }])
   async findOne(
     @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
   ): Promise<AuctionBatchDto> {
-    return this.auctionService.findOne(id);
+    const user = getReqUser(req);
+    const userPtId = user?.companyId ?? user?.ownedCompanyId ?? undefined;
+    return this.auctionService.findOne(id, userPtId);
   }
 
   @Post()
@@ -51,7 +59,7 @@ export class AuctionController {
     @Body() createDto: CreateAuctionBatchDto,
     @Req() req: Request,
   ): Promise<AuctionBatchDto> {
-    const user = (req as any).user;
+    const user = getReqUser(req);
     const createdBy = user?.uuid ?? '';
     return this.auctionService.create(createDto, createdBy);
   }
@@ -61,8 +69,12 @@ export class AuctionController {
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateDto: UpdateAuctionBatchDto,
+    @Req() req: Request,
   ): Promise<AuctionBatchDto> {
-    return this.auctionService.update(id, updateDto);
+    const user = getReqUser(req);
+    const userPtId = user?.companyId ?? user?.ownedCompanyId ?? undefined;
+    const updatedBy = user?.uuid ?? '';
+    return this.auctionService.update(id, updateDto, updatedBy, userPtId);
   }
 
   @Put(':id/assign')
@@ -71,9 +83,10 @@ export class AuctionController {
     @Param('id', ParseUUIDPipe) id: string,
     @Req() req: Request,
   ): Promise<AuctionBatchDto> {
-    const user = (req as any).user;
+    const user = getReqUser(req);
     const userId = user?.uuid ?? '';
-    return this.auctionService.assign(id, userId);
+    const userPtId = user?.companyId ?? user?.ownedCompanyId ?? undefined;
+    return this.auctionService.assign(id, userId, userPtId);
   }
 
   @Put(':id/items/:itemId/pickup')
@@ -84,9 +97,10 @@ export class AuctionController {
     @Body() dto: UpdatePickupDto,
     @Req() req: Request,
   ): Promise<AuctionBatchDto> {
-    const user = (req as any).user;
+    const user = getReqUser(req);
     const userId = user?.uuid ?? '';
-    return this.auctionService.updateItemPickup(id, itemId, dto, userId);
+    const userPtId = user?.companyId ?? user?.ownedCompanyId ?? undefined;
+    return this.auctionService.updateItemPickup(id, itemId, dto, userId, userPtId);
   }
 
   @Put(':id/items/:itemId/validation')
@@ -97,24 +111,56 @@ export class AuctionController {
     @Body() dto: SubmitValidationDto,
     @Req() req: Request,
   ): Promise<AuctionBatchDto> {
-    const user = (req as any).user;
+    const user = getReqUser(req);
     const userId = user?.uuid ?? '';
-    return this.auctionService.submitItemValidation(id, itemId, dto, userId);
+    const userPtId = user?.companyId ?? user?.ownedCompanyId ?? undefined;
+    return this.auctionService.submitItemValidation(id, itemId, dto, userId, userPtId);
   }
 
   @Put(':id/finalize')
   @Auth([{ action: AclAction.UPDATE, subject: AclSubject.AUCTION_VALIDATION }])
   async finalize(
     @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
   ): Promise<AuctionBatchDto> {
-    return this.auctionService.finalizeBatch(id);
+    const user = getReqUser(req);
+    const userPtId = user?.companyId ?? user?.ownedCompanyId ?? undefined;
+    const updatedBy = user?.uuid;
+    return this.auctionService.finalizeBatch(id, userPtId, updatedBy);
   }
 
   @Put(':id/cancel')
   @Auth([{ action: AclAction.UPDATE, subject: AclSubject.AUCTION_BATCH }])
   async cancel(
     @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
   ): Promise<AuctionBatchDto> {
-    return this.auctionService.cancel(id);
+    const user = getReqUser(req);
+    const userPtId = user?.companyId ?? user?.ownedCompanyId ?? undefined;
+    const updatedBy = user?.uuid;
+    return this.auctionService.cancel(id, userPtId, updatedBy);
+  }
+
+  @Delete(':id/items/:itemId')
+  @Auth([{ action: AclAction.UPDATE, subject: AclSubject.AUCTION_BATCH }])
+  async removeItem(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('itemId', ParseUUIDPipe) itemId: string,
+    @Req() req: Request,
+  ): Promise<AuctionBatchDto> {
+    const user = getReqUser(req);
+    const userPtId = user?.companyId ?? user?.ownedCompanyId ?? undefined;
+    return this.auctionService.removeItemFromBatch(id, itemId, userPtId);
+  }
+
+  @Delete(':id')
+  @Auth([{ action: AclAction.DELETE, subject: AclSubject.AUCTION_BATCH }])
+  async remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
+  ): Promise<void> {
+    const user = getReqUser(req);
+    const userPtId = user?.companyId ?? user?.ownedCompanyId ?? undefined;
+    return this.auctionService.remove(id, userPtId);
   }
 }

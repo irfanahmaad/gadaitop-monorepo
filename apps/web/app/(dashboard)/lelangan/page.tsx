@@ -45,8 +45,10 @@ import { useAuth } from "@/lib/react-query/hooks/use-auth"
 import {
   auctionBatchKeys,
   useAuctionBatches,
+  useBulkDeleteAuctionBatches,
   useCancelAuctionBatch,
   useCreateAuctionBatch,
+  useDeleteAuctionBatch,
 } from "@/lib/react-query/hooks/use-auction-batches"
 import { useCompanies } from "@/lib/react-query/hooks/use-companies"
 import { useSpkList, spkKeys } from "@/lib/react-query/hooks/use-spk"
@@ -56,6 +58,8 @@ import { matchSpkItemToMataRules } from "@/lib/utils/mata-rule-matcher"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { CreateBatchDialog } from "@/app/(dashboard)/lelangan/_components/CreateBatchDialog"
+import { useAppAbility } from "@/lib/casl/context"
+import { AclAction, AclSubject } from "@/lib/casl/types"
 import { cn } from "@workspace/ui/lib/utils"
 
 // Types for SPK Jatuh Tempo (flattened from overdue SPK items)
@@ -118,16 +122,20 @@ function mapBatchStatus(status: string): BatchStatus {
   return map[status] ?? "Draft"
 }
 
-function getAssigneeName(
-  assignedTo: string | { fullName?: string; name?: string } | undefined
+function getAssigneesDisplay(
+  marketingStaff?: { fullName?: string; name?: string }[],
+  auctionStaff?: { fullName?: string; name?: string }[]
 ): string {
-  if (!assignedTo) return "-"
-  if (typeof assignedTo === "string") return "Staff"
-  return (
-    (assignedTo as { fullName?: string }).fullName ??
-    (assignedTo as { name?: string }).name ??
-    "Staff"
-  )
+  const names: string[] = []
+  for (const a of marketingStaff ?? []) {
+    const n = a.fullName ?? a.name
+    if (n) names.push(n)
+  }
+  for (const a of auctionStaff ?? []) {
+    const n = a.fullName ?? a.name
+    if (n) names.push(n)
+  }
+  return names.length ? [...new Set(names)].join(", ") : "-"
 }
 
 function mapAuctionBatchToBatchLelang(batch: AuctionBatch): BatchLelang {
@@ -136,6 +144,7 @@ function mapAuctionBatchToBatchLelang(batch: AuctionBatch): BatchLelang {
   const pickedUp = items.filter(
     (i) =>
       i.pickedUp === true ||
+      (i as { pickupStatus?: string }).pickupStatus === "taken" ||
       (i as { pickupStatus?: string }).pickupStatus === "picked_up" ||
       (i as { pickupStatus?: string }).pickupStatus === "completed"
   ).length
@@ -145,18 +154,21 @@ function mapAuctionBatchToBatchLelang(batch: AuctionBatch): BatchLelang {
       !!(i as { validationVerdict?: string }).validationVerdict
   ).length
   const updatedAt = batch.updatedAt ?? batch.createdAt ?? null
-  const hasMataItems = false // Batch Mata highlighting: requires pawn terms in mapper - deferred
+  const hasMataItems = false
   return {
     id: batch.uuid,
     idBatch: batch.batchCode,
-    namaBatch: batch.batchCode,
+    namaBatch: batch.name ?? batch.batchCode,
     jumlahItem: itemCount,
     lastUpdatedAt: updatedAt
       ? format(new Date(updatedAt), "d MMMM yyyy HH:mm:ss", { locale: id })
       : "-",
     status: mapBatchStatus(batch.status),
     toko: batch.store?.shortName,
-    penanggungJawab: getAssigneeName(batch.assignedTo),
+    penanggungJawab: getAssigneesDisplay(
+      batch.marketingStaff,
+      batch.auctionStaff
+    ),
     progressDiambil: pickedUp,
     progressValidasi: validated,
     rawStatus: batch.status,
@@ -181,7 +193,12 @@ function flattenOverdueSpkToItemLelang(
     const dueDate = spk.dueDate
       ? format(new Date(spk.dueDate), "d MMM yyyy", { locale: id })
       : "-"
-    const petugas = getAssigneeName(spk.createdBy)
+    const petugas =
+      typeof spk.createdBy === "object" && spk.createdBy != null
+        ? (spk.createdBy as { fullName?: string; name?: string }).fullName ??
+          (spk.createdBy as { name?: string }).name ??
+          "-"
+        : "Staff"
 
     for (const item of items) {
       if (item.status !== "in_storage") continue
@@ -239,14 +256,14 @@ const BatchStatusBadge = ({ status }: { status: BatchStatus }) => {
         "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/20",
     },
     Validasi: {
-      label: "Tervalidasi",
-      className:
-        "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20",
-    },
-    "Siap Lelang": {
       label: "Berjalan",
       className:
         "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20",
+    },
+    "Siap Lelang": {
+      label: "Tervalidasi",
+      className:
+        "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20",
     },
     "OK by Admin": {
       label: "Tervalidasi",
@@ -346,7 +363,7 @@ const itemLelangColumns: ColumnDef<ItemLelang>[] = [
   },
 ]
 
-// Column definitions for Batch Lelang SPK (No, ID Batch, Nama Batch, Jumlah Item, Last Updated At, Status, Action)
+// Column definitions for Batch Lelang SPK
 const batchLelangColumns: ColumnDef<BatchLelang>[] = [
   {
     id: "select",
@@ -373,7 +390,11 @@ const batchLelangColumns: ColumnDef<BatchLelang>[] = [
   {
     id: "no",
     header: "No",
-    cell: ({ row }) => <span className="text-sm">{row.index + 1}</span>,
+    cell: ({ row, table }) => {
+      const p = table.getState().pagination
+      const no = (p.pageIndex * p.pageSize) + row.index + 1
+      return <span className="text-sm">{no}</span>
+    },
     enableSorting: false,
   },
   {
@@ -383,6 +404,19 @@ const batchLelangColumns: ColumnDef<BatchLelang>[] = [
   {
     accessorKey: "namaBatch",
     header: "Nama Batch",
+  },
+  {
+    accessorKey: "status",
+    header: "Status",
+    cell: ({ row }) => <BatchStatusBadge status={row.getValue("status")} />,
+  },
+  {
+    accessorKey: "penanggungJawab",
+    header: "Penanggung Jawab",
+  },
+  {
+    accessorKey: "toko",
+    header: "Toko",
   },
   {
     accessorKey: "jumlahItem",
@@ -425,12 +459,16 @@ function TableSkeleton() {
 function LelangPageContent() {
   const router = useRouter()
   const queryClient = useQueryClient()
+  const ability = useAppAbility()
   const { user } = useAuth()
   const isCompanyAdmin =
     user?.roles?.some((r) => r.code === "company_admin") ?? false
   const isSuperAdmin = user?.roles?.some((r) => r.code === "owner") ?? false
 
   const effectiveCompanyId = isCompanyAdmin ? (user?.companyId ?? null) : null
+  const canCreateBatch = ability.can(AclAction.CREATE, AclSubject.AUCTION_BATCH)
+  const canUpdateBatch = ability.can(AclAction.UPDATE, AclSubject.AUCTION_BATCH)
+  const canDeleteBatch = ability.can(AclAction.DELETE, AclSubject.AUCTION_BATCH)
 
   const { data: companiesData } = useCompanies(
     isSuperAdmin ? { pageSize: 100 } : undefined
@@ -595,6 +633,11 @@ function LelangPageContent() {
   const [selectedItemLelangRows, setSelectedItemLelangRows] = useState<
     ItemLelang[]
   >([])
+  const [selectedBatchRows, setSelectedBatchRows] = useState<BatchLelang[]>([])
+  const [batchPage, setBatchPage] = useState(1)
+  const [batchPageSize, setBatchPageSize] = useState(10)
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false)
+
   const handleDetailItemLelang = React.useCallback(
     (row: ItemLelang) => {
       router.push(`/spk/${row.spkId}`)
@@ -602,28 +645,7 @@ function LelangPageContent() {
     [router]
   )
 
-  // const handleEditItemLelang = React.useCallback(
-  //   (row: ItemLelang) => {
-  //     router.push(`/spk/${row.spkId}`)
-  //   },
-  //   [router]
-  // )
-
-  // const handleTambahKeBatch = React.useCallback((row: ItemLelang) => {
-  //   setSelectedItemLelangRows([row])
-  //   setIsBuatBatchDialogOpen(true)
-  // }, [])
-
-  const itemLelangCustomActions = React.useMemo(
-    () => [
-      // {
-      //   label: "Tambah ke Batch",
-      //   icon: <Plus className="mr-2 size-4" />,
-      //   onClick: handleTambahKeBatch,
-      // },
-    ],
-    []
-  )
+  const itemLelangCustomActions = React.useMemo(() => [], [])
 
   const getItemLelangRowClassName = React.useCallback((row: ItemLelang) => {
     return row.isMata ? "bg-red-50 dark:bg-red-950/30" : ""
@@ -665,63 +687,28 @@ function LelangPageContent() {
     return result
   }, [itemLelangRows, searchValue, filterValues])
 
-  const listOptions = React.useMemo(() => {
+  const batchListOptions = React.useMemo(() => {
     const filter: Record<string, string> = {}
     if (companyFilterId) filter.ptId = companyFilterId
     return {
-      page: 1,
-      pageSize,
+      page: batchPage,
+      pageSize: batchPageSize,
       filter,
-      relation: { items: true, store: true },
     }
-  }, [companyFilterId, pageSize])
+  }, [companyFilterId, batchPage, batchPageSize])
 
-  const { data, isLoading, isError } = useAuctionBatches(listOptions)
+  const { data, isLoading, isError } = useAuctionBatches(batchListOptions)
   const cancelBatchMutation = useCancelAuctionBatch()
+  const deleteBatchMutation = useDeleteAuctionBatch()
+  const bulkDeleteBatchMutation = useBulkDeleteAuctionBatches()
 
   const batchesFromApi = React.useMemo(() => data?.data ?? [], [data?.data])
+  const batchMeta = data?.meta
 
   const batchRows = React.useMemo(
     () => batchesFromApi.map(mapAuctionBatchToBatchLelang),
     [batchesFromApi]
   )
-
-  const filteredBatchLelang = React.useMemo(() => {
-    let result = [...batchRows]
-
-    if (searchValue) {
-      const s = searchValue.toLowerCase()
-      result = result.filter(
-        (b) =>
-          b.idBatch.toLowerCase().includes(s) ||
-          b.namaBatch.toLowerCase().includes(s) ||
-          (b.toko?.toLowerCase().includes(s) ?? false) ||
-          b.penanggungJawab.toLowerCase().includes(s)
-      )
-    }
-
-    // Batch Lelang SPK filter: only date range + Toko (per design)
-    const dateRange = (filterValues.dateRange as {
-      from: string | null
-      to: string | null
-    }) ?? { from: null, to: null }
-    const toko = (filterValues.toko as string[] | undefined) ?? []
-
-    if (dateRange.from || dateRange.to) {
-      result = result.filter((b) => {
-        const d = b.updatedAtRaw ? new Date(b.updatedAtRaw) : null
-        if (!d) return false
-        if (dateRange.from && d < new Date(dateRange.from)) return false
-        if (dateRange.to && d > new Date(dateRange.to)) return false
-        return true
-      })
-    }
-    if (toko.length) {
-      result = result.filter((b) => b.toko && toko.includes(b.toko))
-    }
-
-    return result
-  }, [batchRows, searchValue, filterValues])
 
   const handleDetail = (row: ItemLelang | BatchLelang) => {
     if ("idBatch" in row) {
@@ -729,17 +716,43 @@ function LelangPageContent() {
     }
   }
 
-  // const handleEdit = (row: ItemLelang | BatchLelang) => {
-  //   void row // reserved for future edit implementation
-  // }
-
   const handleDelete = (row: ItemLelang | BatchLelang) => {
     setItemToDelete(row)
     setIsConfirmDialogOpen(true)
   }
 
+  const handleBulkDeleteBatches = () => {
+    const draftIds = selectedBatchRows
+      .filter((b) => b.rawStatus === "draft")
+      .map((b) => b.id)
+    if (draftIds.length === 0) return
+    setIsBulkDeleteDialogOpen(true)
+  }
+
+  const handleConfirmBulkDelete = () => {
+    const draftIds = selectedBatchRows
+      .filter((b) => b.rawStatus === "draft")
+      .map((b) => b.id)
+    if (draftIds.length === 0) {
+      setIsBulkDeleteDialogOpen(false)
+      setSelectedBatchRows([])
+      return
+    }
+    bulkDeleteBatchMutation.mutate(draftIds, {
+      onSuccess: () => {
+        toast.success(`${draftIds.length} batch berhasil dihapus`)
+        setIsBulkDeleteDialogOpen(false)
+        setSelectedBatchRows([])
+      },
+      onError: (err) => {
+        toast.error(
+          (err as { message?: string })?.message ?? "Gagal menghapus batch"
+        )
+      },
+    })
+  }
+
   const handleBuatBatchClick = () => {
-    if (selectedItemLelangRows.length === 0) return
     setIsBuatBatchDialogOpen(true)
   }
 
@@ -749,7 +762,8 @@ function LelangPageContent() {
     spkItemIds: string[]
     name?: string
     notes?: string
-    assignedTo?: string
+    marketingStaffIds?: string[]
+    auctionStaffIds?: string[]
   }) => {
     try {
       await createBatchMutation.mutateAsync({
@@ -758,7 +772,8 @@ function LelangPageContent() {
         spkItemIds: data.spkItemIds,
         name: data.name,
         notes: data.notes,
-        assignedTo: data.assignedTo,
+        marketingStaffIds: data.marketingStaffIds,
+        auctionStaffIds: data.auctionStaffIds,
       })
       toast.success("Batch lelang berhasil dibuat")
       setIsBuatBatchDialogOpen(false)
@@ -781,16 +796,34 @@ function LelangPageContent() {
       setItemToDelete(null)
       return
     }
-    cancelBatchMutation.mutate(itemToDelete.id, {
-      onSuccess: () => {
-        toast.success("Batch lelang berhasil dibatalkan")
-        setIsConfirmDialogOpen(false)
-        setItemToDelete(null)
-      },
-      onError: (err) => {
-        toast.error(err?.message ?? "Gagal membatalkan batch lelang")
-      },
-    })
+    const batchRow = itemToDelete as BatchLelang
+    if (batchRow.rawStatus === "draft") {
+      deleteBatchMutation.mutate(batchRow.id, {
+        onSuccess: () => {
+          toast.success("Batch lelang berhasil dihapus")
+          setIsConfirmDialogOpen(false)
+          setItemToDelete(null)
+        },
+        onError: (err) => {
+          toast.error(
+            (err as { message?: string })?.message ?? "Gagal menghapus batch"
+          )
+        },
+      })
+    } else {
+      cancelBatchMutation.mutate(batchRow.id, {
+        onSuccess: () => {
+          toast.success("Batch lelang berhasil dibatalkan")
+          setIsConfirmDialogOpen(false)
+          setItemToDelete(null)
+        },
+        onError: (err) => {
+          toast.error(
+            (err as { message?: string })?.message ?? "Gagal membatalkan batch lelang"
+          )
+        },
+      })
+    }
   }
 
   return (
@@ -864,15 +897,7 @@ function LelangPageContent() {
               // onEdit={handleEditItemLelang}
               headerRight={
                 <div className="flex w-full items-center gap-2 sm:w-auto">
-                  {/* <Button
-                    variant="outline"
-                    className="flex items-center gap-2"
-                    onClick={() => window.print()}
-                  >
-                    <Printer className="size-4" />
-                    Cetak
-                  </Button> */}
-                  {selectedItemLelangRows.length > 0 && (
+                  {canCreateBatch && (
                     <Button
                       type="button"
                       className="bg-destructive text-destructive-foreground hover:bg-destructive/90 flex items-center gap-2"
@@ -881,6 +906,11 @@ function LelangPageContent() {
                     >
                       <Plus className="size-4" />
                       Buat Batch
+                      {selectedItemLelangRows.length > 0 && (
+                        <span className="ml-1 rounded-full bg-white/20 px-2 py-0.5 text-xs">
+                          {selectedItemLelangRows.length}
+                        </span>
+                      )}
                     </Button>
                   )}
                   <Select
@@ -948,14 +978,44 @@ function LelangPageContent() {
           ) : (
             <DataTable
               columns={batchLelangColumns}
-              data={filteredBatchLelang}
+              data={batchRows}
               title="Daftar Batch Lelang"
               searchPlaceholder="Cari..."
               headerRight={
-                <div className="flex w-full items-center gap-2 sm:w-auto">
+                <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+                  {selectedBatchRows.length > 0 && (
+                    <span className="text-destructive text-sm">
+                      · {selectedBatchRows.length} dipilih
+                    </span>
+                  )}
+                  {canCreateBatch && (
+                    <Button
+                      type="button"
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90 flex items-center gap-2"
+                      onClick={() => {
+                        setSelectedItemLelangRows([])
+                        setIsBuatBatchDialogOpen(true)
+                      }}
+                      disabled={createBatchMutation.isPending}
+                    >
+                      <Plus className="size-4" />
+                      Buat Batch
+                    </Button>
+                  )}
+                  {selectedBatchRows.some((b) => b.rawStatus === "draft") &&
+                    canDeleteBatch && (
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        onClick={handleBulkDeleteBatches}
+                        disabled={bulkDeleteBatchMutation.isPending}
+                      >
+                        Hapus
+                      </Button>
+                    )}
                   <Select
-                    value={pageSize.toString()}
-                    onValueChange={(value) => setPageSize(Number(value))}
+                    value={batchPageSize.toString()}
+                    onValueChange={(v) => setBatchPageSize(Number(v))}
                   >
                     <SelectTrigger className="w-[100px]">
                       <SelectValue />
@@ -991,13 +1051,24 @@ function LelangPageContent() {
               onFilterChange={setFilterValues}
               filterDialogOpen={filterDialogOpen}
               onFilterDialogOpenChange={setFilterDialogOpen}
-              initialPageSize={pageSize}
-              onPageSizeChange={setPageSize}
+              initialPageSize={batchPageSize}
+              onPageSizeChange={setBatchPageSize}
               searchValue={searchValue}
               onSearchChange={setSearchValue}
               onDetail={handleDetail}
-              // onEdit={handleEdit}
-              onDelete={handleDelete}
+              onDelete={canDeleteBatch || canUpdateBatch ? handleDelete : undefined}
+              onSelectionChange={(rows) =>
+                setSelectedBatchRows(rows as BatchLelang[])
+              }
+              serverSidePagination={
+                batchMeta != null
+                  ? {
+                      totalRowCount: batchMeta.count,
+                      pageIndex: batchPage - 1,
+                      onPageIndexChange: (idx) => setBatchPage(idx + 1),
+                    }
+                  : undefined
+              }
               getRowClassName={(row) =>
                 row.isMata ? "bg-red-50 dark:bg-red-950/30" : ""
               }
@@ -1010,8 +1081,22 @@ function LelangPageContent() {
         open={isConfirmDialogOpen}
         onOpenChange={setIsConfirmDialogOpen}
         onConfirm={handleConfirmDelete}
-        title="Hapus Batch Lelang"
-        description="Anda akan menghapus data Lelang dari dalam sistem."
+        title={itemToDelete && "idBatch" in itemToDelete && (itemToDelete as BatchLelang).rawStatus === "draft" ? "Hapus Batch Lelang" : "Batalkan Batch Lelang"}
+        description={
+          itemToDelete && "idBatch" in itemToDelete && (itemToDelete as BatchLelang).rawStatus === "draft"
+            ? "Anda akan menghapus batch draft dari dalam sistem."
+            : "Anda akan membatalkan batch lelang ini."
+        }
+        confirmLabel={itemToDelete && "idBatch" in itemToDelete && (itemToDelete as BatchLelang).rawStatus === "draft" ? "Hapus" : "Batalkan"}
+        variant="destructive"
+      />
+
+      <ConfirmationDialog
+        open={isBulkDeleteDialogOpen}
+        onOpenChange={setIsBulkDeleteDialogOpen}
+        onConfirm={handleConfirmBulkDelete}
+        title="Hapus Batch Terpilih"
+        description={`Anda akan menghapus ${selectedBatchRows.filter((b) => b.rawStatus === "draft").length} batch draft.`}
         confirmLabel="Hapus"
         variant="destructive"
       />
@@ -1029,9 +1114,7 @@ function LelangPageContent() {
 
 export default function LelangPage() {
   return (
-    <Suspense
-      fallback={<div className="bg-muted h-64 animate-pulse rounded-lg" />}
-    >
+    <Suspense fallback={<TableSkeleton />}>
       <LelangPageContent />
     </Suspense>
   )

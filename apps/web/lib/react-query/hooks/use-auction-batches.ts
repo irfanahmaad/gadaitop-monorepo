@@ -1,6 +1,11 @@
 "use client"
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query"
 
 import { apiClient } from "@/lib/api/client"
 import { endpoints } from "@/lib/api/endpoints"
@@ -10,6 +15,7 @@ import type {
   ItemPickupDto,
   ItemValidationDto,
   PageOptions,
+  UpdateAuctionBatchDto,
 } from "@/lib/api/types"
 
 // Query keys
@@ -31,6 +37,7 @@ export function useAuctionBatches(options?: PageOptions) {
         endpoints.auctionBatches.list,
         options
       ),
+    placeholderData: keepPreviousData,
   })
 }
 
@@ -41,6 +48,7 @@ export function useAuctionBatch(id: string) {
     queryFn: () =>
       apiClient.get<AuctionBatch>(endpoints.auctionBatches.detail(id)),
     enabled: !!id,
+    placeholderData: keepPreviousData,
   })
 }
 
@@ -65,8 +73,8 @@ export function useUpdateAuctionBatch() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: import("../../api/types").UpdateAuctionBatchDto }) =>
-      apiClient.put<AuctionBatch, import("../../api/types").UpdateAuctionBatchDto>(
+    mutationFn: ({ id, data }: { id: string; data: UpdateAuctionBatchDto }) =>
+      apiClient.put<AuctionBatch, UpdateAuctionBatchDto>(
         endpoints.auctionBatches.update(id),
         data
       ),
@@ -74,6 +82,38 @@ export function useUpdateAuctionBatch() {
       queryClient.invalidateQueries({
         queryKey: auctionBatchKeys.detail(variables.id),
       })
+      queryClient.invalidateQueries({ queryKey: auctionBatchKeys.lists() })
+    },
+  })
+}
+
+// Delete auction batch (draft only)
+export function useDeleteAuctionBatch() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiClient.delete<void>(endpoints.auctionBatches.delete(id)),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: auctionBatchKeys.detail(id) })
+      queryClient.invalidateQueries({ queryKey: auctionBatchKeys.lists() })
+    },
+  })
+}
+
+// Bulk delete auction batches (draft only)
+export function useBulkDeleteAuctionBatches() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      await Promise.all(
+        ids.map((id) =>
+          apiClient.delete<void>(endpoints.auctionBatches.delete(id))
+        )
+      )
+    },
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: auctionBatchKeys.lists() })
     },
   })
@@ -143,6 +183,30 @@ export function useItemValidation() {
       queryClient.invalidateQueries({
         queryKey: auctionBatchKeys.detail(variables.batchId),
       })
+    },
+  })
+}
+
+// Remove item from batch
+export function useRemoveItemFromBatch() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      batchId,
+      itemId,
+    }: {
+      batchId: string
+      itemId: string
+    }) =>
+      apiClient.delete<void>(
+        endpoints.auctionBatches.removeItem(batchId, itemId)
+      ),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: auctionBatchKeys.detail(variables.batchId),
+      })
+      queryClient.invalidateQueries({ queryKey: auctionBatchKeys.lists() })
     },
   })
 }

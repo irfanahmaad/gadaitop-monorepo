@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
+import { SpkModule } from '../spk/spk.module';
+import { AuctionBatchAssigneeEntity } from './entities/auction-batch-assignee.entity';
 import { AuctionBatchEntity } from './entities/auction-batch.entity';
 import { AuctionBatchItemEntity } from './entities/auction-batch-item.entity';
-import { SpkRecordEntity } from '../spk/entities/spk-record.entity';
-import { SpkItemEntity } from '../spk/entities/spk-item.entity';
 import { AuctionController } from './auction.controller';
 import { AuctionService } from './auction.service';
 
@@ -12,10 +12,10 @@ import { AuctionService } from './auction.service';
   imports: [
     TypeOrmModule.forFeature([
       AuctionBatchEntity,
+      AuctionBatchAssigneeEntity,
       AuctionBatchItemEntity,
-      SpkRecordEntity,
-      SpkItemEntity,
     ]),
+    SpkModule,
   ],
   controllers: [AuctionController],
   providers: [AuctionService],

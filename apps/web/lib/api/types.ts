@@ -745,16 +745,29 @@ export type AuctionBatchStatus =
   | "validation_pending"
   | "ready_for_auction"
 
+export interface AuctionBatchAssignee {
+  uuid: string
+  fullName?: string
+  name?: string
+  email?: string
+}
+
 export interface AuctionItemDetail {
   id: string
   uuid: string
   spkId: string
   spk?: Spk
+  spkItem?: { itemType?: { typeName?: string }; description?: string; photoUrl?: string }
   pickedUp: boolean
   pickupNotes?: string
+  pickupStatus?: string
+  failureReason?: string | null
   validated: boolean
   validatedPrice?: number
-  validationNotes?: string
+  validationNotes?: string | null
+  validationVerdict?: string | null
+  validationPhotos?: string[] | null
+  validatedAt?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -763,11 +776,15 @@ export interface AuctionBatch {
   id?: string
   uuid: string
   batchCode: string
+  name?: string | null
   storeId: string
+  ptId?: string
   scheduledDate?: string
   status: AuctionBatchStatus
   store?: Branch
-  assignedTo?: string | User
+  marketingStaff?: AuctionBatchAssignee[]
+  auctionStaff?: AuctionBatchAssignee[]
+  notes?: string | null
   items?: AuctionItemDetail[]
   createdAt: string
   updatedAt?: string
@@ -779,13 +796,15 @@ export interface CreateAuctionBatchDto {
   spkItemIds: string[]
   name?: string
   notes?: string
-  assignedTo?: string
+  marketingStaffIds?: string[]
+  auctionStaffIds?: string[]
 }
 
 export interface UpdateAuctionBatchDto {
   name?: string
-  assignedTo?: string
   notes?: string
+  marketingStaffIds?: string[]
+  auctionStaffIds?: string[]
 }
 
 export interface ItemPickupDto {

@@ -8,6 +8,7 @@ import {
   Between,
   DataSource,
   type FindOptionsWhere,
+  In,
   LessThanOrEqual,
   MoreThanOrEqual,
   Repository,
@@ -21,6 +22,7 @@ import {
   sortAttribute,
 } from '../../common/helpers/query-builder';
 import { SpkItemConditionEnum } from '../../constants/spk-item-condition';
+import { SpkItemStatusEnum } from '../../constants/spk-item-status';
 import { SpkStatusEnum } from '../../constants/spk-status';
 import { NkbPaymentMethodEnum } from '../../constants/nkb-payment-method';
 import { NkbPaymentTypeEnum } from '../../constants/nkb-payment-type';
@@ -177,9 +179,12 @@ export class SpkService {
 
     let data = records.map((r) => new SpkDto(r));
     if (isOverdue && queryDto.excludeInAuctionBatch) {
-      const batchItems = await this.batchItemRepository.find({
-        select: ['spkItemId'],
-      });
+      const batchItems = await this.batchItemRepository
+        .createQueryBuilder('abi')
+        .innerJoin('abi.batch', 'b')
+        .where('b.status != :cancelled', { cancelled: 'cancelled' })
+        .select('abi.spkItemId')
+        .getMany();
       const spkItemIdsInBatch = new Set(batchItems.map((b) => b.spkItemId));
       data = records.map((r) => {
         const filteredItems = (r.items || []).filter(
@@ -690,5 +695,29 @@ export class SpkService {
       throw new BadRequestException('Could not generate unique NKB number');
     }
     return candidate!;
+  }
+
+  /**
+   * Find SPK items by UUIDs with SPK relation (for auction batch validation).
+   */
+  async findSpkItemsByIdsWithSpk(
+    itemIds: string[],
+  ): Promise<SpkItemEntity[]> {
+    if (itemIds.length === 0) return [];
+    return this.spkItemRepository.find({
+      where: { uuid: In(itemIds) },
+      relations: ['spk'],
+    });
+  }
+
+  /**
+   * Set SPK item status to InAuction for given item UUIDs (bulk update).
+   */
+  async markSpkItemsAsInAuction(itemIds: string[]): Promise<void> {
+    if (itemIds.length === 0) return;
+    await this.spkItemRepository.update(
+      { uuid: In(itemIds) },
+      { status: SpkItemStatusEnum.InAuction },
+    );
   }
 }

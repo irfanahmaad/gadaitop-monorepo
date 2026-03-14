@@ -2,7 +2,6 @@
 
 import React, { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-import { useSession } from "next-auth/react"
 import { ColumnDef } from "@tanstack/react-table"
 import { Breadcrumbs } from "@/components/breadcrumbs"
 import { DataTable } from "@/components/data-table"
@@ -23,166 +22,55 @@ import {
   TabsContent,
 } from "@workspace/ui/components/tabs"
 import { Input } from "@workspace/ui/components/input"
-import { SearchIcon, SlidersHorizontal, Trash2 } from "lucide-react"
+import { SlidersHorizontal } from "lucide-react"
+import { Card, CardContent } from "@workspace/ui/components/card"
 import { CardTitle } from "@workspace/ui/components/card"
-import { ConfirmationDialog } from "@/components/confirmation-dialog"
+import { Skeleton } from "@workspace/ui/components/skeleton"
+import { format } from "date-fns"
+import { id } from "date-fns/locale"
+import { useAuctionBatches } from "@/lib/react-query/hooks/use-auction-batches"
+import { useAuth } from "@/lib/react-query/hooks/use-auth"
+import type { AuctionBatch } from "@/lib/api/types"
 
-// Sample data type
-type ValidasiLelangan = {
+type ValidasiLelanganRole = "auction_staff" | "marketing_staff"
+
+type ValidasiLelanganRow = {
   id: string
   idBatch: string
   namaBatch: string
   jumlahItem: number
-  toko: number
-  petugas: number
+  toko: string
+  petugas: string
   status?: "Tervalidasi" | "Dijadwalkan" | "Waiting for Approval"
   lastUpdatedAt: string
 }
 
-// Dummy data for Dijadwalkan tab
-const dijadwalkanData: ValidasiLelangan[] = [
-  {
-    id: "VL001",
-    idBatch: "BTC001",
-    namaBatch: "Batch Handphone",
-    jumlahItem: 10,
-    toko: 3,
-    petugas: 4,
-    lastUpdatedAt: "20 November 2025 18:33:45",
-  },
-  {
-    id: "VL002",
-    idBatch: "BTC002",
-    namaBatch: "Batch Otomotif",
-    jumlahItem: 7,
-    toko: 3,
-    petugas: 4,
-    lastUpdatedAt: "20 November 2025 18:33:45",
-  },
-  {
-    id: "VL003",
-    idBatch: "BTC003",
-    namaBatch: "Batch Elektronik",
-    jumlahItem: 15,
-    toko: 2,
-    petugas: 3,
-    lastUpdatedAt: "21 November 2025 10:20:30",
-  },
-  {
-    id: "VL004",
-    idBatch: "BTC004",
-    namaBatch: "Batch Perhiasan",
-    jumlahItem: 12,
-    toko: 4,
-    petugas: 5,
-    lastUpdatedAt: "21 November 2025 14:15:20",
-  },
-]
+const TAB_VALUES = {
+  dijadwalkan: "dijadwalkan",
+  waiting_for_approval: "waiting_for_approval",
+  tervalidasi: "tervalidasi",
+} as const
 
-// Dummy data for Waiting for Approval tab
-const waitingForApprovalData: ValidasiLelangan[] = [
-  {
-    id: "VL005",
-    idBatch: "BTC005",
-    namaBatch: "Batch Gadget",
-    jumlahItem: 8,
-    toko: 2,
-    petugas: 2,
-    lastUpdatedAt: "22 November 2025 09:10:25",
-  },
-  {
-    id: "VL006",
-    idBatch: "BTC006",
-    namaBatch: "Batch Kendaraan",
-    jumlahItem: 5,
-    toko: 1,
-    petugas: 1,
-    lastUpdatedAt: "22 November 2025 11:30:40",
-  },
-  {
-    id: "VL007",
-    idBatch: "BTC007",
-    namaBatch: "Batch Emas",
-    jumlahItem: 20,
-    toko: 5,
-    petugas: 6,
-    lastUpdatedAt: "23 November 2025 08:15:20",
-  },
-  {
-    id: "VL008",
-    idBatch: "BTC008",
-    namaBatch: "Batch Laptop",
-    jumlahItem: 6,
-    toko: 2,
-    petugas: 3,
-    lastUpdatedAt: "23 November 2025 10:30:45",
-  },
-  {
-    id: "VL009",
-    idBatch: "BTC009",
-    namaBatch: "Batch Sepeda Motor",
-    jumlahItem: 9,
-    toko: 3,
-    petugas: 4,
-    lastUpdatedAt: "24 November 2025 12:45:10",
-  },
-  {
-    id: "VL010",
-    idBatch: "BTC010",
-    namaBatch: "Batch Smartphone",
-    jumlahItem: 11,
-    toko: 4,
-    petugas: 5,
-    lastUpdatedAt: "24 November 2025 14:20:30",
-  },
-]
+function mapBatchToRow(batch: AuctionBatch, tab: string): ValidasiLelanganRow {
+  const items = batch.items ?? []
+  const countAssignees =
+    (batch.marketingStaff?.length ?? 0) + (batch.auctionStaff?.length ?? 0)
+  const updatedAt = batch.updatedAt ?? batch.createdAt
+  return {
+    id: batch.uuid,
+    idBatch: batch.batchCode,
+    namaBatch: batch.name ?? batch.batchCode ?? "-",
+    jumlahItem: items.length,
+    toko: (batch.store as { shortName?: string })?.shortName ?? "-",
+    petugas: String(countAssignees),
+    lastUpdatedAt: updatedAt
+      ? format(new Date(updatedAt), "d MMMM yyyy HH:mm:ss", { locale: id })
+      : "-",
+    ...(tab === TAB_VALUES.tervalidasi && { status: "Tervalidasi" as const }),
+  }
+}
 
-// Dummy data for Tervalidasi tab
-const tervalidasiData: ValidasiLelangan[] = [
-  {
-    id: "VL001",
-    idBatch: "BTC/001",
-    namaBatch: "Batch Handphone",
-    jumlahItem: 10,
-    toko: 3,
-    petugas: 4,
-    status: "Tervalidasi",
-    lastUpdatedAt: "20 November 2025 18:33:45",
-  },
-  {
-    id: "VL002",
-    idBatch: "BTC/002",
-    namaBatch: "Batch Otomotif",
-    jumlahItem: 7,
-    toko: 3,
-    petugas: 4,
-    status: "Tervalidasi",
-    lastUpdatedAt: "20 November 2025 18:33:45",
-  },
-  {
-    id: "VL003",
-    idBatch: "BTC/001",
-    namaBatch: "Batch Handphone",
-    jumlahItem: 10,
-    toko: 3,
-    petugas: 4,
-    status: "Tervalidasi",
-    lastUpdatedAt: "20 November 2025 18:33:45",
-  },
-  {
-    id: "VL004",
-    idBatch: "BTC/002",
-    namaBatch: "Batch Otomotif",
-    jumlahItem: 7,
-    toko: 3,
-    petugas: 4,
-    status: "Tervalidasi",
-    lastUpdatedAt: "20 November 2025 18:33:45",
-  },
-]
-
-// Base column definitions (without Status)
-const baseColumns: ColumnDef<ValidasiLelangan>[] = [
+const baseColumns: ColumnDef<ValidasiLelanganRow>[] = [
   {
     id: "select",
     header: ({ table }) => (
@@ -208,49 +96,33 @@ const baseColumns: ColumnDef<ValidasiLelangan>[] = [
     enableSorting: false,
     enableHiding: false,
   },
-  {
-    accessorKey: "idBatch",
-    header: "ID Batch",
-  },
-  {
-    accessorKey: "namaBatch",
-    header: "Nama Batch",
-  },
+  { accessorKey: "idBatch", header: "ID Batch" },
+  { accessorKey: "namaBatch", header: "Nama Batch" },
   {
     accessorKey: "jumlahItem",
     header: "Jumlah Item",
-    cell: ({ row }) => {
-      return <span>{row.getValue("jumlahItem")}</span>
-    },
+    cell: ({ row }) => <span>{row.getValue("jumlahItem")}</span>,
   },
   {
     accessorKey: "toko",
     header: "Toko",
-    cell: ({ row }) => {
-      return <span>{row.getValue("toko")}</span>
-    },
+    cell: ({ row }) => <span>{row.getValue("toko")}</span>,
   },
   {
     accessorKey: "petugas",
     header: "Petugas",
-    cell: ({ row }) => {
-      return <span>{row.getValue("petugas")}</span>
-    },
+    cell: ({ row }) => <span>{row.getValue("petugas")}</span>,
   },
-  {
-    accessorKey: "lastUpdatedAt",
-    header: "Last Updated At",
-  },
+  { accessorKey: "lastUpdatedAt", header: "Last Updated At" },
 ]
 
-// Column definitions with Status (for Tervalidasi tab)
-const columnsWithStatus: ColumnDef<ValidasiLelangan>[] = [
-  ...baseColumns.slice(0, -1), // All columns except lastUpdatedAt
+const columnsWithStatus: ColumnDef<ValidasiLelanganRow>[] = [
+  ...baseColumns.slice(0, -1),
   {
     accessorKey: "status",
     header: "Status",
     cell: ({ row }) => {
-      const status = row.getValue("status") as ValidasiLelangan["status"]
+      const status = row.getValue("status") as ValidasiLelanganRow["status"]
       if (!status) return null
       return (
         <Badge
@@ -262,21 +134,17 @@ const columnsWithStatus: ColumnDef<ValidasiLelangan>[] = [
       )
     },
   },
-  {
-    accessorKey: "lastUpdatedAt",
-    header: "Last Updated At",
-  },
+  { accessorKey: "lastUpdatedAt", header: "Last Updated At" },
 ]
 
-// Columns without select (for auction_staff: only Detail action, no bulk actions)
 const baseColumnsNoSelect = baseColumns.filter((c) => c.id !== "select")
-const columnsWithStatusNoSelect: ColumnDef<ValidasiLelangan>[] = [
+const columnsWithStatusNoSelect: ColumnDef<ValidasiLelanganRow>[] = [
   ...baseColumnsNoSelect.slice(0, -1),
   {
     accessorKey: "status",
     header: "Status",
     cell: ({ row }) => {
-      const status = row.getValue("status") as ValidasiLelangan["status"]
+      const status = row.getValue("status") as ValidasiLelanganRow["status"]
       if (!status) return null
       return (
         <Badge
@@ -288,68 +156,165 @@ const columnsWithStatusNoSelect: ColumnDef<ValidasiLelangan>[] = [
       )
     },
   },
-  {
-    accessorKey: "lastUpdatedAt",
-    header: "Last Updated At",
-  },
+  { accessorKey: "lastUpdatedAt", header: "Last Updated At" },
 ]
+
+function TableSkeleton() {
+  return (
+    <Card>
+      <CardContent className="pt-6">
+        <div className="space-y-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-10 w-full" />
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
 
 export default function ValidasiLelanganPage() {
   const router = useRouter()
-  const { data: session } = useSession()
-  const isAuctionStaff = useMemo(
-    () => session?.user?.roles?.some((r) => r.code === "auction_staff") ?? false,
-    [session?.user?.roles]
-  )
+  const { user, isLoading: isAuthLoading } = useAuth()
+
+  const assigneeRole: ValidasiLelanganRole | null = useMemo(() => {
+    const roles = user?.roles ?? []
+    if (roles.some((r) => r.code === "auction_staff")) return "auction_staff"
+    if (roles.some((r) => r.code === "marketing")) return "marketing_staff"
+    return null
+  }, [user?.roles])
+
+  const isAuctionStaff = assigneeRole === "auction_staff"
+  const pageTitle =
+    assigneeRole === "auction_staff"
+      ? "Validasi Lelang – Staf Lelang"
+      : assigneeRole === "marketing_staff"
+        ? "Validasi Lelang – Staf Marketing"
+        : "Validasi Lelang"
 
   const [pageSize, setPageSize] = useState(10)
+  const [page, setPage] = useState(1)
   const [searchValue, setSearchValue] = useState("")
-  const [activeTab, setActiveTab] = useState("dijadwalkan")
-  const [selectedRows, setSelectedRows] = useState<ValidasiLelangan[]>([])
-  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false)
-  const [resetSelectionKey, setResetSelectionKey] = useState(0)
+  const [activeTab, setActiveTab] = useState<
+    "dijadwalkan" | "waiting_for_approval" | "tervalidasi"
+  >("dijadwalkan")
+  const [selectedRows, setSelectedRows] = useState<ValidasiLelanganRow[]>([])
+  const [resetSelectionKey] = useState(0)
 
+  const listOptions = useMemo(() => {
+    if (!user?.uuid || !assigneeRole) return undefined
+    return {
+      page,
+      pageSize,
+      query: searchValue || undefined,
+      filter: {
+        assignedTo: user.uuid,
+        assigneeRole,
+        tab: activeTab,
+      } as Record<string, string>,
+    }
+  }, [user?.uuid, assigneeRole, activeTab, page, pageSize, searchValue])
+
+  const {
+    data: batchData,
+    isLoading: isListLoading,
+    isError: isListError,
+  } = useAuctionBatches(listOptions)
+
+  const countOptionsDijadwalkan = useMemo(
+    () =>
+      user?.uuid && assigneeRole
+        ? {
+            page: 1,
+            pageSize: 1,
+            filter: {
+              assignedTo: user.uuid,
+              assigneeRole,
+              tab: "dijadwalkan",
+            } as Record<string, string>,
+          }
+        : undefined,
+    [user?.uuid, assigneeRole]
+  )
+  const countOptionsWaiting = useMemo(
+    () =>
+      user?.uuid && assigneeRole
+        ? {
+            page: 1,
+            pageSize: 1,
+            filter: {
+              assignedTo: user.uuid,
+              assigneeRole,
+              tab: "waiting_for_approval",
+            } as Record<string, string>,
+          }
+        : undefined,
+    [user?.uuid, assigneeRole]
+  )
+  const countOptionsTervalidasi = useMemo(
+    () =>
+      user?.uuid && assigneeRole
+        ? {
+            page: 1,
+            pageSize: 1,
+            filter: {
+              assignedTo: user.uuid,
+              assigneeRole,
+              tab: "tervalidasi",
+            } as Record<string, string>,
+          }
+        : undefined,
+    [user?.uuid, assigneeRole]
+  )
+  const { data: countDijadwalkan } = useAuctionBatches(countOptionsDijadwalkan)
+  const { data: countWaiting } = useAuctionBatches(countOptionsWaiting)
+  const { data: countTervalidasi } = useAuctionBatches(countOptionsTervalidasi)
+
+  const dijadwalkanCount = countDijadwalkan?.meta?.count ?? 0
+  const waitingCount = countWaiting?.meta?.count ?? 0
+  const tervalidasiCount = countTervalidasi?.meta?.count ?? 0
+
+  const rows = useMemo(() => {
+    const batches = batchData?.data ?? []
+    return batches.map((b) => mapBatchToRow(b, activeTab))
+  }, [batchData?.data, activeTab])
+
+  const totalCount = batchData?.meta?.count ?? 0
   const listColumns = isAuctionStaff ? baseColumnsNoSelect : baseColumns
+  const tabCounts = {
+    dijadwalkan: dijadwalkanCount,
+    waiting_for_approval: waitingCount,
+    tervalidasi: tervalidasiCount,
+  }
   const tervalidasiColumns = isAuctionStaff
     ? columnsWithStatusNoSelect
     : columnsWithStatus
 
-  // Counts for each tab
-  const dijadwalkanCount = dijadwalkanData.length
-  const waitingForApprovalCount = waitingForApprovalData.length
-  const tervalidasiCount = tervalidasiData.length
-
-  const handleDetail = (row: ValidasiLelangan) => {
-    router.push(`/validasi-lelangan/${row.id}`)
+  const handleDetail = (row: ValidasiLelanganRow) => {
+    router.push(`/lelangan/${row.id}`)
   }
 
-  const handleEdit = (row: ValidasiLelangan) => {
-    console.log("Edit:", row)
-    // Implement edit action
+  const handleEdit = () => {
+    // No-op for validasi; edit is on batch detail
   }
 
-  const handleDelete = (row: ValidasiLelangan) => {
-    console.log("Delete:", row)
-    // Implement delete action
+  const handleDelete = () => {
+    // No-op; use batch detail to cancel
   }
 
-  const handleBulkDelete = () => {
-    setIsBulkDeleteDialogOpen(true)
+  if (isAuthLoading) {
+    return (
+      <div className="flex flex-col gap-6">
+        <Skeleton className="h-8 w-48" />
+        <TableSkeleton />
+      </div>
+    )
   }
 
-  const handleConfirmBulkDelete = () => {
-    // TODO: Wire to delete API when available
-    console.log("Bulk delete Validasi Lelangan:", selectedRows)
-    setIsBulkDeleteDialogOpen(false)
-    setSelectedRows([])
-    setResetSelectionKey((k) => k + 1)
-  }
-
-  return (
-    <div className="flex flex-col gap-6">
-      {/* Header Section */}
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-2">
+  if (!user || !assigneeRole) {
+    return (
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-4">
           <h1 className="text-2xl font-bold">Validasi Lelang</h1>
           <Breadcrumbs
             items={[
@@ -358,19 +323,40 @@ export default function ValidasiLelanganPage() {
             ]}
           />
         </div>
+        <Card>
+          <CardContent className="py-10 text-center">
+            <p className="text-destructive">
+              Anda tidak memiliki akses ke halaman ini. Hanya Staf Lelang dan Staf
+              Marketing yang dapat mengakses Validasi Lelang.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-4">
+        <h1 className="text-2xl font-bold">{pageTitle}</h1>
+        <Breadcrumbs
+          items={[
+            { label: "Pages", href: "/" },
+            { label: "Validasi Lelang" },
+          ]}
+        />
       </div>
 
-      {/* Tabs */}
       <Tabs
         value={activeTab}
-        onValueChange={setActiveTab}
+        onValueChange={(v) => {
+          setActiveTab(v as typeof activeTab)
+          setPage(1)
+        }}
         className="flex flex-col gap-4"
       >
         <TabsList className="w-fit">
-          <TabsTrigger
-            value="dijadwalkan"
-            className="flex items-center gap-2"
-          >
+          <TabsTrigger value="dijadwalkan" className="flex items-center gap-2">
             Dijadwalkan
             <span
               className={`ml-2 rounded-full px-2 py-0.5 text-xs font-medium ${
@@ -379,28 +365,25 @@ export default function ValidasiLelanganPage() {
                   : "bg-red-50 text-[#DD3333]"
               }`}
             >
-              {dijadwalkanCount}
+              {tabCounts.dijadwalkan}
             </span>
           </TabsTrigger>
           <TabsTrigger
-            value="waiting-for-approval"
+            value="waiting_for_approval"
             className="flex items-center gap-2"
           >
             Waiting for Approval
             <span
               className={`ml-2 rounded-full px-2 py-0.5 text-xs font-medium ${
-                activeTab === "waiting-for-approval"
+                activeTab === "waiting_for_approval"
                   ? "bg-[#DD3333] text-white"
                   : "bg-red-50 text-[#DD3333]"
               }`}
             >
-              {waitingForApprovalCount}
+              {tabCounts.waiting_for_approval}
             </span>
           </TabsTrigger>
-          <TabsTrigger
-            value="tervalidasi"
-            className="flex items-center gap-2"
-          >
+          <TabsTrigger value="tervalidasi" className="flex items-center gap-2">
             Tervalidasi
             <span
               className={`ml-2 rounded-full px-2 py-0.5 text-xs font-medium ${
@@ -409,226 +392,251 @@ export default function ValidasiLelanganPage() {
                   : "bg-red-50 text-[#DD3333]"
               }`}
             >
-              {tervalidasiCount}
+              {tabCounts.tervalidasi}
             </span>
           </TabsTrigger>
         </TabsList>
 
-        {/* Dijadwalkan View */}
         <TabsContent value="dijadwalkan" className="mt-0">
-          <DataTable
-            columns={listColumns}
-            data={dijadwalkanData}
-            searchPlaceholder="Cari..."
-            headerLeft={
-              <div className="flex items-center gap-2">
-                <CardTitle className="text-xl">Daftar Validasi Lelang</CardTitle>
-                {!isAuctionStaff && selectedRows.length > 0 && (
-                  <span className="text-destructive font-semibold">
-                    &middot; {selectedRows.length} Selected
-                  </span>
-                )}
-              </div>
-            }
-            headerRight={
-              <div className="flex w-full items-center gap-2 sm:w-auto">
-                <Select
-                  value={pageSize.toString()}
-                  onValueChange={(value) => setPageSize(Number(value))}
-                >
-                  <SelectTrigger className="w-[100px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="10">10</SelectItem>
-                    <SelectItem value="25">25</SelectItem>
-                    <SelectItem value="50">50</SelectItem>
-                    <SelectItem value="100">100</SelectItem>
-                  </SelectContent>
-                </Select>
-                <div className="w-full sm:w-auto sm:max-w-sm">
-                  <Input
-                    placeholder="Cari..."
-                    value={searchValue}
-                    onChange={(e) => setSearchValue(e.target.value)}
-                    icon={<SearchIcon className="size-4" />}
-                    className="w-full"
-                  />
+          {isListLoading ? (
+            <TableSkeleton />
+          ) : isListError ? (
+            <Card>
+              <CardContent className="py-10 text-center">
+                <p className="text-destructive">Gagal memuat data</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <DataTable
+              columns={listColumns}
+              data={rows}
+              searchPlaceholder="Cari..."
+              headerLeft={
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-xl">
+                    Daftar Validasi Lelang Dijadwalkan
+                  </CardTitle>
+                  {!isAuctionStaff && selectedRows.length > 0 && (
+                    <span className="text-destructive font-semibold">
+                      &middot; {selectedRows.length} Selected
+                    </span>
+                  )}
                 </div>
-                <Button variant="outline" className="flex items-center gap-2">
-                  <SlidersHorizontal className="h-4 w-4" />
-                  Filter
-                </Button>
-                {!isAuctionStaff && selectedRows.length > 0 && (
-                  <Button
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90 flex items-center gap-2"
-                    onClick={handleBulkDelete}
+              }
+              headerRight={
+                <div className="flex w-full items-center gap-2 sm:w-auto">
+                  <Select
+                    value={pageSize.toString()}
+                    onValueChange={(v) => {
+                      setPageSize(Number(v))
+                      setPage(1)
+                    }}
                   >
-                    <Trash2 className="size-4" />
-                    Hapus
+                    <SelectTrigger className="w-[100px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="25">25</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <div className="w-full sm:w-auto sm:max-w-sm">
+                    <Input
+                      placeholder="Cari..."
+                      value={searchValue}
+                      onChange={(e) => {
+                        setSearchValue(e.target.value)
+                        setPage(1)
+                      }}
+                      className="w-full"
+                    />
+                  </div>
+                  <Button variant="outline" className="flex items-center gap-2">
+                    <SlidersHorizontal className="h-4 w-4" />
+                    Filter
                   </Button>
-                )}
-              </div>
-            }
-            initialPageSize={pageSize}
-            onPageSizeChange={setPageSize}
-            searchValue={searchValue}
-            onSearchChange={setSearchValue}
-            onDetail={handleDetail}
-            onEdit={isAuctionStaff ? undefined : handleEdit}
-            onDelete={isAuctionStaff ? undefined : handleDelete}
-            onSelectionChange={isAuctionStaff ? undefined : setSelectedRows}
-            resetSelectionKey={isAuctionStaff ? undefined : resetSelectionKey}
-          />
+                </div>
+              }
+              initialPageSize={pageSize}
+              onPageSizeChange={setPageSize}
+              searchValue={searchValue}
+              onSearchChange={setSearchValue}
+              onDetail={handleDetail}
+              onEdit={isAuctionStaff ? undefined : handleEdit}
+              onDelete={isAuctionStaff ? undefined : handleDelete}
+              onSelectionChange={isAuctionStaff ? undefined : setSelectedRows}
+              resetSelectionKey={isAuctionStaff ? undefined : resetSelectionKey}
+              serverSidePagination={{
+                totalRowCount: totalCount,
+                pageIndex: page - 1,
+                onPageIndexChange: (idx) => setPage(idx + 1),
+              }}
+            />
+          )}
         </TabsContent>
 
-        {/* Waiting for Approval View */}
-        <TabsContent value="waiting-for-approval" className="mt-0">
-          <DataTable
-            columns={listColumns}
-            data={waitingForApprovalData}
-            searchPlaceholder="Cari..."
-            headerLeft={
-              <div className="flex items-center gap-2">
-                <CardTitle className="text-xl">Daftar Validasi Lelang</CardTitle>
-                {!isAuctionStaff && selectedRows.length > 0 && (
-                  <span className="text-destructive font-semibold">
-                    &middot; {selectedRows.length} Selected
-                  </span>
-                )}
-              </div>
-            }
-            headerRight={
-              <div className="flex w-full items-center gap-2 sm:w-auto">
-                <Select
-                  value={pageSize.toString()}
-                  onValueChange={(value) => setPageSize(Number(value))}
-                >
-                  <SelectTrigger className="w-[100px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="10">10</SelectItem>
-                    <SelectItem value="25">25</SelectItem>
-                    <SelectItem value="50">50</SelectItem>
-                    <SelectItem value="100">100</SelectItem>
-                  </SelectContent>
-                </Select>
-                <div className="w-full sm:w-auto sm:max-w-sm">
-                  <Input
-                    placeholder="Cari..."
-                    value={searchValue}
-                    onChange={(e) => setSearchValue(e.target.value)}
-                    icon={<SearchIcon className="size-4" />}
-                    className="w-full"
-                  />
+        <TabsContent value="waiting_for_approval" className="mt-0">
+          {isListLoading ? (
+            <TableSkeleton />
+          ) : isListError ? (
+            <Card>
+              <CardContent className="py-10 text-center">
+                <p className="text-destructive">Gagal memuat data</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <DataTable
+              columns={listColumns}
+              data={rows}
+              searchPlaceholder="Cari..."
+              headerLeft={
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-xl">
+                    Daftar Waiting for Approval
+                  </CardTitle>
+                  {!isAuctionStaff && selectedRows.length > 0 && (
+                    <span className="text-destructive font-semibold">
+                      &middot; {selectedRows.length} Selected
+                    </span>
+                  )}
                 </div>
-                <Button variant="outline" className="flex items-center gap-2">
-                  <SlidersHorizontal className="h-4 w-4" />
-                  Filter
-                </Button>
-                {!isAuctionStaff && selectedRows.length > 0 && (
-                  <Button
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90 flex items-center gap-2"
-                    onClick={handleBulkDelete}
+              }
+              headerRight={
+                <div className="flex w-full items-center gap-2 sm:w-auto">
+                  <Select
+                    value={pageSize.toString()}
+                    onValueChange={(v) => {
+                      setPageSize(Number(v))
+                      setPage(1)
+                    }}
                   >
-                    <Trash2 className="size-4" />
-                    Hapus
+                    <SelectTrigger className="w-[100px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="25">25</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <div className="w-full sm:w-auto sm:max-w-sm">
+                    <Input
+                      placeholder="Cari..."
+                      value={searchValue}
+                      onChange={(e) => {
+                        setSearchValue(e.target.value)
+                        setPage(1)
+                      }}
+                      className="w-full"
+                    />
+                  </div>
+                  <Button variant="outline" className="flex items-center gap-2">
+                    <SlidersHorizontal className="h-4 w-4" />
+                    Filter
                   </Button>
-                )}
-              </div>
-            }
-            initialPageSize={pageSize}
-            onPageSizeChange={setPageSize}
-            searchValue={searchValue}
-            onSearchChange={setSearchValue}
-            onDetail={handleDetail}
-            onEdit={isAuctionStaff ? undefined : handleEdit}
-            onDelete={isAuctionStaff ? undefined : handleDelete}
-            onSelectionChange={isAuctionStaff ? undefined : setSelectedRows}
-            resetSelectionKey={isAuctionStaff ? undefined : resetSelectionKey}
-          />
+                </div>
+              }
+              initialPageSize={pageSize}
+              onPageSizeChange={setPageSize}
+              searchValue={searchValue}
+              onSearchChange={setSearchValue}
+              onDetail={handleDetail}
+              onEdit={isAuctionStaff ? undefined : handleEdit}
+              onDelete={isAuctionStaff ? undefined : handleDelete}
+              onSelectionChange={isAuctionStaff ? undefined : setSelectedRows}
+              resetSelectionKey={isAuctionStaff ? undefined : resetSelectionKey}
+              serverSidePagination={{
+                totalRowCount: totalCount,
+                pageIndex: page - 1,
+                onPageIndexChange: (idx) => setPage(idx + 1),
+              }}
+            />
+          )}
         </TabsContent>
 
-        {/* Tervalidasi View */}
         <TabsContent value="tervalidasi" className="mt-0">
-          <DataTable
-            columns={tervalidasiColumns}
-            data={tervalidasiData}
-            searchPlaceholder="Cari..."
-            headerLeft={
-              <div className="flex items-center gap-2">
-                <CardTitle className="text-xl">Daftar Batch Lelang</CardTitle>
-                {!isAuctionStaff && selectedRows.length > 0 && (
-                  <span className="text-destructive font-semibold">
-                    &middot; {selectedRows.length} Selected
-                  </span>
-                )}
-              </div>
-            }
-            headerRight={
-              <div className="flex w-full items-center gap-2 sm:w-auto">
-                <Select
-                  value={pageSize.toString()}
-                  onValueChange={(value) => setPageSize(Number(value))}
-                >
-                  <SelectTrigger className="w-[100px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="10">10</SelectItem>
-                    <SelectItem value="25">25</SelectItem>
-                    <SelectItem value="50">50</SelectItem>
-                    <SelectItem value="100">100</SelectItem>
-                  </SelectContent>
-                </Select>
-                <div className="w-full sm:w-auto sm:max-w-sm">
-                  <Input
-                    placeholder="Cari..."
-                    value={searchValue}
-                    onChange={(e) => setSearchValue(e.target.value)}
-                    icon={<SearchIcon className="size-4" />}
-                    className="w-full"
-                  />
+          {isListLoading ? (
+            <TableSkeleton />
+          ) : isListError ? (
+            <Card>
+              <CardContent className="py-10 text-center">
+                <p className="text-destructive">Gagal memuat data</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <DataTable
+              columns={tervalidasiColumns}
+              data={rows}
+              searchPlaceholder="Cari..."
+              headerLeft={
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-xl">
+                    Daftar Batch Lelang Tervalidasi
+                  </CardTitle>
+                  {!isAuctionStaff && selectedRows.length > 0 && (
+                    <span className="text-destructive font-semibold">
+                      &middot; {selectedRows.length} Selected
+                    </span>
+                  )}
                 </div>
-                <Button variant="outline" className="flex items-center gap-2">
-                  <SlidersHorizontal className="h-4 w-4" />
-                  Filter
-                </Button>
-                {!isAuctionStaff && selectedRows.length > 0 && (
-                  <Button
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90 flex items-center gap-2"
-                    onClick={handleBulkDelete}
+              }
+              headerRight={
+                <div className="flex w-full items-center gap-2 sm:w-auto">
+                  <Select
+                    value={pageSize.toString()}
+                    onValueChange={(v) => {
+                      setPageSize(Number(v))
+                      setPage(1)
+                    }}
                   >
-                    <Trash2 className="size-4" />
-                    Hapus
+                    <SelectTrigger className="w-[100px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="25">25</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <div className="w-full sm:w-auto sm:max-w-sm">
+                    <Input
+                      placeholder="Cari..."
+                      value={searchValue}
+                      onChange={(e) => {
+                        setSearchValue(e.target.value)
+                        setPage(1)
+                      }}
+                      className="w-full"
+                    />
+                  </div>
+                  <Button variant="outline" className="flex items-center gap-2">
+                    <SlidersHorizontal className="h-4 w-4" />
+                    Filter
                   </Button>
-                )}
-              </div>
-            }
-            initialPageSize={pageSize}
-            onPageSizeChange={setPageSize}
-            searchValue={searchValue}
-            onSearchChange={setSearchValue}
-            onDetail={handleDetail}
-            onEdit={isAuctionStaff ? undefined : handleEdit}
-            onDelete={isAuctionStaff ? undefined : handleDelete}
-            onSelectionChange={isAuctionStaff ? undefined : setSelectedRows}
-            resetSelectionKey={isAuctionStaff ? undefined : resetSelectionKey}
-          />
+                </div>
+              }
+              initialPageSize={pageSize}
+              onPageSizeChange={setPageSize}
+              searchValue={searchValue}
+              onSearchChange={setSearchValue}
+              onDetail={handleDetail}
+              onEdit={isAuctionStaff ? undefined : handleEdit}
+              onDelete={isAuctionStaff ? undefined : handleDelete}
+              onSelectionChange={isAuctionStaff ? undefined : setSelectedRows}
+              resetSelectionKey={isAuctionStaff ? undefined : resetSelectionKey}
+              serverSidePagination={{
+                totalRowCount: totalCount,
+                pageIndex: page - 1,
+                onPageIndexChange: (idx) => setPage(idx + 1),
+              }}
+            />
+          )}
         </TabsContent>
       </Tabs>
-
-      {/* Confirmation Dialog for Bulk Delete */}
-      <ConfirmationDialog
-        open={isBulkDeleteDialogOpen}
-        onOpenChange={setIsBulkDeleteDialogOpen}
-        onConfirm={handleConfirmBulkDelete}
-        title="Hapus Validasi Lelangan"
-        description={`Anda akan menghapus ${selectedRows.length} data Validasi Lelangan dari dalam sistem.`}
-        confirmLabel="Hapus"
-        variant="destructive"
-      />
     </div>
   )
 }

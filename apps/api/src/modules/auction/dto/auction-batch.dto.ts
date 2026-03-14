@@ -1,6 +1,23 @@
 import { AuctionBatchStatusEnum } from '../../../constants/auction-batch-status';
+import { AuctionAssigneeRoleEnum } from '../../../constants/auction-assignee-role';
 import { AuctionBatchEntity } from '../entities/auction-batch.entity';
 import { AuctionBatchItemDto } from './auction-batch-item.dto';
+
+export type AssigneeSummary = {
+  uuid: string;
+  fullName?: string;
+  name?: string;
+  email?: string;
+};
+
+type BatchWithAssignees = AuctionBatchEntity & {
+  items?: any[];
+  store?: any;
+  batchAssignees?: Array<{
+    role: AuctionAssigneeRoleEnum;
+    user?: { uuid: string; fullName?: string; name?: string; email?: string };
+  }>;
+};
 
 export class AuctionBatchDto {
   uuid: string;
@@ -9,27 +26,45 @@ export class AuctionBatchDto {
   storeId: string;
   ptId: string;
   status: AuctionBatchStatusEnum;
-  assignedTo: string | null;
-  assignedAt: Date | null;
   notes: string | null;
   createdAt: Date;
   store?: { shortName: string };
-  assignee?: { fullName?: string; name?: string };
+  marketingStaff: AssigneeSummary[];
+  auctionStaff: AssigneeSummary[];
   items?: AuctionBatchItemDto[];
 
-  constructor(batch: AuctionBatchEntity & { items?: any[]; store?: any; assignee?: any }) {
+  constructor(batch: BatchWithAssignees) {
     this.uuid = batch.uuid;
     this.batchCode = batch.batchCode;
     this.name = batch.name ?? null;
     this.storeId = batch.storeId;
     this.ptId = batch.ptId;
     this.status = batch.status;
-    this.assignedTo = batch.assignedTo ?? null;
-    this.assignedAt = batch.assignedAt ?? null;
     this.notes = batch.notes ?? null;
     this.createdAt = batch.createdAt;
     this.store = batch.store;
-    this.assignee = batch.assignee;
+    this.marketingStaff = (batch.batchAssignees ?? [])
+      .filter((a) => a.role === AuctionAssigneeRoleEnum.MarketingStaff)
+      .map((a) => {
+        const u = a.user;
+        return {
+          uuid: u?.uuid ?? '',
+          fullName: u?.fullName ?? u?.name,
+          name: u?.name ?? u?.fullName,
+          email: u?.email,
+        };
+      });
+    this.auctionStaff = (batch.batchAssignees ?? [])
+      .filter((a) => a.role === AuctionAssigneeRoleEnum.AuctionStaff)
+      .map((a) => {
+        const u = a.user;
+        return {
+          uuid: u?.uuid ?? '',
+          fullName: u?.fullName ?? u?.name,
+          name: u?.name ?? u?.fullName,
+          email: u?.email,
+        };
+      });
     if (batch.items?.length) {
       this.items = batch.items.map((i) => new AuctionBatchItemDto(i));
     }

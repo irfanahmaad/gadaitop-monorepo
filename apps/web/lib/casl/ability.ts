@@ -71,10 +71,11 @@ const ROLE_MENU_MAP: Record<string, MenuSubject[]> = {
     MenuSubject.VALIDASI_LELANG,
   ],
 
-  // Marketing — auction viewing + marketing notes
+  // Marketing — auction viewing + validasi lelang (3 tabs) + marketing notes
   marketing: [
     MenuSubject.DASHBOARD,
     MenuSubject.LELANGAN,
+    MenuSubject.VALIDASI_LELANG,
   ],
 }
 

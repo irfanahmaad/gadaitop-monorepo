@@ -2,6 +2,7 @@ import { Column, Entity, Index, JoinColumn, ManyToOne, OneToMany, Relation } fro
 
 import { AbstractEntity } from '../../../common/abstract.entity';
 import { AuctionBatchStatusEnum } from '../../../constants/auction-batch-status';
+import { AuctionBatchAssigneeEntity } from './auction-batch-assignee.entity';
 import { AuctionBatchItemEntity } from './auction-batch-item.entity';
 
 /**
@@ -37,19 +38,11 @@ export class AuctionBatchEntity extends AbstractEntity {
   @Index()
   status: AuctionBatchStatusEnum;
 
-  @Column({ type: 'uuid', nullable: true })
-  @Index()
-  assignedTo: string | null;
-
-  @ManyToOne('UserEntity', { nullable: true, onDelete: 'SET NULL' })
-  @JoinColumn({ name: 'assigned_to', referencedColumnName: 'uuid' })
-  assignee: Relation<any> | null;
-
-  @Column({ type: 'timestamp with time zone', nullable: true })
-  assignedAt: Date | null;
-
   @Column({ type: 'text', nullable: true })
   notes: string | null;
+
+  @OneToMany(() => AuctionBatchAssigneeEntity, (a) => a.batch)
+  batchAssignees: Relation<AuctionBatchAssigneeEntity[]>;
 
   @OneToMany('AuctionBatchItemEntity', 'batch')
   items: Relation<AuctionBatchItemEntity[]>;

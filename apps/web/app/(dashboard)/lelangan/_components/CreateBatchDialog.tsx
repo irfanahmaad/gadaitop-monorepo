@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useState, useMemo } from "react"
+import React, { useEffect, useMemo, useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -15,18 +15,6 @@ import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
 import { Textarea } from "@workspace/ui/components/textarea"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@workspace/ui/components/select"
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@workspace/ui/components/avatar"
-import {
   Form,
   FormControl,
   FormField,
@@ -34,12 +22,14 @@ import {
   FormLabel,
   FormMessage,
 } from "@workspace/ui/components/form"
+import { MultiSelectCombobox } from "@/components/multi-select-combobox"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { useUsers } from "@/lib/react-query/hooks/use-users"
 
 const createSchema = z.object({
-  namaBatch: z.string().optional(),
-  penanggungJawab: z.string().optional(),
+  namaBatch: z.string().min(1, "Nama batch wajib diisi"),
+  marketingStaffIds: z.array(z.string()).optional(),
+  auctionStaffIds: z.array(z.string()).optional(),
   catatan: z.string().optional(),
 })
 
@@ -65,7 +55,8 @@ type CreateBatchDialogProps = {
     spkItemIds: string[]
     name?: string
     notes?: string
-    assignedTo?: string
+    marketingStaffIds?: string[]
+    auctionStaffIds?: string[]
   }) => void | Promise<void>
   isSubmitting?: boolean
 }
@@ -77,9 +68,42 @@ export function CreateBatchDialog({
   onConfirm,
   isSubmitting = false,
 }: CreateBatchDialogProps) {
-  // Fetch users (penanggung jawab options)
-  const { data: usersData } = useUsers({ pageSize: 100 })
-  const users = useMemo(() => usersData?.data ?? [], [usersData])
+  const firstItem = selectedItems[0]
+  const ptId = firstItem?.ptId ?? null
+
+  const { data: marketingData } = useUsers({
+    pageSize: 100,
+    filter: {
+      roleCode: "marketing",
+      ...(ptId ? { companyId: ptId } : {}),
+    },
+    enabled: !!ptId && open,
+  })
+  const { data: auctionStaffData } = useUsers({
+    pageSize: 100,
+    filter: {
+      roleCode: "auction_staff",
+      ...(ptId ? { companyId: ptId } : {}),
+    },
+    enabled: !!ptId && open,
+  })
+
+  const marketingOptions = useMemo(
+    () =>
+      (marketingData?.data ?? []).map((u) => ({
+        label: u.fullName ?? u.email ?? "User",
+        value: u.uuid,
+      })),
+    [marketingData?.data]
+  )
+  const auctionStaffOptions = useMemo(
+    () =>
+      (auctionStaffData?.data ?? []).map((u) => ({
+        label: u.fullName ?? u.email ?? "User",
+        value: u.uuid,
+      })),
+    [auctionStaffData?.data]
+  )
 
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [pendingSubmit, setPendingSubmit] = useState<{
@@ -88,14 +112,16 @@ export function CreateBatchDialog({
     spkItemIds: string[]
     name?: string
     notes?: string
-    assignedTo?: string
+    marketingStaffIds?: string[]
+    auctionStaffIds?: string[]
   } | null>(null)
 
   const form = useForm<CreateFormValues>({
     resolver: zodResolver(createSchema),
     defaultValues: {
       namaBatch: "",
-      penanggungJawab: "",
+      marketingStaffIds: [],
+      auctionStaffIds: [],
       catatan: "",
     },
   })
@@ -104,13 +130,13 @@ export function CreateBatchDialog({
     if (open) {
       form.reset({
         namaBatch: "",
-        penanggungJawab: "",
+        marketingStaffIds: [],
+        auctionStaffIds: [],
         catatan: "",
       })
     }
   }, [open, form])
 
-  const firstItem = selectedItems[0]
   const mataCount = selectedItems.filter((i) => i.isMata).length
 
   const onSubmit = (values: CreateFormValues) => {
@@ -121,7 +147,10 @@ export function CreateBatchDialog({
       spkItemIds: selectedItems.map((i) => i.spkItemId),
       name: values.namaBatch?.trim() || undefined,
       notes: values.catatan?.trim() || undefined,
-      assignedTo: values.penanggungJawab || undefined,
+      marketingStaffIds:
+        values.marketingStaffIds?.length ? values.marketingStaffIds : undefined,
+      auctionStaffIds:
+        values.auctionStaffIds?.length ? values.auctionStaffIds : undefined,
     })
     setConfirmOpen(true)
   }
@@ -134,7 +163,7 @@ export function CreateBatchDialog({
     onOpenChange(false)
   }
 
-  if (selectedItems.length === 0) return null
+  const hasSelection = selectedItems.length > 0
 
   return (
     <>
@@ -143,10 +172,21 @@ export function CreateBatchDialog({
           <DialogHeader>
             <DialogTitle>Buat Batch Lelang</DialogTitle>
           </DialogHeader>
+          {!hasSelection ? (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/30">
+              <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                Pilih minimal 1 item SPK Jatuh Tempo dari tabel di bawah, lalu
+                klik Buat Batch lagi.
+              </p>
+              <p className="mt-2 text-muted-foreground text-sm">
+                Buka tab &quot;SPK Jatuh Tempo&quot;, centang item yang ingin
+                dimasukkan ke batch, lalu klik tombol Buat Batch.
+              </p>
+            </div>
+          ) : (
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <div className="space-y-4">
-                {/* Info summary */}
                 <div className="bg-muted/50 rounded-lg border p-4">
                   <p className="text-muted-foreground text-sm">
                     {selectedItems.length} item dipilih
@@ -161,13 +201,14 @@ export function CreateBatchDialog({
                   </p>
                 </div>
 
-                {/* Nama Batch */}
                 <FormField
                   control={form.control}
                   name="namaBatch"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nama Batch</FormLabel>
+                      <FormLabel>
+                        Nama Batch <span className="text-destructive">*</span>
+                      </FormLabel>
                       <FormControl>
                         <Input placeholder="Masukkan nama batch" {...field} />
                       </FormControl>
@@ -176,38 +217,48 @@ export function CreateBatchDialog({
                   )}
                 />
 
-                {/* Penanggung Jawab Lelang */}
                 <FormField
                   control={form.control}
-                  name="penanggungJawab"
+                  name="marketingStaffIds"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Penanggung Jawab Lelang</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Pilih staf lelang" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {users.map((user) => (
-                            <SelectItem key={user.uuid} value={user.uuid}>
-                              <span>
-                                {user.fullName ?? user.email ?? "User"}
-                              </span>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormLabel>Marketing Staf</FormLabel>
+                      <FormControl>
+                        <MultiSelectCombobox
+                          options={marketingOptions}
+                          selected={field.value ?? []}
+                          onSelectedChange={field.onChange}
+                          placeholder="Pilih marketing staf"
+                          searchPlaceholder="Cari..."
+                          emptyMessage="Tidak ada marketing staf."
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
 
-                {/* Catatan */}
+                <FormField
+                  control={form.control}
+                  name="auctionStaffIds"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Staf Lelang</FormLabel>
+                      <FormControl>
+                        <MultiSelectCombobox
+                          options={auctionStaffOptions}
+                          selected={field.value ?? []}
+                          onSelectedChange={field.onChange}
+                          placeholder="Pilih staf lelang"
+                          searchPlaceholder="Cari..."
+                          emptyMessage="Tidak ada staf lelang."
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
                 <FormField
                   control={form.control}
                   name="catatan"
@@ -235,12 +286,17 @@ export function CreateBatchDialog({
                 >
                   Batal
                 </Button>
-                <Button type="submit" disabled={isSubmitting}>
+                <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
                   Simpan
                 </Button>
               </DialogFooter>
             </form>
           </Form>
+          )}
         </DialogContent>
       </Dialog>
 
@@ -250,7 +306,9 @@ export function CreateBatchDialog({
         onConfirm={handleConfirmSubmit}
         title="Buat Batch Lelang"
         description={`Anda akan membuat batch lelang dengan ${selectedItems.length} item yang dipilih.`}
-        confirmLabel="Simpan"
+        note="Pastikan kembali sebelum menyimpan data."
+        confirmLabel="Ya"
+        cancelLabel="Batal"
         variant="info"
       />
     </>

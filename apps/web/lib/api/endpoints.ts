@@ -156,11 +156,14 @@ export const endpoints = {
     detail: (id: string) => baseUrl(`auction-batches/${id}`),
     create: baseUrl("auction-batches"),
     update: (id: string) => baseUrl(`auction-batches/${id}`),
+    delete: (id: string) => baseUrl(`auction-batches/${id}`),
     assign: (id: string) => baseUrl(`auction-batches/${id}/assign`),
     itemPickup: (id: string, itemId: string) =>
       baseUrl(`auction-batches/${id}/items/${itemId}/pickup`),
     itemValidation: (id: string, itemId: string) =>
       baseUrl(`auction-batches/${id}/items/${itemId}/validation`),
+    removeItem: (batchId: string, itemId: string) =>
+      baseUrl(`auction-batches/${batchId}/items/${itemId}`),
     finalize: (id: string) => baseUrl(`auction-batches/${id}/finalize`),
     cancel: (id: string) => baseUrl(`auction-batches/${id}/cancel`),
   },

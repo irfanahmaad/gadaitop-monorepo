@@ -1,4 +1,11 @@
-import { ArrayMinSize, IsArray, IsOptional, IsString, IsUUID } from 'class-validator';
+import {
+  ArrayMinSize,
+  IsArray,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+} from 'class-validator';
 
 export class CreateAuctionBatchDto {
   @IsUUID()
@@ -15,6 +22,7 @@ export class CreateAuctionBatchDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(255)
   name?: string;
 
   @IsOptional()
@@ -22,6 +30,12 @@ export class CreateAuctionBatchDto {
   notes?: string;
 
   @IsOptional()
-  @IsUUID()
-  assignedTo?: string;
+  @IsArray()
+  @IsUUID('4', { each: true })
+  marketingStaffIds?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  auctionStaffIds?: string[];
 }
