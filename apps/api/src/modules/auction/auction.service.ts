@@ -23,6 +23,7 @@ import { SpkItemStatusEnum } from '../../constants/spk-item-status';
 import { AuctionBatchAssigneeEntity } from './entities/auction-batch-assignee.entity';
 import { AuctionBatchEntity } from './entities/auction-batch.entity';
 import { AuctionBatchItemEntity } from './entities/auction-batch-item.entity';
+import { NotificationService } from '../notification/notification.service';
 import { SpkRecordEntity } from '../spk/entities/spk-record.entity';
 import { SpkService } from '../spk/spk.service';
 import { AuctionBatchDto } from './dto/auction-batch.dto';
@@ -34,19 +35,19 @@ import {
 import { UpdatePickupDto } from './dto/update-pickup.dto';
 import { SubmitValidationDto } from './dto/submit-validation.dto';
 import { UpdateAuctionBatchDto } from './dto/update-auction-batch.dto';
+import { UpdateBatchMarketingDto } from './dto/update-batch-marketing.dto';
+import { UpdateBatchItemMarketingDto } from './dto/update-batch-item-marketing.dto';
 
 function getStatusesForTab(
-  assigneeRole: AuctionAssigneeRoleEnum,
+  _assigneeRole: AuctionAssigneeRoleEnum,
   tab: ValidasiLelanganTabEnum,
 ): AuctionBatchStatusEnum[] {
   switch (tab) {
     case ValidasiLelanganTabEnum.Dijadwalkan:
-      return assigneeRole === AuctionAssigneeRoleEnum.AuctionStaff
-        ? [
-            AuctionBatchStatusEnum.Draft,
-            AuctionBatchStatusEnum.PickupInProgress,
-          ]
-        : [AuctionBatchStatusEnum.ValidationPending];
+      return [
+        AuctionBatchStatusEnum.Draft,
+        AuctionBatchStatusEnum.PickupInProgress,
+      ];
     case ValidasiLelanganTabEnum.WaitingForApproval:
       return [AuctionBatchStatusEnum.ValidationPending];
     case ValidasiLelanganTabEnum.Tervalidasi:
@@ -67,6 +68,7 @@ export class AuctionService {
     private readonly batchAssigneeRepository: Repository<AuctionBatchAssigneeEntity>,
     @InjectRepository(AuctionBatchItemEntity)
     private readonly batchItemRepository: Repository<AuctionBatchItemEntity>,
+    private readonly notificationService: NotificationService,
     private readonly spkService: SpkService,
     private readonly dataSource: DataSource,
   ) {}
@@ -280,6 +282,22 @@ export class AuctionService {
         'Only draft batches can be assigned',
       );
     }
+    // Only assigned auction staff can start pickup (call assign)
+    const auctionStaffAssignees = await this.batchAssigneeRepository.find({
+      where: {
+        batch: { uuid: batchUuid },
+        role: AuctionAssigneeRoleEnum.AuctionStaff,
+      },
+      relations: ['user'],
+    });
+    const assignedAuctionStaffIds = auctionStaffAssignees
+      .map((a) => (a.user as { uuid?: string })?.uuid)
+      .filter(Boolean) as string[];
+    if (!assignedAuctionStaffIds.includes(userId)) {
+      throw new ForbiddenException(
+        'Only assigned auction staff can start pickup for this batch',
+      );
+    }
     const existingAssignment = await this.batchAssigneeRepository.findOne({
       where: {
         batch: { uuid: batchUuid },
@@ -360,6 +378,61 @@ export class AuctionService {
     }
     batch.updatedBy = updatedByUserId;
     await this.batchRepository.save(batch);
+    return this.findOne(batchUuid, userPtId);
+  }
+
+  async updateBatchMarketing(
+    batchUuid: string,
+    dto: UpdateBatchMarketingDto,
+    userPtId?: string,
+  ): Promise<AuctionBatchDto> {
+    const batch = await this.batchRepository.findOne({
+      where: { uuid: batchUuid },
+    });
+    if (!batch) {
+      throw new NotFoundException('Auction batch not found');
+    }
+    if (userPtId != null && batch.ptId !== userPtId) {
+      throw new ForbiddenException('Access denied to this auction batch');
+    }
+    if (dto.marketingNotes !== undefined) {
+      batch.marketingNotes = dto.marketingNotes ?? null;
+    }
+    if (dto.marketingAssets !== undefined) {
+      batch.marketingAssets = dto.marketingAssets ?? null;
+    }
+    await this.batchRepository.save(batch);
+    return this.findOne(batchUuid, userPtId);
+  }
+
+  async updateBatchItemMarketing(
+    batchUuid: string,
+    itemUuid: string,
+    dto: UpdateBatchItemMarketingDto,
+    userPtId?: string,
+  ): Promise<AuctionBatchDto> {
+    const batch = await this.batchRepository.findOne({
+      where: { uuid: batchUuid },
+    });
+    if (!batch) {
+      throw new NotFoundException('Auction batch not found');
+    }
+    if (userPtId != null && batch.ptId !== userPtId) {
+      throw new ForbiddenException('Access denied to this auction batch');
+    }
+    const batchItem = await this.batchItemRepository.findOne({
+      where: { uuid: itemUuid, auctionBatchId: batchUuid },
+    });
+    if (!batchItem) {
+      throw new NotFoundException('Auction batch item not found');
+    }
+    if (dto.marketingNotes !== undefined) {
+      batchItem.marketingNotes = dto.marketingNotes ?? null;
+    }
+    if (dto.marketingAssets !== undefined) {
+      batchItem.marketingAssets = dto.marketingAssets ?? null;
+    }
+    await this.batchItemRepository.save(batchItem);
     return this.findOne(batchUuid, userPtId);
   }
 
@@ -503,7 +576,35 @@ export class AuctionService {
       if (okItemIds.length > 0) {
         await this.spkService.markSpkItemsAsInAuction(okItemIds);
       }
-    }).then(() => this.findOne(batchUuid, userPtId));
+    }).then(async () => {
+      // Notify assigned staff that batch is ready for auction (FR-247)
+      try {
+        const assignees = await this.batchAssigneeRepository.find({
+          where: { batch: { uuid: batchUuid } },
+          relations: ['user'],
+        });
+        const batchCode = batch.batchCode ?? batchUuid;
+        for (const a of assignees) {
+          const recipientId = (a.user as { uuid?: string })?.uuid;
+          if (recipientId) {
+            await this.notificationService.create({
+              recipientId,
+              title: 'Batch siap lelang',
+              body: `Batch ${batchCode} telah tervalidasi dan siap lelang.`,
+              type: 'info',
+              relatedEntityType: 'auction_batch',
+              relatedEntityId: batchUuid,
+              ptId: batch.ptId ?? undefined,
+            });
+          }
+        }
+      } catch (err) {
+        this.logger.warn(
+          `Failed to create finalize notifications for batch ${batchUuid}: ${err}`,
+        );
+      }
+      return this.findOne(batchUuid, userPtId);
+    });
   }
 
   async cancel(

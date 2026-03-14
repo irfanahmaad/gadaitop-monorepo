@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
   Put,
   Query,
@@ -21,6 +22,8 @@ import { QueryAuctionBatchDto } from './dto/query-auction-batch.dto';
 import { UpdatePickupDto } from './dto/update-pickup.dto';
 import { SubmitValidationDto } from './dto/submit-validation.dto';
 import { UpdateAuctionBatchDto } from './dto/update-auction-batch.dto';
+import { UpdateBatchMarketingDto } from './dto/update-batch-marketing.dto';
+import { UpdateBatchItemMarketingDto } from './dto/update-batch-item-marketing.dto';
 import { PageMetaDto } from '../../common/dtos/page-meta.dto';
 
 function getReqUser(req: Request): { uuid?: string; companyId?: string; ownedCompanyId?: string } {
@@ -77,8 +80,33 @@ export class AuctionController {
     return this.auctionService.update(id, updateDto, updatedBy, userPtId);
   }
 
+  @Patch(':id/marketing')
+  @Auth([{ action: AclAction.UPDATE, subject: AclSubject.MARKETING_NOTE }])
+  async updateBatchMarketing(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateBatchMarketingDto,
+    @Req() req: Request,
+  ): Promise<AuctionBatchDto> {
+    const user = getReqUser(req);
+    const userPtId = user?.companyId ?? user?.ownedCompanyId ?? undefined;
+    return this.auctionService.updateBatchMarketing(id, dto, userPtId);
+  }
+
+  @Patch(':id/items/:itemId/marketing')
+  @Auth([{ action: AclAction.UPDATE, subject: AclSubject.MARKETING_NOTE }])
+  async updateBatchItemMarketing(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('itemId', ParseUUIDPipe) itemId: string,
+    @Body() dto: UpdateBatchItemMarketingDto,
+    @Req() req: Request,
+  ): Promise<AuctionBatchDto> {
+    const user = getReqUser(req);
+    const userPtId = user?.companyId ?? user?.ownedCompanyId ?? undefined;
+    return this.auctionService.updateBatchItemMarketing(id, itemId, dto, userPtId);
+  }
+
   @Put(':id/assign')
-  @Auth([{ action: AclAction.UPDATE, subject: AclSubject.AUCTION_BATCH }])
+  @Auth([{ action: AclAction.UPDATE, subject: AclSubject.AUCTION_PICKUP }])
   async assign(
     @Param('id', ParseUUIDPipe) id: string,
     @Req() req: Request,

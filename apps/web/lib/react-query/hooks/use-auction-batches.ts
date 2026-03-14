@@ -16,6 +16,8 @@ import type {
   ItemValidationDto,
   PageOptions,
   UpdateAuctionBatchDto,
+  UpdateBatchMarketingDto,
+  UpdateBatchItemMarketingDto,
 } from "@/lib/api/types"
 
 // Query keys
@@ -239,6 +241,57 @@ export function useCancelAuctionBatch() {
         queryKey: auctionBatchKeys.detail(id),
       })
       queryClient.invalidateQueries({ queryKey: auctionBatchKeys.lists() })
+    },
+  })
+}
+
+// Update batch marketing notes/assets (Marketing role)
+export function useUpdateBatchMarketing() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string
+      data: UpdateBatchMarketingDto
+    }) =>
+      apiClient.patch<AuctionBatch, UpdateBatchMarketingDto>(
+        endpoints.auctionBatches.updateMarketing(id),
+        data
+      ),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: auctionBatchKeys.detail(variables.id),
+      })
+      queryClient.invalidateQueries({ queryKey: auctionBatchKeys.lists() })
+    },
+  })
+}
+
+// Update batch item marketing notes/assets (Marketing role)
+export function useUpdateBatchItemMarketing() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      batchId,
+      itemId,
+      data,
+    }: {
+      batchId: string
+      itemId: string
+      data: UpdateBatchItemMarketingDto
+    }) =>
+      apiClient.patch<AuctionBatch, UpdateBatchItemMarketingDto>(
+        endpoints.auctionBatches.updateItemMarketing(batchId, itemId),
+        data
+      ),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: auctionBatchKeys.detail(variables.batchId),
+      })
     },
   })
 }

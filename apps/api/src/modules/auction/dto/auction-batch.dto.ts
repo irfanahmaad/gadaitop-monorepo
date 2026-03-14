@@ -27,6 +27,8 @@ export class AuctionBatchDto {
   ptId: string;
   status: AuctionBatchStatusEnum;
   notes: string | null;
+  marketingNotes: string | null;
+  marketingAssets: string[] | null;
   createdAt: Date;
   store?: { shortName: string };
   marketingStaff: AssigneeSummary[];
@@ -41,6 +43,8 @@ export class AuctionBatchDto {
     this.ptId = batch.ptId;
     this.status = batch.status;
     this.notes = batch.notes ?? null;
+    this.marketingNotes = batch.marketingNotes ?? null;
+    this.marketingAssets = batch.marketingAssets ?? null;
     this.createdAt = batch.createdAt;
     this.store = batch.store;
     this.marketingStaff = (batch.batchAssignees ?? [])

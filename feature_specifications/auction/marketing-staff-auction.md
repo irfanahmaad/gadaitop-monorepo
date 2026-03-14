@@ -15,6 +15,8 @@ Search and filters allow narrowing batches by branch, date range, and status (Dr
 
 Marketing Staff have read‑only access; they cannot change batch status, prices, or technical fields.
 
+Where Marketing Staff access the Validasi Lelangan page, the list uses the same three tabs as for Auction Staff: Dijadwalkan, Waiting for Approval (batches in validation phase), and Tervalidasi (see [auction-staff-validation.md](auction-staff-validation.md) FR-243).
+
 FR‑255 View Auction Batch Detail
 Feature Name: View Auction Batch Detail (Marketing)
 

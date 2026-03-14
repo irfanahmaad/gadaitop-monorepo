@@ -54,4 +54,12 @@ export class AuctionBatchItemEntity extends AbstractEntity {
 
   @Column({ type: 'timestamp with time zone', nullable: true })
   validatedAt: Date | null;
+
+  /** Marketing-only notes for this item; editable by Marketing role. */
+  @Column({ name: 'marketing_notes', type: 'text', nullable: true })
+  marketingNotes: string | null;
+
+  /** Marketing-only asset URLs for this item; editable by Marketing role. */
+  @Column({ name: 'marketing_assets', type: 'jsonb', nullable: true })
+  marketingAssets: string[] | null;
 }

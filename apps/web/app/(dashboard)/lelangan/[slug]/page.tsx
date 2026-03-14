@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useMemo } from "react"
+import React, { useState, useMemo, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Breadcrumbs } from "@/components/breadcrumbs"
 import { Button } from "@workspace/ui/components/button"
@@ -13,12 +13,17 @@ import {
 import { Skeleton } from "@workspace/ui/components/skeleton"
 import {
   useAuctionBatch,
+  useAssignAuctionBatch,
   useFinalizeAuctionBatch,
   useCancelAuctionBatch,
   useDeleteAuctionBatch,
   useRemoveItemFromBatch,
+  useUpdateBatchMarketing,
+  useItemPickup,
+  useItemValidation,
   auctionBatchKeys,
-} from "@/lib/react-query/hooks/use-auction-batches"
+} from "@/lib/react-query/hooks"
+import { useAuth } from "@/lib/react-query/hooks/use-auth"
 import { usePawnTerms } from "@/lib/react-query/hooks/use-pawn-terms"
 import { matchSpkItemToMataRules } from "@/lib/utils/mata-rule-matcher"
 import { useQueryClient } from "@tanstack/react-query"
@@ -36,10 +41,21 @@ import {
   Eye,
   Info,
   Hand,
+  FileText,
+  Plus,
+  X,
+  PackageCheck,
 } from "lucide-react"
 import { QRCodeDialog } from "../../_components/QRCodeDialog"
 import { EditBatchDialog } from "../_components/EditBatchDialog"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@workspace/ui/components/dialog"
 import {
   Table,
   TableBody,
@@ -55,6 +71,7 @@ import {
 } from "@workspace/ui/components/avatar"
 import { Badge } from "@workspace/ui/components/badge"
 import { Input } from "@workspace/ui/components/input"
+import { Textarea } from "@workspace/ui/components/textarea"
 import {
   Select,
   SelectContent,
@@ -87,6 +104,7 @@ type BatchItemRow = {
   petugas: string
   statusPengambilan: string
   statusValidasi: string
+  pickupStatus?: string
   isMata?: boolean
 }
 
@@ -153,6 +171,8 @@ function mapBatchToItemRows(
             ptId
           )
         : { isMata: false }
+    const pickupStatus =
+      (item as { pickupStatus?: string }).pickupStatus ?? "pending"
     return {
       id: item.uuid,
       spkId,
@@ -165,6 +185,7 @@ function mapBatchToItemRows(
       petugas,
       statusPengambilan: pickedUp ? "Terscan" : "Belum Terscan",
       statusValidasi,
+      pickupStatus,
       isMata: mataResult.isMata,
     }
   })
@@ -311,14 +332,38 @@ export default function LelanganDetailPage() {
   const ability = useAppAbility()
   const slug = typeof params.slug === "string" ? params.slug : ""
 
+  const { user } = useAuth()
   const { data: batch, isLoading, isError } = useAuctionBatch(slug)
+  const assignMutation = useAssignAuctionBatch()
+  const itemPickupMutation = useItemPickup()
+  const itemValidationMutation = useItemValidation()
   const finalizeMutation = useFinalizeAuctionBatch()
   const cancelMutation = useCancelAuctionBatch()
   const deleteMutation = useDeleteAuctionBatch()
   const removeItemMutation = useRemoveItemFromBatch()
+  const updateBatchMarketingMutation = useUpdateBatchMarketing()
 
   const canUpdateBatch = ability.can(AclAction.UPDATE, AclSubject.AUCTION_BATCH)
   const canDeleteBatch = ability.can(AclAction.DELETE, AclSubject.AUCTION_BATCH)
+  const canUpdatePickup = ability.can(AclAction.UPDATE, AclSubject.AUCTION_PICKUP)
+  const canUpdateValidation = ability.can(
+    AclAction.UPDATE,
+    AclSubject.AUCTION_VALIDATION
+  )
+  const canReadMarketing = ability.can(AclAction.READ, AclSubject.MARKETING_NOTE)
+  const canUpdateMarketing = ability.can(
+    AclAction.UPDATE,
+    AclSubject.MARKETING_NOTE
+  )
+  const isAssignedAuctionStaff =
+    !!user?.uuid &&
+    !!batch?.auctionStaff?.some(
+      (s: { uuid?: string }) => s.uuid === user.uuid
+    )
+  const showMulaiPickup =
+    batch?.status === "draft" &&
+    canUpdatePickup &&
+    isAssignedAuctionStaff
 
   const ptId = batch?.ptId ?? batch?.store?.companyId ?? ""
   const { data: pawnTermsData } = usePawnTerms(undefined)
@@ -337,6 +382,27 @@ export default function LelanganDetailPage() {
   const [removeItemRow, setRemoveItemRow] = useState<BatchItemRow | null>(null)
   const [pageSize, setPageSize] = useState(100)
   const [searchValue, setSearchValue] = useState("")
+  const [localMarketingNotes, setLocalMarketingNotes] = useState("")
+  const [localMarketingAssets, setLocalMarketingAssets] = useState<string[]>([])
+  const [newAssetUrl, setNewAssetUrl] = useState("")
+  const [pickupFailRow, setPickupFailRow] = useState<BatchItemRow | null>(null)
+  const [pickupFailReason, setPickupFailReason] = useState("")
+  const [isPickupFailDialogOpen, setIsPickupFailDialogOpen] = useState(false)
+  const [validationRow, setValidationRow] = useState<BatchItemRow | null>(null)
+  const [validationVerdict, setValidationVerdict] = useState<
+    "ok" | "return" | "reject"
+  >("reject")
+  const [validationNotes, setValidationNotes] = useState("")
+  const [validationPhotos, setValidationPhotos] = useState<string[]>([])
+  const [isValidationDialogOpen, setIsValidationDialogOpen] = useState(false)
+  const [newValidationPhotoUrl, setNewValidationPhotoUrl] = useState("")
+
+  useEffect(() => {
+    if (batch) {
+      setLocalMarketingNotes(batch.marketingNotes ?? "")
+      setLocalMarketingAssets(batch.marketingAssets ?? [])
+    }
+  }, [batch?.uuid, batch?.marketingNotes, batch?.marketingAssets])
 
   const itemRows = useMemo(
     () =>
@@ -449,9 +515,140 @@ export default function LelanganDetailPage() {
     }
   }
 
+  const handlePickupDiambil = async (row: BatchItemRow) => {
+    if (!slug) return
+    try {
+      await itemPickupMutation.mutateAsync({
+        batchId: slug,
+        itemId: row.id,
+        data: { pickupStatus: "taken" },
+      })
+      toast.success("Item ditandai Diambil")
+    } catch (err) {
+      toast.error(
+        (err as { message?: string })?.message ?? "Gagal memperbarui status pickup"
+      )
+    }
+  }
+
+  const handlePickupGagalConfirm = async () => {
+    if (!slug || !pickupFailRow) return
+    const reason = pickupFailReason.trim()
+    if (!reason) {
+      toast.error("Alasan kegagalan wajib diisi")
+      return
+    }
+    try {
+      await itemPickupMutation.mutateAsync({
+        batchId: slug,
+        itemId: pickupFailRow.id,
+        data: { pickupStatus: "failed", failureReason: reason },
+      })
+      toast.success("Item ditandai Gagal diambil")
+      setIsPickupFailDialogOpen(false)
+      setPickupFailRow(null)
+      setPickupFailReason("")
+    } catch (err) {
+      toast.error(
+        (err as { message?: string })?.message ?? "Gagal memperbarui status pickup"
+      )
+    }
+  }
+
+  const handleValidationSetuju = async (row: BatchItemRow) => {
+    if (!slug) return
+    try {
+      await itemValidationMutation.mutateAsync({
+        batchId: slug,
+        itemId: row.id,
+        data: { verdict: "ok" },
+      })
+      toast.success("Item disetujui")
+    } catch (err) {
+      toast.error(
+        (err as { message?: string })?.message ?? "Gagal menyimpan validasi"
+      )
+    }
+  }
+
+  const openValidationDialog = (
+    row: BatchItemRow,
+    verdict: "return" | "reject"
+  ) => {
+    setValidationRow(row)
+    setValidationVerdict(verdict)
+    setValidationNotes("")
+    setValidationPhotos([])
+    setNewValidationPhotoUrl("")
+    setIsValidationDialogOpen(true)
+  }
+
+  const handleValidationDialogSubmit = async () => {
+    if (!slug || !validationRow) return
+    const notes =
+      validationVerdict === "reject" ? validationNotes.trim() : validationNotes
+    if (validationVerdict === "reject" && !notes) {
+      toast.error("Alasan penolakan wajib diisi")
+      return
+    }
+    try {
+      await itemValidationMutation.mutateAsync({
+        batchId: slug,
+        itemId: validationRow.id,
+        data: {
+          verdict: validationVerdict,
+          notes: notes || undefined,
+          validationPhotos:
+            validationPhotos.length > 0 ? validationPhotos : undefined,
+        },
+      })
+      toast.success(
+        validationVerdict === "return"
+          ? "Item ditandai Retur"
+          : "Item ditolak"
+      )
+      setIsValidationDialogOpen(false)
+      setValidationRow(null)
+    } catch (err) {
+      toast.error(
+        (err as { message?: string })?.message ?? "Gagal menyimpan validasi"
+      )
+    }
+  }
+
   const handleClickBatchLelang = () => {
     if (!slug) return
     setIsEditDialogOpen(true)
+  }
+
+  const handleSaveMarketing = async () => {
+    if (!slug || !canUpdateMarketing) return
+    try {
+      await updateBatchMarketingMutation.mutateAsync({
+        id: slug,
+        data: {
+          marketingNotes: localMarketingNotes || undefined,
+          marketingAssets:
+            localMarketingAssets.length > 0 ? localMarketingAssets : undefined,
+        },
+      })
+      toast.success("Catatan marketing berhasil disimpan")
+    } catch (err) {
+      toast.error(
+        (err as { message?: string })?.message ?? "Gagal menyimpan catatan marketing"
+      )
+    }
+  }
+
+  const handleAddMarketingAsset = () => {
+    const url = newAssetUrl.trim()
+    if (!url) return
+    setLocalMarketingAssets((prev) => [...prev, url])
+    setNewAssetUrl("")
+  }
+
+  const handleRemoveMarketingAsset = (index: number) => {
+    setLocalMarketingAssets((prev) => prev.filter((_, i) => i !== index))
   }
 
   if (!slug) {
@@ -492,6 +689,30 @@ export default function LelanganDetailPage() {
         </div>
         {!isLoading && batch && (
           <div className="flex flex-wrap items-center gap-2">
+            {showMulaiPickup && (
+              <Button
+                className="gap-2"
+                onClick={async () => {
+                  if (!slug) return
+                  try {
+                    await assignMutation.mutateAsync(slug)
+                    toast.success("Pickup dimulai. Batch sekarang dalam status Diambil.")
+                    queryClient.invalidateQueries({
+                      queryKey: auctionBatchKeys.detail(slug),
+                    })
+                    queryClient.invalidateQueries({ queryKey: auctionBatchKeys.lists() })
+                  } catch (err) {
+                    toast.error(
+                      (err as { message?: string })?.message ?? "Gagal memulai pickup"
+                    )
+                  }
+                }}
+                disabled={assignMutation.isPending}
+              >
+                <PackageCheck className="size-4" />
+                {assignMutation.isPending ? "Memproses..." : "Mulai Pickup"}
+              </Button>
+            )}
             {canDeleteBatch &&
               batch.status !== "cancelled" &&
               batch.status !== "ready_for_auction" && (
@@ -665,6 +886,118 @@ export default function LelanganDetailPage() {
             </CardContent>
           </Card>
 
+          {/* Marketing Notes (Marketing role / Admin PT) */}
+          {canReadMarketing && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="size-5" />
+                  Catatan Marketing
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-muted-foreground text-sm font-medium">
+                    Catatan (kampanye, channel, pesan utama)
+                  </label>
+                  {canUpdateMarketing ? (
+                    <Textarea
+                      value={localMarketingNotes}
+                      onChange={(e) => setLocalMarketingNotes(e.target.value)}
+                      placeholder="Tambah catatan marketing..."
+                      rows={4}
+                      className="resize-none"
+                    />
+                  ) : (
+                    <p className="text-base">
+                      {batch.marketingNotes || "-"}
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <label className="text-muted-foreground text-sm font-medium">
+                    Lampiran (URL)
+                  </label>
+                  {canUpdateMarketing ? (
+                    <>
+                      <div className="flex gap-2">
+                        <Input
+                          value={newAssetUrl}
+                          onChange={(e) => setNewAssetUrl(e.target.value)}
+                          placeholder="https://..."
+                          onKeyDown={(e) =>
+                            e.key === "Enter" && (e.preventDefault(), handleAddMarketingAsset())
+                          }
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={handleAddMarketingAsset}
+                        >
+                          <Plus className="size-4" />
+                        </Button>
+                      </div>
+                      <ul className="space-y-1">
+                        {localMarketingAssets.map((url, i) => (
+                          <li
+                            key={i}
+                            className="flex items-center justify-between gap-2 rounded border bg-muted/30 px-2 py-1.5 text-sm"
+                          >
+                            <a
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="truncate text-primary underline"
+                            >
+                              {url}
+                            </a>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="size-8 shrink-0"
+                              onClick={() => handleRemoveMarketingAsset(i)}
+                            >
+                              <X className="size-4" />
+                            </Button>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  ) : (
+                    <ul className="space-y-1">
+                      {(batch.marketingAssets ?? []).length === 0 ? (
+                        <p className="text-muted-foreground text-sm">-</p>
+                      ) : (
+                        (batch.marketingAssets ?? []).map((url, i) => (
+                          <li key={i}>
+                            <a
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-primary underline"
+                            >
+                              {url}
+                            </a>
+                          </li>
+                        ))
+                      )}
+                    </ul>
+                  )}
+                </div>
+                {canUpdateMarketing && (
+                  <Button
+                    onClick={handleSaveMarketing}
+                    disabled={updateBatchMarketingMutation.isPending}
+                  >
+                    {updateBatchMarketingMutation.isPending ? "Menyimpan..." : "Simpan catatan marketing"}
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           {/* Item Batch Lelang table */}
           <Card>
             <CardHeader>
@@ -712,7 +1045,8 @@ export default function LelanganDetailPage() {
                       <TableHead>Tipe Barang</TableHead>
                       <TableHead>Toko</TableHead>
                       <TableHead>Petugas</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead>Status Pengambilan</TableHead>
+                      <TableHead>Status Validasi</TableHead>
                       <TableHead className="w-[80px]">Action</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -763,6 +1097,22 @@ export default function LelanganDetailPage() {
                           </span>
                         </TableCell>
                         <TableCell>
+                          <span
+                            className={cn(
+                              "inline-flex rounded px-2 py-1 text-xs font-medium",
+                              row.statusValidasi === "OK"
+                                ? "bg-green-500/10 text-green-700 dark:text-green-400"
+                                : row.statusValidasi === "Return"
+                                  ? "bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                                  : row.statusValidasi === "Reject"
+                                    ? "bg-destructive/10 text-destructive"
+                                    : "text-muted-foreground"
+                            )}
+                          >
+                            {row.statusValidasi}
+                          </span>
+                        </TableCell>
+                        <TableCell>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button
@@ -792,6 +1142,77 @@ export default function LelanganDetailPage() {
                                 <QrCode className="mr-2 size-4" />
                                 QR SPK
                               </DropdownMenuItem>
+                              {batch?.status === "pickup_in_progress" &&
+                                canUpdatePickup &&
+                                row.pickupStatus === "pending" && (
+                                  <>
+                                    <DropdownMenuItem
+                                      onClick={() =>
+                                        handlePickupDiambil(row)
+                                      }
+                                      disabled={
+                                        itemPickupMutation.isPending
+                                      }
+                                    >
+                                      <PackageCheck className="mr-2 size-4" />
+                                      Diambil
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() => {
+                                        setPickupFailRow(row)
+                                        setPickupFailReason("")
+                                        setIsPickupFailDialogOpen(true)
+                                      }}
+                                      disabled={
+                                        itemPickupMutation.isPending
+                                      }
+                                      className="text-destructive focus:text-destructive"
+                                    >
+                                      <X className="mr-2 size-4" />
+                                      Gagal
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                              {batch?.status === "validation_pending" &&
+                                canUpdateValidation &&
+                                row.statusValidasi === "-" && (
+                                  <>
+                                    <DropdownMenuItem
+                                      onClick={() =>
+                                        handleValidationSetuju(row)
+                                      }
+                                      disabled={
+                                        itemValidationMutation.isPending
+                                      }
+                                    >
+                                      <CheckCircle className="mr-2 size-4" />
+                                      Setuju
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() =>
+                                        openValidationDialog(row, "reject")
+                                      }
+                                      disabled={
+                                        itemValidationMutation.isPending
+                                      }
+                                      className="text-destructive focus:text-destructive"
+                                    >
+                                      <Hand className="mr-2 size-4" />
+                                      Tolak
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() =>
+                                        openValidationDialog(row, "return")
+                                      }
+                                      disabled={
+                                        itemValidationMutation.isPending
+                                      }
+                                    >
+                                      <Box className="mr-2 size-4" />
+                                      Retur
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
                               {(batch?.status === "draft" ||
                                 batch?.status === "pickup_in_progress") &&
                                 canUpdateBatch && (
@@ -823,7 +1244,8 @@ export default function LelanganDetailPage() {
         open={qrDialogOpen}
         onOpenChange={setQrDialogOpen}
         value={qrValue}
-        title="QR Code SPK"
+        title="QR Code Item"
+        fullScreen
       />
 
       <EditBatchDialog
@@ -886,6 +1308,169 @@ export default function LelanganDetailPage() {
         confirmLabel="Hapus"
         variant="destructive"
       />
+
+      <Dialog
+        open={isPickupFailDialogOpen}
+        onOpenChange={(open) => {
+          setIsPickupFailDialogOpen(open)
+          if (!open) {
+            setPickupFailRow(null)
+            setPickupFailReason("")
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Gagal Diambil</DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground text-sm">
+            {pickupFailRow
+              ? `Berikan alasan kegagalan untuk item "${pickupFailRow.namaBarang}" (${pickupFailRow.noSPK}).`
+              : "Alasan kegagalan wajib diisi."}
+          </p>
+          <Textarea
+            value={pickupFailReason}
+            onChange={(e) => setPickupFailReason(e.target.value)}
+            placeholder="Alasan kegagalan..."
+            rows={3}
+            className="mt-2"
+          />
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsPickupFailDialogOpen(false)
+                setPickupFailRow(null)
+                setPickupFailReason("")
+              }}
+            >
+              Batal
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handlePickupGagalConfirm}
+              disabled={
+                !pickupFailReason.trim() || itemPickupMutation.isPending
+              }
+            >
+              {itemPickupMutation.isPending ? "Menyimpan..." : "Gagal"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={isValidationDialogOpen}
+        onOpenChange={(open) => {
+          setIsValidationDialogOpen(open)
+          if (!open) {
+            setValidationRow(null)
+            setValidationNotes("")
+            setValidationPhotos([])
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {validationVerdict === "reject" ? "Tolak Item" : "Retur Item"}
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground text-sm">
+            {validationRow
+              ? `Item: ${validationRow.namaBarang} (${validationRow.noSPK})`
+              : ""}
+          </p>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">
+              Catatan
+              {validationVerdict === "reject" ? (
+                <span className="text-destructive"> *</span>
+              ) : null}
+            </label>
+            <Textarea
+              value={validationNotes}
+              onChange={(e) => setValidationNotes(e.target.value)}
+              placeholder={
+                validationVerdict === "reject"
+                  ? "Alasan penolakan..."
+                  : "Catatan retur (opsional)..."
+              }
+              rows={3}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Foto validasi (opsional)</label>
+            <div className="flex gap-2">
+              <Input
+                value={newValidationPhotoUrl}
+                onChange={(e) => setNewValidationPhotoUrl(e.target.value)}
+                placeholder="URL foto..."
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const url = newValidationPhotoUrl.trim()
+                  if (url) {
+                    setValidationPhotos((prev) => [...prev, url])
+                    setNewValidationPhotoUrl("")
+                  }
+                }}
+              >
+                Tambah
+              </Button>
+            </div>
+            {validationPhotos.length > 0 && (
+              <ul className="text-muted-foreground list-disc pl-4 text-sm">
+                {validationPhotos.map((url, i) => (
+                  <li key={i} className="flex items-center gap-2">
+                    <span className="truncate">{url}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-6"
+                      onClick={() =>
+                        setValidationPhotos((prev) =>
+                          prev.filter((_, j) => j !== i)
+                        )
+                      }
+                    >
+                      <X className="size-3" />
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsValidationDialogOpen(false)
+                setValidationRow(null)
+              }}
+            >
+              Batal
+            </Button>
+            <Button
+              onClick={handleValidationDialogSubmit}
+              disabled={
+                (validationVerdict === "reject" && !validationNotes.trim()) ||
+                itemValidationMutation.isPending
+              }
+            >
+              {itemValidationMutation.isPending
+                ? "Menyimpan..."
+                : validationVerdict === "reject"
+                  ? "Tolak"
+                  : "Retur"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

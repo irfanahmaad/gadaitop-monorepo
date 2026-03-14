@@ -20,6 +20,8 @@ type QRCodeDialogProps = {
   value: string
   /** Dialog title (default: "QR Code SPK") */
   title?: string
+  /** When true, show larger QR for full-screen style download/embed (e.g. for marketing) */
+  fullScreen?: boolean
 }
 
 export function QRCodeDialog({
@@ -27,8 +29,10 @@ export function QRCodeDialog({
   onOpenChange,
   value,
   title = "QR Code SPK",
+  fullScreen = false,
 }: QRCodeDialogProps) {
   const canvasId = React.useId()
+  const qrSize = fullScreen ? 400 : 200
 
   const getCanvas = () =>
     document.getElementById(canvasId) as HTMLCanvasElement | null
@@ -80,7 +84,10 @@ export function QRCodeDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md" showCloseButton={false}>
+      <DialogContent
+        className={fullScreen ? "sm:max-w-2xl" : "sm:max-w-md"}
+        showCloseButton={false}
+      >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
@@ -88,7 +95,7 @@ export function QRCodeDialog({
 
         <div className="flex flex-col items-center gap-4 py-4">
           <div className="bg-muted/50 flex items-center justify-center rounded-lg p-4">
-            <QRCodeCanvas id={canvasId} value={value} size={200} level="M" />
+            <QRCodeCanvas id={canvasId} value={value} size={qrSize} level="M" />
           </div>
           <p className="font-mono text-sm font-medium">{value}</p>
         </div>

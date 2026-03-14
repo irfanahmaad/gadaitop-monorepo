@@ -384,6 +384,25 @@ POST /api/v1/branches
 
 ---
 
+## US-4.8: Revoke Pinjam PT (by Main PT) 🟠 P1
+
+**AS A** Super Admin (Pemilik) whose PT is the target of a Pinjam PT request  
+**I WANT TO** revoke an approved Pinjam PT toko  
+**SO THAT** I can end the borrow and take back control of the toko under my PT
+
+### Acceptance Criteria:
+
+- [ ] **AC-4.8.1:** Given I am PT owner (target company), when I view a borrowed toko (companyId = my PT, isBorrowed = true, status = active), then I can trigger "Cabut / Revoke"
+- [ ] **AC-4.8.2:** Given I click Revoke, when I confirm, then the borrow is ended: toko status becomes inactive (or equivalent); requester (actual owner) is notified
+- [ ] **AC-4.8.3:** Given revoked toko, then it is no longer operational for the previous borrower; target PT owner retains limited view (kode, nama) per US-4.7.3
+- [ ] **AC-4.8.4:** Given revoke action, then audit log records the action (optional: revoke reason)
+
+### API (to implement):
+
+- `PATCH /api/v1/borrow-requests/:id/revoke` (or `PATCH /api/v1/branches/:id/revoke-borrow`) — allowed only for target PT; sets branch inactive, optionally notifies requester
+
+---
+
 # EPIC 5: Master User
 
 ## US-5.1: View User List 🔴 P0

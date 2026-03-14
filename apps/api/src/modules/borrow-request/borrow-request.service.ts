@@ -16,16 +16,24 @@ import {
 } from '../../common/helpers/query-builder';
 import { BranchStatusEnum } from '../../constants/branch-status';
 import { BorrowRequestStatusEnum } from '../../constants/borrow-request-status';
+import { NotificationService } from '../notification/notification.service';
+import { UserService } from '../user/user.service';
+import { QueryUserDto } from '../user/dtos/query-user.dto';
 import { BorrowRequestListView } from './dto/query-borrow-request.dto';
 import { BorrowRequestDto } from './dto/borrow-request.dto';
 import { CreateBorrowRequestDto } from './dto/create-borrow-request.dto';
 import { BorrowRequestEntity } from './entities/borrow-request.entity';
+
+/** relatedEntityType for notifications linking to a borrow request */
+const NOTIFICATION_RELATED_ENTITY_BORROW_REQUEST = 'BorrowRequest';
 
 @Injectable()
 export class BorrowRequestService {
   constructor(
     @InjectRepository(BorrowRequestEntity)
     private borrowRequestRepository: Repository<BorrowRequestEntity>,
+    private notificationService: NotificationService,
+    private userService: UserService,
   ) {}
 
   async findAll(
@@ -103,6 +111,46 @@ export class BorrowRequestService {
     });
 
     const saved = await this.borrowRequestRepository.save(request);
+
+    // Notify target PT admins (AC-4.5.4)
+    try {
+      const withRelations = await this.borrowRequestRepository.findOne({
+        where: { uuid: saved.uuid },
+        relations: ['branch', 'requester', 'targetCompany'],
+      });
+      if (withRelations?.targetCompanyId) {
+        const queryDto = Object.assign(new QueryUserDto(), {
+          companyId: withRelations.targetCompanyId,
+          roleCode: 'company_admin',
+          page: 1,
+          pageSize: 50,
+        });
+        const { data: admins } = await this.userService.findAll(queryDto);
+        const branchName =
+          (withRelations.branch as { shortName?: string })?.shortName ?? 'Toko';
+        const requesterName =
+          (withRelations.requester as { fullName?: string })?.fullName ??
+          (withRelations.requester as { email?: string })?.email ??
+          'Pemohon';
+        const title = 'Permintaan Pinjam Toko';
+        const body = `${requesterName} mengajukan permintaan pinjam toko: ${branchName}.`;
+        for (const admin of admins) {
+          await this.notificationService.create({
+            recipientId: admin.uuid,
+            title,
+            body,
+            type: 'info',
+            ptId: withRelations.targetCompanyId,
+            relatedEntityType: NOTIFICATION_RELATED_ENTITY_BORROW_REQUEST,
+            relatedEntityId: saved.uuid,
+          });
+        }
+      }
+    } catch (err) {
+      // Don't fail create if notification fails
+      console.error('Borrow request create: failed to notify target PT admins', err);
+    }
+
     return new BorrowRequestDto(saved);
   }
 
@@ -132,6 +180,22 @@ export class BorrowRequestService {
     }
 
     const updated = await this.borrowRequestRepository.save(request);
+
+    // Notify requester (AC-4.6.4)
+    try {
+      await this.notificationService.create({
+        recipientId: request.requesterId,
+        title: 'Permintaan Pinjam Toko Disetujui',
+        body: 'Permintaan pinjam toko Anda telah disetujui.',
+        type: 'info',
+        ptId: request.targetCompanyId ?? undefined,
+        relatedEntityType: NOTIFICATION_RELATED_ENTITY_BORROW_REQUEST,
+        relatedEntityId: request.uuid,
+      });
+    } catch (err) {
+      console.error('Borrow request approve: failed to notify requester', err);
+    }
+
     return new BorrowRequestDto(updated);
   }
 
@@ -166,6 +230,22 @@ export class BorrowRequestService {
     }
 
     const updated = await this.borrowRequestRepository.save(request);
+
+    // Notify requester with reason (AC-4.6.7)
+    try {
+      await this.notificationService.create({
+        recipientId: request.requesterId,
+        title: 'Permintaan Pinjam Toko Ditolak',
+        body: `Permintaan pinjam toko Anda ditolak. Alasan: ${rejectionReason ?? 'Tidak disebutkan.'}`,
+        type: 'info',
+        ptId: request.targetCompanyId ?? undefined,
+        relatedEntityType: NOTIFICATION_RELATED_ENTITY_BORROW_REQUEST,
+        relatedEntityId: request.uuid,
+      });
+    } catch (err) {
+      console.error('Borrow request reject: failed to notify requester', err);
+    }
+
     return new BorrowRequestDto(updated);
   }
 

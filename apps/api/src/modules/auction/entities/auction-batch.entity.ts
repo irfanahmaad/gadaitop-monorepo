@@ -41,6 +41,14 @@ export class AuctionBatchEntity extends AbstractEntity {
   @Column({ type: 'text', nullable: true })
   notes: string | null;
 
+  /** Marketing-only notes (e.g. campaign plan, target channel); editable by Marketing role. */
+  @Column({ name: 'marketing_notes', type: 'text', nullable: true })
+  marketingNotes: string | null;
+
+  /** Marketing-only asset URLs (e.g. banners, copy); editable by Marketing role. */
+  @Column({ name: 'marketing_assets', type: 'jsonb', nullable: true })
+  marketingAssets: string[] | null;
+
   @OneToMany(() => AuctionBatchAssigneeEntity, (a) => a.batch)
   batchAssignees: Relation<AuctionBatchAssigneeEntity[]>;
 

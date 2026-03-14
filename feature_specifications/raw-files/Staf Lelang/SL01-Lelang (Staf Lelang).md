@@ -14,6 +14,8 @@ Acceptance Criteria:
 
 The “Validasi Lelang” page shows a table of batches with fields such as Batch Code, Branch, Schedule Date, Total Items, and Status (e.g., Draft, Waiting Validation, Validated), following the desktop and mobile designs.
 
+The list is organized into three tabs: Dijadwalkan (batches in draft or pickup in progress), Waiting for Approval (batches in validation_pending — in validation phase), and Tervalidasi (batches in ready_for_auction after staff finalize).
+
 Staff can search and filter auction batches by branch, status, or date to quickly find sessions that need action.
 ​
 

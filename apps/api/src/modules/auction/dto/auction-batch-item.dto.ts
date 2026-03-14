@@ -11,6 +11,8 @@ export class AuctionBatchItemDto {
   validationVerdict: AuctionValidationVerdictEnum | null;
   validationNotes: string | null;
   validationPhotos: string[] | null;
+  marketingNotes: string | null;
+  marketingAssets: string[] | null;
   validatedAt: Date | null;
   spk?: { spkNumber: string; uuid: string; items?: { itemType?: { typeName: string }; description: string; photoUrl?: string }[] };
   spkItem?: { itemType?: { typeName: string }; description: string; photoUrl?: string };
@@ -24,6 +26,8 @@ export class AuctionBatchItemDto {
     this.validationVerdict = item.validationVerdict ?? null;
     this.validationNotes = item.validationNotes ?? null;
     this.validationPhotos = item.validationPhotos ?? null;
+    this.marketingNotes = item.marketingNotes ?? null;
+    this.marketingAssets = item.marketingAssets ?? null;
     this.validatedAt = item.validatedAt ?? null;
     const spkItem = item.spkItem;
     if (spkItem) {

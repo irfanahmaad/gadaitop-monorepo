@@ -63,12 +63,13 @@ export default function Page() {
   const [selectedPT, setSelectedPT] = useState("")
 
   // Derive the initial PT once the right data arrives — collapsed into one memo
-  // to minimise the number of effect re-runs that change selectedPT
+  // to minimise the number of effect re-runs that change selectedPT.
+  // Super Admin picks from list; company_admin, auction_staff, marketing use their companyId.
   const derivedInitialPT = useMemo(() => {
     if (isSuperAdmin && ptOptions.length > 0) return ptOptions[0]!.value
-    if (isCompanyAdmin && effectiveCompanyId) return effectiveCompanyId
+    if (effectiveCompanyId) return effectiveCompanyId
     return ""
-  }, [isSuperAdmin, isCompanyAdmin, ptOptions, effectiveCompanyId])
+  }, [isSuperAdmin, ptOptions, effectiveCompanyId])
 
   useEffect(() => {
     if (derivedInitialPT && !selectedPT) {
@@ -79,9 +80,9 @@ export default function Page() {
   // ── Fetch branches (Toko) for Super Admin (by selected PT) or company_admin (by user's company) ──
   const branchQueryCompanyId = isSuperAdmin ? selectedPT : effectiveCompanyId
   const { data: branchesData, isLoading: branchesLoading } = useBranches(
-    (isSuperAdmin && selectedPT) || (isCompanyAdmin && branchQueryCompanyId)
+    branchQueryCompanyId
       ? {
-          companyId: branchQueryCompanyId!,
+          companyId: branchQueryCompanyId,
           pageSize: 100,
           status: "active",
         }

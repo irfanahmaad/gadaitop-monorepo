@@ -15,6 +15,7 @@ import {
   Coins,
   ArrowRightLeft,
   FileBarChart,
+  Bell,
   Store,
   Users,
   User,
@@ -76,6 +77,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       ability.can("view", MenuSubject.STOCK_OPNAME) ||
       ability.can("view", MenuSubject.LELANGAN) ||
       ability.can("view", MenuSubject.VALIDASI_LELANG) ||
+      ability.can("view", MenuSubject.NOTIFIKASI) ||
       ability.can("view", MenuSubject.TAMBAH_MODAL) ||
       ability.can("view", MenuSubject.SETOR_UANG) ||
       ability.can("view", MenuSubject.MUTASI_TRANSAKSI) ||
@@ -332,6 +334,22 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                           >
                             <FileBarChart className="size-4 shrink-0" />
                             <span>Laporan</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    </Can>
+                    <Can I="view" a={MenuSubject.NOTIFIKASI}>
+                      <SidebarMenuItem>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={pathname?.startsWith("/notifikasi")}
+                        >
+                          <Link
+                            href="/notifikasi"
+                            className="flex items-center gap-2"
+                          >
+                            <Bell className="size-4 shrink-0" />
+                            <span>Notifikasi</span>
                           </Link>
                         </SidebarMenuButton>
                       </SidebarMenuItem>

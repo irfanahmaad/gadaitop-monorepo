@@ -167,6 +167,8 @@ export class RoleSeed extends Seeder {
     const staffLelangPermissions = [
       // AuctionBatch - Read only
       { action: AclAction.READ, subject: AclSubject.AUCTION_BATCH },
+      // SPK - Read only (view SPK/NKB context when opening batch item detail)
+      { action: AclAction.READ, subject: AclSubject.SPK },
       // AuctionPickup - CRUD (manage pickup process)
       { action: AclAction.CREATE, subject: AclSubject.AUCTION_PICKUP },
       { action: AclAction.READ, subject: AclSubject.AUCTION_PICKUP },

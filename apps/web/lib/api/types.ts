@@ -782,6 +782,8 @@ export interface AuctionItemDetail {
   validationVerdict?: string | null
   validationPhotos?: string[] | null
   validatedAt?: string | null
+  marketingNotes?: string | null
+  marketingAssets?: string[] | null
   createdAt: string
   updatedAt: string
 }
@@ -799,6 +801,8 @@ export interface AuctionBatch {
   marketingStaff?: AuctionBatchAssignee[]
   auctionStaff?: AuctionBatchAssignee[]
   notes?: string | null
+  marketingNotes?: string | null
+  marketingAssets?: string[] | null
   items?: AuctionItemDetail[]
   createdAt: string
   updatedAt?: string
@@ -821,15 +825,27 @@ export interface UpdateAuctionBatchDto {
   auctionStaffIds?: string[]
 }
 
-export interface ItemPickupDto {
-  pickedUp: boolean
-  notes?: string
+export interface UpdateBatchMarketingDto {
+  marketingNotes?: string
+  marketingAssets?: string[]
 }
 
+export interface UpdateBatchItemMarketingDto {
+  marketingNotes?: string
+  marketingAssets?: string[]
+}
+
+/** Payload for PUT auction-batches/:id/items/:itemId/pickup. failureReason required when pickupStatus is 'failed'. */
+export interface ItemPickupDto {
+  pickupStatus: "taken" | "failed"
+  failureReason?: string
+}
+
+/** Payload for PUT auction-batches/:id/items/:itemId/validation. */
 export interface ItemValidationDto {
-  validated: boolean
-  validatedPrice?: number
+  verdict: "ok" | "return" | "reject"
   notes?: string
+  validationPhotos?: string[]
 }
 
 // ==========================================

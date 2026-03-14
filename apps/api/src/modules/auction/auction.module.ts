@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
+import { NotificationModule } from '../notification/notification.module';
 import { SpkModule } from '../spk/spk.module';
 import { AuctionBatchAssigneeEntity } from './entities/auction-batch-assignee.entity';
 import { AuctionBatchEntity } from './entities/auction-batch.entity';
@@ -15,6 +16,7 @@ import { AuctionService } from './auction.service';
       AuctionBatchAssigneeEntity,
       AuctionBatchItemEntity,
     ]),
+    NotificationModule,
     SpkModule,
   ],
   controllers: [AuctionController],

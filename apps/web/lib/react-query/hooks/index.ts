@@ -147,11 +147,16 @@ export {
   useAssignAuctionBatch,
   useAuctionBatch,
   useAuctionBatches,
+  useBulkDeleteAuctionBatches,
   useCancelAuctionBatch,
   useCreateAuctionBatch,
+  useDeleteAuctionBatch,
   useFinalizeAuctionBatch,
   useItemPickup,
   useItemValidation,
+  useRemoveItemFromBatch,
+  useUpdateBatchItemMarketing,
+  useUpdateBatchMarketing,
 } from "./use-auction-batches"
 
 // Stock Opname hooks

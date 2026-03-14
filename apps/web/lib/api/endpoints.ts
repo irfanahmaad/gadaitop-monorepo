@@ -167,6 +167,9 @@ export const endpoints = {
       baseUrl(`auction-batches/${batchId}/items/${itemId}`),
     finalize: (id: string) => baseUrl(`auction-batches/${id}/finalize`),
     cancel: (id: string) => baseUrl(`auction-batches/${id}/cancel`),
+    updateMarketing: (id: string) => baseUrl(`auction-batches/${id}/marketing`),
+    updateItemMarketing: (id: string, itemId: string) =>
+      baseUrl(`auction-batches/${id}/items/${itemId}/marketing`),
   },
 
   // Stock Opname

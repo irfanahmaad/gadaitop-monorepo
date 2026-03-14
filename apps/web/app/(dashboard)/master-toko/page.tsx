@@ -1,8 +1,8 @@
 "use client"
 
-import React, { useMemo, useState, useCallback } from "react"
+import React, { useMemo, useState, useCallback, useEffect } from "react"
 import { useQueryClient } from "@tanstack/react-query"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { ColumnDef } from "@tanstack/react-table"
 import { Breadcrumbs } from "@/components/breadcrumbs"
 import { DataTable } from "@/components/data-table"
@@ -490,9 +490,18 @@ export default function MasterTokoPage() {
 
   const requestCount = requestRows.length
 
+  const searchParams = useSearchParams()
   const [pageSize, setPageSize] = useState(10)
   const [searchValue, setSearchValue] = useState("")
   const [activeTab, setActiveTab] = useState("toko-utama")
+
+  // Sync tab from URL (e.g. /master-toko?tab=request from notification deep link)
+  useEffect(() => {
+    const tab = searchParams.get("tab")
+    if (tab === "request" || tab === "toko-pinjaman" || tab === "toko-utama") {
+      setActiveTab(tab)
+    }
+  }, [searchParams])
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
   const [itemToDelete, setItemToDelete] = useState<Toko | null>(null)
   const [setujuiRow, setSetujuiRow] = useState<RequestToko | null>(null)

@@ -25,7 +25,10 @@ import {
 import { useFilterParams } from "@/hooks/use-filter-params"
 import type { FilterConfig } from "@/hooks/use-filter-params"
 import type { Notification } from "@/lib/api/types"
-import { useNotifications } from "@/lib/react-query/hooks/use-notifications"
+import {
+  useNotifications,
+  useMarkAsRead,
+} from "@/lib/react-query/hooks/use-notifications"
 
 // Format date helper
 const formatDateTime = (dateString: string): string => {
@@ -165,6 +168,7 @@ function NotifikasiPageContent() {
 
   const { data, isLoading, isError } = useNotifications(listOptions)
   const notifications = data?.data ?? []
+  const markAsReadMutation = useMarkAsRead()
 
   // Reset to page 1 when search or filters change
   useEffect(() => {
@@ -173,6 +177,42 @@ function NotifikasiPageContent() {
 
   const handleBack = () => {
     router.back()
+  }
+
+  const handleRowClick = (notification: Notification) => {
+    if (!notification.readAt) {
+      markAsReadMutation.mutate(notification.uuid)
+    }
+    const type = notification.relatedEntityType ?? notification.type
+    const id = notification.relatedEntityId
+    if (type === "auction_batch" && id) {
+      router.push(`/lelangan/${id}`)
+      return
+    }
+    if (type === "spk" && id) {
+      router.push(`/spk/${id}`)
+      return
+    }
+    if (type === "nkb" && id) {
+      router.push(`/nkb`)
+      return
+    }
+    if (type === "stock_opname" && id) {
+      router.push(`/stock-opname/${id}`)
+      return
+    }
+    if (type === "capital_topup" && id) {
+      router.push("/laporan/tambah-modal")
+      return
+    }
+    if (type === "cash_deposit" && id) {
+      router.push("/laporan/setor-uang")
+      return
+    }
+    if (type === "BorrowRequest") {
+      router.push("/master-toko?tab=request")
+      return
+    }
   }
 
   return (
@@ -209,6 +249,7 @@ function NotifikasiPageContent() {
           <DataTable
             columns={columns}
             data={notifications}
+            onRowClick={handleRowClick}
             searchPlaceholder="Cari notifikasi..."
             filterConfig={filterConfig}
             filterValues={filterValues}

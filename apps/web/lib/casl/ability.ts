@@ -65,17 +65,19 @@ const ROLE_MENU_MAP: Record<string, MenuSubject[]> = {
     MenuSubject.STOCK_OPNAME,
   ],
 
-  // Auction Staff — validasi lelang only (no Lelangan menu)
+  // Auction Staff — validasi lelang + notifikasi
   auction_staff: [
     MenuSubject.DASHBOARD,
     MenuSubject.VALIDASI_LELANG,
+    MenuSubject.NOTIFIKASI,
   ],
 
-  // Marketing — auction viewing + validasi lelang (3 tabs) + marketing notes
+  // Marketing — auction viewing + validasi lelang + notifikasi
   marketing: [
     MenuSubject.DASHBOARD,
     MenuSubject.LELANGAN,
     MenuSubject.VALIDASI_LELANG,
+    MenuSubject.NOTIFIKASI,
   ],
 }
 
