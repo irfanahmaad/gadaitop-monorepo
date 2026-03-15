@@ -118,7 +118,7 @@ function FormSkeleton() {
                 <Skeleton className="size-6 rounded" />
                 <Skeleton className="h-6 w-32" />
               </div>
-              <div className="grid gap-6 md:grid-cols-2 items-start">
+              <div className="grid items-start gap-6 md:grid-cols-2">
                 {Array.from({ length: 4 }).map((_, i) => (
                   <div key={i} className="space-y-2">
                     <Skeleton className="h-4 w-24" />
@@ -132,7 +132,7 @@ function FormSkeleton() {
                 <Skeleton className="size-6 rounded" />
                 <Skeleton className="h-6 w-24" />
               </div>
-              <div className="grid gap-6 md:grid-cols-2 items-start">
+              <div className="grid items-start gap-6 md:grid-cols-2">
                 {Array.from({ length: 2 }).map((_, i) => (
                   <div key={i} className="space-y-2">
                     <Skeleton className="h-4 w-24" />
@@ -199,8 +199,7 @@ export default function EditMasterPenggunaPage() {
 
   const selectedRoleId = form.watch("roleId")
   const selectedRole = React.useMemo(
-    () =>
-      (rolesData?.data ?? []).find((r: Role) => r.uuid === selectedRoleId),
+    () => (rolesData?.data ?? []).find((r: Role) => r.uuid === selectedRoleId),
     [rolesData?.data, selectedRoleId]
   )
   const isStaffToko = selectedRole?.code === "branch_staff"
@@ -268,14 +267,6 @@ export default function EditMasterPenggunaPage() {
       }
       reader.readAsDataURL(file)
     }
-  }
-
-  const handleRemoveImage = (field: {
-    onChange: (value: undefined) => void
-  }) => {
-    field.onChange(undefined)
-    setUserRemovedImage(true)
-    setPreviewImage(null)
   }
 
   const handleSimpanClick = () => {
@@ -429,12 +420,12 @@ export default function EditMasterPenggunaPage() {
                           <div className="relative">
                             {previewImage ? (
                               <div className="relative inline-block aspect-square w-48">
-                                <div className="border-input bg-muted/50 h-full w-full overflow-hidden rounded-full border-2 border-dashed">
+                                <div className="border-input bg-muted/50 h-full w-full rounded-full border-2 border-dashed">
                                   {/* eslint-disable-next-line @next/next/no-img-element */}
                                   <img
                                     src={previewImage}
                                     alt="Preview"
-                                    className="size-full object-cover"
+                                    className="size-full rounded-full object-cover"
                                   />
                                 </div>
                                 <div className="absolute right-0 bottom-0 left-0 z-50 flex justify-between gap-2 p-1">
@@ -497,7 +488,7 @@ export default function EditMasterPenggunaPage() {
                         Detail Pengguna
                       </h2>
                     </div>
-                    <div className="grid gap-6 md:grid-cols-2 items-start">
+                    <div className="grid items-start gap-6 md:grid-cols-2">
                       <FormField
                         control={form.control}
                         name="fullName"
@@ -633,7 +624,7 @@ export default function EditMasterPenggunaPage() {
                         Keamanan
                       </h2>
                     </div>
-                    <div className="grid gap-6 md:grid-cols-2 items-start">
+                    <div className="grid items-start gap-6 md:grid-cols-2">
                       <FormField
                         control={form.control}
                         name="password"

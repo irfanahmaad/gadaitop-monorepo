@@ -99,7 +99,7 @@ function FormSkeleton() {
           <div className="space-y-8">
             <div className="space-y-4">
               <Skeleton className="h-6 w-32" />
-              <div className="grid gap-6 md:grid-cols-2 items-start">
+              <div className="grid items-start gap-6 md:grid-cols-2">
                 <Skeleton className="h-20" />
                 <Skeleton className="h-20" />
                 <Skeleton className="h-20" />
@@ -107,7 +107,7 @@ function FormSkeleton() {
             </div>
             <div className="space-y-4">
               <Skeleton className="h-6 w-32" />
-              <div className="grid gap-6 md:grid-cols-2 items-start">
+              <div className="grid items-start gap-6 md:grid-cols-2">
                 <Skeleton className="h-20" />
                 <Skeleton className="h-20" />
               </div>
@@ -311,12 +311,12 @@ export default function EditMasterKatalogPage() {
                         <div className="relative">
                           {previewImage ? (
                             <div className="relative inline-block aspect-square w-48">
-                              <div className="border-input bg-muted/50 h-full w-full overflow-hidden rounded-full border-2 border-dashed">
+                              <div className="border-input bg-muted/50 h-full w-full rounded-full border-2 border-dashed">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
                                   src={previewImage}
                                   alt="Preview"
-                                  className="size-full object-cover"
+                                  className="size-full rounded-full object-cover"
                                 />
                               </div>
                               <div className="absolute right-0 bottom-0 z-50 flex gap-1">
@@ -378,7 +378,7 @@ export default function EditMasterKatalogPage() {
                       Detail Katalog
                     </h2>
                   </div>
-                  <div className="grid gap-6 md:grid-cols-2 items-start">
+                  <div className="grid items-start gap-6 md:grid-cols-2">
                     <FormField
                       control={form.control}
                       name="namaKatalog"
@@ -466,7 +466,7 @@ export default function EditMasterKatalogPage() {
                       Potongan Harga
                     </h2>
                   </div>
-                  <div className="grid gap-6 md:grid-cols-2 items-start">
+                  <div className="grid items-start gap-6 md:grid-cols-2">
                     <FormField
                       control={form.control}
                       name="namaPotongan"

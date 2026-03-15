@@ -299,7 +299,7 @@ export default function EditMasterCustomerPage() {
                     <Skeleton className="size-6 rounded" />
                     <Skeleton className="h-6 w-36" />
                   </div>
-                  <div className="grid gap-6 md:grid-cols-2 items-start">
+                  <div className="grid items-start gap-6 md:grid-cols-2">
                     {Array.from({ length: 5 }).map((_, i) => (
                       <div key={i} className="space-y-2">
                         <Skeleton className="h-4 w-24" />
@@ -313,7 +313,7 @@ export default function EditMasterCustomerPage() {
                     <Skeleton className="size-6 rounded" />
                     <Skeleton className="h-6 w-28" />
                   </div>
-                  <div className="grid gap-6 md:grid-cols-2 items-start">
+                  <div className="grid items-start gap-6 md:grid-cols-2">
                     {Array.from({ length: 7 }).map((_, i) => (
                       <div key={i} className="space-y-2">
                         <Skeleton className="h-4 w-20" />
@@ -370,12 +370,12 @@ export default function EditMasterCustomerPage() {
                         <div className="relative">
                           {previewImage ? (
                             <div className="relative inline-block aspect-square w-48">
-                              <div className="border-input bg-muted/50 h-full w-full overflow-hidden rounded-full border-2 border-dashed">
+                              <div className="border-input bg-muted/50 h-full w-full rounded-full border-2 border-dashed">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
                                   src={previewImage}
                                   alt="Preview"
-                                  className="size-full object-cover"
+                                  className="size-full rounded-full object-cover"
                                 />
                               </div>
                               <label

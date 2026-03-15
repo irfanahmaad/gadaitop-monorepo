@@ -84,8 +84,7 @@ const customerSchema = z.object({
     .optional()
     .or(z.literal(""))
     .refine(
-      (val) =>
-        !val?.trim() || parseDobToIso(val ?? "") !== null,
+      (val) => !val?.trim() || parseDobToIso(val ?? "") !== null,
       "Format: DD-MM-YYYY (contoh: 31-12-1990)"
     ),
   kota: z
@@ -142,10 +141,9 @@ function parseDobToIso(value: string): string | null {
   const trimmed = value.trim()
   try {
     if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed
-    const parsed =
-      /^\d{1,2}-\d{1,2}-\d{4}$/.test(trimmed)
-        ? parse(trimmed, "d-M-yyyy", new Date())
-        : parse(trimmed, "d MMMM yyyy", new Date(), { locale: id })
+    const parsed = /^\d{1,2}-\d{1,2}-\d{4}$/.test(trimmed)
+      ? parse(trimmed, "d-M-yyyy", new Date())
+      : parse(trimmed, "d MMMM yyyy", new Date(), { locale: id })
     return format(parsed, DOB_ISO_FORMAT)
   } catch {
     return null
@@ -251,7 +249,9 @@ export default function TambahMasterCustomerPage() {
     }
   }, [imageValue])
 
-  const handleRemoveImage = (field: { onChange: (value: undefined) => void }) => {
+  const handleRemoveImage = (field: {
+    onChange: (value: undefined) => void
+  }) => {
     field.onChange(undefined)
     setPreviewImage(null)
   }
@@ -429,12 +429,12 @@ export default function TambahMasterCustomerPage() {
                         <div className="flex flex-col items-center gap-3">
                           {previewImage ? (
                             <div className="relative inline-block aspect-square w-48">
-                              <div className="border-input bg-muted/50 h-full w-full overflow-hidden rounded-full border-2 border-dashed">
+                              <div className="border-input bg-muted/50 h-full w-full rounded-full border-2 border-dashed">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
                                   src={previewImage}
                                   alt="Preview"
-                                  className="size-full object-cover"
+                                  className="size-full rounded-full object-cover"
                                 />
                               </div>
                               <button
@@ -447,7 +447,7 @@ export default function TambahMasterCustomerPage() {
                               </button>
                               <label
                                 htmlFor="image-upload-edit"
-                                className="bg-destructive hover:bg-destructive/90 absolute bottom-2 right-2 z-50 flex size-10 cursor-pointer items-center justify-center rounded-full text-white shadow-md transition-colors"
+                                className="bg-destructive hover:bg-destructive/90 absolute right-2 bottom-2 z-50 flex size-10 cursor-pointer items-center justify-center rounded-full text-white shadow-md transition-colors"
                                 aria-label="Ubah gambar"
                               >
                                 <Pencil className="size-4" />

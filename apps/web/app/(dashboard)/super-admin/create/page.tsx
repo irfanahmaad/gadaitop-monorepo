@@ -139,6 +139,7 @@ export default function SuperAdminCreatePage() {
       })
       toast.success("Super Admin berhasil ditambahkan")
       router.push("/super-admin")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       toast.error(error?.errorMessage || "Gagal menambahkan Super Admin")
     }
@@ -147,7 +148,7 @@ export default function SuperAdminCreatePage() {
   if (isLoadingRole) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <Loader2 className="size-8 animate-spin text-muted-foreground" />
+        <Loader2 className="text-muted-foreground size-8 animate-spin" />
       </div>
     )
   }
@@ -188,12 +189,12 @@ export default function SuperAdminCreatePage() {
                             <div className="space-y-4">
                               {previewImage ? (
                                 <div className="relative inline-block aspect-square w-48">
-                                  <div className="border-input bg-muted/50 h-full w-full overflow-hidden rounded-full border-2 border-dashed">
+                                  <div className="border-input bg-muted/50 h-full w-full rounded-full border-2 border-dashed">
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img
                                       src={previewImage}
                                       alt="Preview"
-                                      className="h-full w-full object-cover"
+                                      className="h-full w-full rounded-full object-cover"
                                     />
                                   </div>
                                   <button
@@ -252,7 +253,7 @@ export default function SuperAdminCreatePage() {
                         Detail Super Admin
                       </h2>
                     </div>
-                    <div className="grid gap-6 md:grid-cols-2 items-start">
+                    <div className="grid items-start gap-6 md:grid-cols-2">
                       {/* Nama Lengkap Field */}
                       <FormField
                         control={form.control}
@@ -283,8 +284,7 @@ export default function SuperAdminCreatePage() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>
-                              Email{" "}
-                              <span className="text-destructive">*</span>
+                              Email <span className="text-destructive">*</span>
                             </FormLabel>
                             <FormControl>
                               <Input
@@ -332,7 +332,7 @@ export default function SuperAdminCreatePage() {
                         Keamanan
                       </h2>
                     </div>
-                    <div className="grid gap-6 md:grid-cols-2 items-start">
+                    <div className="grid items-start gap-6 md:grid-cols-2">
                       {/* Kata Sandi Field */}
                       <FormField
                         control={form.control}

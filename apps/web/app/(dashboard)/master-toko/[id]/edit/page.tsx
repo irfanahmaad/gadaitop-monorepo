@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useMemo } from "react"
+import React, { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -112,7 +112,7 @@ function FormSkeleton() {
                 <Skeleton className="size-6 rounded" />
                 <Skeleton className="h-6 w-32" />
               </div>
-              <div className="grid gap-6 md:grid-cols-2 items-start">
+              <div className="grid items-start gap-6 md:grid-cols-2">
                 {Array.from({ length: 6 }).map((_, i) => (
                   <div key={i} className="space-y-2">
                     <Skeleton className="h-4 w-24" />
@@ -254,7 +254,12 @@ export default function EditMasterTokoPage() {
     }
   }
 
-  if (!isLoading && branchData && !isSuperAdmin && branchData.companyId !== user?.companyId) {
+  if (
+    !isLoading &&
+    branchData &&
+    !isSuperAdmin &&
+    branchData.companyId !== user?.companyId
+  ) {
     return (
       <div className="flex flex-col gap-6">
         <Breadcrumbs
@@ -265,7 +270,9 @@ export default function EditMasterTokoPage() {
         />
         <Card>
           <CardContent className="py-10 text-center">
-            <p className="text-destructive">Anda tidak memiliki akses ke Toko ini.</p>
+            <p className="text-destructive">
+              Anda tidak memiliki akses ke Toko ini.
+            </p>
             <Button
               variant="outline"
               className="mt-4"
@@ -364,19 +371,19 @@ export default function EditMasterTokoPage() {
                         <div className="relative">
                           {previewImage ? (
                             <div className="relative inline-block aspect-square w-48">
-                              <div className="border-input bg-muted/50 h-full w-full overflow-hidden rounded-full border-2 border-dashed">
+                              <div className="border-input bg-muted/50 h-full w-full rounded-full border-2 border-dashed">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
                                   src={previewImage}
                                   alt="Preview"
-                                  className="size-full object-cover"
+                                  className="size-full rounded-full object-cover"
                                 />
                               </div>
-                              <div className="absolute bottom-0 left-0 right-0 z-50 flex justify-between gap-1 p-1">
+                              <div className="absolute right-0 bottom-0 left-0 z-50 flex justify-between gap-1 p-1">
                                 <button
                                   type="button"
                                   onClick={() => handleRemoveImage(field)}
-                                  className="flex size-10 items-center justify-center rounded-full bg-muted-foreground/80 text-white shadow-sm transition-colors hover:bg-muted-foreground"
+                                  className="bg-muted-foreground/80 hover:bg-muted-foreground flex size-10 items-center justify-center rounded-full text-white shadow-sm transition-colors"
                                   aria-label="Hapus gambar"
                                 >
                                   <Trash2 className="size-4" />
@@ -392,7 +399,9 @@ export default function EditMasterTokoPage() {
                                     type="file"
                                     accept="image/*"
                                     className="hidden"
-                                    onChange={(e) => handleImageChange(e, field)}
+                                    onChange={(e) =>
+                                      handleImageChange(e, field)
+                                    }
                                   />
                                 </label>
                               </div>
@@ -437,7 +446,7 @@ export default function EditMasterTokoPage() {
                       Detail Toko
                     </h2>
                   </div>
-                  <div className="grid gap-6 md:grid-cols-2 items-start">
+                  <div className="grid items-start gap-6 md:grid-cols-2">
                     <FormField
                       control={form.control}
                       name="kodeLokasi"

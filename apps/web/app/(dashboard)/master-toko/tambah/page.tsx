@@ -89,10 +89,10 @@ export default function TambahMasterTokoPage() {
   const schema = useMemo(
     () =>
       isPinjamPTFlow
-        ? tokoSchema.refine(
-            (data) => !!data.companyId?.trim(),
-            { message: "PT yang akan dipinjam wajib dipilih.", path: ["companyId"] }
-          )
+        ? tokoSchema.refine((data) => !!data.companyId?.trim(), {
+            message: "PT yang akan dipinjam wajib dipilih.",
+            path: ["companyId"],
+          })
         : tokoSchema,
     [isPinjamPTFlow]
   )
@@ -173,16 +173,13 @@ export default function TambahMasterTokoPage() {
     try {
       // Use selected PT from form when Super Admin or in Pinjam PT flow; otherwise use current user's company
       const companyId =
-        isSuperAdmin || isPinjamPTFlow
-          ? values.companyId
-          : user?.companyId
+        isSuperAdmin || isPinjamPTFlow ? values.companyId : user?.companyId
       if (!companyId) {
         throw new Error("Company ID PT belum dipilih atau tidak ditemukan")
       }
 
       // When opened from Toko Pinjaman tab (?pinjamPT=1), always create as Pinjam PT (target PT + borrow request flow)
-      const isPinjamPT =
-        isPinjamPTFlow && !!companyId && !!user?.uuid
+      const isPinjamPT = isPinjamPTFlow && !!companyId && !!user?.uuid
 
       let imageUrl: string | undefined
       if (values.image instanceof File) {
@@ -248,8 +245,8 @@ export default function TambahMasterTokoPage() {
         />
         {isPinjamPTFlow && (
           <p className="text-muted-foreground text-sm">
-            Pilih PT yang akan dipinjam. Toko akan berstatus menunggu persetujuan
-            pemilik PT tersebut.
+            Pilih PT yang akan dipinjam. Toko akan berstatus menunggu
+            persetujuan pemilik PT tersebut.
           </p>
         )}
       </div>
@@ -275,12 +272,12 @@ export default function TambahMasterTokoPage() {
                         <div className="relative">
                           {previewImage ? (
                             <div className="relative inline-block aspect-square w-48">
-                              <div className="border-input bg-muted/50 h-full w-full overflow-hidden rounded-full border-2 border-dashed">
+                              <div className="border-input bg-muted/50 h-full w-full rounded-full border-2 border-dashed">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
                                   src={previewImage}
                                   alt="Preview"
-                                  className="size-full object-cover"
+                                  className="size-full rounded-full object-cover"
                                 />
                               </div>
                               <label
@@ -370,7 +367,10 @@ export default function TambahMasterTokoPage() {
                                 </FormControl>
                                 <SelectContent>
                                   {ptOptions.map((opt) => (
-                                    <SelectItem key={opt.value} value={opt.value}>
+                                    <SelectItem
+                                      key={opt.value}
+                                      value={opt.value}
+                                    >
                                       {opt.label}
                                     </SelectItem>
                                   ))}
@@ -378,14 +378,16 @@ export default function TambahMasterTokoPage() {
                               </Select>
                               {isPinjamPTFlow && (
                                 <p className="text-muted-foreground text-sm">
-                                  Toko akan dibuat sebagai <strong>Pinjam PT</strong> dan
-                                  memerlukan persetujuan pemilik PT tersebut.
+                                  Toko akan dibuat sebagai{" "}
+                                  <strong>Pinjam PT</strong> dan memerlukan
+                                  persetujuan pemilik PT tersebut.
                                 </p>
                               )}
                               {!isPinjamPTFlow && selectedPtIsOther && (
                                 <p className="text-muted-foreground text-sm">
-                                  Toko akan dibuat sebagai <strong>Pinjam PT</strong> dan
-                                  memerlukan persetujuan pemilik PT tersebut.
+                                  Toko akan dibuat sebagai{" "}
+                                  <strong>Pinjam PT</strong> dan memerlukan
+                                  persetujuan pemilik PT tersebut.
                                 </p>
                               )}
                               <FormMessage />

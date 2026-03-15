@@ -70,7 +70,11 @@ const katalogSchema = z.object({
       const parsed = parseCurrencyInput(val)
       return parsed !== null && parsed >= 0
     }, "Jumlah Potongan harus valid"),
-  keterangan: z.string().max(500, "Keterangan maksimal 500 karakter").optional().or(z.literal("")),
+  keterangan: z
+    .string()
+    .max(500, "Keterangan maksimal 500 karakter")
+    .optional()
+    .or(z.literal("")),
 })
 
 type KatalogFormValues = z.infer<typeof katalogSchema>
@@ -147,7 +151,9 @@ export default function TambahMasterKatalogPage() {
       router.push("/master-katalog")
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Gagal menambahkan data Katalog"
+        error instanceof Error
+          ? error.message
+          : "Gagal menambahkan data Katalog"
       toast.error(message)
     } finally {
       setIsSubmitting(false)
@@ -186,12 +192,12 @@ export default function TambahMasterKatalogPage() {
                         <div className="relative">
                           {previewImage ? (
                             <div className="relative inline-block aspect-square w-48">
-                              <div className="border-input bg-muted/50 h-full w-full overflow-hidden rounded-full border-2 border-dashed">
+                              <div className="border-input bg-muted/50 h-full w-full rounded-full border-2 border-dashed">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
                                   src={previewImage}
                                   alt="Preview"
-                                  className="size-full object-cover"
+                                  className="size-full rounded-full object-cover"
                                 />
                               </div>
                               <label
@@ -249,7 +255,7 @@ export default function TambahMasterKatalogPage() {
                       Detail Katalog
                     </h2>
                   </div>
-                  <div className="grid gap-6 md:grid-cols-2 items-start">
+                  <div className="grid items-start gap-6 md:grid-cols-2">
                     <FormField
                       control={form.control}
                       name="namaKatalog"
@@ -311,7 +317,9 @@ export default function TambahMasterKatalogPage() {
                               icon={<>Rp</>}
                               value={field.value}
                               onChange={(e) => {
-                                const parsed = parseCurrencyInput(e.target.value)
+                                const parsed = parseCurrencyInput(
+                                  e.target.value
+                                )
                                 field.onChange(
                                   parsed !== null
                                     ? formatCurrencyInput(parsed)
@@ -335,7 +343,7 @@ export default function TambahMasterKatalogPage() {
                       Potongan Harga
                     </h2>
                   </div>
-                  <div className="grid gap-6 md:grid-cols-2 items-start">
+                  <div className="grid items-start gap-6 md:grid-cols-2">
                     <FormField
                       control={form.control}
                       name="namaPotongan"
@@ -373,7 +381,9 @@ export default function TambahMasterKatalogPage() {
                               icon={<>Rp</>}
                               value={field.value}
                               onChange={(e) => {
-                                const parsed = parseCurrencyInput(e.target.value)
+                                const parsed = parseCurrencyInput(
+                                  e.target.value
+                                )
                                 field.onChange(
                                   parsed !== null
                                     ? formatCurrencyInput(parsed)

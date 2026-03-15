@@ -92,7 +92,7 @@ function FormSkeleton() {
                 <Skeleton className="size-6 rounded" />
                 <Skeleton className="h-6 w-24" />
               </div>
-              <div className="grid gap-6 md:grid-cols-2 items-start">
+              <div className="grid items-start gap-6 md:grid-cols-2">
                 {Array.from({ length: 4 }).map((_, i) => (
                   <div key={i} className="space-y-2">
                     <Skeleton className="h-4 w-24" />
@@ -106,7 +106,7 @@ function FormSkeleton() {
                 <Skeleton className="size-6 rounded" />
                 <Skeleton className="h-6 w-32" />
               </div>
-              <div className="grid gap-6 md:grid-cols-2 items-start">
+              <div className="grid items-start gap-6 md:grid-cols-2">
                 {Array.from({ length: 3 }).map((_, i) => (
                   <div key={i} className="space-y-2">
                     <Skeleton className="h-4 w-24" />
@@ -231,7 +231,8 @@ export default function EditPTPage() {
       toast.success("PT berhasil diperbarui")
       router.push(`/pt/${slug}`)
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Gagal memperbarui PT"
+      const message =
+        error instanceof Error ? error.message : "Gagal memperbarui PT"
       toast.error(message)
     }
   }
@@ -292,12 +293,12 @@ export default function EditPTPage() {
                             <div className="space-y-4">
                               {previewImage ? (
                                 <div className="relative inline-block aspect-square w-48">
-                                  <div className="border-input bg-muted/50 h-full w-full overflow-hidden rounded-full border-2 border-dashed">
+                                  <div className="border-input bg-muted/50 h-full w-full rounded-full border-2 border-dashed">
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img
                                       src={previewImage}
                                       alt="Preview"
-                                      className="h-full w-full object-cover"
+                                      className="h-full w-full rounded-full object-cover"
                                     />
                                   </div>
                                   <button
@@ -354,7 +355,7 @@ export default function EditPTPage() {
                           Detail PT
                         </h3>
                       </div>
-                      <div className="grid gap-6 md:grid-cols-2 items-start">
+                      <div className="grid items-start gap-6 md:grid-cols-2">
                         {/* Kode PT Field */}
                         <FormField
                           control={form.control}
@@ -456,7 +457,7 @@ export default function EditPTPage() {
                     <p className="text-muted-foreground text-sm">
                       Data admin primary tidak dapat diubah di halaman ini.
                     </p>
-                    <div className="grid gap-6 md:grid-cols-2 items-start">
+                    <div className="grid items-start gap-6 md:grid-cols-2">
                       {/* Nama Lengkap Field */}
                       <FormField
                         control={form.control}
@@ -534,9 +535,10 @@ export default function EditPTPage() {
                       </h2>
                     </div>
                     <div className="text-muted-foreground mb-4 text-sm">
-                      Untuk mengubah kata sandi admin, silakan gunakan fitur reset password.
+                      Untuk mengubah kata sandi admin, silakan gunakan fitur
+                      reset password.
                     </div>
-                    <div className="grid gap-6 md:grid-cols-2 items-start">
+                    <div className="grid items-start gap-6 md:grid-cols-2">
                       {/* Kata Sandi Field */}
                       <FormField
                         control={form.control}

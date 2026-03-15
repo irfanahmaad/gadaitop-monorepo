@@ -36,20 +36,32 @@ import { useCreateCompany } from "@/lib/react-query/hooks"
 const ptSchema = z
   .object({
     image: z.union([z.instanceof(File), z.string()]).optional(),
-    code: z.string().min(1, "Kode PT harus diisi").max(10, "Kode PT maksimal 10 karakter"),
-    name: z.string().min(1, "Nama PT harus diisi").max(255, "Nama PT maksimal 255 karakter"),
+    code: z
+      .string()
+      .min(1, "Kode PT harus diisi")
+      .max(10, "Kode PT maksimal 10 karakter"),
+    name: z
+      .string()
+      .min(1, "Nama PT harus diisi")
+      .max(255, "Nama PT maksimal 255 karakter"),
     email: z
       .string()
       .email("Format email tidak valid")
       .optional()
       .or(z.literal("")),
     phone: z.string().max(20, "No. Telepon maksimal 20 karakter").optional(),
-    adminName: z.string().min(1, "Nama Lengkap harus diisi").max(255, "Nama Lengkap maksimal 255 karakter"),
+    adminName: z
+      .string()
+      .min(1, "Nama Lengkap harus diisi")
+      .max(255, "Nama Lengkap maksimal 255 karakter"),
     adminEmail: z
       .string()
       .min(1, "Email harus diisi")
       .email("Format email tidak valid"),
-    adminPhone: z.string().max(20, "No. Telepon maksimal 20 karakter").optional(),
+    adminPhone: z
+      .string()
+      .max(20, "No. Telepon maksimal 20 karakter")
+      .optional(),
     password: z
       .string()
       .min(1, "Kata Sandi harus diisi")
@@ -135,7 +147,8 @@ export default function PTCreatePage() {
       toast.success("PT berhasil ditambahkan")
       router.push("/pt")
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Gagal menambahkan PT"
+      const message =
+        error instanceof Error ? error.message : "Gagal menambahkan PT"
       toast.error(message)
     }
   }
@@ -173,12 +186,12 @@ export default function PTCreatePage() {
                             <div className="space-y-4">
                               {previewImage ? (
                                 <div className="relative inline-block aspect-square w-48">
-                                  <div className="border-input bg-muted/50 h-full w-full overflow-hidden rounded-full border-2 border-dashed">
+                                  <div className="border-input bg-muted/50 h-full w-full rounded-full border-2 border-dashed">
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img
                                       src={previewImage}
                                       alt="Preview"
-                                      className="h-full w-full object-cover"
+                                      className="h-full w-full rounded-full object-cover"
                                     />
                                   </div>
                                   <button
@@ -235,7 +248,7 @@ export default function PTCreatePage() {
                           Detail PT
                         </h3>
                       </div>
-                      <div className="grid gap-6 md:grid-cols-2 items-start">
+                      <div className="grid items-start gap-6 md:grid-cols-2">
                         {/* Kode PT Field */}
                         <FormField
                           control={form.control}
@@ -333,7 +346,7 @@ export default function PTCreatePage() {
                         Admin Primary
                       </h2>
                     </div>
-                    <div className="grid gap-6 md:grid-cols-2 items-start">
+                    <div className="grid items-start gap-6 md:grid-cols-2">
                       {/* Nama Lengkap Field */}
                       <FormField
                         control={form.control}
@@ -364,8 +377,7 @@ export default function PTCreatePage() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>
-                              Email{" "}
-                              <span className="text-destructive">*</span>
+                              Email <span className="text-destructive">*</span>
                             </FormLabel>
                             <FormControl>
                               <Input
@@ -410,7 +422,7 @@ export default function PTCreatePage() {
                         Keamanan (Admin Primary)
                       </h2>
                     </div>
-                    <div className="grid gap-6 md:grid-cols-2 items-start">
+                    <div className="grid items-start gap-6 md:grid-cols-2">
                       {/* Kata Sandi Field */}
                       <FormField
                         control={form.control}
@@ -510,7 +522,10 @@ export default function PTCreatePage() {
                       <X className="mr-2 size-4" />
                       Batal
                     </Button>
-                    <Button type="submit" disabled={createCompanyMutation.isPending}>
+                    <Button
+                      type="submit"
+                      disabled={createCompanyMutation.isPending}
+                    >
                       {createCompanyMutation.isPending ? (
                         <>
                           <Loader2 className="mr-2 size-4 animate-spin" />

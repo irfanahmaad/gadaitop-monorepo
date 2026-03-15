@@ -49,6 +49,7 @@ import { useAuth } from "@/lib/react-query/hooks/use-auth"
 import { useCreateUser } from "@/lib/react-query/hooks/use-users"
 import { useRoles } from "@/lib/react-query/hooks/use-roles"
 import { useBranches } from "@/lib/react-query/hooks/use-branches"
+import { useUploadFile } from "@/lib/react-query/hooks/use-upload"
 
 const userSchema = z
   .object({
@@ -78,9 +79,12 @@ export default function TambahMasterPenggunaPage() {
   const router = useRouter()
   const { user } = useAuth()
   const createMutation = useCreateUser()
+  const uploadFileMutation = useUploadFile()
   const { data: rolesData, isLoading: isLoadingRoles } = useRoles({
     pageSize: 100,
   })
+
+  const isSubmitting = createMutation.isPending || uploadFileMutation.isPending
 
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
@@ -103,8 +107,7 @@ export default function TambahMasterPenggunaPage() {
 
   const selectedRoleId = form.watch("roleId")
   const selectedRole = React.useMemo(
-    () =>
-      (rolesData?.data ?? []).find((r: Role) => r.uuid === selectedRoleId),
+    () => (rolesData?.data ?? []).find((r: Role) => r.uuid === selectedRoleId),
     [rolesData?.data, selectedRoleId]
   )
   const isStaffToko = selectedRole?.code === "branch_staff"
@@ -162,11 +165,24 @@ export default function TambahMasterPenggunaPage() {
     const values = form.getValues()
 
     try {
+      let imageUrl: string | undefined = undefined
+      if (values.image instanceof File) {
+        const file = values.image
+        const ext = file.name.split(".").pop() || "jpg"
+        const key = `users/new/image-${Date.now()}.${ext}`
+        const { key: s3Key } = await uploadFileMutation.mutateAsync({
+          file,
+          key,
+        })
+        imageUrl = s3Key
+      }
+
       await createMutation.mutateAsync({
         fullName: values.fullName,
         email: values.email,
         password: values.password,
         phoneNumber: values.phoneNumber || undefined,
+        imageUrl,
         roleIds: [values.roleId],
         companyId: user?.companyId ?? undefined,
         ...(values.branchId?.trim() && {
@@ -183,7 +199,6 @@ export default function TambahMasterPenggunaPage() {
       toast.error(message)
     }
   }
-
 
   return (
     <>
@@ -218,12 +233,12 @@ export default function TambahMasterPenggunaPage() {
                           <div className="relative">
                             {previewImage ? (
                               <div className="relative inline-block aspect-square w-48">
-                                <div className="border-input bg-muted/50 h-full w-full overflow-hidden rounded-full border-2 border-dashed">
+                                <div className="border-input bg-muted/50 h-full w-full rounded-full border-2 border-dashed">
                                   {/* eslint-disable-next-line @next/next/no-img-element */}
                                   <img
                                     src={previewImage}
                                     alt="Preview"
-                                    className="size-full object-cover"
+                                    className="size-full rounded-full object-cover"
                                   />
                                 </div>
                                 <label
@@ -237,7 +252,9 @@ export default function TambahMasterPenggunaPage() {
                                     type="file"
                                     accept="image/*"
                                     className="hidden"
-                                    onChange={(e) => handleImageChange(e, field)}
+                                    onChange={(e) =>
+                                      handleImageChange(e, field)
+                                    }
                                   />
                                 </label>
                               </div>
@@ -281,7 +298,7 @@ export default function TambahMasterPenggunaPage() {
                         Detail Pengguna
                       </h2>
                     </div>
-                    <div className="grid gap-6 md:grid-cols-2 items-start">
+                    <div className="grid items-start gap-6 md:grid-cols-2">
                       <FormField
                         control={form.control}
                         name="fullName"
@@ -385,12 +402,12 @@ export default function TambahMasterPenggunaPage() {
                                 <FormControl>
                                   <SelectTrigger>
                                     <SelectValue
-                                    placeholder={
-                                      isStaffToko
-                                        ? "Pilih Toko/Cabang"
-                                        : "Pilih Toko/Cabang (opsional)"
-                                    }
-                                  />
+                                      placeholder={
+                                        isStaffToko
+                                          ? "Pilih Toko/Cabang"
+                                          : "Pilih Toko/Cabang (opsional)"
+                                      }
+                                    />
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
@@ -417,7 +434,7 @@ export default function TambahMasterPenggunaPage() {
                         Keamanan
                       </h2>
                     </div>
-                    <div className="grid gap-6 md:grid-cols-2 items-start">
+                    <div className="grid items-start gap-6 md:grid-cols-2">
                       <FormField
                         control={form.control}
                         name="password"
@@ -503,7 +520,7 @@ export default function TambahMasterPenggunaPage() {
                       type="button"
                       variant="outline"
                       onClick={() => router.push("/master-pengguna")}
-                      disabled={createMutation.isPending}
+                      disabled={isSubmitting}
                     >
                       <X className="mr-2 size-4" />
                       Batal
@@ -512,9 +529,9 @@ export default function TambahMasterPenggunaPage() {
                       type="button"
                       className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                       onClick={handleSimpanClick}
-                      disabled={createMutation.isPending || isLoadingRoles}
+                      disabled={isSubmitting || isLoadingRoles}
                     >
-                      {createMutation.isPending ? (
+                      {isSubmitting ? (
                         <>
                           <Loader2 className="mr-2 size-4 animate-spin" />
                           Menyimpan...
