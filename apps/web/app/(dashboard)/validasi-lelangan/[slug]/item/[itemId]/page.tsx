@@ -163,7 +163,7 @@ export default function DetailItemLelangPage() {
       <div className="flex flex-col gap-6">
         <p className="text-muted-foreground">Batch atau item tidak ditemukan.</p>
         <Button variant="outline" asChild>
-          <Link href={`/validasi-lelangan/${slug}`}>Kembali ke Detail Batch</Link>
+          <Link href={`/lelangan/${slug}`}>Kembali ke Detail Batch</Link>
         </Button>
       </div>
     )
@@ -184,7 +184,7 @@ export default function DetailItemLelangPage() {
               <ChevronRight className="size-4" />
             </BreadcrumbSeparator>
             <BreadcrumbItem>
-              <BreadcrumbLink href={`/validasi-lelangan/${slug}`}>
+              <BreadcrumbLink href={`/lelangan/${slug}`}>
                 Detail Batch
               </BreadcrumbLink>
             </BreadcrumbItem>
@@ -241,7 +241,7 @@ export default function DetailItemLelangPage() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-2"
               asChild
             >
-              <Link href={`/validasi-lelangan/${slug}`}>
+              <Link href={`/lelangan/${slug}`}>
                 <QrCode className="size-4" />
                 Kembali ke Batch
               </Link>

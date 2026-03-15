@@ -117,6 +117,11 @@ export class AuctionService {
         tabStatuses: statuses,
       });
     }
+    if (queryDto.status) {
+      qb.andWhere('batch.status = :filterStatus', {
+        filterStatus: queryDto.status,
+      });
+    }
 
     const qbOptions: QueryBuilderOptionsType<AuctionBatchEntity> = {
       ...queryDto,
@@ -141,6 +146,28 @@ export class AuctionService {
       itemCount: count,
     });
     return { data, meta };
+  }
+
+  /**
+   * Resolve batch item UUID to batch + item for QR scan flow (FR-245).
+   * Returns batch and item ids if the item exists and user has access.
+   */
+  async findBatchAndItemByItemId(
+    itemId: string,
+    userPtId?: string,
+  ): Promise<{ batchId: string; itemId: string }> {
+    const item = await this.batchItemRepository.findOne({
+      where: { uuid: itemId },
+      relations: ['batch'],
+    });
+    if (!item || !item.batch) {
+      throw new NotFoundException('Auction batch item not found');
+    }
+    const batch = item.batch as AuctionBatchEntity;
+    if (userPtId != null && batch.ptId !== userPtId) {
+      throw new ForbiddenException('Access denied to this auction batch');
+    }
+    return { batchId: batch.uuid, itemId: item.uuid };
   }
 
   async findOne(
@@ -375,6 +402,11 @@ export class AuctionService {
 
     if (dto.name !== undefined) {
       batch.name = dto.name ?? null;
+    }
+    if (dto.scheduledDate !== undefined) {
+      batch.scheduledDate = dto.scheduledDate
+        ? new Date(dto.scheduledDate)
+        : null;
     }
     if (dto.notes !== undefined) {
       batch.notes = dto.notes ?? null;
@@ -691,6 +723,33 @@ export class AuctionService {
     batch.status = AuctionBatchStatusEnum.Cancelled;
     batch.updatedBy = updatedByUserId ?? null;
     await this.batchRepository.save(batch);
+
+    try {
+      const assignees = await this.batchAssigneeRepository.find({
+        where: { batch: { uuid: batchUuid } },
+        relations: ['user'],
+      });
+      const batchCode = batch.batchCode ?? batchUuid;
+      for (const a of assignees) {
+        const recipientId = (a.user as { uuid?: string })?.uuid;
+        if (recipientId) {
+          await this.notificationService.create({
+            recipientId,
+            title: 'Batch lelang dibatalkan',
+            body: `Batch ${batchCode} telah dibatalkan.`,
+            type: 'info',
+            relatedEntityType: 'auction_batch',
+            relatedEntityId: batchUuid,
+            ptId: batch.ptId ?? undefined,
+          });
+        }
+      }
+    } catch (err) {
+      this.logger.warn(
+        `Failed to create cancel notifications for batch ${batchUuid}: ${err}`,
+      );
+    }
+
     return this.findOne(batchUuid, userPtId);
   }
 

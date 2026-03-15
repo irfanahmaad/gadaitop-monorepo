@@ -29,6 +29,7 @@ import {
   useNotifications,
   useMarkAsRead,
 } from "@/lib/react-query/hooks/use-notifications"
+import { useAuth } from "@/lib/react-query/hooks/use-auth"
 
 // Format date helper
 const formatDateTime = (dateString: string): string => {
@@ -141,8 +142,32 @@ function TableSkeleton() {
   )
 }
 
+function getNotificationUrl(
+  notification: Notification,
+  isAuctionStaffOnly: boolean
+): string {
+  const type = notification.relatedEntityType ?? notification.type
+  const id = notification.relatedEntityId
+  if (type === "auction_batch" && id) {
+    if (isAuctionStaffOnly) return "/validasi-lelangan"
+    return `/lelangan/${id}`
+  }
+  if (type === "spk" && id) return `/spk/${id}`
+  if (type === "nkb" && id) return "/nkb"
+  if (type === "stock_opname" && id) return `/stock-opname/${id}`
+  if (type === "capital_topup" && id) return "/laporan/tambah-modal"
+  if (type === "cash_deposit" && id) return "/laporan/setor-uang"
+  if (type === "BorrowRequest") return "/master-toko?tab=request"
+  return "/notifikasi"
+}
+
 function NotifikasiPageContent() {
   const router = useRouter()
+  const { user } = useAuth()
+
+  const isAuctionStaffOnly =
+    !!user?.roles?.some((r) => r.code === "auction_staff") &&
+    !user?.roles?.some((r) => r.code === "company_admin")
 
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
@@ -183,36 +208,7 @@ function NotifikasiPageContent() {
     if (!notification.readAt) {
       markAsReadMutation.mutate(notification.uuid)
     }
-    const type = notification.relatedEntityType ?? notification.type
-    const id = notification.relatedEntityId
-    if (type === "auction_batch" && id) {
-      router.push(`/lelangan/${id}`)
-      return
-    }
-    if (type === "spk" && id) {
-      router.push(`/spk/${id}`)
-      return
-    }
-    if (type === "nkb" && id) {
-      router.push(`/nkb`)
-      return
-    }
-    if (type === "stock_opname" && id) {
-      router.push(`/stock-opname/${id}`)
-      return
-    }
-    if (type === "capital_topup" && id) {
-      router.push("/laporan/tambah-modal")
-      return
-    }
-    if (type === "cash_deposit" && id) {
-      router.push("/laporan/setor-uang")
-      return
-    }
-    if (type === "BorrowRequest") {
-      router.push("/master-toko?tab=request")
-      return
-    }
+    router.push(getNotificationUrl(notification, isAuctionStaffOnly))
   }
 
   return (

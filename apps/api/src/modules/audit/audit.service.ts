@@ -3,6 +3,7 @@ import { type FindOptionsWhere, Repository } from 'typeorm';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 
+import { AuditActionEnum } from '../../constants/audit-action';
 import { PageMetaDto } from '../../common/dtos/page-meta.dto';
 import {
   DynamicQueryBuilder,
@@ -18,6 +19,33 @@ export class AuditService {
     @InjectRepository(AuditLogEntity)
     private auditLogRepository: Repository<AuditLogEntity>,
   ) {}
+
+  /**
+   * Log a view action (e.g. batch or item view) for audit trail (FR-258).
+   */
+  async logView(
+    entityName: string,
+    entityId: string,
+    userId: string | null,
+  ): Promise<void> {
+    try {
+      const log = this.auditLogRepository.create({
+        entityName,
+        entityId,
+        action: AuditActionEnum.View,
+        userId,
+        oldValues: null,
+        newValues: null,
+        changedFields: null,
+        ipAddress: null,
+        userAgent: null,
+      });
+      await this.auditLogRepository.save(log);
+    } catch (err) {
+      // Do not fail the request if audit logging fails
+      console.error('Audit logView failed:', err);
+    }
+  }
 
   async findAll(queryDto: QueryAuditLogDto): Promise<{
     data: AuditLogDto[];

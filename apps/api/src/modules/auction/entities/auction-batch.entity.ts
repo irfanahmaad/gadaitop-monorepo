@@ -38,6 +38,10 @@ export class AuctionBatchEntity extends AbstractEntity {
   @Index()
   status: AuctionBatchStatusEnum;
 
+  /** Scheduled date/time for the auction (FR-243, FR-254). */
+  @Column({ name: 'scheduled_date', type: 'timestamp with time zone', nullable: true })
+  scheduledDate: Date | null;
+
   @Column({ type: 'text', nullable: true })
   notes: string | null;
 

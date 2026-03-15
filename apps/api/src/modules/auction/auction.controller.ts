@@ -15,6 +15,7 @@ import { Request } from 'express';
 
 import { Auth } from '../../decorators';
 import { AclAction, AclSubject } from '../../constants/acl';
+import { AuditService } from '../audit/audit.service';
 import { AuctionService } from './auction.service';
 import { AuctionBatchDto } from './dto/auction-batch.dto';
 import { CreateAuctionBatchDto } from './dto/create-auction-batch.dto';
@@ -33,7 +34,10 @@ function getReqUser(req: Request): { uuid?: string; companyId?: string; ownedCom
 
 @Controller({ path: 'auction-batches', version: '1' })
 export class AuctionController {
-  constructor(private readonly auctionService: AuctionService) {}
+  constructor(
+    private readonly auctionService: AuctionService,
+    private readonly auditService: AuditService,
+  ) {}
 
   @Get()
   @Auth([{ action: AclAction.READ, subject: AclSubject.AUCTION_BATCH }])
@@ -46,6 +50,17 @@ export class AuctionController {
     return this.auctionService.findAll(queryDto, userPtId);
   }
 
+  @Get('by-item/:itemId')
+  @Auth([{ action: AclAction.READ, subject: AclSubject.AUCTION_BATCH }])
+  async findBatchByItemId(
+    @Param('itemId', ParseUUIDPipe) itemId: string,
+    @Req() req: Request,
+  ): Promise<{ batchId: string; itemId: string }> {
+    const user = getReqUser(req);
+    const userPtId = user?.companyId ?? user?.ownedCompanyId ?? undefined;
+    return this.auctionService.findBatchAndItemByItemId(itemId, userPtId);
+  }
+
   @Get(':id')
   @Auth([{ action: AclAction.READ, subject: AclSubject.AUCTION_BATCH }])
   async findOne(
@@ -54,7 +69,9 @@ export class AuctionController {
   ): Promise<AuctionBatchDto> {
     const user = getReqUser(req);
     const userPtId = user?.companyId ?? user?.ownedCompanyId ?? undefined;
-    return this.auctionService.findOne(id, userPtId);
+    const batch = await this.auctionService.findOne(id, userPtId);
+    await this.auditService.logView('auction_batches', id, user?.uuid ?? null);
+    return batch;
   }
 
   @Post()

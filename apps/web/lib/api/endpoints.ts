@@ -154,6 +154,7 @@ export const endpoints = {
   // Auction Batches
   auctionBatches: {
     list: baseUrl("auction-batches"),
+    byItem: (itemId: string) => baseUrl(`auction-batches/by-item/${itemId}`),
     detail: (id: string) => baseUrl(`auction-batches/${id}`),
     create: baseUrl("auction-batches"),
     update: (id: string) => baseUrl(`auction-batches/${id}`),

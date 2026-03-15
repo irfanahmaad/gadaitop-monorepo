@@ -24,6 +24,7 @@ import {
   useMarkAsRead,
   useMarkAsUnread,
 } from "@/lib/react-query/hooks/use-notifications"
+import { useAuth } from "@/lib/react-query/hooks/use-auth"
 import type { Notification as ApiNotification } from "@/lib/api/types"
 
 function formatNotificationTime(dateString: string): string {
@@ -48,10 +49,16 @@ function formatNotificationTime(dateString: string): string {
   }
 }
 
-function getNotificationUrl(notification: ApiNotification): string {
+function getNotificationUrl(
+  notification: ApiNotification,
+  isAuctionStaffOnly?: boolean
+): string {
   const type = notification.relatedEntityType ?? notification.type
   const id = notification.relatedEntityId
-  if (type === "auction_batch" && id) return `/lelangan/${id}`
+  if (type === "auction_batch" && id) {
+    if (isAuctionStaffOnly) return "/validasi-lelangan"
+    return `/lelangan/${id}`
+  }
   if (type === "spk" && id) return `/spk/${id}`
   if (type === "nkb" && id) return "/nkb"
   if (type === "stock_opname" && id) return `/stock-opname/${id}`
@@ -63,6 +70,7 @@ function getNotificationUrl(notification: ApiNotification): string {
 
 export function NotificationDropdown() {
   const router = useRouter()
+  const { user } = useAuth()
   const { data: listData, isLoading: listLoading } = useNotifications({
     page: 1,
     pageSize: 10,
@@ -70,6 +78,10 @@ export function NotificationDropdown() {
   const { data: unreadData } = useUnreadCount()
   const markAsReadMutation = useMarkAsRead()
   const markAsUnreadMutation = useMarkAsUnread()
+
+  const isAuctionStaffOnly =
+    !!user?.roles?.some((r) => r.code === "auction_staff") &&
+    !user?.roles?.some((r) => r.code === "company_admin")
 
   const notifications = listData?.data ?? []
   const unreadCount = unreadData?.count ?? 0
@@ -79,9 +91,9 @@ export function NotificationDropdown() {
       if (!notification.readAt) {
         markAsReadMutation.mutate(notification.uuid)
       }
-      router.push(getNotificationUrl(notification))
+      router.push(getNotificationUrl(notification, isAuctionStaffOnly))
     },
-    [markAsReadMutation, router]
+    [markAsReadMutation, router, isAuctionStaffOnly]
   )
 
   return (
@@ -131,7 +143,7 @@ export function NotificationDropdown() {
                 const unread = !notification.readAt
                 const body =
                   notification.body ?? notification.description ?? ""
-                const url = getNotificationUrl(notification)
+                const url = getNotificationUrl(notification, isAuctionStaffOnly)
                 return (
                   <div
                     key={notification.uuid}

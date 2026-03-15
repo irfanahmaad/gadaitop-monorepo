@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useMemo, useState } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { ColumnDef } from "@tanstack/react-table"
 import { Breadcrumbs } from "@/components/breadcrumbs"
@@ -22,15 +23,31 @@ import {
   TabsContent,
 } from "@workspace/ui/components/tabs"
 import { Input } from "@workspace/ui/components/input"
-import { SlidersHorizontal } from "lucide-react"
+import { Label } from "@workspace/ui/components/label"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@workspace/ui/components/popover"
+import { QrCode, SlidersHorizontal } from "lucide-react"
 import { Card, CardContent } from "@workspace/ui/components/card"
 import { CardTitle } from "@workspace/ui/components/card"
 import { Skeleton } from "@workspace/ui/components/skeleton"
 import { format } from "date-fns"
 import { id } from "date-fns/locale"
 import { useAuctionBatches } from "@/lib/react-query/hooks/use-auction-batches"
+import { useBranches } from "@/lib/react-query/hooks/use-branches"
 import { useAuth } from "@/lib/react-query/hooks/use-auth"
 import type { AuctionBatch } from "@/lib/api/types"
+
+const STATUS_FILTER_OPTIONS: { value: string; label: string }[] = [
+  { value: "", label: "Semua Status" },
+  { value: "draft", label: "Draft" },
+  { value: "pickup_in_progress", label: "Diambil" },
+  { value: "validation_pending", label: "Validasi" },
+  { value: "ready_for_auction", label: "Siap Lelang" },
+  { value: "cancelled", label: "Dibatalkan" },
+]
 
 type ValidasiLelanganRole = "auction_staff" | "marketing_staff"
 
@@ -40,6 +57,7 @@ type ValidasiLelanganRow = {
   namaBatch: string
   jumlahItem: number
   toko: string
+  jadwal: string
   petugas: string
   status?: "Tervalidasi" | "Dijadwalkan" | "Waiting for Approval"
   lastUpdatedAt: string
@@ -56,12 +74,16 @@ function mapBatchToRow(batch: AuctionBatch, tab: string): ValidasiLelanganRow {
   const countAssignees =
     (batch.marketingStaff?.length ?? 0) + (batch.auctionStaff?.length ?? 0)
   const updatedAt = batch.updatedAt ?? batch.createdAt
+  const scheduledDate = batch.scheduledDate
   return {
     id: batch.uuid,
     idBatch: batch.batchCode,
     namaBatch: batch.name ?? batch.batchCode ?? "-",
     jumlahItem: items.length,
     toko: (batch.store as { shortName?: string })?.shortName ?? "-",
+    jadwal: scheduledDate
+      ? format(new Date(scheduledDate), "d MMM yyyy HH:mm", { locale: id })
+      : "-",
     petugas: String(countAssignees),
     lastUpdatedAt: updatedAt
       ? format(new Date(updatedAt), "d MMMM yyyy HH:mm:ss", { locale: id })
@@ -107,6 +129,11 @@ const baseColumns: ColumnDef<ValidasiLelanganRow>[] = [
     accessorKey: "toko",
     header: "Toko",
     cell: ({ row }) => <span>{row.getValue("toko")}</span>,
+  },
+  {
+    accessorKey: "jadwal",
+    header: "Jadwal",
+    cell: ({ row }) => <span>{row.getValue("jadwal")}</span>,
   },
   {
     accessorKey: "petugas",
@@ -200,6 +227,19 @@ export default function ValidasiLelanganPage() {
   >("dijadwalkan")
   const [selectedRows, setSelectedRows] = useState<ValidasiLelanganRow[]>([])
   const [resetSelectionKey] = useState(0)
+  const [filterStoreId, setFilterStoreId] = useState("")
+  const [filterStatus, setFilterStatus] = useState("")
+
+  const baseFilter = useMemo(
+    () => ({
+      assignedTo: user?.uuid ?? "",
+      assigneeRole: assigneeRole ?? "",
+      tab: activeTab,
+      ...(filterStoreId && { storeId: filterStoreId }),
+      ...(filterStatus && { status: filterStatus }),
+    }),
+    [user?.uuid, assigneeRole, activeTab, filterStoreId, filterStatus]
+  )
 
   const listOptions = useMemo(() => {
     if (!user?.uuid || !assigneeRole) return undefined
@@ -207,13 +247,16 @@ export default function ValidasiLelanganPage() {
       page,
       pageSize,
       query: searchValue || undefined,
-      filter: {
-        assignedTo: user.uuid,
-        assigneeRole,
-        tab: activeTab,
-      } as Record<string, string>,
+      filter: { ...baseFilter } as Record<string, string>,
     }
-  }, [user?.uuid, assigneeRole, activeTab, page, pageSize, searchValue])
+  }, [baseFilter, page, pageSize, searchValue])
+
+  const { data: branchesData } = useBranches(
+    user?.companyId
+      ? { pageSize: 200, filter: { companyId: user.companyId } }
+      : { pageSize: 200 }
+  )
+  const branches = branchesData?.data ?? []
 
   const {
     data: batchData,
@@ -228,13 +271,12 @@ export default function ValidasiLelanganPage() {
             page: 1,
             pageSize: 1,
             filter: {
-              assignedTo: user.uuid,
-              assigneeRole,
+              ...baseFilter,
               tab: "dijadwalkan",
             } as Record<string, string>,
           }
         : undefined,
-    [user?.uuid, assigneeRole]
+    [user?.uuid, assigneeRole, baseFilter]
   )
   const countOptionsWaiting = useMemo(
     () =>
@@ -243,13 +285,12 @@ export default function ValidasiLelanganPage() {
             page: 1,
             pageSize: 1,
             filter: {
-              assignedTo: user.uuid,
-              assigneeRole,
+              ...baseFilter,
               tab: "waiting_for_approval",
             } as Record<string, string>,
           }
         : undefined,
-    [user?.uuid, assigneeRole]
+    [user?.uuid, assigneeRole, baseFilter]
   )
   const countOptionsTervalidasi = useMemo(
     () =>
@@ -258,13 +299,12 @@ export default function ValidasiLelanganPage() {
             page: 1,
             pageSize: 1,
             filter: {
-              assignedTo: user.uuid,
-              assigneeRole,
+              ...baseFilter,
               tab: "tervalidasi",
             } as Record<string, string>,
           }
         : undefined,
-    [user?.uuid, assigneeRole]
+    [user?.uuid, assigneeRole, baseFilter]
   )
   const { data: countDijadwalkan } = useAuctionBatches(countOptionsDijadwalkan)
   const { data: countWaiting } = useAuctionBatches(countOptionsWaiting)
@@ -337,14 +377,22 @@ export default function ValidasiLelanganPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4">
-        <h1 className="text-2xl font-bold">{pageTitle}</h1>
-        <Breadcrumbs
-          items={[
-            { label: "Pages", href: "/" },
-            { label: "Validasi Lelang" },
-          ]}
-        />
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-2xl font-bold">{pageTitle}</h1>
+          <Breadcrumbs
+            items={[
+              { label: "Pages", href: "/" },
+              { label: "Validasi Lelang" },
+            ]}
+          />
+        </div>
+        <Button variant="outline" asChild className="w-fit gap-2">
+          <Link href="/validasi-lelangan/scan">
+            <QrCode className="size-4" />
+            Scan QR Item
+          </Link>
+        </Button>
       </div>
 
       <Tabs
@@ -453,10 +501,81 @@ export default function ValidasiLelanganPage() {
                       className="w-full"
                     />
                   </div>
-                  <Button variant="outline" className="flex items-center gap-2">
-                    <SlidersHorizontal className="h-4 w-4" />
-                    Filter
-                  </Button>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="flex items-center gap-2">
+                        <SlidersHorizontal className="h-4 w-4" />
+                        Filter
+                        {(filterStoreId || filterStatus) && (
+                          <span className="bg-destructive/10 text-destructive ml-1 rounded-full px-1.5 py-0.5 text-xs">
+                            1+
+                          </span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-72" align="end">
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label>Toko</Label>
+                          <Select
+                            value={filterStoreId || "all"}
+                            onValueChange={(v) => {
+                              setFilterStoreId(v === "all" ? "" : v)
+                              setPage(1)
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Semua Toko" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">Semua Toko</SelectItem>
+                              {branches.map((b) => (
+                                <SelectItem key={b.uuid} value={b.uuid}>
+                                  {b.shortName ?? b.fullName ?? b.uuid}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Status</Label>
+                          <Select
+                            value={filterStatus || "all"}
+                            onValueChange={(v) => {
+                              setFilterStatus(v === "all" ? "" : v)
+                              setPage(1)
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Semua Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {STATUS_FILTER_OPTIONS.map((opt) => (
+                                <SelectItem
+                                  key={opt.value || "all"}
+                                  value={opt.value || "all"}
+                                >
+                                  {opt.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                          onClick={() => {
+                            setFilterStoreId("")
+                            setFilterStatus("")
+                            setPage(1)
+                          }}
+                        >
+                          Reset Filter
+                        </Button>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                 </div>
               }
               initialPageSize={pageSize}
@@ -533,10 +652,81 @@ export default function ValidasiLelanganPage() {
                       className="w-full"
                     />
                   </div>
-                  <Button variant="outline" className="flex items-center gap-2">
-                    <SlidersHorizontal className="h-4 w-4" />
-                    Filter
-                  </Button>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="flex items-center gap-2">
+                        <SlidersHorizontal className="h-4 w-4" />
+                        Filter
+                        {(filterStoreId || filterStatus) && (
+                          <span className="bg-destructive/10 text-destructive ml-1 rounded-full px-1.5 py-0.5 text-xs">
+                            1+
+                          </span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-72" align="end">
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label>Toko</Label>
+                          <Select
+                            value={filterStoreId || "all"}
+                            onValueChange={(v) => {
+                              setFilterStoreId(v === "all" ? "" : v)
+                              setPage(1)
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Semua Toko" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">Semua Toko</SelectItem>
+                              {branches.map((b) => (
+                                <SelectItem key={b.uuid} value={b.uuid}>
+                                  {b.shortName ?? b.fullName ?? b.uuid}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Status</Label>
+                          <Select
+                            value={filterStatus || "all"}
+                            onValueChange={(v) => {
+                              setFilterStatus(v === "all" ? "" : v)
+                              setPage(1)
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Semua Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {STATUS_FILTER_OPTIONS.map((opt) => (
+                                <SelectItem
+                                  key={opt.value || "all"}
+                                  value={opt.value || "all"}
+                                >
+                                  {opt.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                          onClick={() => {
+                            setFilterStoreId("")
+                            setFilterStatus("")
+                            setPage(1)
+                          }}
+                        >
+                          Reset Filter
+                        </Button>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                 </div>
               }
               initialPageSize={pageSize}
@@ -613,10 +803,81 @@ export default function ValidasiLelanganPage() {
                       className="w-full"
                     />
                   </div>
-                  <Button variant="outline" className="flex items-center gap-2">
-                    <SlidersHorizontal className="h-4 w-4" />
-                    Filter
-                  </Button>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="flex items-center gap-2">
+                        <SlidersHorizontal className="h-4 w-4" />
+                        Filter
+                        {(filterStoreId || filterStatus) && (
+                          <span className="bg-destructive/10 text-destructive ml-1 rounded-full px-1.5 py-0.5 text-xs">
+                            1+
+                          </span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-72" align="end">
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label>Toko</Label>
+                          <Select
+                            value={filterStoreId || "all"}
+                            onValueChange={(v) => {
+                              setFilterStoreId(v === "all" ? "" : v)
+                              setPage(1)
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Semua Toko" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">Semua Toko</SelectItem>
+                              {branches.map((b) => (
+                                <SelectItem key={b.uuid} value={b.uuid}>
+                                  {b.shortName ?? b.fullName ?? b.uuid}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Status</Label>
+                          <Select
+                            value={filterStatus || "all"}
+                            onValueChange={(v) => {
+                              setFilterStatus(v === "all" ? "" : v)
+                              setPage(1)
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Semua Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {STATUS_FILTER_OPTIONS.map((opt) => (
+                                <SelectItem
+                                  key={opt.value || "all"}
+                                  value={opt.value || "all"}
+                                >
+                                  {opt.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                          onClick={() => {
+                            setFilterStoreId("")
+                            setFilterStatus("")
+                            setPage(1)
+                          }}
+                        >
+                          Reset Filter
+                        </Button>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                 </div>
               }
               initialPageSize={pageSize}

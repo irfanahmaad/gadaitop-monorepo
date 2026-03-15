@@ -89,6 +89,7 @@ type BatchLelang = {
   idBatch: string
   namaBatch: string
   jumlahItem: number
+  tanggalWaktu: string
   lastUpdatedAt: string
   status: BatchStatus
   toko?: string
@@ -154,12 +155,16 @@ function mapAuctionBatchToBatchLelang(batch: AuctionBatch): BatchLelang {
       !!(i as { validationVerdict?: string }).validationVerdict
   ).length
   const updatedAt = batch.updatedAt ?? batch.createdAt ?? null
+  const scheduledDate = batch.scheduledDate
   const hasMataItems = false
   return {
     id: batch.uuid,
     idBatch: batch.batchCode,
     namaBatch: batch.name ?? batch.batchCode,
     jumlahItem: itemCount,
+    tanggalWaktu: scheduledDate
+      ? format(new Date(scheduledDate), "d MMM yyyy HH:mm", { locale: id })
+      : "-",
     lastUpdatedAt: updatedAt
       ? format(new Date(updatedAt), "d MMMM yyyy HH:mm:ss", { locale: id })
       : "-",
@@ -417,6 +422,10 @@ const batchLelangColumns: ColumnDef<BatchLelang>[] = [
   {
     accessorKey: "toko",
     header: "Toko",
+  },
+  {
+    accessorKey: "tanggalWaktu",
+    header: "Tanggal & Waktu",
   },
   {
     accessorKey: "jumlahItem",
@@ -976,7 +985,63 @@ function LelangPageContent() {
               </CardContent>
             </Card>
           ) : (
-            <DataTable
+            <>
+              {/* Mobile: stacked cards (FR-254) */}
+              <div className="space-y-3 md:hidden">
+                {batchRows.map((row) => (
+                  <Card
+                    key={row.id}
+                    className="cursor-pointer transition-colors hover:bg-muted/50"
+                    onClick={() => handleDetail(row)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <p className="font-medium">{row.namaBatch}</p>
+                          <p className="text-muted-foreground text-sm">
+                            {row.idBatch} · {row.toko ?? "-"}
+                          </p>
+                          <p className="text-muted-foreground text-xs">
+                            {row.tanggalWaktu} · {row.jumlahItem} item
+                          </p>
+                        </div>
+                        <BatchStatusBadge status={row.status} />
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+                {batchMeta && batchMeta.count > batchPageSize && (
+                  <div className="flex items-center justify-center gap-2 pt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={batchPage <= 1}
+                      onClick={() =>
+                        setBatchPage((p) => Math.max(1, p - 1))
+                      }
+                    >
+                      Sebelumnya
+                    </Button>
+                    <span className="text-muted-foreground text-sm">
+                      {batchPage} / {Math.ceil(batchMeta.count / batchPageSize) || 1}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={
+                        batchPage >=
+                        Math.ceil(batchMeta.count / batchPageSize)
+                      }
+                      onClick={() => setBatchPage((p) => p + 1)}
+                    >
+                      Selanjutnya
+                    </Button>
+                  </div>
+                )}
+              </div>
+              {/* Desktop: table */}
+              <div className="hidden md:block">
+                <DataTable
               columns={batchLelangColumns}
               data={batchRows}
               title="Daftar Batch Lelang"
@@ -1073,6 +1138,8 @@ function LelangPageContent() {
                 row.isMata ? "bg-red-50 dark:bg-red-950/30" : ""
               }
             />
+              </div>
+            </>
           )}
         </TabsContent>
       </Tabs>

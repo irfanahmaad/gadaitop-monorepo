@@ -19,6 +19,7 @@ import {
   useDeleteAuctionBatch,
   useRemoveItemFromBatch,
   useUpdateBatchMarketing,
+  useUpdateBatchItemMarketing,
   useItemPickup,
   useItemValidation,
   useUpdateItemAuctionStatus,
@@ -108,6 +109,8 @@ type BatchItemRow = {
   pickupStatus?: string
   auctionItemStatus?: string | null
   isMata?: boolean
+  marketingNotes?: string | null
+  marketingAssets?: string[] | null
 }
 
 function formatAssignees(
@@ -177,6 +180,8 @@ function mapBatchToItemRows(
       (item as { pickupStatus?: string }).pickupStatus ?? "pending"
     const auctionItemStatus = (item as { auctionItemStatus?: string | null })
       .auctionItemStatus ?? null
+    const marketingNotes = (item as { marketingNotes?: string | null }).marketingNotes ?? null
+    const marketingAssets = (item as { marketingAssets?: string[] | null }).marketingAssets ?? null
     return {
       id: item.uuid,
       spkId,
@@ -192,6 +197,8 @@ function mapBatchToItemRows(
       pickupStatus,
       auctionItemStatus,
       isMata: mataResult.isMata,
+      marketingNotes,
+      marketingAssets,
     }
   })
 }
@@ -348,6 +355,7 @@ export default function LelanganDetailPage() {
   const deleteMutation = useDeleteAuctionBatch()
   const removeItemMutation = useRemoveItemFromBatch()
   const updateBatchMarketingMutation = useUpdateBatchMarketing()
+  const updateBatchItemMarketingMutation = useUpdateBatchItemMarketing()
 
   const canUpdateBatch = ability.can(AclAction.UPDATE, AclSubject.AUCTION_BATCH)
   const canDeleteBatch = ability.can(AclAction.DELETE, AclSubject.AUCTION_BATCH)
@@ -402,6 +410,11 @@ export default function LelanganDetailPage() {
   const [validationPhotos, setValidationPhotos] = useState<string[]>([])
   const [isValidationDialogOpen, setIsValidationDialogOpen] = useState(false)
   const [newValidationPhotoUrl, setNewValidationPhotoUrl] = useState("")
+  const [itemMarketingRow, setItemMarketingRow] = useState<BatchItemRow | null>(null)
+  const [itemMarketingNotes, setItemMarketingNotes] = useState("")
+  const [itemMarketingAssets, setItemMarketingAssets] = useState<string[]>([])
+  const [newItemAssetUrl, setNewItemAssetUrl] = useState("")
+  const [isItemMarketingDialogOpen, setIsItemMarketingDialogOpen] = useState(false)
 
   useEffect(() => {
     if (batch) {
@@ -655,6 +668,48 @@ export default function LelanganDetailPage() {
 
   const handleRemoveMarketingAsset = (index: number) => {
     setLocalMarketingAssets((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const openItemMarketingDialog = (row: BatchItemRow) => {
+    setItemMarketingRow(row)
+    setItemMarketingNotes(row.marketingNotes ?? "")
+    setItemMarketingAssets(row.marketingAssets ?? [])
+    setNewItemAssetUrl("")
+    setIsItemMarketingDialogOpen(true)
+  }
+
+  const handleSaveItemMarketing = async () => {
+    if (!slug || !itemMarketingRow || !canUpdateMarketing) return
+    try {
+      await updateBatchItemMarketingMutation.mutateAsync({
+        batchId: slug,
+        itemId: itemMarketingRow.id,
+        data: {
+          marketingNotes: itemMarketingNotes || undefined,
+          marketingAssets:
+            itemMarketingAssets.length > 0 ? itemMarketingAssets : undefined,
+        },
+      })
+      toast.success("Catatan marketing item berhasil disimpan")
+      setIsItemMarketingDialogOpen(false)
+      setItemMarketingRow(null)
+    } catch (err) {
+      toast.error(
+        (err as { message?: string })?.message ??
+          "Gagal menyimpan catatan marketing item"
+      )
+    }
+  }
+
+  const handleAddItemAsset = () => {
+    const url = newItemAssetUrl.trim()
+    if (!url) return
+    setItemMarketingAssets((prev) => [...prev, url])
+    setNewItemAssetUrl("")
+  }
+
+  const handleRemoveItemAsset = (index: number) => {
+    setItemMarketingAssets((prev) => prev.filter((_, i) => i !== index))
   }
 
   if (!slug) {
@@ -950,14 +1005,19 @@ export default function LelanganDetailPage() {
                             key={i}
                             className="flex items-center justify-between gap-2 rounded border bg-muted/30 px-2 py-1.5 text-sm"
                           >
-                            <a
-                              href={url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="truncate text-primary underline"
-                            >
-                              {url}
-                            </a>
+                            <span className="min-w-0 flex-1">
+                              <span className="text-muted-foreground text-xs font-medium">
+                                Asset {i + 1}
+                              </span>
+                              <a
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block truncate text-primary underline"
+                              >
+                                {url}
+                              </a>
+                            </span>
                             <Button
                               type="button"
                               variant="ghost"
@@ -977,12 +1037,15 @@ export default function LelanganDetailPage() {
                         <p className="text-muted-foreground text-sm">-</p>
                       ) : (
                         (batch.marketingAssets ?? []).map((url, i) => (
-                          <li key={i}>
+                          <li key={i} className="space-y-0.5">
+                            <span className="text-muted-foreground text-xs font-medium">
+                              Asset {i + 1}
+                            </span>
                             <a
                               href={url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-primary underline"
+                              className="block truncate text-primary underline"
                             >
                               {url}
                             </a>
@@ -1175,6 +1238,14 @@ export default function LelanganDetailPage() {
                                 <QrCode className="mr-2 size-4" />
                                 QR SPK
                               </DropdownMenuItem>
+                              {canReadMarketing && (
+                                <DropdownMenuItem
+                                  onClick={() => openItemMarketingDialog(row)}
+                                >
+                                  <FileText className="mr-2 size-4" />
+                                  Catatan Marketing
+                                </DropdownMenuItem>
+                              )}
                               {batch?.status === "pickup_in_progress" &&
                                 canUpdatePickup &&
                                 row.pickupStatus === "pending" && (
@@ -1611,6 +1682,155 @@ export default function LelanganDetailPage() {
                   : "Retur"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Item-level marketing notes dialog */}
+      <Dialog
+        open={isItemMarketingDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsItemMarketingDialogOpen(false)
+            setItemMarketingRow(null)
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="size-5" />
+              Catatan Marketing (Item)
+              {itemMarketingRow && (
+                <span className="text-muted-foreground font-normal">
+                  — {itemMarketingRow.namaBarang} ({itemMarketingRow.noSPK})
+                </span>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          {itemMarketingRow && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-muted-foreground text-sm font-medium">
+                  Catatan
+                </label>
+                {canUpdateMarketing ? (
+                  <Textarea
+                    value={itemMarketingNotes}
+                    onChange={(e) => setItemMarketingNotes(e.target.value)}
+                    placeholder="Catatan marketing untuk item ini..."
+                    rows={3}
+                    className="resize-none"
+                  />
+                ) : (
+                  <p className="text-base">
+                    {itemMarketingRow.marketingNotes || "-"}
+                  </p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <label className="text-muted-foreground text-sm font-medium">
+                  Lampiran (URL)
+                </label>
+                {canUpdateMarketing ? (
+                  <>
+                    <div className="flex gap-2">
+                      <Input
+                        value={newItemAssetUrl}
+                        onChange={(e) => setNewItemAssetUrl(e.target.value)}
+                        placeholder="https://..."
+                        onKeyDown={(e) =>
+                          e.key === "Enter" &&
+                          (e.preventDefault(), handleAddItemAsset())
+                        }
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleAddItemAsset}
+                      >
+                        <Plus className="size-4" />
+                      </Button>
+                    </div>
+                    <ul className="space-y-1">
+                      {itemMarketingAssets.map((url, i) => (
+                        <li
+                          key={i}
+                          className="flex items-center justify-between gap-2 rounded border bg-muted/30 px-2 py-1.5 text-sm"
+                        >
+                          <span className="min-w-0 flex-1">
+                            <span className="text-muted-foreground text-xs font-medium">
+                              Asset {i + 1}
+                            </span>
+                            <a
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block truncate text-primary underline"
+                            >
+                              {url}
+                            </a>
+                          </span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="size-8 shrink-0"
+                            onClick={() => handleRemoveItemAsset(i)}
+                          >
+                            <X className="size-4" />
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                ) : (
+                  <ul className="space-y-1">
+                    {(itemMarketingRow.marketingAssets ?? []).length === 0 ? (
+                      <p className="text-muted-foreground text-sm">-</p>
+                    ) : (
+                      (itemMarketingRow.marketingAssets ?? []).map((url, i) => (
+                        <li key={i} className="space-y-0.5">
+                          <span className="text-muted-foreground text-xs font-medium">
+                            Asset {i + 1}
+                          </span>
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block truncate text-primary underline"
+                          >
+                            {url}
+                          </a>
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                )}
+              </div>
+              {canUpdateMarketing && (
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setIsItemMarketingDialogOpen(false)
+                      setItemMarketingRow(null)
+                    }}
+                  >
+                    Batal
+                  </Button>
+                  <Button
+                    onClick={handleSaveItemMarketing}
+                    disabled={updateBatchItemMarketingMutation.isPending}
+                  >
+                    {updateBatchItemMarketingMutation.isPending
+                      ? "Menyimpan..."
+                      : "Simpan"}
+                  </Button>
+                </DialogFooter>
+              )}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

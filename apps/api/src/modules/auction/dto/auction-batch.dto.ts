@@ -26,6 +26,7 @@ export class AuctionBatchDto {
   storeId: string;
   ptId: string;
   status: AuctionBatchStatusEnum;
+  scheduledDate: Date | null;
   notes: string | null;
   marketingNotes: string | null;
   marketingAssets: string[] | null;
@@ -42,6 +43,7 @@ export class AuctionBatchDto {
     this.storeId = batch.storeId;
     this.ptId = batch.ptId;
     this.status = batch.status;
+    this.scheduledDate = batch.scheduledDate ?? null;
     this.notes = batch.notes ?? null;
     this.marketingNotes = batch.marketingNotes ?? null;
     this.marketingAssets = batch.marketingAssets ?? null;

@@ -144,12 +144,16 @@ export async function middleware(request: NextRequest) {
   const isBranchStaff = roles.some((r) => r.code === "branch_staff")
   const isStockAuditor = roles.some((r) => r.code === "stock_auditor")
   const isAuctionStaff = roles.some((r) => r.code === "auction_staff")
+  const isMarketingStaff = roles.some((r) => r.code === "marketing_staff")
 
   if (isAuthenticated && pathname === "/" && !isCustomerSession) {
     if (isBranchStaff) return NextResponse.redirect(new URL("/scan-ktp", request.url))
     if (isStockAuditor)
       return NextResponse.redirect(new URL("/stock-opname/auditor", request.url))
-    if (isAuctionStaff) return NextResponse.redirect(new URL("/lelangan", request.url))
+    if (isAuctionStaff)
+      return NextResponse.redirect(new URL("/validasi-lelangan", request.url))
+    if (isMarketingStaff)
+      return NextResponse.redirect(new URL("/lelangan", request.url))
   }
 
   return NextResponse.next()

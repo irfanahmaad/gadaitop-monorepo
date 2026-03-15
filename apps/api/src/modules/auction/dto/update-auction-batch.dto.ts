@@ -1,5 +1,6 @@
 import {
   IsArray,
+  IsDateString,
   IsOptional,
   IsString,
   IsUUID,
@@ -11,6 +12,10 @@ export class UpdateAuctionBatchDto {
   @IsString()
   @MaxLength(255)
   name?: string;
+
+  @IsOptional()
+  @IsDateString()
+  scheduledDate?: string;
 
   @IsOptional()
   @IsString()
