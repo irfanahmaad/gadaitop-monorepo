@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: var(--font-outfit);
+  --font-body: var(--font-plus-jakarta);
+
+  --color-brand: #E02020;
+  --color-brand-dark: #B91C1C;
+  --color-brand-light: #FEE2E2;
+  --color-brand-50: #FFF5F5;
+  --color-dark: #1A1A1A;
+  --color-dark-muted: #6B7280;
+  --color-light: #F8F8F8;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 5rem;
+  }
+}

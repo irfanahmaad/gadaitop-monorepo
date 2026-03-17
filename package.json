@@ -6,9 +6,11 @@
     "build": "turbo build",
     "build:api": "turbo build --filter=api",
     "build:web": "turbo build --filter=web",
+    "build:marketing": "turbo build --filter=marketing",
     "dev": "turbo dev",
     "dev:web": "turbo dev --filter=web",
     "dev:api": "turbo dev --filter=api",
+    "dev:marketing": "turbo dev --filter=marketing",
     "lint": "turbo lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\""
   },
