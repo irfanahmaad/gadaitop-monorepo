@@ -57,6 +57,13 @@ import { useAuth } from "@/lib/react-query/hooks/use-auth"
 import { useCompanies } from "@/lib/react-query/hooks/use-companies"
 import { useCreateCustomer } from "@/lib/react-query/hooks/use-customers"
 import { useUploadFile } from "@/lib/react-query/hooks/use-upload"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@workspace/ui/components/popover"
+import { Calendar as CalendarPicker } from "@workspace/ui/components/calendar"
+import { cn } from "@workspace/ui/lib/utils"
 
 const customerSchema = z.object({
   image: z.union([z.instanceof(File), z.string()]).optional(),
@@ -147,6 +154,16 @@ function parseDobToIso(value: string): string | null {
     return format(parsed, DOB_ISO_FORMAT)
   } catch {
     return null
+  }
+}
+
+function parseDdMmYyyyToDate(value: string): Date | undefined {
+  if (!value?.trim()) return undefined
+  try {
+    const parsed = parse(value.trim(), "d-M-yyyy", new Date())
+    return Number.isNaN(parsed.getTime()) ? undefined : parsed
+  } catch {
+    return undefined
   }
 }
 
@@ -608,14 +625,36 @@ export default function TambahMasterCustomerPage() {
                         <FormItem>
                           <FormLabel>Tanggal Lahir</FormLabel>
                           <FormControl>
-                            <Input
-                              type="text"
-                              placeholder="DD-MM-YYYY (contoh: 31-12-1990)"
-                              inputMode="numeric"
-                              autoComplete="bday"
-                              icon={<Calendar className="size-4" />}
-                              {...field}
-                            />
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  className={cn(
+                                    "w-full justify-start text-left font-normal",
+                                    !field.value?.trim() && "text-muted-foreground"
+                                  )}
+                                >
+                                  <Calendar className="mr-2 size-4 shrink-0" />
+                                  {field.value?.trim()
+                                    ? field.value
+                                    : "Pilih tanggal lahir"}
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <CalendarPicker
+                                  mode="single"
+                                  captionLayout="dropdown"
+                                  fromYear={1900}
+                                  toYear={new Date().getFullYear()}
+                                  selected={parseDdMmYyyyToDate(field.value ?? "")}
+                                  onSelect={(date) => {
+                                    field.onChange(date ? format(date, "dd-MM-yyyy") : "")
+                                  }}
+                                  initialFocus
+                                />
+                              </PopoverContent>
+                            </Popover>
                           </FormControl>
                           <FormMessage />
                         </FormItem>

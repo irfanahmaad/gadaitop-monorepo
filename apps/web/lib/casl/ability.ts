@@ -74,8 +74,6 @@ const ROLE_MENU_MAP: Record<string, MenuSubject[]> = {
 
   // Marketing — auction viewing + validasi lelang + notifikasi
   marketing: [
-    MenuSubject.DASHBOARD,
-    MenuSubject.LELANGAN,
     MenuSubject.VALIDASI_LELANG,
     MenuSubject.NOTIFIKASI,
   ],
@@ -131,11 +129,6 @@ export function createAbilityFromPermissions(
         grantedMenus.add(menu)
       }
     }
-  }
-
-  // Always grant Dashboard if the user has any role
-  if (roleCodes.length > 0) {
-    grantedMenus.add(MenuSubject.DASHBOARD)
   }
 
   for (const menu of grantedMenus) {
