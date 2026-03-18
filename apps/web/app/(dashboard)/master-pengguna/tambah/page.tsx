@@ -111,8 +111,7 @@ export default function TambahMasterPenggunaPage() {
     [rolesData?.data, selectedRoleId]
   )
   const isStaffToko = selectedRole?.code === "branch_staff"
-  const showBranchField =
-    selectedRole != null && selectedRole.code !== "company_admin"
+  const showBranchField = isStaffToko
 
   const companyIdForBranches = user?.companyId ?? undefined
   const { data: branchesData } = useBranches(
@@ -130,8 +129,8 @@ export default function TambahMasterPenggunaPage() {
   }, [branchesData])
 
   React.useEffect(() => {
-    if (selectedRole?.code === "company_admin") form.setValue("branchId", "")
-  }, [selectedRole?.code, form])
+    if (!isStaffToko) form.setValue("branchId", "")
+  }, [isStaffToko, form])
 
   const handleImageChange = (
     e: React.ChangeEvent<HTMLInputElement>,

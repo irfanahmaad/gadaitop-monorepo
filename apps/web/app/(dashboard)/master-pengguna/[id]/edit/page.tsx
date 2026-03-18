@@ -203,8 +203,7 @@ export default function EditMasterPenggunaPage() {
     [rolesData?.data, selectedRoleId]
   )
   const isStaffToko = selectedRole?.code === "branch_staff"
-  const showBranchField =
-    selectedRole != null && selectedRole.code !== "company_admin"
+  const showBranchField = isStaffToko
 
   const companyIdForBranches =
     userData?.companyId ?? authUser?.companyId ?? undefined
@@ -223,8 +222,8 @@ export default function EditMasterPenggunaPage() {
   }, [branchesData])
 
   useEffect(() => {
-    if (selectedRole?.code === "company_admin") form.setValue("branchId", "")
-  }, [selectedRole?.code, form])
+    if (!isStaffToko) form.setValue("branchId", "")
+  }, [isStaffToko, form])
 
   // Pre-fill form when user data is loaded; only run once to avoid overwriting user's image change
   useEffect(() => {

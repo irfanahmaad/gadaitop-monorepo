@@ -422,34 +422,6 @@ export default function MasterTokoPage() {
     { enabled: !!branchQueryCompanyId }
   )
 
-  const { data: borrowedBranchesData, isLoading: borrowedBranchesLoading } =
-    useBranches(
-      {
-        filter: { view: "borrowedByMe" },
-        pageSize: 100,
-        relation: { company: true },
-        select: {
-          uuid: true,
-          branchCode: true,
-          shortName: true,
-          fullName: true,
-          city: true,
-          phone: true,
-          imageUrl: true,
-          status: true,
-          isBorrowed: true,
-          companyId: true,
-          rejectionReason: true,
-          company: {
-            id: true,
-            uuid: true,
-            companyName: true,
-          },
-        },
-      },
-      { enabled: !!user?.uuid }
-    )
-
   const { data: borrowRequestsData, isLoading: borrowRequestsLoading } =
     useBorrowRequests({
       pageSize: 100,
@@ -473,13 +445,13 @@ export default function MasterTokoPage() {
 
   const tokoUtamaRows = useMemo(() => {
     const list = branchesData?.data ?? []
-    return list.map(mapBranchToToko)
+    return list.filter((b) => !b.isBorrowed).map(mapBranchToToko)
   }, [branchesData])
 
   const tokoPinjamanRows = useMemo(() => {
-    const list = borrowedBranchesData?.data ?? []
-    return list.map(mapBranchToToko)
-  }, [borrowedBranchesData])
+    const list = branchesData?.data ?? []
+    return list.filter((b) => !!b.isBorrowed && b.status === "active").map(mapBranchToToko)
+  }, [branchesData])
 
   const requestRows = useMemo(() => {
     const list = borrowRequestsData?.data ?? []
@@ -582,17 +554,24 @@ export default function MasterTokoPage() {
 
   const handleRevokeConfirm = useCallback(async () => {
     if (!revokeRow) return
+    const request = approvedBorrowByBranchId.get(revokeRow.id)
+    if (!request?.uuid) {
+      toast.error("Data permintaan pinjam tidak ditemukan")
+      return
+    }
     try {
-      await deactivateBranchMutation.mutateAsync(revokeRow.id)
-      toast.success("Toko berhasil dinonaktifkan")
+      await revokeBorrowRequestMutation.mutateAsync(request.uuid)
+      toast.success("Akses Pinjam PT berhasil dicabut")
       setIsRevokeConfirmOpen(false)
       setRevokeRow(null)
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Gagal menonaktifkan toko"
+        error instanceof Error
+          ? error.message
+          : "Gagal mencabut akses Pinjam PT"
       toast.error(message)
     }
-  }, [revokeRow, deactivateBranchMutation])
+  }, [revokeRow, approvedBorrowByBranchId, revokeBorrowRequestMutation])
 
   const handleRevokeMainPT = useCallback((row: Toko) => {
     setRevokeMainPTRow(row)
@@ -848,7 +827,7 @@ export default function MasterTokoPage() {
 
         {/* Toko Pinjaman Tab */}
         <TabsContent value="toko-pinjaman" className="mt-0">
-          {borrowedBranchesLoading ? (
+          {branchesLoading ? (
             <TableSkeleton />
           ) : (
             <DataTable
@@ -887,6 +866,7 @@ export default function MasterTokoPage() {
               onPageSizeChange={setPageSize}
               searchValue={searchValue}
               onSearchChange={setSearchValue}
+              onDetail={handleDetail}
               customActions={tokoPinjamanCustomActions}
             />
           )}
