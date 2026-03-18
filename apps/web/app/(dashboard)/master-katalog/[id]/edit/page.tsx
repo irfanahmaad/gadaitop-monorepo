@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useLayoutEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -47,11 +47,34 @@ import {
   useCatalog,
   useUpdateCatalog,
 } from "@/lib/react-query/hooks/use-catalogs"
-import { useItemTypes } from "@/lib/react-query/hooks/use-item-types"
-import { usePublicUrl, useUploadFile } from "@/lib/react-query/hooks/use-upload"
+import {
+  useItemTypes,
+  useItemType,
+} from "@/lib/react-query/hooks/use-item-types"
+import type { ItemType } from "@/lib/api/types"
 
+/** Handles both `{ data: T[] }` and wrapped `{ data: { data: T[] } }` list responses */
+function itemTypesListRows(
+  res: { data?: unknown } | undefined
+): ItemType[] {
+  if (!res?.data) return []
+  const d = res.data
+  if (Array.isArray(d)) return d as ItemType[]
+  if (
+    typeof d === "object" &&
+    d !== null &&
+    "data" in d &&
+    Array.isArray((d as { data: ItemType[] }).data)
+  ) {
+    return (d as { data: ItemType[] }).data
+  }
+  return []
+}
+import { usePublicUrl, useUploadFile } from "@/lib/react-query/hooks/use-upload"
+/** Same validation as tambah katalog */
 const katalogSchema = z.object({
   image: z.union([z.instanceof(File), z.string()]).optional(),
+  kodeKatalog: z.string(),
   namaKatalog: z
     .string()
     .min(1, "Nama Katalog harus diisi")
@@ -64,6 +87,20 @@ const katalogSchema = z.object({
       const parsed = parseCurrencyInput(val)
       return parsed !== null && parsed > 0
     }, "Harga harus lebih dari 0"),
+  nilaiTaksirMin: z
+    .string()
+    .min(1, "Nilai Taksir Min harus diisi")
+    .refine((val) => {
+      const parsed = parseCurrencyInput(val)
+      return parsed !== null && parsed >= 0
+    }, "Nilai Taksir Min harus valid"),
+  nilaiTaksirMax: z
+    .string()
+    .min(1, "Nilai Taksir Max harus diisi")
+    .refine((val) => {
+      const parsed = parseCurrencyInput(val)
+      return parsed !== null && parsed >= 0
+    }, "Nilai Taksir Max harus valid"),
   namaPotongan: z
     .string()
     .min(1, "Nama Potongan harus diisi")
@@ -84,7 +121,6 @@ const katalogSchema = z.object({
 
 type KatalogFormValues = z.infer<typeof katalogSchema>
 
-// Form skeleton component
 function FormSkeleton() {
   return (
     <Card>
@@ -100,9 +136,9 @@ function FormSkeleton() {
             <div className="space-y-4">
               <Skeleton className="h-6 w-32" />
               <div className="grid items-start gap-6 md:grid-cols-2">
-                <Skeleton className="h-20" />
-                <Skeleton className="h-20" />
-                <Skeleton className="h-20" />
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <Skeleton key={i} className="h-20" />
+                ))}
               </div>
             </div>
             <div className="space-y-4">
@@ -137,51 +173,151 @@ export default function EditMasterKatalogPage() {
   const presignedUrlMutation = useUploadFile()
   const existingImageKey = catalogData?.imageUrl ?? ""
   const { data: publicUrlData } = usePublicUrl(existingImageKey)
-  const { data: itemTypesData } = useItemTypes({ pageSize: 100 })
+  const { data: itemTypesData, isFetched: itemTypesFetched } = useItemTypes({
+    pageSize: 500,
+    page: 1,
+  })
+
+  const catalogItemTypeId = React.useMemo(() => {
+    if (!catalogData) return ""
+    const fromRelation = (
+      catalogData.itemType as { uuid?: string } | undefined
+    )?.uuid
+    return (
+      String(catalogData.itemTypeId ?? fromRelation ?? "")
+        .trim()
+    )
+  }, [catalogData])
+
+  const itemTypesRows = React.useMemo(
+    () => itemTypesListRows(itemTypesData),
+    [itemTypesData]
+  )
+
+  const listHasCurrentType = React.useMemo(() => {
+    if (!catalogItemTypeId) return true
+    return itemTypesRows.some(
+      (it) => String(it.uuid).trim() === catalogItemTypeId
+    )
+  }, [itemTypesRows, catalogItemTypeId])
+
+  const { data: itemTypeDetail } = useItemType(catalogItemTypeId, {
+    enabled:
+      Boolean(catalogItemTypeId) &&
+      itemTypesFetched &&
+      !listHasCurrentType,
+  })
+
   const tipeBarangOptions = React.useMemo(() => {
-    const list = itemTypesData?.data ?? []
-    return list.map((itemType) => ({
-      value: itemType.uuid,
-      label: itemType.typeName,
-    }))
-  }, [itemTypesData])
+    const list = itemTypesRows
+    const opts = list
+      .filter((it) => it?.uuid)
+      .map((it) => ({
+        value: String(it.uuid),
+        label: it.typeName || String(it.uuid),
+      }))
+
+    if (!catalogItemTypeId) return opts
+    if (opts.some((o) => o.value === catalogItemTypeId)) return opts
+
+    const rel = catalogData?.itemType as
+      | { uuid?: string; typeName?: string }
+      | undefined
+    if (rel?.uuid && String(rel.uuid) === catalogItemTypeId && rel.typeName) {
+      return [
+        { value: catalogItemTypeId, label: rel.typeName },
+        ...opts,
+      ]
+    }
+    if (
+      itemTypeDetail?.uuid &&
+      String(itemTypeDetail.uuid) === catalogItemTypeId
+    ) {
+      return [
+        {
+          value: catalogItemTypeId,
+          label: itemTypeDetail.typeName || catalogItemTypeId,
+        },
+        ...opts,
+      ]
+    }
+    return [
+      {
+        value: catalogItemTypeId,
+        label: `Tipe terpilih (${catalogItemTypeId.slice(0, 8)}…)`,
+      },
+      ...opts,
+    ]
+  }, [itemTypesRows, catalogData?.itemType, catalogItemTypeId, itemTypeDetail])
+
+  const ptDisplayName =
+    catalogData?.pt?.companyName ??
+    catalogData?.company?.companyName ??
+    ""
 
   const form = useForm<KatalogFormValues>({
     resolver: zodResolver(katalogSchema),
     defaultValues: {
       image: undefined,
+      kodeKatalog: "",
       namaKatalog: "",
       tipeBarang: "",
       harga: "",
+      nilaiTaksirMin: "",
+      nilaiTaksirMax: "",
       namaPotongan: "",
       jumlahPotongan: "",
       keterangan: "",
     },
   })
 
-  // Load katalog data and set image preview
   useEffect(() => {
-    if (!id) return
     if (!catalogData) return
-
-    if (catalogData.imageUrl && publicUrlData?.url) {
-      setPreviewImage(publicUrlData.url)
-    } else {
-      setPreviewImage(null)
+    const key = catalogData.imageUrl ?? ""
+    if (!key || userRemovedImage) {
+      if (!userRemovedImage && !key) setPreviewImage(null)
+      return
     }
+    if (publicUrlData?.url) {
+      setPreviewImage(publicUrlData.url)
+    }
+  }, [catalogData?.imageUrl, publicUrlData?.url, userRemovedImage])
+
+  useEffect(() => {
     setUserRemovedImage(false)
-    form.reset({
-      image: undefined,
+  }, [id])
+
+  useLayoutEffect(() => {
+    if (!catalogData || !itemTypesFetched) return
+    const disc = Number(catalogData.discountAmount ?? 0)
+    const typeId = catalogItemTypeId
+    const next = {
+      image: undefined as File | string | undefined,
+      kodeKatalog: catalogData.code ?? "",
       namaKatalog: catalogData.name ?? catalogData.itemName ?? "",
-      tipeBarang: catalogData.itemTypeId ?? "",
+      tipeBarang: typeId,
       harga: formatCurrencyInput(Number(catalogData.basePrice ?? 0)),
-      namaPotongan: catalogData.discountName ?? "",
-      jumlahPotongan: formatCurrencyInput(
-        Number(catalogData.discountAmount ?? 0)
+      nilaiTaksirMin: formatCurrencyInput(
+        Number(catalogData.pawnValueMin ?? 0)
       ),
+      nilaiTaksirMax: formatCurrencyInput(
+        Number(catalogData.pawnValueMax ?? 0)
+      ),
+      namaPotongan:
+        (catalogData.discountName ?? "").trim() || "Tidak ada",
+      jumlahPotongan:
+        disc > 0 ? formatCurrencyInput(disc) : formatCurrencyInput(0),
       keterangan: catalogData.description || "",
-    })
-  }, [id, catalogData, form, publicUrlData?.url])
+    }
+    form.reset(next)
+    if (typeId) {
+      form.setValue("tipeBarang", typeId, {
+        shouldDirty: false,
+        shouldTouch: false,
+        shouldValidate: true,
+      })
+    }
+  }, [catalogData, itemTypesFetched, catalogItemTypeId, form])
 
   useEffect(() => {
     if (!isLoading && id && !catalogData) {
@@ -206,6 +342,14 @@ export default function EditMasterKatalogPage() {
     }
   }
 
+  const handleRemoveImage = (
+    field: { onChange: (value: File | undefined) => void }
+  ) => {
+    field.onChange(undefined)
+    setUserRemovedImage(true)
+    setPreviewImage(null)
+  }
+
   const handleSimpanClick = () => {
     form.handleSubmit((values) => {
       if (values) {
@@ -221,9 +365,24 @@ export default function EditMasterKatalogPage() {
       if (parsedPrice === null || parsedPrice <= 0) {
         throw new Error("Harga harus lebih dari 0")
       }
+      const pawnMin = parseCurrencyInput(values.nilaiTaksirMin)
+      const pawnMax = parseCurrencyInput(values.nilaiTaksirMax)
+      if (pawnMin === null || pawnMax === null) {
+        throw new Error("Nilai taksir harus valid")
+      }
+      if (pawnMax < pawnMin) {
+        throw new Error(
+          "Nilai Taksir Max harus lebih besar atau sama dengan Min"
+        )
+      }
       const parsedPotongan = parseCurrencyInput(values.jumlahPotongan)
       const jumlahPotonganNum =
         parsedPotongan !== null && parsedPotongan >= 0 ? parsedPotongan : 0
+      const discountNameTrim = values.namaPotongan.trim()
+      const discountName =
+        !discountNameTrim || discountNameTrim === "Tidak ada"
+          ? null
+          : discountNameTrim
 
       let imageUrl: string | null | undefined = undefined
       if (values.image instanceof File) {
@@ -239,14 +398,21 @@ export default function EditMasterKatalogPage() {
         imageUrl = null
       }
 
+      const itemTypeIdSubmit =
+        (values.tipeBarang ?? "").trim() || catalogItemTypeId
+      if (!itemTypeIdSubmit) {
+        throw new Error("Tipe Barang harus dipilih")
+      }
       await updateCatalog({
         id,
         data: {
           name: values.namaKatalog.trim(),
-          itemTypeId: values.tipeBarang || undefined,
+          itemTypeId: itemTypeIdSubmit,
           basePrice: parsedPrice,
+          pawnValueMin: pawnMin,
+          pawnValueMax: pawnMax,
           description: values.keterangan?.trim() || undefined,
-          discountName: values.namaPotongan.trim() || null,
+          discountName,
           discountAmount: jumlahPotonganNum,
           ...(imageUrl !== undefined && { imageUrl }),
         },
@@ -258,12 +424,10 @@ export default function EditMasterKatalogPage() {
       const message =
         error instanceof Error ? error.message : "Gagal mengupdate data Katalog"
       toast.error(message)
-    } finally {
-      // noop
     }
   }
 
-  if (isLoading) {
+  if (isLoading || !itemTypesFetched) {
     return (
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-2">
@@ -281,26 +445,37 @@ export default function EditMasterKatalogPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Header section */}
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-bold">Edit Data</h1>
         <Breadcrumbs
           items={[
             { label: "Master Katalog", href: "/master-katalog" },
+            {
+              label: catalogData.name ?? "Detail",
+              href: `/master-katalog/${id}`,
+            },
             { label: "Edit Data", className: "text-destructive" },
           ]}
         />
       </div>
 
-      {/* Data Katalog card */}
       <Card>
         <CardHeader>
-          <CardTitle>Data Katalog</CardTitle>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <CardTitle>Data Katalog</CardTitle>
+            {ptDisplayName && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">PT :</span>
+                <span className="text-muted-foreground text-sm">
+                  {ptDisplayName}
+                </span>
+              </div>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <Form {...form}>
             <form className="grid grid-cols-1 gap-8 lg:grid-cols-[250px_1fr]">
-              {/* Image upload column (left) */}
               <div className="flex justify-center">
                 <FormField
                   control={form.control}
@@ -319,28 +494,34 @@ export default function EditMasterKatalogPage() {
                                   className="size-full rounded-full object-cover"
                                 />
                               </div>
-                              <div className="absolute right-0 bottom-0 z-50 flex gap-1">
-                                <label
-                                  htmlFor="image-upload-edit"
-                                  className="bg-destructive hover:bg-destructive/90 flex size-10 cursor-pointer items-center justify-center rounded-full text-white shadow-sm transition-colors"
-                                  aria-label="Ubah gambar"
+                              <label
+                                htmlFor="image-upload-edit-katalog"
+                                className="bg-destructive hover:bg-destructive/90 absolute right-0 bottom-0 z-50 flex size-10 cursor-pointer items-center justify-center rounded-full text-white shadow-sm transition-colors"
+                                aria-label="Ubah gambar"
+                              >
+                                <Pencil className="size-4" />
+                                <input
+                                  id="image-upload-edit-katalog"
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={(e) => handleImageChange(e, field)}
+                                />
+                              </label>
+                              {(existingImageKey || field.value) && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveImage(field)}
+                                  className="bg-background absolute bottom-0 left-0 z-50 flex size-10 items-center justify-center rounded-full border shadow-sm"
+                                  aria-label="Hapus gambar"
                                 >
-                                  <Pencil className="size-4" />
-                                  <input
-                                    id="image-upload-edit"
-                                    type="file"
-                                    accept="image/*"
-                                    className="hidden"
-                                    onChange={(e) =>
-                                      handleImageChange(e, field)
-                                    }
-                                  />
-                                </label>
-                              </div>
+                                  <X className="size-4" />
+                                </button>
+                              )}
                             </div>
                           ) : (
                             <label
-                              htmlFor="image-upload"
+                              htmlFor="image-upload-katalog"
                               className="border-input bg-muted/50 hover:bg-muted flex aspect-square w-48 cursor-pointer flex-col items-center justify-center gap-3 rounded-full border-2 border-dashed transition-colors"
                             >
                               <div className="flex flex-col items-center gap-2">
@@ -352,7 +533,7 @@ export default function EditMasterKatalogPage() {
                                 </p>
                               </div>
                               <input
-                                id="image-upload"
+                                id="image-upload-katalog"
                                 type="file"
                                 accept="image/*"
                                 className="hidden"
@@ -368,9 +549,7 @@ export default function EditMasterKatalogPage() {
                 />
               </div>
 
-              {/* Form fields column (right) */}
               <div className="space-y-8">
-                {/* Detail Katalog section */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-3">
                     <Package className="text-destructive size-6" />
@@ -379,6 +558,26 @@ export default function EditMasterKatalogPage() {
                     </h2>
                   </div>
                   <div className="grid items-start gap-6 md:grid-cols-2">
+                    <FormField
+                      control={form.control}
+                      name="kodeKatalog"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Kode Katalog</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="text"
+                              readOnly
+                              disabled
+                              className="bg-muted"
+                              icon={<FileText className="size-4" />}
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                     <FormField
                       control={form.control}
                       name="namaKatalog"
@@ -391,7 +590,7 @@ export default function EditMasterKatalogPage() {
                           <FormControl>
                             <Input
                               type="text"
-                              placeholder="Contoh: Agung Prasetyo"
+                              placeholder="Contoh: iPhone 15 Pro"
                               icon={<FileText className="size-4" />}
                               {...field}
                             />
@@ -407,8 +606,20 @@ export default function EditMasterKatalogPage() {
                         <FormItem>
                           <FormLabel>Tipe Barang</FormLabel>
                           <Select
-                            value={field.value || ""}
-                            onValueChange={field.onChange}
+                            key={`tipe-${id}`}
+                            value={
+                              field.value && field.value.trim() !== ""
+                                ? field.value
+                                : catalogItemTypeId &&
+                                    tipeBarangOptions.some(
+                                      (o) => o.value === catalogItemTypeId
+                                    )
+                                  ? catalogItemTypeId
+                                  : field.value || ""
+                            }
+                            onValueChange={(v) => {
+                              field.onChange(v)
+                            }}
                           >
                             <FormControl>
                               <SelectTrigger className="w-full">
@@ -455,10 +666,61 @@ export default function EditMasterKatalogPage() {
                         </FormItem>
                       )}
                     />
+                    <FormField
+                      control={form.control}
+                      name="nilaiTaksirMin"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nilai Taksir Min</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="text"
+                              placeholder="Contoh: 1.000.000"
+                              icon={<>Rp</>}
+                              value={field.value}
+                              onChange={(e) => {
+                                const parsed = parseCurrencyInput(e.target.value)
+                                field.onChange(
+                                  parsed !== null
+                                    ? formatCurrencyInput(parsed)
+                                    : ""
+                                )
+                              }}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="nilaiTaksirMax"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nilai Taksir Max</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="text"
+                              placeholder="Contoh: 1.500.000"
+                              icon={<>Rp</>}
+                              value={field.value}
+                              onChange={(e) => {
+                                const parsed = parseCurrencyInput(e.target.value)
+                                field.onChange(
+                                  parsed !== null
+                                    ? formatCurrencyInput(parsed)
+                                    : ""
+                                )
+                              }}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </div>
                 </div>
 
-                {/* Potongan Harga section */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-3">
                     <Clock className="text-destructive size-6" />
@@ -479,7 +741,7 @@ export default function EditMasterKatalogPage() {
                           <FormControl>
                             <Input
                               type="text"
-                              placeholder="Contoh: Agung Prasetyo"
+                              placeholder="Contoh: Diskon Lebaran"
                               icon={<FileText className="size-4" />}
                               {...field}
                             />
@@ -494,7 +756,7 @@ export default function EditMasterKatalogPage() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>
-                            Jumlah Potongan (Rp){" "}
+                            Jumlah Potongan{" "}
                             <span className="text-destructive">*</span>
                           </FormLabel>
                           <FormControl>
@@ -522,7 +784,6 @@ export default function EditMasterKatalogPage() {
                   </div>
                 </div>
 
-                {/* Keterangan section */}
                 <div className="space-y-4">
                   <FormField
                     control={form.control}
@@ -543,12 +804,11 @@ export default function EditMasterKatalogPage() {
                   />
                 </div>
 
-                {/* Action buttons */}
                 <div className="flex justify-end gap-4 pt-4">
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => router.push("/master-katalog")}
+                    onClick={() => router.push(`/master-katalog/${id}`)}
                     disabled={isSubmitting || presignedUrlMutation.isPending}
                   >
                     <X className="mr-2 size-4" />
@@ -576,7 +836,6 @@ export default function EditMasterKatalogPage() {
         </CardContent>
       </Card>
 
-      {/* Save confirmation dialog */}
       <ConfirmationDialog
         open={confirmOpen}
         onOpenChange={setConfirmOpen}

@@ -676,6 +676,8 @@ export interface CatalogItem {
   code?: string
   itemTypeId: string
   basePrice: number
+  pawnValueMin?: number
+  pawnValueMax?: number
   ptId?: string
   description?: string
   imageUrl?: string | null
@@ -684,6 +686,8 @@ export interface CatalogItem {
   isActive?: boolean
   itemType?: ItemType
   company?: Company
+  pt?: { uuid?: string; companyName?: string }
+  tenorOptions?: number[] | null
   createdAt: string
   updatedAt: string
 }
@@ -698,10 +702,19 @@ export interface CatalogPriceHistory {
 }
 
 export interface CreateCatalogDto {
-  itemName: string
+  code: string
+  name: string
+  ptId: string
   itemTypeId: string
   basePrice: number
+  pawnValueMin: number
+  pawnValueMax: number
+  tenorOptions?: number[]
   description?: string
+  /** S3 key after upload */
+  imageUrl?: string
+  discountName?: string | null
+  discountAmount?: number
 }
 
 /** Matches API UpdateCatalogDto */

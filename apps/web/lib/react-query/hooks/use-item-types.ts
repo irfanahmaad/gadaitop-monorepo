@@ -29,11 +29,16 @@ export function useItemTypes(options?: PageOptions) {
 }
 
 // Get single item type
-export function useItemType(id: string) {
+export function useItemType(
+  id: string,
+  options?: { enabled?: boolean }
+) {
+  const enabled =
+    !!id && (options?.enabled !== undefined ? options.enabled : true)
   return useQuery({
     queryKey: itemTypeKeys.detail(id),
     queryFn: () => apiClient.get<ItemType>(endpoints.itemTypes.detail(id)),
-    enabled: !!id,
+    enabled,
   })
 }
 

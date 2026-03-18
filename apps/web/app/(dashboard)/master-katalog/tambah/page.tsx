@@ -44,9 +44,16 @@ import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { formatCurrencyInput, parseCurrencyInput } from "@/lib/format-currency"
 import { useCreateCatalog } from "@/lib/react-query/hooks/use-catalogs"
 import { useItemTypes } from "@/lib/react-query/hooks/use-item-types"
+import { useAuth } from "@/lib/react-query/hooks/use-auth"
+import { useCompanies } from "@/lib/react-query/hooks/use-companies"
+import { useUploadFile } from "@/lib/react-query/hooks/use-upload"
 
 const katalogSchema = z.object({
   image: z.union([z.instanceof(File), z.string()]).optional(),
+  kodeKatalog: z
+    .string()
+    .min(1, "Kode Katalog harus diisi")
+    .max(50, "Kode Katalog maksimal 50 karakter"),
   namaKatalog: z
     .string()
     .min(1, "Nama Katalog harus diisi")
@@ -59,6 +66,20 @@ const katalogSchema = z.object({
       const parsed = parseCurrencyInput(val)
       return parsed !== null && parsed > 0
     }, "Harga harus lebih dari 0"),
+  nilaiTaksirMin: z
+    .string()
+    .min(1, "Nilai Taksir Min harus diisi")
+    .refine((val) => {
+      const parsed = parseCurrencyInput(val)
+      return parsed !== null && parsed >= 0
+    }, "Nilai Taksir Min harus valid"),
+  nilaiTaksirMax: z
+    .string()
+    .min(1, "Nilai Taksir Max harus diisi")
+    .refine((val) => {
+      const parsed = parseCurrencyInput(val)
+      return parsed !== null && parsed >= 0
+    }, "Nilai Taksir Max harus valid"),
   namaPotongan: z
     .string()
     .min(1, "Nama Potongan harus diisi")
@@ -85,7 +106,25 @@ export default function TambahMasterKatalogPage() {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { mutateAsync: createCatalog } = useCreateCatalog()
+  const uploadFileMutation = useUploadFile()
   const { data: itemTypesData } = useItemTypes({ pageSize: 100 })
+  const { user } = useAuth()
+  const isCompanyAdmin =
+    user?.roles?.some((r) => r.code === "company_admin") ?? false
+  const isSuperAdmin = user?.roles?.some((r) => r.code === "owner") ?? false
+  const effectiveCompanyId = isCompanyAdmin ? (user?.companyId ?? null) : null
+  const { data: companiesData } = useCompanies(
+    isSuperAdmin ? { pageSize: 100 } : undefined
+  )
+  const ptOptions = React.useMemo(() => {
+    const list = companiesData?.data ?? []
+    return list.map((c) => ({ value: c.uuid, label: c.companyName }))
+  }, [companiesData])
+  const [selectedPT, setSelectedPT] = useState("")
+  const defaultPT =
+    (isSuperAdmin && ptOptions[0]?.value) || effectiveCompanyId || ""
+  const effectivePT = selectedPT || defaultPT
+
   const tipeBarangOptions = React.useMemo(() => {
     const list = itemTypesData?.data ?? []
     return list.map((itemType) => ({
@@ -98,9 +137,12 @@ export default function TambahMasterKatalogPage() {
     resolver: zodResolver(katalogSchema),
     defaultValues: {
       image: undefined,
+      kodeKatalog: "",
       namaKatalog: "",
       tipeBarang: "",
       harga: "",
+      nilaiTaksirMin: "",
+      nilaiTaksirMax: "",
       namaPotongan: "",
       jumlahPotongan: "",
       keterangan: "",
@@ -134,16 +176,50 @@ export default function TambahMasterKatalogPage() {
     const values = form.getValues()
     setIsSubmitting(true)
     try {
+      if (!effectivePT) {
+        throw new Error("Pilih PT terlebih dahulu")
+      }
       const parsedPrice = parseCurrencyInput(values.harga)
       if (parsedPrice === null || parsedPrice <= 0) {
         throw new Error("Harga harus lebih dari 0")
       }
+      const pawnMin = parseCurrencyInput(values.nilaiTaksirMin)
+      const pawnMax = parseCurrencyInput(values.nilaiTaksirMax)
+      if (pawnMin === null || pawnMax === null) {
+        throw new Error("Nilai taksir harus valid")
+      }
+      if (pawnMax < pawnMin) {
+        throw new Error("Nilai Taksir Max harus lebih besar atau sama dengan Min")
+      }
+
+      const parsedPotongan = parseCurrencyInput(values.jumlahPotongan)
+      const jumlahPotonganNum =
+        parsedPotongan !== null && parsedPotongan >= 0 ? parsedPotongan : 0
+
+      let imageUrl: string | undefined
+      if (values.image instanceof File) {
+        const file = values.image
+        const ext = file.name.split(".").pop() || "jpg"
+        const key = `catalogs/new/image-${Date.now()}.${ext}`
+        const { key: s3Key } = await uploadFileMutation.mutateAsync({
+          file,
+          key,
+        })
+        imageUrl = s3Key
+      }
 
       await createCatalog({
-        itemName: values.namaKatalog,
+        code: values.kodeKatalog.trim(),
+        name: values.namaKatalog,
+        ptId: effectivePT,
         itemTypeId: values.tipeBarang,
         basePrice: parsedPrice,
+        pawnValueMin: pawnMin,
+        pawnValueMax: pawnMax,
         description: values.keterangan?.trim() || undefined,
+        discountName: values.namaPotongan.trim() || null,
+        discountAmount: jumlahPotonganNum,
+        ...(imageUrl && { imageUrl }),
       })
 
       toast.success("Data Katalog berhasil ditambahkan")
@@ -176,7 +252,26 @@ export default function TambahMasterKatalogPage() {
       {/* Data Katalog card */}
       <Card>
         <CardHeader>
-          <CardTitle>Data Katalog</CardTitle>
+          <div className="flex items-center justify-between gap-4">
+            <CardTitle>Data Katalog</CardTitle>
+            {isSuperAdmin && ptOptions.length > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">PT :</span>
+                <Select value={selectedPT} onValueChange={setSelectedPT}>
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Pilih PT" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ptOptions.map((pt) => (
+                      <SelectItem key={pt.value} value={pt.value}>
+                        {pt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -258,6 +353,26 @@ export default function TambahMasterKatalogPage() {
                   <div className="grid items-start gap-6 md:grid-cols-2">
                     <FormField
                       control={form.control}
+                      name="kodeKatalog"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>
+                            Kode Katalog <span className="text-destructive">*</span>
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              type="text"
+                              placeholder="Contoh: KAT-001"
+                              icon={<FileText className="size-4" />}
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
                       name="namaKatalog"
                       render={({ field }) => (
                         <FormItem>
@@ -324,6 +439,54 @@ export default function TambahMasterKatalogPage() {
                                   parsed !== null
                                     ? formatCurrencyInput(parsed)
                                     : ""
+                                )
+                              }}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="nilaiTaksirMin"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nilai Taksir Min</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="text"
+                              placeholder="Contoh: 1.000.000"
+                              icon={<>Rp</>}
+                              value={field.value}
+                              onChange={(e) => {
+                                const parsed = parseCurrencyInput(e.target.value)
+                                field.onChange(
+                                  parsed !== null ? formatCurrencyInput(parsed) : ""
+                                )
+                              }}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="nilaiTaksirMax"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nilai Taksir Max</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="text"
+                              placeholder="Contoh: 1.500.000"
+                              icon={<>Rp</>}
+                              value={field.value}
+                              onChange={(e) => {
+                                const parsed = parseCurrencyInput(e.target.value)
+                                field.onChange(
+                                  parsed !== null ? formatCurrencyInput(parsed) : ""
                                 )
                               }}
                             />

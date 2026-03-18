@@ -18,6 +18,97 @@ import type {
   UpdateCatalogDto,
 } from "@/lib/api/types"
 
+/** Normalize catalog JSON (unwrap `data`, snake_case decimals, etc.) */
+export function normalizeCatalogItem(raw: unknown): CatalogItem {
+  const unwrap = (r: unknown): Record<string, unknown> => {
+    if (!r || typeof r !== "object") return {}
+    const o = r as Record<string, unknown>
+    const inner = o.data
+    if (
+      typeof o.uuid === "string" &&
+      (!inner ||
+        typeof inner !== "object" ||
+        Array.isArray(inner) ||
+        !("uuid" in inner))
+    ) {
+      return o
+    }
+    if (
+      inner &&
+      typeof inner === "object" &&
+      !Array.isArray(inner) &&
+      typeof (inner as Record<string, unknown>).uuid === "string"
+    ) {
+      return inner as Record<string, unknown>
+    }
+    return o
+  }
+
+  const obj = unwrap(raw)
+  const num = (v: unknown): number => {
+    if (v === null || v === undefined) return 0
+    if (typeof v === "number" && Number.isFinite(v)) return v
+    if (typeof v === "string") {
+      const n = parseFloat(v.replace(/\s/g, "").replace(",", "."))
+      return Number.isFinite(n) ? n : 0
+    }
+    return 0
+  }
+
+  const str = (v: unknown): string | null => {
+    if (v === null || v === undefined) return null
+    const s = String(v).trim()
+    return s.length ? s : null
+  }
+
+  const discountName =
+    str(obj.discountName) ?? str(obj.discount_name) ?? null
+
+  const base = obj as unknown as CatalogItem
+
+  const tenorRaw = obj.tenorOptions ?? obj.tenor_options
+  const tenorOptions = Array.isArray(tenorRaw)
+    ? (tenorRaw as unknown[]).map((n) => Number(n)).filter((n) => Number.isFinite(n))
+    : null
+
+  const ptRaw = obj.pt as Record<string, unknown> | undefined
+  const pt =
+    ptRaw && typeof ptRaw === "object"
+      ? {
+          uuid: typeof ptRaw.uuid === "string" ? ptRaw.uuid : undefined,
+          companyName:
+            (ptRaw.companyName as string) ??
+            (ptRaw.company_name as string) ??
+            undefined,
+        }
+      : undefined
+
+  const itemTypeNested = obj.itemType as { uuid?: string } | undefined
+  const itemTypeIdRaw =
+    (typeof obj.itemTypeId === "string" && obj.itemTypeId) ||
+    (typeof obj.item_type_id === "string" && obj.item_type_id) ||
+    (itemTypeNested && typeof itemTypeNested.uuid === "string"
+      ? itemTypeNested.uuid
+      : null) ||
+    (typeof base.itemTypeId === "string" ? base.itemTypeId : null)
+
+  return {
+    ...base,
+    itemTypeId: itemTypeIdRaw ?? "",
+    basePrice: num(obj.basePrice ?? obj.base_price),
+    pawnValueMin: num(obj.pawnValueMin ?? obj.pawn_value_min),
+    pawnValueMax: num(obj.pawnValueMax ?? obj.pawn_value_max),
+    discountName,
+    discountAmount: num(obj.discountAmount ?? obj.discount_amount),
+    imageUrl:
+      (obj.imageUrl as string | null | undefined) ??
+      (obj.image_url as string | null | undefined) ??
+      null,
+    tenorOptions: tenorOptions?.length ? tenorOptions : null,
+    pt,
+  }
+}
+
 // Query keys
 export const catalogKeys = {
   all: ["catalogs"] as const,
@@ -44,7 +135,10 @@ export function useCatalogs(options?: PageOptions) {
 export function useCatalog(id: string) {
   return useQuery({
     queryKey: catalogKeys.detail(id),
-    queryFn: () => apiClient.get<CatalogItem>(endpoints.catalogs.detail(id)),
+    queryFn: async () => {
+      const raw = await apiClient.get<unknown>(endpoints.catalogs.detail(id))
+      return normalizeCatalogItem(raw)
+    },
     enabled: !!id,
   })
 }
