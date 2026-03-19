@@ -18,8 +18,9 @@ export class CashMutationDto {
   createdBy: string;
   createdAt: Date;
   store?: { uuid: string; shortName: string; fullName: string; branchCode: string };
+  creator?: { uuid: string; fullName: string; imageUrl: string | null };
 
-  constructor(record: CashMutationEntity & { store?: any }) {
+  constructor(record: CashMutationEntity & { store?: any; creator?: any }) {
     this.id = record.id;
     this.ptId = record.ptId;
     this.storeId = record.storeId;
@@ -40,6 +41,13 @@ export class CashMutationDto {
         shortName: record.store.shortName,
         fullName: record.store.fullName,
         branchCode: record.store.branchCode,
+      };
+    }
+    if (record.creator) {
+      this.creator = {
+        uuid: record.creator.uuid,
+        fullName: record.creator.fullName,
+        imageUrl: record.creator.imageUrl ?? null,
       };
     }
   }

@@ -51,6 +51,7 @@ export class CashMutationService {
       where,
       relation: {
         store: true,
+        creator: true,
       },
       orderBy:
         sortAttribute(queryDto.sortBy, {

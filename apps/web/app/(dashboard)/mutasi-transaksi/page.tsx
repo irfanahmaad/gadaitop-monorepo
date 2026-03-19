@@ -60,9 +60,7 @@ function mapCashMutationToMutasi(m: CashMutation): MutasiTransaksi {
     m.balanceAfter ??
     (typeof m.balanceAfter === "string" ? parseFloat(m.balanceAfter) : 0)
   const category = m.category ?? "other"
-  const createdBy = m.createdBy as
-    | { fullName?: string; imageUrl?: string }
-    | undefined
+  const creator = m.creator
   const store = m.store
     ? {
         shortName: m.store.shortName ?? m.store.branchCode ?? "-",
@@ -79,8 +77,8 @@ function mapCashMutationToMutasi(m: CashMutation): MutasiTransaksi {
     tanggal: m.createdAt,
     store,
     user: {
-      name: createdBy?.fullName ?? "-",
-      avatar: createdBy?.imageUrl,
+      name: creator?.fullName ?? "-",
+      avatar: creator?.imageUrl ?? undefined,
     },
     jenis: CATEGORY_DISPLAY[category] ?? "Operasional",
     noSpkNkb,

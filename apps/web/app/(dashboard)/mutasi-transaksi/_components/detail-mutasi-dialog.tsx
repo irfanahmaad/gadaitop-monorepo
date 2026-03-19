@@ -7,11 +7,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@workspace/ui/components/dialog"
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@workspace/ui/components/avatar"
 import { formatCurrencyDisplay } from "@/lib/format-currency"
 
 type MutasiTransaksi = {
@@ -53,26 +48,12 @@ export function DetailMutasiDialog({
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1">
-            <p className="text-muted-foreground text-sm font-medium">
-              Tanggal
-            </p>
+            <p className="text-muted-foreground text-sm font-medium">Tanggal</p>
             <p className="text-base">{row.tanggal}</p>
           </div>
           <div className="space-y-1">
             <p className="text-muted-foreground text-sm font-medium">User</p>
-            <div className="flex items-center gap-2">
-              <Avatar className="h-8 w-8">
-                <AvatarImage src={row.user.avatar} alt={row.user.name} />
-                <AvatarFallback>
-                  {row.user.name
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")
-                    .toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <p className="text-base">{row.user.name}</p>
-            </div>
+            <p className="text-base">{row.user.name}</p>
           </div>
           <div className="space-y-1">
             <p className="text-muted-foreground text-sm font-medium">Jenis</p>
@@ -93,24 +74,18 @@ export function DetailMutasiDialog({
           <div className="space-y-1">
             <p className="text-muted-foreground text-sm font-medium">Debit</p>
             <p className="text-base">
-              {row.debit
-                ? `Rp${formatCurrencyDisplay(row.debit)},-`
-                : "-"}
+              {row.debit ? `Rp${formatCurrencyDisplay(row.debit)},-` : "-"}
             </p>
           </div>
           <div className="space-y-1">
             <p className="text-muted-foreground text-sm font-medium">Kredit</p>
             <p className="text-base">
-              {row.kredit
-                ? `Rp${formatCurrencyDisplay(row.kredit)},-`
-                : "-"}
+              {row.kredit ? `Rp${formatCurrencyDisplay(row.kredit)},-` : "-"}
             </p>
           </div>
           <div className="space-y-1">
             <p className="text-muted-foreground text-sm font-medium">Saldo</p>
-            <p className="text-base">
-              Rp{formatCurrencyDisplay(row.saldo)},-
-            </p>
+            <p className="text-base">Rp{formatCurrencyDisplay(row.saldo)},-</p>
           </div>
         </div>
       </DialogContent>

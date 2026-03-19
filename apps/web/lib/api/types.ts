@@ -1118,7 +1118,8 @@ export interface CashMutation {
   referenceId?: string
   referenceNumber?: string
   store?: Branch
-  createdBy?: User
+  createdBy?: string
+  creator?: { uuid: string; fullName: string; imageUrl: string | null }
   createdAt: string
 }
 
