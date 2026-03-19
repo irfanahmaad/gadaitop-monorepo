@@ -30,11 +30,11 @@ const STATUS_COLORS: Record<string, string> = {
 // Label mapping for SPK statuses
 const STATUS_LABELS: Record<string, string> = {
   draft: "Draft",
-  active: "Aktif",
+  active: "Berjalan",
   extended: "Diperpanjang",
-  redeemed: "Ditebus",
-  overdue: "Jatuh Tempo",
-  auctioned: "Dilelang",
+  redeemed: "Lunas",
+  overdue: "Terlambat",
+  auctioned: "Terlelang",
   closed: "Ditutup",
 }
 
@@ -79,10 +79,7 @@ export function SPKOverdueChartCard({
             </p>
           </div>
         ) : (
-          <ChartContainer
-            config={chartConfig}
-            className="min-h-[300px] w-full"
-          >
+          <ChartContainer config={chartConfig} className="min-h-[300px] w-full">
             <BarChart
               accessibilityLayer
               data={chartData}
@@ -90,11 +87,7 @@ export function SPKOverdueChartCard({
               margin={{ left: 0, right: 20 }}
             >
               <CartesianGrid horizontal={false} strokeDasharray="3 3" />
-              <XAxis
-                type="number"
-                tickLine={false}
-                axisLine={false}
-              />
+              <XAxis type="number" tickLine={false} axisLine={false} />
               <YAxis
                 dataKey="name"
                 type="category"

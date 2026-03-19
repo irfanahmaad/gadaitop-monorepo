@@ -19,6 +19,12 @@ export class CreateNkbDto {
   @Type(() => Number)
   amountPaid: number;
 
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  insuranceFee?: number;
+
   @IsEnum(NkbPaymentTypeEnum)
   paymentType: NkbPaymentTypeEnum;
 

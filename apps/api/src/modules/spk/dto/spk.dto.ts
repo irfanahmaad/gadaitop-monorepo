@@ -14,6 +14,7 @@ export class SpkDto {
   tenor: number;
   interestRate: string;
   adminFee: string;
+  insuranceFee: string;
   totalAmount: string;
   remainingBalance: string;
   dueDate: Date;
@@ -22,7 +23,13 @@ export class SpkDto {
   confirmedByPin: boolean;
   createdAt: Date;
   items?: SpkItemDto[];
-  customer?: { uuid: string; name: string; nik: string; dob?: string; selfiePhotoUrl?: string | null };
+  customer?: {
+    uuid: string;
+    name: string;
+    nik: string;
+    dob?: string;
+    selfiePhotoUrl?: string | null;
+  };
   store?: { uuid: string; shortName: string; branchCode: string };
   pt?: { uuid: string; companyName: string };
   createdBy?: { uuid: string; fullName: string } | null;
@@ -47,6 +54,7 @@ export class SpkDto {
     this.tenor = record.tenor;
     this.interestRate = record.interestRate;
     this.adminFee = record.adminFee;
+    this.insuranceFee = record.insuranceFee;
     this.totalAmount = record.totalAmount;
     this.remainingBalance = record.remainingBalance;
     this.dueDate = record.dueDate;

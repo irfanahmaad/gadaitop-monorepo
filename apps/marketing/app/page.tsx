@@ -169,8 +169,7 @@ export default function Home() {
 
               <AnimateOnScroll delay={100}>
                 <h1 className="font-display text-4xl leading-[1.1] font-extrabold tracking-tight text-dark sm:text-5xl lg:text-[3.5rem]">
-                  Gadai Mudah,{" "}
-                  <span className="text-brand">Cepat</span>, dan{" "}
+                  Gadai Mudah, <span className="text-brand">Cepat</span>, dan{" "}
                   <span className="relative inline-block">
                     Terpercaya
                     <svg
@@ -279,8 +278,7 @@ export default function Home() {
               Keunggulan
             </span>
             <h2 className="mt-3 font-display text-3xl font-extrabold text-dark sm:text-4xl">
-              Mengapa Memilih{" "}
-              <span className="text-brand">Gadai Top</span>?
+              Mengapa Memilih <span className="text-brand">Gadai Top</span>?
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-dark-muted">
               Kami menawarkan layanan gadai terbaik dengan proses yang mudah dan
@@ -317,8 +315,7 @@ export default function Home() {
               Cara Kerja
             </span>
             <h2 className="mt-3 font-display text-3xl font-extrabold text-dark sm:text-4xl">
-              Cara Gadai di{" "}
-              <span className="text-brand">Gadai Top</span>
+              Cara Gadai di <span className="text-brand">Gadai Top</span>
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-dark-muted">
               Mudah, cepat, dan transparan hanya dalam 3 langkah
@@ -359,8 +356,7 @@ export default function Home() {
               Layanan
             </span>
             <h2 className="mt-3 font-display text-3xl font-extrabold text-dark sm:text-4xl">
-              Apa Saja yang Bisa{" "}
-              <span className="text-brand">Digadaikan</span>?
+              Apa Saja yang Bisa <span className="text-brand">Digadaikan</span>?
             </h2>
           </AnimateOnScroll>
 
@@ -389,8 +385,7 @@ export default function Home() {
               Testimonial
             </span>
             <h2 className="mt-3 font-display text-3xl font-extrabold text-dark sm:text-4xl">
-              Apa Kata{" "}
-              <span className="text-brand">Nasabah</span> Kami?
+              Apa Kata <span className="text-brand">Nasabah</span> Kami?
             </h2>
           </AnimateOnScroll>
 
@@ -472,7 +467,7 @@ export default function Home() {
                   <div>
                     <h4 className="font-semibold text-dark">Telepon</h4>
                     <p className="mt-1 text-sm text-dark-muted">
-                      (021) XXXX-XXXX
+                      (081) 803072807
                     </p>
                   </div>
                 </div>
@@ -484,7 +479,7 @@ export default function Home() {
                   <div>
                     <h4 className="font-semibold text-dark">Email</h4>
                     <p className="mt-1 text-sm text-dark-muted">
-                      info@gadaitop.id
+                      info@gadai-top.com
                     </p>
                   </div>
                 </div>
@@ -494,9 +489,7 @@ export default function Home() {
                     <Clock className="size-5 text-brand" />
                   </div>
                   <div>
-                    <h4 className="font-semibold text-dark">
-                      Jam Operasional
-                    </h4>
+                    <h4 className="font-semibold text-dark">Jam Operasional</h4>
                     <p className="mt-1 text-sm text-dark-muted">
                       Senin - Sabtu, 08.00 - 17.00 WIB
                     </p>

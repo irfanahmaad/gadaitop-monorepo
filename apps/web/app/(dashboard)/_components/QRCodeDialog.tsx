@@ -1,8 +1,9 @@
 "use client"
 
-import React from "react"
+import React, { useState } from "react"
 import { QRCodeCanvas } from "qrcode.react"
 import { Button } from "@workspace/ui/components/button"
+import { Badge } from "@workspace/ui/components/badge"
 import {
   Dialog,
   DialogContent,
@@ -11,7 +12,8 @@ import {
   DialogTitle,
 } from "@workspace/ui/components/dialog"
 import { Separator } from "@workspace/ui/components/separator"
-import { X, Printer, Download } from "lucide-react"
+import { X, Printer, Download, AlertCircle } from "lucide-react"
+import { toast } from "sonner"
 
 type QRCodeDialogProps = {
   open: boolean
@@ -22,6 +24,12 @@ type QRCodeDialogProps = {
   title?: string
   /** When true, show larger QR for full-screen style download/embed (e.g. for marketing) */
   fullScreen?: boolean
+  /** SPK item ID for tracking print count */
+  itemId?: string
+  /** Whether the QR code has already been printed */
+  alreadyPrinted?: boolean
+  /** Print count for display */
+  printCount?: number
 }
 
 export function QRCodeDialog({
@@ -30,48 +38,44 @@ export function QRCodeDialog({
   value,
   title = "QR Code SPK",
   fullScreen = false,
+  itemId,
+  alreadyPrinted = false,
+  printCount = 0,
 }: QRCodeDialogProps) {
   const canvasId = React.useId()
   const qrSize = fullScreen ? 400 : 200
+  const [isDownloading, setIsDownloading] = useState(false)
 
   const getCanvas = () =>
     document.getElementById(canvasId) as HTMLCanvasElement | null
 
-  // const handlePrint = () => {
-  //   const canvas = getCanvas()
-  //   if (!canvas) return
+  const trackPrint = async () => {
+    if (!itemId) return
+    try {
+      const response = await fetch(
+        `/api/v1/spk/item/${itemId}/track-qr-print`,
+        {
+          method: "PUT",
+        }
+      )
+      if (!response.ok) throw new Error("Failed to track print")
+      const data = await response.json()
+      return data
+    } catch (error) {
+      console.error("Failed to track print:", error)
+    }
+  }
 
-  //   const pngData = canvas.toDataURL("image/png")
-  //   const printWindow = window.open("", "_blank")
-  //   if (!printWindow) return
-
-  //   printWindow.document.write(`
-  //     <!DOCTYPE html>
-  //     <html>
-  //       <head>
-  //         <title>${title} - ${value}</title>
-  //         <style>
-  //           body { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; font-family: system-ui, sans-serif; }
-  //           h1 { margin-bottom: 1rem; font-size: 1.25rem; }
-  //           img { max-width: 256px; height: auto; }
-  //         </style>
-  //       </head>
-  //       <body>
-  //         <h1>${title}</h1>
-  //         <p>${value}</p>
-  //         <img src="${pngData}" alt="QR Code" />
-  //       </body>
-  //     </html>
-  //   `)
-  //   printWindow.document.close()
-  //   printWindow.focus()
-  //   printWindow.print()
-  //   printWindow.close()
-  // }
-
-  const handleDownload = () => {
+  const handleDownload = async () => {
     const canvas = getCanvas()
     if (!canvas) return
+
+    setIsDownloading(true)
+
+    // Track the print before downloading
+    if (itemId) {
+      await trackPrint()
+    }
 
     const image = canvas
       .toDataURL("image/png")
@@ -80,6 +84,13 @@ export function QRCodeDialog({
     link.download = `QR-${value}.png`
     link.href = image
     link.click()
+
+    // Show warning if already printed before
+    if (alreadyPrinted) {
+      toast.warning("QR Code sudah pernah dicetak sebelumnya")
+    }
+
+    setIsDownloading(false)
   }
 
   return (
@@ -89,7 +100,15 @@ export function QRCodeDialog({
         showCloseButton={false}
       >
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
+          <DialogTitle className="flex items-center justify-between">
+            <span>{title}</span>
+            {alreadyPrinted && (
+              <Badge variant="destructive" className="gap-1">
+                <AlertCircle className="size-3" />
+                Sudah dicetak ({printCount}x)
+              </Badge>
+            )}
+          </DialogTitle>
         </DialogHeader>
         <Separator />
 
@@ -98,6 +117,12 @@ export function QRCodeDialog({
             <QRCodeCanvas id={canvasId} value={value} size={qrSize} level="M" />
           </div>
           <p className="font-mono text-sm font-medium">{value}</p>
+          {alreadyPrinted && (
+            <p className="text-destructive text-sm">
+              QR Code ini sudah pernah dicetak. Silakan periksa kembali sebelum
+              mencetak ulang.
+            </p>
+          )}
         </div>
 
         <DialogFooter className="flex flex-row gap-2 sm:justify-end">
@@ -109,14 +134,15 @@ export function QRCodeDialog({
             <X className="size-4" />
             Tutup
           </Button>
-          <Button variant="outline" onClick={handleDownload} className="gap-2">
+          <Button
+            variant="outline"
+            onClick={handleDownload}
+            disabled={isDownloading}
+            className="gap-2"
+          >
             <Download className="size-4" />
-            Download QR
+            {isDownloading ? "Mengunduh..." : "Download QR"}
           </Button>
-          {/* <Button variant="outline" onClick={handlePrint} className="gap-2">
-            <Printer className="size-4" />
-            Print QR
-          </Button> */}
         </DialogFooter>
       </DialogContent>
     </Dialog>

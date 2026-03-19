@@ -49,7 +49,9 @@ function getItemName(spk: Spk): string {
 }
 
 function getStoreName(spk: Spk): string {
-  const store = spk.store as { shortName?: string; fullName?: string } | undefined
+  const store = spk.store as
+    | { shortName?: string; fullName?: string }
+    | undefined
   return store?.shortName ?? store?.fullName ?? "-"
 }
 
@@ -60,11 +62,11 @@ function getCompanyName(spk: Spk): string {
 
 const STATUS_LABELS: Record<string, string> = {
   draft: "Draft",
-  active: "Aktif",
+  active: "Berjalan",
   extended: "Diperpanjang",
-  redeemed: "Ditebus",
-  overdue: "Jatuh Tempo",
-  auctioned: "Dilelang",
+  redeemed: "Lunas",
+  overdue: "Terlambat",
+  auctioned: "Terlelang",
   closed: "Ditutup",
 }
 

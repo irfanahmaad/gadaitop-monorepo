@@ -1,4 +1,11 @@
-import { Column, Entity, Index, JoinColumn, ManyToOne, Relation } from 'typeorm';
+import {
+  Column,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  Relation,
+} from 'typeorm';
 
 import { AbstractEntity } from '../../../common/abstract.entity';
 import { SpkItemConditionEnum } from '../../../constants/spk-item-condition';
@@ -52,7 +59,11 @@ export class SpkItemEntity extends AbstractEntity {
   @Column({ type: 'decimal', precision: 15, scale: 2 })
   appraisedValue: string;
 
-  @Column({ type: 'enum', enum: SpkItemConditionEnum, default: SpkItemConditionEnum.Good })
+  @Column({
+    type: 'enum',
+    enum: SpkItemConditionEnum,
+    default: SpkItemConditionEnum.Good,
+  })
   @Index()
   condition: SpkItemConditionEnum;
 
@@ -72,7 +83,17 @@ export class SpkItemEntity extends AbstractEntity {
   @Index()
   qrCode: string | null;
 
-  @Column({ type: 'enum', enum: SpkItemStatusEnum, default: SpkItemStatusEnum.InStorage })
+  @Column({ type: 'timestamp with time zone', nullable: true })
+  qrCodePrintedAt: Date | null;
+
+  @Column({ type: 'int', default: 0 })
+  qrCodePrintCount: number;
+
+  @Column({
+    type: 'enum',
+    enum: SpkItemStatusEnum,
+    default: SpkItemStatusEnum.InStorage,
+  })
   @Index()
   status: SpkItemStatusEnum;
 }

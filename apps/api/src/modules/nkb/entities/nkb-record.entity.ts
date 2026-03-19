@@ -1,4 +1,11 @@
-import { Column, Entity, Index, JoinColumn, ManyToOne, Relation } from 'typeorm';
+import {
+  Column,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  Relation,
+} from 'typeorm';
 
 import { AbstractEntity } from '../../../common/abstract.entity';
 import { NkbPaymentMethodEnum } from '../../../constants/nkb-payment-method';
@@ -45,6 +52,9 @@ export class NkbRecordEntity extends AbstractEntity {
 
   @Column({ type: 'decimal', precision: 15, scale: 2 })
   amountPaid: string;
+
+  @Column({ type: 'decimal', precision: 15, scale: 2, default: 0 })
+  insuranceFee: string;
 
   @Column({ type: 'enum', enum: NkbPaymentTypeEnum })
   @Index()

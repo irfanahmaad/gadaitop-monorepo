@@ -676,6 +676,17 @@ export default function SPKDetailPage() {
           onOpenChange={setQrDialogOpen}
           value={spk.spkNumber}
           title="QR Code SPK"
+          itemId={spk.items?.[0]?.uuid}
+          alreadyPrinted={
+            typeof spk.items?.[0]?.qrCodePrintCount === "number"
+              ? spk.items[0].qrCodePrintCount > 0
+              : false
+          }
+          printCount={
+            typeof spk.items?.[0]?.qrCodePrintCount === "number"
+              ? spk.items[0].qrCodePrintCount
+              : 0
+          }
         />
       ) : null}
       <NKBInfoDialog

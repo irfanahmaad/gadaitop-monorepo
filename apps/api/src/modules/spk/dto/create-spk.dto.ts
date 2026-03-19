@@ -42,6 +42,12 @@ export class CreateSpkDto {
   @Type(() => Number)
   adminFee?: number;
 
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  insuranceFee?: number;
+
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CreateSpkItemDto)

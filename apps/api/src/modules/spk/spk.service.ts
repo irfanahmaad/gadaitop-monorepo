@@ -160,20 +160,24 @@ export class SpkService {
         }),
         // For customer-scoped queries (customer portal), always load items so
         // the frontend can display Nama Item from the first item's description.
-        ...(isCustomerScoped && !isOverdue && {
-          items: true,
-        }),
+        ...(isCustomerScoped &&
+          !isOverdue && {
+            items: true,
+          }),
       },
       where,
-      orderBy: sortAttribute(queryDto.sortBy, {
-        createdAt: { createdAt: true },
-        spkNumber: { spkNumber: true },
-        dueDate: { dueDate: true },
-        status: { status: true },
-      }) ?? { createdAt: 'DESC' } as any,
+      orderBy:
+        sortAttribute(queryDto.sortBy, {
+          createdAt: { createdAt: true },
+          spkNumber: { spkNumber: true },
+          dueDate: { dueDate: true },
+          status: { status: true },
+        }) ?? ({ createdAt: 'DESC' } as any),
     };
 
-    const dynamicQueryBuilder = new DynamicQueryBuilder(this.spkRepository.metadata);
+    const dynamicQueryBuilder = new DynamicQueryBuilder(
+      this.spkRepository.metadata,
+    );
     const [records, count] = await dynamicQueryBuilder.buildDynamicQuery(
       SpkRecordEntity.createQueryBuilder('spk'),
       qbOptions,
@@ -233,7 +237,9 @@ export class SpkService {
       throw new NotFoundException('Customer not found');
     }
     if (customer.isBlacklisted) {
-      throw new BadRequestException('Customer is blacklisted; cannot create SPK');
+      throw new BadRequestException(
+        'Customer is blacklisted; cannot create SPK',
+      );
     }
     if (customer.ptId !== createDto.ptId) {
       throw new BadRequestException('Customer does not belong to this PT');
@@ -279,14 +285,17 @@ export class SpkService {
     }
 
     const interestRate =
-      createDto.interestRate ??
-      Number(company.normalInterestRate ?? 10);
+      createDto.interestRate ?? Number(company.normalInterestRate ?? 10);
     const adminFeeAmount =
-      createDto.adminFee ?? Number(company.adminFeeRate ?? 0) * createDto.principalAmount * 0.01;
+      createDto.adminFee ??
+      Number(company.adminFeeRate ?? 0) * createDto.principalAmount * 0.01;
+    const insuranceFeeAmount =
+      createDto.insuranceFee ?? Number(company.insuranceFee ?? 0);
     const principal = createDto.principalAmount;
     const tenor = createDto.tenor;
     const interestAmount = (principal * (interestRate / 100) * tenor) / 30;
-    const totalAmount = principal + interestAmount + adminFeeAmount;
+    const totalAmount =
+      principal + interestAmount + adminFeeAmount + insuranceFeeAmount;
     const remainingBalance = totalAmount;
 
     const dueDate = new Date();
@@ -318,6 +327,7 @@ export class SpkService {
         tenor,
         interestRate: String(interestRate),
         adminFee: String(adminFeeAmount),
+        insuranceFee: String(insuranceFeeAmount),
         totalAmount: String(totalAmount),
         remainingBalance: String(remainingBalance),
         dueDate,
@@ -435,7 +445,10 @@ export class SpkService {
       dto.amountPaid,
       config,
     );
-    const minTotal = extResult.interestAmount + extResult.latePenalty + config.minPrincipalPayment;
+    const minTotal =
+      extResult.interestAmount +
+      extResult.latePenalty +
+      config.minPrincipalPayment;
     if (dto.amountPaid < minTotal) {
       throw new BadRequestException(
         `Minimum payment for renewal: Rp ${Math.ceil(minTotal).toLocaleString('id-ID')} ` +
@@ -445,12 +458,14 @@ export class SpkService {
 
     const nkbNumber = await this.generateNkbNumber(spk.storeId);
     const paymentMethod = dto.paymentMethod ?? NkbPaymentMethodEnum.Cash;
+    const insuranceFeeAmount = config.insuranceFee;
     const nkb = this.nkbRepository.create({
       nkbNumber,
       ptId: spk.ptId,
       storeId: spk.storeId,
       spkId: spk.uuid,
       amountPaid: String(dto.amountPaid),
+      insuranceFee: String(insuranceFeeAmount),
       paymentType: NkbPaymentTypeEnum.Renewal,
       paymentMethod,
       status: NkbStatusEnum.Pending,
@@ -491,8 +506,7 @@ export class SpkService {
       };
     }
 
-    const amount =
-      dto.amountPaid ?? Number(spk.remainingBalance);
+    const amount = dto.amountPaid ?? Number(spk.remainingBalance);
     const company = await this.companyRepository.findOne({
       where: { uuid: spk.ptId },
     });
@@ -515,12 +529,14 @@ export class SpkService {
     }
     const paymentMethod = dto.paymentMethod ?? NkbPaymentMethodEnum.Cash;
     const nkbNumber = await this.generateNkbNumber(spk.storeId);
+    const insuranceFeeAmount = config.insuranceFee;
     const nkb = this.nkbRepository.create({
       nkbNumber,
       ptId: spk.ptId,
       storeId: spk.storeId,
       spkId: spk.uuid,
       amountPaid: String(amount),
+      insuranceFee: String(insuranceFeeAmount),
       paymentType: NkbPaymentTypeEnum.FullRedemption,
       paymentMethod,
       status: NkbStatusEnum.Pending,
@@ -639,10 +655,7 @@ export class SpkService {
   }
 
   private async generateCustomerSpkNumber(): Promise<string> {
-    const datePart = new Date()
-      .toISOString()
-      .slice(0, 10)
-      .replace(/-/g, '');
+    const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     let candidate = '';
     let exists = true;
     let attempts = 0;
@@ -696,10 +709,7 @@ export class SpkService {
       select: ['branchCode'],
     });
     const locationCode = store?.branchCode ?? 'LOC';
-    const datePart = new Date()
-      .toISOString()
-      .slice(0, 10)
-      .replace(/-/g, '');
+    const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     let candidate: string;
     let exists = true;
     let attempts = 0;
@@ -721,9 +731,7 @@ export class SpkService {
   /**
    * Find SPK items by UUIDs with SPK relation (for auction batch validation).
    */
-  async findSpkItemsByIdsWithSpk(
-    itemIds: string[],
-  ): Promise<SpkItemEntity[]> {
+  async findSpkItemsByIdsWithSpk(itemIds: string[]): Promise<SpkItemEntity[]> {
     if (itemIds.length === 0) return [];
     return this.spkItemRepository.find({
       where: { uuid: In(itemIds) },
@@ -740,5 +748,39 @@ export class SpkService {
       { uuid: In(itemIds) },
       { status: SpkItemStatusEnum.InAuction },
     );
+  }
+
+  /**
+   * Track QR code print for an SPK item.
+   * Updates print count and timestamp. Returns current print status.
+   */
+  async trackQrCodePrint(itemId: string): Promise<{
+    qrCodePrintedAt: Date | null;
+    qrCodePrintCount: number;
+    alreadyPrinted: boolean;
+  }> {
+    const item = await this.spkItemRepository.findOne({
+      where: { uuid: itemId },
+    });
+    if (!item) {
+      throw new NotFoundException(`SPK item with UUID ${itemId} not found`);
+    }
+
+    const alreadyPrinted = item.qrCodePrintCount > 0;
+    const newCount = (item.qrCodePrintCount ?? 0) + 1;
+
+    await this.spkItemRepository.update(
+      { uuid: itemId },
+      {
+        qrCodePrintedAt: new Date(),
+        qrCodePrintCount: newCount,
+      },
+    );
+
+    return {
+      qrCodePrintedAt: new Date(),
+      qrCodePrintCount: newCount,
+      alreadyPrinted,
+    };
   }
 }

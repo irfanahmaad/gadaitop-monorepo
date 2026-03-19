@@ -10,6 +10,7 @@ export class NkbDto {
   storeId: string;
   spkId: string;
   amountPaid: string;
+  insuranceFee: string;
   paymentType: NkbPaymentTypeEnum;
   paymentMethod: NkbPaymentMethodEnum;
   paymentProofUrl: string | null;
@@ -28,6 +29,7 @@ export class NkbDto {
     this.nkbNumber = record.nkbNumber;
     this.spkId = record.spkId;
     this.amountPaid = record.amountPaid;
+    this.insuranceFee = record.insuranceFee;
     this.paymentType = record.paymentType;
     this.paymentMethod = record.paymentMethod;
     this.paymentProofUrl = record.paymentProofUrl ?? null;

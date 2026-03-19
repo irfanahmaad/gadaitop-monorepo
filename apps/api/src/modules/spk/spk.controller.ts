@@ -166,4 +166,16 @@ export class SpkController {
 
     return this.spkService.findOne(id);
   }
+
+  @Put('item/:itemId/track-qr-print')
+  @Auth([{ action: AclAction.UPDATE, subject: AclSubject.SPK }])
+  async trackQrCodePrint(
+    @Param('itemId', ParseUUIDPipe) itemId: string,
+  ): Promise<{
+    qrCodePrintedAt: Date | null;
+    qrCodePrintCount: number;
+    alreadyPrinted: boolean;
+  }> {
+    return this.spkService.trackQrCodePrint(itemId);
+  }
 }

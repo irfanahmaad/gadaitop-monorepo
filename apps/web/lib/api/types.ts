@@ -233,11 +233,7 @@ export interface Branch {
   owner?: User
 }
 
-export type BranchStatus =
-  | "draft"
-  | "pending_approval"
-  | "active"
-  | "inactive"
+export type BranchStatus = "draft" | "pending_approval" | "active" | "inactive"
 
 export interface CreateBranchDto {
   branchCode: string
@@ -419,6 +415,9 @@ export interface SpkItem {
   evidencePhotos?: string[] | null
   itemType?: ItemType
   status?: SpkItemStatus
+  qrCode?: string | null
+  qrCodePrintedAt?: string | null
+  qrCodePrintCount?: number
   createdAt?: string
   updatedAt?: string
 }
@@ -577,7 +576,7 @@ export interface UpdateCustomerDto {
   village?: string
   phone2?: string
   email?: string
-  gender?: 'male' | 'female'
+  gender?: "male" | "female"
   /** ISO date YYYY-MM-DD */
   dob?: string
   ktpPhotoUrl?: string
@@ -622,6 +621,7 @@ export interface Nkb {
   paymentType: NkbType
   amount: number
   amountPaid: number
+  insuranceFee: number
   status: NkbStatus
   notes?: string
   rejectionReason?: string
@@ -787,7 +787,11 @@ export interface AuctionItemDetail {
   uuid: string
   spkId: string
   spk?: Spk
-  spkItem?: { itemType?: { typeName?: string }; description?: string; photoUrl?: string }
+  spkItem?: {
+    itemType?: { typeName?: string }
+    description?: string
+    photoUrl?: string
+  }
   pickedUp: boolean
   pickupNotes?: string
   pickupStatus?: string

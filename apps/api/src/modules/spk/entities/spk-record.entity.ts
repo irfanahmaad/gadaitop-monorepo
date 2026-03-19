@@ -1,4 +1,12 @@
-import { Column, Entity, Index, JoinColumn, ManyToOne, OneToMany, Relation } from 'typeorm';
+import {
+  Column,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  OneToMany,
+  Relation,
+} from 'typeorm';
 
 import { AbstractEntity } from '../../../common/abstract.entity';
 import { SpkStatusEnum } from '../../../constants/spk-status';
@@ -64,6 +72,9 @@ export class SpkRecordEntity extends AbstractEntity {
 
   @Column({ type: 'decimal', precision: 15, scale: 2, default: 0 })
   adminFee: string;
+
+  @Column({ type: 'decimal', precision: 15, scale: 2, default: 0 })
+  insuranceFee: string;
 
   @Column({ type: 'decimal', precision: 15, scale: 2 })
   totalAmount: string;

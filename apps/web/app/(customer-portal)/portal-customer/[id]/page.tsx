@@ -63,11 +63,11 @@ function getNkbStatusLabel(status: string): string {
 
 const SPK_STATUS_LABELS: Record<string, string> = {
   draft: "Draft",
-  active: "Aktif",
+  active: "Berjalan",
   extended: "Diperpanjang",
-  redeemed: "Ditebus",
-  overdue: "Jatuh Tempo",
-  auctioned: "Dilelang",
+  redeemed: "Lunas",
+  overdue: "Terlambat",
+  auctioned: "Terlelang",
   closed: "Ditutup",
 }
 
@@ -109,7 +109,8 @@ const nkbColumns: ColumnDef<Nkb>[] = [
   {
     id: "nomorSPK",
     header: "Nomor SPK",
-    cell: ({ row }) => (row.original as { spk?: { spkNumber?: string } }).spk?.spkNumber ?? "-",
+    cell: ({ row }) =>
+      (row.original as { spk?: { spkNumber?: string } }).spk?.spkNumber ?? "-",
   },
   {
     accessorKey: "amountPaid",
@@ -134,8 +135,10 @@ const nkbColumns: ColumnDef<Nkb>[] = [
       const status = (row.original as Nkb).status ?? ""
       const label = getNkbStatusLabel(status)
       const statusStyles: Record<string, string> = {
-        Lunas: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
-        Berjalan: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300",
+        Lunas:
+          "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
+        Berjalan:
+          "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300",
         Terlambat: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
       }
       return (
@@ -228,8 +231,7 @@ export default function PortalCustomerDetailPage() {
   const redeemSpk = useRedeemSpk()
   const isPaymentSubmitting = extendSpk.isPending || redeemSpk.isPending
 
-  const canPay =
-    spk?.status !== "redeemed" && spk?.status !== "closed"
+  const canPay = spk?.status !== "redeemed" && spk?.status !== "closed"
 
   const firstItem = useMemo(() => {
     const items = spk?.items
@@ -304,11 +306,7 @@ export default function PortalCustomerDetailPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-bold">
-          {spkLoading ? (
-            <Skeleton className="h-8 w-64" />
-          ) : (
-            itemName
-          )}
+          {spkLoading ? <Skeleton className="h-8 w-64" /> : itemName}
         </h1>
         <Breadcrumbs
           items={[
@@ -343,14 +341,14 @@ export default function PortalCustomerDetailPage() {
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
-                    className="gap-2 border-destructive text-destructive hover:bg-destructive/10"
+                    className="border-destructive text-destructive hover:bg-destructive/10 gap-2"
                     onClick={handleBayarCicil}
                   >
                     <CreditCard className="size-4" />
                     Bayar Cicil
                   </Button>
                   <Button
-                    className="gap-2 bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-2"
                     onClick={handleBayarLunas}
                   >
                     <Banknote className="size-4" />
@@ -383,7 +381,7 @@ export default function PortalCustomerDetailPage() {
                   </h2>
                 </div>
 
-                <div className="grid gap-6 md:grid-cols-2 items-start">
+                <div className="grid items-start gap-6 md:grid-cols-2">
                   <div className="space-y-1">
                     <label className="text-muted-foreground text-sm font-medium">
                       No. SPK
@@ -395,7 +393,10 @@ export default function PortalCustomerDetailPage() {
                       SPK Total
                     </label>
                     <p className="text-base">
-                      Rp {formatCurrency(Number(spk.totalAmount ?? spk.principalAmount))}
+                      Rp{" "}
+                      {formatCurrency(
+                        Number(spk.totalAmount ?? spk.principalAmount)
+                      )}
                     </p>
                   </div>
                   <div className="space-y-1">
@@ -414,7 +415,9 @@ export default function PortalCustomerDetailPage() {
                           SPK_STATUS_VARIANT[spk.status ?? ""] ?? "outline"
                         }
                       >
-                        {SPK_STATUS_LABELS[spk.status ?? ""] ?? spk.status ?? "-"}
+                        {SPK_STATUS_LABELS[spk.status ?? ""] ??
+                          spk.status ??
+                          "-"}
                       </Badge>
                     </p>
                   </div>
@@ -425,8 +428,8 @@ export default function PortalCustomerDetailPage() {
         </Card>
       )}
 
-      {spk && (
-        nkbLoading ? (
+      {spk &&
+        (nkbLoading ? (
           <DaftarNKBSkeleton />
         ) : (
           <DataTable<Nkb, unknown>
@@ -436,8 +439,7 @@ export default function PortalCustomerDetailPage() {
             searchPlaceholder="Search"
             initialPageSize={10}
           />
-        )
-      )}
+        ))}
 
       {spk && (
         <BayarDialog

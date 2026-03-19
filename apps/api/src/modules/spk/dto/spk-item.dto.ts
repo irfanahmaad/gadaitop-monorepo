@@ -18,10 +18,16 @@ export class SpkItemDto {
   evidencePhotos: string[] | null;
   storageLocation: string | null;
   qrCode: string | null;
+  qrCodePrintedAt: Date | null;
+  qrCodePrintCount: number;
   status: SpkItemStatusEnum;
   itemType?: { uuid: string; typeName: string; typeCode: string };
 
-  constructor(item: SpkItemEntity & { itemType?: { uuid: string; typeName: string; typeCode: string } }) {
+  constructor(
+    item: SpkItemEntity & {
+      itemType?: { uuid: string; typeName: string; typeCode: string };
+    },
+  ) {
     this.uuid = item.uuid;
     this.spkId = item.spkId;
     this.catalogId = item.catalogId ?? null;
@@ -37,6 +43,8 @@ export class SpkItemDto {
     this.evidencePhotos = item.evidencePhotos ?? null;
     this.storageLocation = item.storageLocation ?? null;
     this.qrCode = item.qrCode ?? null;
+    this.qrCodePrintedAt = item.qrCodePrintedAt ?? null;
+    this.qrCodePrintCount = item.qrCodePrintCount ?? 0;
     this.status = item.status;
     if (item.itemType) {
       this.itemType = {
