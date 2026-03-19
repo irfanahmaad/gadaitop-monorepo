@@ -13,15 +13,14 @@
     "dev:marketing": "turbo dev --filter=marketing",
     "lint": "turbo lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "test:e2e:super-admin": ".venv/bin/python apps/web/e2e/super-admin/test_super_admin_full.py",
-    "test:e2e:super-admin:python3": "python3 apps/web/e2e/super-admin/test_super_admin_full.py",
-    "test:e2e:super-admin:headed": "HEADED=1 .venv/bin/python apps/web/e2e/super-admin/test_super_admin_full.py",
-    "test:e2e:super-admin:slow": "HEADED=1 SLOW=500 .venv/bin/python apps/web/e2e/super-admin/test_super_admin_full.py",
-    "test:e2e:spk-nkb": ".venv/bin/python apps/web/e2e/spk-nkb-flow/spk-nkb-flow_test_full.py",
-    "test:e2e:spk-nkb:headed": "HEADED=1 .venv/bin/python apps/web/e2e/spk-nkb-flow/spk-nkb-flow_test_full.py",
-    "test:e2e:spk-nkb:slow": "HEADED=1 SLOW=500 .venv/bin/python apps/web/e2e/spk-nkb-flow/spk-nkb-flow_test_full.py",
-    "test:e2e:setup": ".venv/bin/pip install -r apps/web/e2e/requirements.txt && .venv/bin/playwright install chromium",
-    "test:e2e:setup:python3": "pip3 install -r apps/web/e2e/requirements.txt && playwright install chromium"
+    "test:e2e": "pnpm --filter web test:e2e",
+    "test:e2e:ui": "pnpm --filter web test:e2e:ui",
+    "test:e2e:headed": "pnpm --filter web test:e2e:headed",
+    "test:e2e:report": "pnpm --filter web test:e2e:report",
+    "test:e2e:super-admin": "pnpm --filter web test:e2e -- --grep \"Super Admin|Dashboard|Management|PT —|Tipe Barang\"",
+    "test:e2e:super-admin:headed": "pnpm --filter web test:e2e:headed -- --grep \"Super Admin|Dashboard|Management|PT —|Tipe Barang\"",
+    "test:e2e:spk-nkb": "pnpm --filter web test:e2e -- --grep \"SPK|Customer Portal|NKB\"",
+    "test:e2e:spk-nkb:headed": "pnpm --filter web test:e2e:headed -- --grep \"SPK|Customer Portal|NKB\""
   },
   "devDependencies": {
     "@workspace/eslint-config": "workspace:*",

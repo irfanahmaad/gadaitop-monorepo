@@ -52,6 +52,24 @@ pnpm test:watch     # Watch mode
 pnpm test:e2e       # End-to-end tests
 ```
 
+### Testing (Web E2E — Playwright)
+```bash
+# From monorepo root (starts API + web if not running)
+pnpm test:e2e              # All E2E tests (headless)
+pnpm test:e2e:ui           # Interactive UI mode
+pnpm test:e2e:headed       # Headed browser
+pnpm test:e2e:report       # Open last HTML report
+
+# Run subsets
+pnpm test:e2e:super-admin  # Super Admin, PT, Tipe Barang specs
+pnpm test:e2e:spk-nkb      # SPK, Customer Portal, NKB specs
+
+# Or from apps/web with grep
+cd apps/web && pnpm test:e2e --grep "Setor Uang"
+```
+
+**Note:** E2E uses TypeScript Playwright. Specs live in `apps/web/e2e/specs/`. Auth state is bootstrapped in `auth.setup.ts`. Use `reuseExistingServer: true` — start API and web first for faster runs.
+
 ## Project Architecture
 
 This is a **monorepo** using **Turborepo** with a **NestJS** backend and **Next.js 15** frontends.
@@ -213,6 +231,8 @@ The app uses CASL for role-based access control:
 - **React Query hooks:** `apps/web/lib/react-query/hooks/` - Custom data fetching hooks
 - **DataTable component:** `apps/web/components/data-table.tsx` - Reusable table with pagination/selection
 - **ConfirmationDialog:** `apps/web/components/confirmation-dialog.tsx` - Standard confirmation dialog
+- **E2E specs:** `apps/web/e2e/specs/` - Playwright TypeScript specs (auth, setor-uang, tambah-modal, super-admin, spk, nkb, customer-portal)
+- **E2E fixtures:** `apps/web/e2e/fixtures/index.ts` - Shared helpers, auth state paths, test data
 - **Cursor rules:** `.cursor/rules/*.mdc` - Project coding standards (read these before making changes!)
 
 ## Common Gotchas
