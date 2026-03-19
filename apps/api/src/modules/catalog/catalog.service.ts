@@ -182,6 +182,15 @@ export class CatalogService {
       pawnValueMax: String(createDto.pawnValueMax),
       tenorOptions: createDto.tenorOptions ?? null,
       description: createDto.description ?? null,
+      imageUrl: createDto.imageUrl?.trim() || null,
+      discountName:
+        createDto.discountName != null
+          ? String(createDto.discountName).trim() || null
+          : null,
+      discountAmount:
+        createDto.discountAmount != null
+          ? String(createDto.discountAmount)
+          : '0',
       createdBy,
     });
 

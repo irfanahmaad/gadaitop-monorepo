@@ -56,4 +56,21 @@ export class CreateCatalogDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  /** S3 key for catalog image */
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  imageUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  discountName?: string | null;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  discountAmount?: number;
 }

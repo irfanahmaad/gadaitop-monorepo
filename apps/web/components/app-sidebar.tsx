@@ -58,6 +58,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const isAuctionStaff = user?.roles?.some(
     (role) => role.code === "auction_staff"
   )
+  const isMarketing = user?.roles?.some((role) => role.code === "marketing")
   const isCompanyAdmin = user?.roles?.some(
     (role) => role.code === "company_admin"
   )
@@ -66,7 +67,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     status === "authenticated" &&
     !isBranchStaff &&
     !isStockAuditor &&
-    !isAuctionStaff
+    !isAuctionStaff &&
+    !isMarketing &&
+    ability.can("view", MenuSubject.DASHBOARD)
 
   // Check if any "Menu Utama" item is visible (besides Dashboard which is always shown)
   const hasMenuUtamaItems =

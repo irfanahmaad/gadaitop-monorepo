@@ -363,11 +363,11 @@ export default function MasterCustomerPage() {
       {/* Header Section */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex flex-col gap-2">
-          <h1 className="text-2xl font-bold">Master Customer</h1>
+          <h1 className="text-2xl font-bold">Daftar Customer</h1>
           <Breadcrumbs
             items={[
               { label: "Pages", href: "/" },
-              { label: "Master Customer" },
+              { label: "Daftar Customer" },
             ]}
           />
         </div>

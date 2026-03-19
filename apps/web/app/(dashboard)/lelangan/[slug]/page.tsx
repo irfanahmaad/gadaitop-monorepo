@@ -369,6 +369,8 @@ export default function LelanganDetailPage() {
     AclAction.UPDATE,
     AclSubject.MARKETING_NOTE
   )
+  const isMarketing = user?.roles?.some((r) => r.code === "marketing")
+  const isAuctionStaffRole = user?.roles?.some((r) => r.code === "auction_staff")
   const isAssignedAuctionStaff =
     !!user?.uuid &&
     !!batch?.auctionStaff?.some(
@@ -797,7 +799,10 @@ export default function LelanganDetailPage() {
                 Edit
               </Button>
             )}
-            {batch?.status === "validation_pending" ? (
+            {batch?.status === "validation_pending" &&
+            !isMarketing &&
+            !isAuctionStaffRole &&
+            canUpdateBatch ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" className="gap-2">

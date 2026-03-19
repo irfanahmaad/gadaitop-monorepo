@@ -2,7 +2,16 @@
 
 import React, { useMemo, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { Pencil, Trash2, Package, Clock } from "lucide-react"
+import {
+  Pencil,
+  Trash2,
+  Package,
+  Clock,
+  FileText,
+  CalendarDays,
+} from "lucide-react"
+import { format } from "date-fns"
+import { id as idLocale } from "date-fns/locale"
 import { toast } from "sonner"
 import { Breadcrumbs } from "@/components/breadcrumbs"
 import { Button } from "@workspace/ui/components/button"
@@ -36,13 +45,19 @@ import { usePublicUrl } from "@/lib/react-query/hooks/use-upload"
 type KatalogDetail = {
   id: string
   foto: string
-  idKatalog: string
+  kodeKatalog: string
   namaKatalog: string
+  namaPT: string
   tipeBarang: string
   harga: number
+  nilaiTaksirMin: number
+  nilaiTaksirMax: number
+  opsiTenor: string
   namaPotongan: string
   jumlahPotongan: number
   keterangan: string
+  dibuat: string
+  diperbarui: string
 }
 
 // Loading skeleton for Data Katalog card
@@ -64,7 +79,7 @@ function DataKatalogSkeleton() {
                 <Skeleton className="h-6 w-32" />
               </div>
               <div className="grid gap-6 md:grid-cols-2 items-start">
-                {Array.from({ length: 4 }).map((_, i) => (
+                {Array.from({ length: 8 }).map((_, i) => (
                   <div key={i} className="space-y-2">
                     <Skeleton className="h-4 w-24" />
                     <Skeleton className="h-5 w-full" />
@@ -78,13 +93,30 @@ function DataKatalogSkeleton() {
                 <Skeleton className="h-6 w-32" />
               </div>
               <div className="grid gap-6 md:grid-cols-2 items-start">
-                {Array.from({ length: 3 }).map((_, i) => (
+                {Array.from({ length: 2 }).map((_, i) => (
                   <div key={i} className="space-y-2">
                     <Skeleton className="h-4 w-24" />
                     <Skeleton className="h-5 w-full" />
                   </div>
                 ))}
               </div>
+            </div>
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <Skeleton className="size-6 rounded" />
+                <Skeleton className="h-6 w-32" />
+              </div>
+              <div className="grid gap-6 md:grid-cols-2 items-start">
+                <Skeleton className="h-14" />
+                <Skeleton className="h-14" />
+              </div>
+            </div>
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <Skeleton className="size-6 rounded" />
+                <Skeleton className="h-6 w-32" />
+              </div>
+              <Skeleton className="h-20 w-full" />
             </div>
           </div>
         </div>
@@ -105,16 +137,38 @@ export default function MasterKatalogDetailPage() {
   const imageUrl = imageKey && publicUrlData?.url ? publicUrlData.url : ""
   const katalog = useMemo<KatalogDetail | null>(() => {
     if (!catalogData) return null
+    const discName = catalogData.discountName?.trim()
+    const discAmt = Number(catalogData.discountAmount ?? 0)
+    const tenor = catalogData.tenorOptions?.length
+      ? [...catalogData.tenorOptions]
+          .filter((n) => Number.isFinite(n))
+          .sort((a, b) => a - b)
+          .join(", ") + " bulan"
+      : "—"
+    const fmt = (d: string | Date | undefined) =>
+      d
+        ? format(new Date(d), "d MMMM yyyy HH:mm", { locale: idLocale })
+        : "—"
     return {
       id: catalogData.uuid,
       foto: imageUrl,
-      idKatalog: catalogData.code ?? catalogData.uuid.slice(0, 8),
-      namaKatalog: catalogData.name ?? catalogData.itemName ?? "-",
-      tipeBarang: catalogData.itemType?.typeName ?? "-",
+      kodeKatalog: catalogData.code ?? catalogData.uuid.slice(0, 8),
+      namaKatalog: catalogData.name ?? catalogData.itemName ?? "—",
+      namaPT:
+        catalogData.pt?.companyName ??
+        catalogData.company?.companyName ??
+        "—",
+      tipeBarang: catalogData.itemType?.typeName ?? "—",
       harga: Number(catalogData.basePrice ?? 0),
-      namaPotongan: catalogData.discountName ?? "-",
-      jumlahPotongan: Number(catalogData.discountAmount ?? 0),
+      nilaiTaksirMin: Number(catalogData.pawnValueMin ?? 0),
+      nilaiTaksirMax: Number(catalogData.pawnValueMax ?? 0),
+      opsiTenor: tenor,
+      namaPotongan:
+        discName && discName.length > 0 ? discName : "Tidak ada",
+      jumlahPotongan: discAmt,
       keterangan: catalogData.description ?? "",
+      dibuat: fmt(catalogData.createdAt),
+      diperbarui: fmt(catalogData.updatedAt),
     }
   }, [catalogData, imageUrl])
 
@@ -237,15 +291,21 @@ export default function MasterKatalogDetailPage() {
                     <div className="grid gap-6 md:grid-cols-2 items-start">
                       <div className="space-y-2">
                         <label className="text-muted-foreground text-sm font-medium">
-                          ID Katalog
+                          Kode Katalog
                         </label>
-                        <p className="text-base">{katalog.idKatalog}</p>
+                        <p className="text-base">{katalog.kodeKatalog}</p>
                       </div>
                       <div className="space-y-2">
                         <label className="text-muted-foreground text-sm font-medium">
                           Nama Katalog
                         </label>
                         <p className="text-base">{katalog.namaKatalog}</p>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-muted-foreground text-sm font-medium">
+                          PT
+                        </label>
+                        <p className="text-base">{katalog.namaPT}</p>
                       </div>
                       <div className="space-y-2">
                         <label className="text-muted-foreground text-sm font-medium">
@@ -259,6 +319,28 @@ export default function MasterKatalogDetailPage() {
                         </label>
                         <p className="text-base">
                           Rp {formatCurrencyDisplay(katalog.harga)}
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-muted-foreground text-sm font-medium">
+                          Opsi Tenor
+                        </label>
+                        <p className="text-base">{katalog.opsiTenor}</p>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-muted-foreground text-sm font-medium">
+                          Nilai Taksir Min
+                        </label>
+                        <p className="text-base">
+                          Rp {formatCurrencyDisplay(katalog.nilaiTaksirMin)}
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-muted-foreground text-sm font-medium">
+                          Nilai Taksir Max
+                        </label>
+                        <p className="text-base">
+                          Rp {formatCurrencyDisplay(katalog.nilaiTaksirMax)}
                         </p>
                       </div>
                     </div>
@@ -284,16 +366,51 @@ export default function MasterKatalogDetailPage() {
                           Jumlah Potongan
                         </label>
                         <p className="text-base">
-                          Rp{formatCurrencyDisplay(katalog.jumlahPotongan)},-
+                          Rp {formatCurrencyDisplay(katalog.jumlahPotongan)},-
                         </p>
                       </div>
+                    </div>
+                  </div>
+
+                  {/* Keterangan */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <FileText className="text-destructive size-6" />
+                      <h2 className="text-destructive text-lg font-semibold">
+                        Keterangan
+                      </h2>
+                    </div>
+                    <div className="grid gap-6 md:grid-cols-2 items-start">
                       <div className="space-y-2 md:col-span-2">
-                        <label className="text-muted-foreground text-sm font-medium">
-                          Keterangan
-                        </label>
-                        <p className="text-base">
-                          {katalog.keterangan || "-"}
+                        <p className="text-base whitespace-pre-wrap">
+                          {(katalog.keterangan ?? "").trim()
+                            ? katalog.keterangan
+                            : "—"}
                         </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Informasi sistem */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <CalendarDays className="text-destructive size-6" />
+                      <h2 className="text-destructive text-lg font-semibold">
+                        Informasi Sistem
+                      </h2>
+                    </div>
+                    <div className="grid gap-6 md:grid-cols-2 items-start">
+                      <div className="space-y-2">
+                        <label className="text-muted-foreground text-sm font-medium">
+                          Dibuat
+                        </label>
+                        <p className="text-base">{katalog.dibuat}</p>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-muted-foreground text-sm font-medium">
+                          Terakhir diperbarui
+                        </label>
+                        <p className="text-base">{katalog.diperbarui}</p>
                       </div>
                     </div>
                   </div>

@@ -35,7 +35,7 @@ import {
   FormMessage,
 } from "@workspace/ui/components/form"
 import { cn } from "@workspace/ui/lib/utils"
-import { useAuth } from "@/lib/react-query/hooks/use-auth"
+import { useAuth, useAuthMe } from "@/lib/react-query/hooks/use-auth"
 import { useBranches } from "@/lib/react-query/hooks/use-branches"
 import { useUsers } from "@/lib/react-query/hooks/use-users"
 import { usePawnTerms } from "@/lib/react-query/hooks/use-pawn-terms"
@@ -87,20 +87,28 @@ export function StockOpnameFormDialog({
   )
 
   const { user } = useAuth()
-  const ptId = user?.companyId ?? user?.ownedCompanyId ?? null
+  const sessionPtId = user?.companyId ?? user?.ownedCompanyId ?? null
+  const { data: authMeData, isLoading: isAuthMeLoading } = useAuthMe({
+    enabled: open && !sessionPtId,
+  })
+  const resolvedPtId =
+    sessionPtId ??
+    authMeData?.data?.companyId ??
+    authMeData?.data?.ownedCompanyId ??
+    null
 
   const { data: branchesData } = useBranches({ pageSize: 500 })
   const { data: usersData } = useUsers({
     pageSize: 500,
     filter: {
       roleCode: "stock_auditor",
-      ...(ptId ? { companyId: ptId } : {}),
+      ...(resolvedPtId ? { companyId: resolvedPtId } : {}),
     },
-    enabled: !!ptId,
+    enabled: !!resolvedPtId,
   })
   const { data: pawnTermsData } = usePawnTerms({
     pageSize: 500,
-    filter: ptId ? { ptId } : undefined,
+    filter: resolvedPtId ? { ptId: resolvedPtId } : undefined,
   })
 
   const tokoOptions = useMemo(
@@ -164,8 +172,16 @@ export function StockOpnameFormDialog({
     }
   }, [open, form])
 
+  React.useEffect(() => {
+    if (!open) return
+    if (isAuthMeLoading) return
+    if (!resolvedPtId) {
+      toast.error("Company (PT) tidak ditemukan. Silakan login kembali.")
+    }
+  }, [open, isAuthMeLoading, resolvedPtId])
+
   const onSubmit = (values: StockOpnameFormValues) => {
-    if (!ptId) {
+    if (!resolvedPtId) {
       toast.error("Company (PT) tidak ditemukan. Silakan login kembali.")
       return
     }
@@ -174,7 +190,7 @@ export function StockOpnameFormDialog({
   }
 
   const handleConfirmSubmit = async () => {
-    if (!pendingValues || !ptId) {
+    if (!pendingValues || !resolvedPtId) {
       setConfirmOpen(false)
       setPendingValues(null)
       return
@@ -186,7 +202,7 @@ export function StockOpnameFormDialog({
         ? parseInt(pendingValues.jumlahItemMata, 10)
         : undefined
     const payload: CreateStockOpnameDto = {
-      ptId,
+      ptId: resolvedPtId,
       storeIds: pendingValues.toko,
       startDate,
       assignedToIds: pendingValues.petugasSO.length > 0 ? pendingValues.petugasSO : undefined,
@@ -215,6 +231,7 @@ export function StockOpnameFormDialog({
 
   const isSubmitting =
     form.formState.isSubmitting || createMutation.isPending
+  const isResolvingPtId = isAuthMeLoading && !resolvedPtId
 
   // Don't render on server to prevent hydration mismatch with Radix UI IDs
   if (!mounted) {
@@ -419,7 +436,7 @@ export function StockOpnameFormDialog({
               <Button
                 type="submit"
                 variant="destructive"
-                disabled={isSubmitting || !ptId}
+                disabled={isSubmitting || isResolvingPtId || !resolvedPtId}
                 className="gap-2"
               >
                 {isSubmitting ? (
