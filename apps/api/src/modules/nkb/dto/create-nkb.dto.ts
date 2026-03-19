@@ -1,4 +1,4 @@
-import { IsEnum, IsNumber, IsUUID, Min } from 'class-validator';
+import { IsEnum, IsNumber, IsOptional, IsUUID, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 import { NkbPaymentMethodEnum } from '../../../constants/nkb-payment-method';

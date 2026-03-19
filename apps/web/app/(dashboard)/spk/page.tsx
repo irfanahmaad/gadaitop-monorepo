@@ -24,11 +24,7 @@ import { useSpkList } from "@/lib/react-query/hooks/use-spk"
 import { useBranches } from "@/lib/react-query/hooks/use-branches"
 import type { Spk } from "@/lib/api/types"
 import { Skeleton } from "@workspace/ui/components/skeleton"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-} from "@workspace/ui/components/card"
+import { Card, CardContent, CardHeader } from "@workspace/ui/components/card"
 import { Button } from "@workspace/ui/components/button"
 import { Plus } from "lucide-react"
 
@@ -122,11 +118,11 @@ const columns: ColumnDef<Spk>[] = [
       return `Rp ${formatCurrency(Number(amount))}`
     },
   },
-  {
-    accessorKey: "tenor",
-    header: "Sisa SPK",
-    cell: ({ row }) => String(row.original.tenor ?? "-"),
-  },
+  // {
+  //   accessorKey: "tenor",
+  //   header: "Sisa SPK",
+  //   cell: ({ row }) => String(row.original.tenor ?? "-"),
+  // },
   {
     id: "tanggalWaktuSPK",
     header: "Tanggal & Waktu SPK",
@@ -182,7 +178,9 @@ export default function SPKPage() {
   const listOptions = useMemo(() => {
     const filter: Record<string, string | number> = {}
     if (selectedBranch) filter.branchId = selectedBranch
-    const dateRange = filterValues.dateRange as { from?: string; to?: string } | undefined
+    const dateRange = filterValues.dateRange as
+      | { from?: string; to?: string }
+      | undefined
     if (dateRange?.from) filter.dateFrom = dateRange.from
     if (dateRange?.to) filter.dateTo = dateRange.to
     const spkRange = filterValues.spkRange as
@@ -206,7 +204,10 @@ export default function SPKPage() {
 
   const branchOptions = useMemo(() => {
     const list = branchesData?.data ?? []
-    return list.map((b) => ({ value: b.uuid, label: b.shortName ?? b.branchCode ?? b.uuid }))
+    return list.map((b) => ({
+      value: b.uuid,
+      label: b.shortName ?? b.branchCode ?? b.uuid,
+    }))
   }, [branchesData])
 
   const filteredByAmount = useMemo(() => {
@@ -219,13 +220,17 @@ export default function SPKPage() {
     if (spkRange.from != null && spkRange.from !== "") {
       const fromVal = Number(spkRange.from)
       if (!isNaN(fromVal)) {
-        result = result.filter((s) => Number(s.principalAmount ?? s.totalAmount) >= fromVal)
+        result = result.filter(
+          (s) => Number(s.principalAmount ?? s.totalAmount) >= fromVal
+        )
       }
     }
     if (spkRange.to != null && spkRange.to !== "") {
       const toVal = Number(spkRange.to)
       if (!isNaN(toVal)) {
-        result = result.filter((s) => Number(s.principalAmount ?? s.totalAmount) <= toVal)
+        result = result.filter(
+          (s) => Number(s.principalAmount ?? s.totalAmount) <= toVal
+        )
       }
     }
     return result

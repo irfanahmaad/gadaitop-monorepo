@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { ArrowLeft, RefreshCw } from "lucide-react"
 import { Button } from "@workspace/ui/components/button"
@@ -9,36 +9,20 @@ import Image from "next/image"
 import { imgPaymentInProcess } from "@/assets/commons"
 import { useNkb } from "@/lib/react-query/hooks/use-nkb"
 
-function formatElapsed(seconds: number): string {
-  const m = Math.floor(seconds / 60)
-  const s = seconds % 60
-  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
-}
-
 export default function PaymentProcessPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const nkbId = searchParams.get("nkbId") ?? ""
   const method = searchParams.get("method") ?? "cash"
 
-  const { data: nkb, refetch, isFetching } = useNkb(nkbId, {
+  const {
+    data: nkb,
+    refetch,
+    isFetching,
+  } = useNkb(nkbId, {
     enabled: !!nkbId,
     refetchInterval: 5000,
   })
-
-  const [elapsedSeconds, setElapsedSeconds] = useState(0)
-
-  const createdAt = nkb?.createdAt
-  useEffect(() => {
-    if (!createdAt) return
-    const start = new Date(createdAt).getTime()
-    const tick = () => {
-      setElapsedSeconds(Math.floor((Date.now() - start) / 1000))
-    }
-    tick()
-    const id = setInterval(tick, 1000)
-    return () => clearInterval(id)
-  }, [createdAt])
 
   useEffect(() => {
     if (nkb?.status === "confirmed") {
@@ -92,12 +76,6 @@ export default function PaymentProcessPage() {
               <p className="text-muted-foreground text-sm">{subtitle}</p>
             </div>
 
-            <div className="text-center">
-              <p className="text-3xl font-mono font-semibold tabular-nums">
-                00:{formatElapsed(elapsedSeconds)}
-              </p>
-            </div>
-
             <p className="text-muted-foreground text-center text-sm">
               Menunggu pembayaran dikonfirmasi oleh Kasir Toko.
             </p>
@@ -115,7 +93,7 @@ export default function PaymentProcessPage() {
               <Button
                 type="button"
                 variant="outline"
-                className="flex-1 gap-2 border-destructive text-destructive hover:bg-destructive/10"
+                className="border-destructive text-destructive hover:bg-destructive/10 flex-1 gap-2"
                 onClick={handleReload}
                 disabled={isFetching}
               >

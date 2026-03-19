@@ -48,6 +48,7 @@ export class NkbService {
   async findAll(
     queryDto: QueryNkbDto,
     userPtId?: string,
+    userBranchId?: string,
   ): Promise<{ data: NkbDto[]; meta: PageMetaDto }> {
     const where: FindOptionsWhere<NkbRecordEntity> = {};
 
@@ -118,6 +119,12 @@ export class NkbService {
       qb.andWhere(
         '(nkb.storeId = :queryStoreId OR (nkb.storeId IS NULL AND spk_scope.storeId = :queryStoreId))',
         { queryStoreId: queryDto.branchId },
+      );
+    }
+    if (userBranchId) {
+      qb.andWhere(
+        '(nkb.storeId = :userStoreId OR (nkb.storeId IS NULL AND spk_scope.storeId = :userStoreId))',
+        { userStoreId: userBranchId },
       );
     }
     if (queryDto.dateFrom) {

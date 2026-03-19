@@ -32,7 +32,15 @@ export class NkbController {
   ): Promise<{ data: NkbDto[]; meta: PageMetaDto }> {
     const user = (req as any).user;
     const userPtId = user?.companyId ?? user?.ownedCompanyId ?? undefined;
-    return this.nkbService.findAll(queryDto, userPtId);
+    const userRoles: string[] = Array.isArray(user?.roles)
+      ? user.roles.map((role: { code?: string }) => role.code ?? '')
+      : [];
+    const userBranchId =
+      userRoles.includes('branch_staff') && user?.branchId
+        ? user.branchId
+        : undefined;
+
+    return this.nkbService.findAll(queryDto, userPtId, userBranchId);
   }
 
   @Post()

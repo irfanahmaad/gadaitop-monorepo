@@ -578,12 +578,12 @@ export default function SPKDetailPage() {
                       </label>
                       <p className="text-base">{spk.spkNumber}</p>
                     </div>
-                    <div className="space-y-2">
+                    {/* <div className="space-y-2">
                       <label className="text-muted-foreground text-sm font-medium">
                         Sisa SPK
                       </label>
                       <p className="text-base">{spk.tenor}</p>
-                    </div>
+                    </div> */}
                     <div className="space-y-2">
                       <label className="text-muted-foreground text-sm font-medium">
                         Jumlah SPK
