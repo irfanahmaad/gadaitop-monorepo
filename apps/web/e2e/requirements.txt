@@ -1,0 +1,5 @@
+# E2E Testing Dependencies for GadaiTop
+# Install: pip install -r apps/web/e2e/requirements.txt
+# Then: playwright install chromium
+
+playwright==1.49.0

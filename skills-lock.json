@@ -41,6 +41,11 @@
       "sourceType": "github",
       "computedHash": "f343282e8b1cdfbf28b0b3ba1715040753522538acdc4faa16372b8a0a14f2a1"
     },
+    "using-superpowers": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "computedHash": "91a4d2ccb9432dfd4d3654f6ebd97875adab301d3d77f84e590169ba397760e3"
+    },
     "vercel-composition-patterns": {
       "source": "vercel-labs/agent-skills",
       "sourceType": "github",

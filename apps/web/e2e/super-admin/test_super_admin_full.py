@@ -10,13 +10,21 @@ Tests:
   6. Sidebar Navigation
 
 Usage:
-    .venv/bin/python apps/web/e2e/test_super_admin_full.py
+    # From root
+    pnpm test:e2e                    # Run all tests (headless)
+    pnpm test:e2e:headed             # Run with browser visible
+    pnpm test:e2e:super-admin        # Alias for test:e2e
+
+    # Direct Python
+    python apps/web/e2e/super-admin/test_super_admin_full.py
 
   BASE_URL is taken from NEXTAUTH_URL (env var, then apps/web/.env.local, then .env).
   For staging, set NEXTAUTH_URL in .env.local or run:
-    NEXTAUTH_URL=https://staging.example.com python apps/web/e2e/test_super_admin_full.py
+    NEXTAUTH_URL=https://staging.example.com python apps/web/e2e/super-admin/test_super_admin_full.py
 
   Optional: E2E_EMAIL, E2E_PASSWORD for login credentials.
+  Optional: HEADED=1 to run with visible browser.
+  Optional: SLOW=1 to slow down actions (for debugging).
 
 Requires: Playwright (pip install playwright && playwright install chromium)
 """
@@ -623,7 +631,9 @@ def main():
     errors = []
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        headless = os.environ.get("HEADED", "0") == "0"
+        slow_mo = int(os.environ.get("SLOW", "0"))
+        browser = p.chromium.launch(headless=headless, slow_mo=slow_mo)
         context = browser.new_context(viewport={"width": 1440, "height": 900})
         page = context.new_page()
 

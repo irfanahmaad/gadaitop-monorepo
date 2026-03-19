@@ -12,7 +12,14 @@
     "dev:api": "turbo dev --filter=api",
     "dev:marketing": "turbo dev --filter=marketing",
     "lint": "turbo lint",
-    "format": "prettier --write \"**/*.{ts,tsx,md}\""
+    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "test:e2e": ".venv/bin/python apps/web/e2e/super-admin/test_super_admin_full.py",
+    "test:e2e:python3": "python3 apps/web/e2e/super-admin/test_super_admin_full.py",
+    "test:e2e:super-admin": ".venv/bin/python apps/web/e2e/super-admin/test_super_admin_full.py",
+    "test:e2e:headed": "HEADED=1 .venv/bin/python apps/web/e2e/super-admin/test_super_admin_full.py",
+    "test:e2e:slow": "HEADED=1 SLOW=500 .venv/bin/python apps/web/e2e/super-admin/test_super_admin_full.py",
+    "test:e2e:setup": ".venv/bin/pip install -r apps/web/e2e/requirements.txt && .venv/bin/playwright install chromium",
+    "test:e2e:setup:python3": "pip3 install -r apps/web/e2e/requirements.txt && playwright install chromium"
   },
   "devDependencies": {
     "@workspace/eslint-config": "workspace:*",

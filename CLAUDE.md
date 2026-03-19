@@ -10,15 +10,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 pnpm build
 
 # Build specific app
-pnpm build:api    # NestJS backend
-pnpm build:web    # Next.js frontend
+pnpm build:api       # NestJS backend
+pnpm build:web       # Next.js frontend (dashboard)
+pnpm build:marketing # Next.js frontend (landing page)
 
 # Development (all apps)
 pnpm dev
 
 # Development (single app)
-pnpm dev:api      # NestJS backend on port 3001
-pnpm dev:web      # Next.js frontend on port 3000
+pnpm dev:api         # NestJS backend on port 3001
+pnpm dev:web         # Next.js dashboard on port 3000
+pnpm dev:marketing   # Next.js landing page on port 3002
 ```
 
 ### Lint & Format
@@ -52,7 +54,7 @@ pnpm test:e2e       # End-to-end tests
 
 ## Project Architecture
 
-This is a **monorepo** using **Turborepo** with a **NestJS** backend and **Next.js 15** frontend.
+This is a **monorepo** using **Turborepo** with a **NestJS** backend and **Next.js 15** frontends.
 
 ### High-Level Structure
 
@@ -60,9 +62,12 @@ This is a **monorepo** using **Turborepo** with a **NestJS** backend and **Next.
 gadaitop-monorepo/
 ├── apps/
 │   ├── api/           # NestJS backend (port 3001)
-│   └── web/           # Next.js frontend (port 3000)
+│   ├── web/           # Next.js dashboard (port 3000)
+│   └── marketing/     # Next.js landing page (port 3002)
 ├── packages/
-│   └── ui/            # Shared shadcn/ui components
+│   ├── ui/            # Shared shadcn/ui components
+│   ├── eslint-config/ # Shared ESLint configuration
+│   └── typescript-config/ # Shared TypeScript configuration
 └── .cursor/rules/     # Project-specific coding standards
 ```
 
@@ -77,26 +82,60 @@ gadaitop-monorepo/
 - `dto/` - Data Transfer Objects (validation with class-validator)
 - `*.entity.ts` - TypeORM database entities (often in module root)
 
-**Key Modules:** auth, user, role, company, branch, customer, spk, nkb, catalog, pawn-term, auction, cash-deposit, cash-mutation, capital-topup, stock-opname, borrow-request, item-type, device, notification, report, audit, dashboard
+**Key Modules:** auth, user, role, company, branch, customer, spk, nkb, catalog, pawn-term, auction, cash-deposit, cash-mutation, capital-topup, stock-opname, borrow-request, item-type, device, notification, report, audit, dashboard, upload, scheduler, health-checker
 
 **Database Migrations:** Located in `src/database/migrations/` with timestamp prefixes. Use the migration commands to manage schema changes.
 
 **Authentication:** JWT-based with NextAuth integration on frontend.
 
-### Frontend (apps/web)
+### Frontend (apps/web) - Dashboard
 
 **Framework:** Next.js 15 (App Router), React 19, TypeScript
 
 **Routing:** File-based routing in `app/` directory:
-- `app/(auth)/` - Authentication pages
-- `app/(dashboard)/*` - Protected dashboard pages
+- `app/(auth)/` - Admin authentication pages
+- `app/(customer-auth)/` - Customer portal authentication pages
+- `app/(customer-portal)/portal-customer/` - Customer portal pages
+- `app/(dashboard)/*` - Protected admin dashboard pages
 - `app/api/*` - Next.js API routes (for auth callbacks, etc.)
+
+**Dashboard Routes:**
+- `master-pengguna/` - User management (admin, staff, super-admin)
+- `master-toko/` - Branch/store management
+- `master-customer/` - Customer management
+- `master-katalog/` - Catalog management
+- `master-syarat-mata/` - Pawn term (syarat mata) management
+- `tipe-barang/` - Item type management
+- `spk/` - SPK (Surat Perintah Kerja) management
+- `nkb/` - NKB (Nota Kredit Barang) management
+- `lelangan/` - Auction management
+- `validasi-lelangan/` - Auction validation
+- `setor-uang/` - Cash deposit management
+- `mutasi-transaksi/` - Cash mutation management
+- `tambah-modal/` - Capital top-up management
+- `stock-opname/` - Stock opname management
+- `notifikasi/` - Notification center
+- `laporan/` - Reports
+- `pt/` - Company management
+- `scan-ktp/` - KTP (ID card) scanning
+- `portal-customer/` - Link to customer portal
 
 **State Management:** TanStack Query (React Query) with custom hooks in `lib/react-query/hooks/`
 
 **UI Components:** Import from `@workspace/ui/components/*` (shared package)
 
 **Auth:** NextAuth v4 with JWT strategy. Session management via `getSession()` and access tokens.
+
+### Frontend (apps/marketing) - Landing Page
+
+**Framework:** Next.js 15 (App Router), React 19, TypeScript
+
+**Purpose:** Public-facing marketing/landing page for GadaiTop
+
+**Structure:**
+- Single-page application with hero section, features, pricing, etc.
+- Uses Tailwind CSS v4 for styling
+- Imports shared UI components from `@workspace/ui`
 
 ## Key Patterns & Conventions
 
@@ -180,8 +219,12 @@ The app uses CASL for role-based access control:
 
 - **Package manager:** This project uses `pnpm` (not npm or yarn)
 - **Node version:** Requires Node.js >= 20
-- **Environment:** API runs on port 3001, web on port 3000
+- **Environment:**
+  - API (NestJS): port 3001
+  - Web Dashboard (Next.js): port 3000
+  - Marketing Landing (Next.js): port 3002
 - **UI components:** Always import from `@workspace/ui/components/*`, never create duplicates
 - **Pagination:** Always use API-side pagination, never fetch all and filter client-side
 - **Search:** Always debounce the API request value (500ms), keep input value immediate
-- **TypeScript:** Both apps have different TS versions (api: 5.5.4, web: 5.9.2) - this is intentional
+- **TypeScript:** Different TS versions per app (api: 5.5.4, web: 5.9.2, marketing: 5.9.2) - this is intentional
+- **Customer Portal:** Separate auth flow from admin dashboard, uses `(customer-auth)` and `(customer-portal)` route groups
