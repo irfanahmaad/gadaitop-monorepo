@@ -2,12 +2,12 @@ import {
   Controller,
   Get,
   Post,
-  Put,
   Body,
   Param,
   Query,
   ParseUUIDPipe,
   Req,
+  Headers,
 } from '@nestjs/common';
 import { Request } from 'express';
 
@@ -17,7 +17,6 @@ import { CashDepositService } from './cash-deposit.service';
 import { CashDepositDto } from './dto/cash-deposit.dto';
 import { CreateCashDepositDto } from './dto/create-cash-deposit.dto';
 import { QueryCashDepositDto } from './dto/query-cash-deposit.dto';
-import { RejectCashDepositDto } from './dto/reject-cash-deposit.dto';
 import { PageMetaDto } from '../../common/dtos/page-meta.dto';
 
 @Controller({ path: 'cash-deposits', version: '1' })
@@ -35,12 +34,6 @@ export class CashDepositController {
     return this.cashDepositService.findAll(queryDto, userPtId);
   }
 
-  @Post('webhook')
-  @Auth([], { public: true })
-  async webhook(@Body() payload: Record<string, unknown>): Promise<{ received: boolean }> {
-    return this.cashDepositService.webhook(payload);
-  }
-
   @Post()
   @Auth([{ action: AclAction.CREATE, subject: AclSubject.DEPOSIT_MONEY }])
   async create(
@@ -52,27 +45,14 @@ export class CashDepositController {
     return this.cashDepositService.create(createDto, requestedBy);
   }
 
-  @Put(':id/approve')
-  @Auth([{ action: AclAction.UPDATE, subject: AclSubject.DEPOSIT_MONEY }])
-  async approve(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Req() req: Request,
-  ): Promise<CashDepositDto> {
-    const user = (req as any).user;
-    const approvedBy = user?.uuid ?? '';
-    return this.cashDepositService.approve(id, approvedBy);
-  }
-
-  @Put(':id/reject')
-  @Auth([{ action: AclAction.UPDATE, subject: AclSubject.DEPOSIT_MONEY }])
-  async reject(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: RejectCashDepositDto,
-    @Req() req: Request,
-  ): Promise<CashDepositDto> {
-    const user = (req as any).user;
-    const rejectedBy = user?.uuid ?? '';
-    return this.cashDepositService.reject(id, dto, rejectedBy);
+  /** Xendit webhook — public endpoint, no auth guard */
+  @Post('webhook')
+  @Auth([], { public: true })
+  async webhook(
+    @Body() payload: Record<string, unknown>,
+    @Headers('x-callback-token') callbackToken: string,
+  ): Promise<{ received: boolean }> {
+    return this.cashDepositService.webhook(payload, callbackToken ?? '');
   }
 
   @Get(':id')

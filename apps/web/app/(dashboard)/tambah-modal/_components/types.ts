@@ -9,6 +9,6 @@ export type RequestTambahModal = {
   namaToko: string
   alias: string
   nominal: number
-  status: "Pending" | "Disetujui" | "Ditolak"
+  status: "Pending" | "Disetujui" | "Ditolak" | "Selesai"
   storeId?: string
 }

@@ -1,7 +1,5 @@
 export enum CashDepositStatusEnum {
   Pending = 'pending',
-  Paid = 'paid',
-  Confirmed = 'confirmed',
-  Rejected = 'rejected',
+  Lunas = 'lunas',
   Expired = 'expired',
 }

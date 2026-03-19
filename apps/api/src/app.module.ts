@@ -25,6 +25,7 @@ import { ItemTypeModule } from './modules/item-type/item-type.module';
 import { PawnTermModule } from './modules/pawn-term/pawn-term.module';
 import { ReportModule } from './modules/report/report.module';
 import { SchedulerModule } from './modules/scheduler/scheduler.module';
+import { XenditModule } from './modules/xendit/xendit.module';
 import { RoleModule } from './modules/role/role.module';
 import { NkbModule } from './modules/nkb/nkb.module';
 import { NotificationModule } from './modules/notification/notification.module';
@@ -77,6 +78,7 @@ import { SharedModule } from './shared/shared.module';
     SpkModule,
     NkbModule,
     ReportModule,
+    XenditModule,
     SchedulerModule,
     AuctionModule,
     NotificationModule,

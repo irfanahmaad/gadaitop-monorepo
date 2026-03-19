@@ -19,6 +19,9 @@
       "persistent": true
     },
     "test": {},
-    "test:e2e": {}
+    "test:e2e": {
+      "cache": false,
+      "env": ["NEXTAUTH_URL", "NEXTAUTH_SECRET", "NEXT_PUBLIC_API_URL"]
+    }
   }
 }

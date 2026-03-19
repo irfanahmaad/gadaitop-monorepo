@@ -11,11 +11,13 @@ import { SpkService } from '../spk/spk.service';
 import { NkbService } from '../nkb/nkb.service';
 import { StockOpnameService } from '../stock-opname/stock-opname.service';
 import { QueryReportDto } from './dto/query-report.dto';
+import { CapitalTopupService } from '../capital-topup/capital-topup.service';
 
 @Injectable()
 export class ReportService {
   constructor(
     private cashMutationService: CashMutationService,
+    private capitalTopupService: CapitalTopupService,
     @InjectRepository(CashMutationEntity)
     private cashMutationRepository: Repository<CashMutationEntity>,
     @InjectRepository(BranchEntity)
@@ -107,6 +109,18 @@ export class ReportService {
       storeId: queryDto.storeId,
     } as any;
     return this.stockOpnameService.findAll(soQuery, userPtId);
+  }
+
+  async getCapitalTopupReport(
+    queryDto: QueryReportDto,
+    userPtId?: string,
+  ) {
+    const topupQuery = {
+      ...queryDto,
+      ptId: queryDto.ptId,
+      storeId: queryDto.storeId,
+    } as any;
+    return this.capitalTopupService.findAll(topupQuery, userPtId);
   }
 
   /**

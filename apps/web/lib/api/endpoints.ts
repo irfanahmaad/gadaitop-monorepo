@@ -196,8 +196,6 @@ export const endpoints = {
     list: baseUrl("cash-deposits"),
     detail: (id: string) => baseUrl(`cash-deposits/${id}`),
     create: baseUrl("cash-deposits"),
-    approve: (id: string) => baseUrl(`cash-deposits/${id}/approve`),
-    reject: (id: string) => baseUrl(`cash-deposits/${id}/reject`),
   },
 
   // Cash Mutations

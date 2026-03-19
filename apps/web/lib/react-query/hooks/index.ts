@@ -176,11 +176,9 @@ export {
 // Cash Deposit hooks
 export {
   cashDepositKeys,
-  useApproveCashDeposit,
   useCashDeposit,
   useCashDeposits,
   useCreateCashDeposit,
-  useRejectCashDeposit,
 } from "./use-cash-deposits"
 
 // Cash Mutation hooks

@@ -1038,50 +1038,33 @@ export interface RecordConditionDto {
 // Cash Deposit types
 // ==========================================
 
-export type CashDepositStatus =
-  | "pending"
-  | "approved"
-  | "rejected"
-  | "expired"
-  | "confirmed"
+export type CashDepositStatus = "pending" | "lunas" | "expired"
 
 export interface CashDeposit {
   id: string
   uuid: string
+  depositCode: string
   storeId: string
-  amount: number
-  bankAccountId?: string
-  proofUrl?: string
+  ptId: string
+  amount: string
+  virtualAccount?: string | null
+  xenditExternalId?: string | null
   status: CashDepositStatus
-  rejectionReason?: string
-  vaNumber?: string
-  expiresAt?: string
-  notes?: string
+  expiresAt?: string | null
+  requestedBy: string
+  notes?: string | null
   store?: Branch
-  createdBy?: User
-  approvedBy?: User
+  pt?: Company
+  requester?: User
   createdAt: string
   updatedAt: string
 }
-
-export type CashDepositPaymentMethod =
-  | "bank_transfer"
-  | "qris"
-  | "virtual_account"
 
 export interface CreateCashDepositDto {
   storeId: string
   ptId?: string
   amount: number
-  paymentMethod: CashDepositPaymentMethod
-  paymentChannel?: string
   notes?: string
-  bankAccountId?: string
-  proofUrl?: string
-}
-
-export interface RejectCashDepositDto {
-  reason: string
 }
 
 // ==========================================

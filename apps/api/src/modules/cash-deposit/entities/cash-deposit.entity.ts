@@ -1,12 +1,11 @@
 import { Column, Entity, Index, JoinColumn, ManyToOne, Relation } from 'typeorm';
 
 import { AbstractEntity } from '../../../common/abstract.entity';
-import { CashDepositPaymentMethodEnum } from '../../../constants/cash-deposit-payment-method';
 import { CashDepositStatusEnum } from '../../../constants/cash-deposit-status';
 
 /**
- * Cash deposit (Setor Uang) - Store deposits cash to PT.
- * Creates deposit request with VA/QR; approved by Admin PT.
+ * Cash deposit (Setor Uang) - Store sends cash to PT via Xendit Virtual Account.
+ * Created by Admin PT; paid by Staff Toko via VA; confirmed automatically via webhook.
  */
 @Entity({ name: 'cash_deposits' })
 @Index(['ptId', 'storeId', 'status'])
@@ -34,25 +33,23 @@ export class CashDepositEntity extends AbstractEntity {
   @Column({ type: 'decimal', precision: 15, scale: 2 })
   amount: string;
 
-  @Column({ type: 'enum', enum: CashDepositPaymentMethodEnum })
-  paymentMethod: CashDepositPaymentMethodEnum;
-
-  @Column({ type: 'varchar', length: 100, nullable: true })
-  paymentChannel: string | null;
-
-  @Column({ type: 'varchar', length: 500, nullable: true })
-  qrCodeUrl: string | null;
-
+  /** Xendit Fixed VA account number shown to the payer */
   @Column({ type: 'varchar', length: 50, nullable: true })
   virtualAccount: string | null;
 
-  @Column({ type: 'varchar', length: 500, nullable: true })
-  paymentProofUrl: string | null;
+  /** Xendit VA ID (id returned by Xendit when creating the VA) */
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  xenditExternalId: string | null;
 
   @Column({ type: 'enum', enum: CashDepositStatusEnum, default: CashDepositStatusEnum.Pending })
   @Index()
   status: CashDepositStatusEnum;
 
+  /** End-of-day expiry for the VA (set to 23:59:59 of creation date) */
+  @Column({ type: 'timestamp with time zone', nullable: true })
+  expiresAt: Date | null;
+
+  /** User who created the request (Admin PT) */
   @Column({ type: 'uuid' })
   requestedBy: string;
 
@@ -60,19 +57,6 @@ export class CashDepositEntity extends AbstractEntity {
   @JoinColumn({ name: 'requested_by', referencedColumnName: 'uuid' })
   requester: Relation<any>;
 
-  @Column({ type: 'uuid', nullable: true })
-  approvedBy: string | null;
-
-  @ManyToOne('UserEntity', { nullable: true, onDelete: 'SET NULL' })
-  @JoinColumn({ name: 'approved_by', referencedColumnName: 'uuid' })
-  approver: Relation<any> | null;
-
-  @Column({ type: 'timestamp with time zone', nullable: true })
-  approvedAt: Date | null;
-
   @Column({ type: 'text', nullable: true })
   notes: string | null;
-
-  @Column({ type: 'text', nullable: true })
-  rejectionReason: string | null;
 }

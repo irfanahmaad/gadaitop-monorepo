@@ -193,4 +193,67 @@ export class CashMutationService {
     });
     return this.cashMutationRepository.save(mutation);
   }
+
+  /**
+   * Auto-record Credit mutation for a store when Admin PT disburses capital topup.
+   * Called by CapitalTopupService.disburse().
+   */
+  async createFromTopupDisbursement(
+    ptId: string,
+    storeId: string,
+    amount: number,
+    referenceId: string,
+    createdBy: string,
+  ): Promise<CashMutationEntity> {
+    const { balance } = await this.getBalance(storeId);
+    const balanceBefore = balance;
+    const balanceAfter = balanceBefore + amount;
+    const mutation = this.cashMutationRepository.create({
+      ptId,
+      storeId,
+      mutationDate: new Date(),
+      mutationType: CashMutationTypeEnum.Credit,
+      category: CashMutationCategoryEnum.Topup,
+      amount: String(amount),
+      balanceBefore: String(balanceBefore),
+      balanceAfter: String(balanceAfter),
+      description: `Tambah modal dari pusat`,
+      referenceType: 'capital_topup',
+      referenceId,
+      createdBy,
+    });
+    return this.cashMutationRepository.save(mutation);
+  }
+
+  /**
+   * Auto-record Debit mutation for a store when Setor Uang is paid via Xendit webhook.
+   * Called by CashDepositService.webhook().
+   */
+  async createFromDepositPayment(
+    ptId: string,
+    storeId: string,
+    amount: number,
+    referenceId: string,
+    createdBy: string,
+  ): Promise<CashMutationEntity> {
+    const { balance } = await this.getBalance(storeId);
+    const balanceBefore = balance;
+    const balanceAfter = balanceBefore - amount;
+    const mutation = this.cashMutationRepository.create({
+      ptId,
+      storeId,
+      mutationDate: new Date(),
+      mutationType: CashMutationTypeEnum.Debit,
+      category: CashMutationCategoryEnum.Deposit,
+      amount: String(amount),
+      balanceBefore: String(balanceBefore),
+      balanceAfter: String(balanceAfter),
+      description: `Setor uang ke pusat`,
+      referenceType: 'cash_deposit',
+      referenceId,
+      createdBy,
+    });
+    return this.cashMutationRepository.save(mutation);
+  }
+
 }

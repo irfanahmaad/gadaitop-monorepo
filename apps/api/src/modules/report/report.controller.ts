@@ -128,4 +128,23 @@ export class ReportController {
     }
     return result;
   }
+
+  @Get('capital-topup')
+  @Auth([{ action: AclAction.READ, subject: AclSubject.REPORT }])
+  async getCapitalTopupReport(
+    @Query() queryDto: QueryReportDto,
+    @Query('format', new DefaultValuePipe('json')) format: string,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const user = (req as any).user;
+    const userPtId = user?.companyId ?? user?.ownedCompanyId ?? undefined;
+    const result = await this.reportService.getCapitalTopupReport(queryDto, userPtId);
+    if (format === 'csv') {
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', 'attachment; filename="capital-topup-report.csv"');
+      return this.reportService.toCsv(result.data as unknown as Record<string, unknown>[]);
+    }
+    return result;
+  }
 }
