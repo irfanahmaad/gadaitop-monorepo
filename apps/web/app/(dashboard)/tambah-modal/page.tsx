@@ -60,7 +60,7 @@ const STATUS_MAP: Record<CapitalTopup["status"], RequestTambahModal["status"]> =
     pending: "Pending",
     approved: "Disetujui",
     rejected: "Ditolak",
-    disbursed: "Disetujui",
+    disbursed: "Selesai",
   }
 
 function mapCapitalTopupToRequest(c: CapitalTopup): RequestTambahModal {

@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -13,6 +14,9 @@ import {
   sortAttribute,
 } from '../../common/helpers/query-builder';
 import { CapitalTopupStatusEnum } from '../../constants/capital-topup-status';
+import { CashMutationService } from '../cash-mutation/cash-mutation.service';
+import { NotificationService } from '../notification/notification.service';
+import { UserEntity } from '../user/entities/user.entity';
 import { CapitalTopupEntity } from './entities/capital-topup.entity';
 import { CapitalTopupDto } from './dto/capital-topup.dto';
 import { CreateCapitalTopupDto } from './dto/create-capital-topup.dto';
@@ -23,9 +27,15 @@ import { DisburseCapitalTopupDto } from './dto/disburse-capital-topup.dto';
 
 @Injectable()
 export class CapitalTopupService {
+  private readonly logger = new Logger(CapitalTopupService.name);
+
   constructor(
     @InjectRepository(CapitalTopupEntity)
     private capitalTopupRepository: Repository<CapitalTopupEntity>,
+    @InjectRepository(UserEntity)
+    private userRepository: Repository<UserEntity>,
+    private cashMutationService: CashMutationService,
+    private notificationService: NotificationService,
   ) {}
 
   async findAll(
@@ -88,6 +98,10 @@ export class CapitalTopupService {
     return new CapitalTopupDto(record);
   }
 
+  /**
+   * Staff Toko submits a capital topup request.
+   * Notifies all Admin PT users of the PT.
+   */
   async create(
     createDto: CreateCapitalTopupDto,
     requestedBy: string,
@@ -103,6 +117,10 @@ export class CapitalTopupService {
       requestedBy,
     });
     const saved = await this.capitalTopupRepository.save(topup);
+
+    // Notify Admin PT users
+    void this.notifyAdminPt(createDto.ptId, saved.uuid, topupCode, createDto.amount);
+
     return this.findOne(saved.uuid);
   }
 
@@ -134,10 +152,7 @@ export class CapitalTopupService {
   }
 
   /**
-   * Soft-delete a pending capital topup (sets deletedAt and optionally deletedBy).
-   * Only pending requests can be soft-deleted. Soft-deleted rows are excluded
-   * from findAll and findOne. No FK constraints reference capital_topups;
-   * cash_mutations and notifications only store reference_type as data.
+   * Soft-delete a pending capital topup.
    */
   async delete(uuid: string, deletedBy?: string | null): Promise<void> {
     const topup = await this.capitalTopupRepository.findOne({
@@ -201,9 +216,14 @@ export class CapitalTopupService {
     return this.findOne(uuid);
   }
 
+  /**
+   * Admin PT uploads disbursement proof — marks topup as Disbursed ("Selesai"),
+   * auto-creates Credit mutation for the store, and notifies the requester.
+   */
   async disburse(
     uuid: string,
     dto: DisburseCapitalTopupDto,
+    disbursedBy: string,
   ): Promise<CapitalTopupDto> {
     const topup = await this.capitalTopupRepository.findOne({
       where: { uuid },
@@ -222,7 +242,81 @@ export class CapitalTopupService {
     topup.disbursedAt = new Date();
     topup.disbursementProofUrl = dto.disbursementProofUrl ?? null;
     await this.capitalTopupRepository.save(topup);
+
+    // Auto-create Credit mutation for the store
+    try {
+      await this.cashMutationService.createFromTopupDisbursement(
+        topup.ptId,
+        topup.storeId,
+        Number(topup.amount),
+        topup.uuid,
+        disbursedBy,
+      );
+    } catch (err) {
+      this.logger.error(`Failed to create mutation for topup ${topup.topupCode}: ${err}`);
+    }
+
+    // Notify the staff who requested it
+    void this.notifyRequester(topup.requestedBy, topup.ptId, topup.uuid, topup.topupCode, Number(topup.amount));
+
     return this.findOne(uuid);
+  }
+
+  // ─── Private helpers ────────────────────────────────────────────────────────
+
+  private async notifyAdminPt(
+    ptId: string,
+    topupId: string,
+    topupCode: string,
+    amount: number,
+  ): Promise<void> {
+    try {
+      const adminUsers = await this.userRepository
+        .createQueryBuilder('u')
+        .innerJoin('u.roles', 'r')
+        .where('u.companyId = :ptId', { ptId })
+        .andWhere('r.code = :code', { code: 'company_admin' })
+        .select(['u.uuid'])
+        .getMany();
+
+      const formatted = new Intl.NumberFormat('id-ID').format(amount);
+      for (const user of adminUsers) {
+        await this.notificationService.create({
+          recipientId: user.uuid,
+          ptId,
+          title: 'Request Tambah Modal Baru',
+          body: `Ada permintaan tambah modal sebesar Rp ${formatted} dari toko. Silakan ditindaklanjuti.`,
+          type: 'tambah_modal',
+          relatedEntityType: 'capital_topup',
+          relatedEntityId: topupId,
+        });
+      }
+    } catch (err) {
+      this.logger.error(`Failed to notify admin PT for topup ${topupCode}: ${err}`);
+    }
+  }
+
+  private async notifyRequester(
+    requestedBy: string,
+    ptId: string,
+    topupId: string,
+    topupCode: string,
+    amount: number,
+  ): Promise<void> {
+    try {
+      const formatted = new Intl.NumberFormat('id-ID').format(amount);
+      await this.notificationService.create({
+        recipientId: requestedBy,
+        ptId,
+        title: 'Tambah Modal Selesai',
+        body: `Permintaan tambah modal Rp ${formatted} (${topupCode}) telah diproses. Dana sudah dikirim ke toko.`,
+        type: 'tambah_modal',
+        relatedEntityType: 'capital_topup',
+        relatedEntityId: topupId,
+      });
+    } catch (err) {
+      this.logger.error(`Failed to notify requester for topup ${topupCode}: ${err}`);
+    }
   }
 
   private async generateTopupCode(): Promise<string> {

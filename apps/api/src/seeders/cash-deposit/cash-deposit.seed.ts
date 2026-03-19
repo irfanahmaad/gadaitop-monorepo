@@ -5,7 +5,6 @@ import { CashDepositEntity } from '../../modules/cash-deposit/entities/cash-depo
 import { BranchEntity } from '../../modules/branch/entities/branch.entity';
 import { UserEntity } from '../../modules/user/entities/user.entity';
 import { CashDepositStatusEnum } from '../../constants/cash-deposit-status';
-import { CashDepositPaymentMethodEnum } from '../../constants/cash-deposit-payment-method';
 import { dataSource } from '../db.seed';
 import { CashDepositFactory } from './cash-deposit.factory';
 
@@ -13,10 +12,11 @@ import { CashDepositFactory } from './cash-deposit.factory';
  * Cash Deposit Seed (Setor Uang)
  *
  * Creates sample cash deposits per branch with various statuses:
- * - Pending (request submitted, waiting payment)
- * - Paid (payment received, waiting confirmation)
- * - Confirmed (completed)
- * - Rejected (for history)
+ * - Pending  (VA generated, waiting payment from Staff Toko)
+ * - Lunas    (payment received via Xendit webhook — auto-confirmed)
+ * - Expired  (VA expired end-of-day without payment)
+ *
+ * Admin PT creates deposits; Staff Toko pays via VA.
  */
 export class CashDepositSeed extends Seeder {
   async run(): Promise<void> {
@@ -43,14 +43,10 @@ export class CashDepositSeed extends Seeder {
     });
 
     const adminByCompany = new Map<string, UserEntity>();
-    const staffByBranch = new Map<string, UserEntity>();
     for (const u of users) {
       const roleCodes = u.roles?.map((r) => r.code) ?? [];
       if (roleCodes.includes('company_admin') && u.companyId) {
         adminByCompany.set(u.companyId, u);
-      }
-      if (roleCodes.includes('branch_staff') && u.branchId) {
-        staffByBranch.set(u.branchId, u);
       }
     }
 
@@ -58,71 +54,57 @@ export class CashDepositSeed extends Seeder {
 
     for (const branch of branches) {
       const ptId = branch.companyId;
-      const staff = staffByBranch.get(branch.uuid);
       const admin = adminByCompany.get(ptId);
-
-      if (!staff || !admin) continue;
+      if (!admin) continue;
 
       const baseCode = `CD-${branch.branchCode ?? 'BR'}-${Date.now().toString().slice(-4)}`;
 
-      // 1. Pending deposit (bank transfer)
+      // 1. Pending deposit — VA generated, waiting payment
+      const todayEnd = new Date();
+      todayEnd.setUTCHours(16, 59, 59, 999); // 23:59:59 WIB
       await depositFactory.create({
         depositCode: `${baseCode}-PEND`,
         storeId: branch.uuid,
         ptId,
         amount: '3000000',
-        paymentMethod: CashDepositPaymentMethodEnum.BankTransfer,
-        paymentChannel: 'BCA',
+        virtualAccount: `808${branch.branchCode?.slice(-3) ?? '001'}00001`,
+        xenditExternalId: `xendit-ext-${baseCode}-PEND`,
         status: CashDepositStatusEnum.Pending,
-        requestedBy: staff.uuid,
+        expiresAt: todayEnd,
+        requestedBy: admin.uuid,
+        notes: 'Setoran harian cabang',
       });
       totalCreated++;
 
-      // 2. Paid deposit (waiting confirmation)
+      // 2. Lunas deposit — payment completed via webhook
       await depositFactory.create({
-        depositCode: `${baseCode}-PAID`,
+        depositCode: `${baseCode}-LUNAS`,
         storeId: branch.uuid,
         ptId,
         amount: '5000000',
-        paymentMethod: CashDepositPaymentMethodEnum.BankTransfer,
-        paymentChannel: 'Mandiri',
-        paymentProofUrl: 'https://placeholder.com/proof.jpg',
-        status: CashDepositStatusEnum.Paid,
-        requestedBy: staff.uuid,
+        virtualAccount: `808${branch.branchCode?.slice(-3) ?? '002'}00002`,
+        xenditExternalId: `xendit-ext-${baseCode}-LUNAS`,
+        status: CashDepositStatusEnum.Lunas,
+        expiresAt: subDays(new Date(), 1),
+        requestedBy: admin.uuid,
+        notes: null,
       });
       totalCreated++;
 
-      // 3. Confirmed deposit (completed)
+      // 3. Expired deposit — VA expired without payment
+      const expiredDate = subDays(new Date(), 3);
+      expiredDate.setUTCHours(16, 59, 59, 999);
       await depositFactory.create({
-        depositCode: `${baseCode}-CONF`,
-        storeId: branch.uuid,
-        ptId,
-        amount: '7500000',
-        paymentMethod: CashDepositPaymentMethodEnum.Qris,
-        paymentChannel: 'QRIS',
-        qrCodeUrl: 'https://placeholder.com/qr.png',
-        paymentProofUrl: 'https://placeholder.com/proof2.jpg',
-        status: CashDepositStatusEnum.Confirmed,
-        requestedBy: staff.uuid,
-        approvedBy: admin.uuid,
-        approvedAt: subDays(new Date(), 3),
-        notes: 'Transfer diterima',
-      });
-      totalCreated++;
-
-      // 4. Rejected deposit (for history)
-      await depositFactory.create({
-        depositCode: `${baseCode}-REJ`,
+        depositCode: `${baseCode}-EXP`,
         storeId: branch.uuid,
         ptId,
         amount: '2000000',
-        paymentMethod: CashDepositPaymentMethodEnum.VirtualAccount,
-        virtualAccount: '1234567890',
-        status: CashDepositStatusEnum.Rejected,
-        requestedBy: staff.uuid,
-        approvedBy: admin.uuid,
-        approvedAt: subDays(new Date(), 7),
-        rejectionReason: 'Bukti transfer tidak valid',
+        virtualAccount: `808${branch.branchCode?.slice(-3) ?? '003'}00003`,
+        xenditExternalId: `xendit-ext-${baseCode}-EXP`,
+        status: CashDepositStatusEnum.Expired,
+        expiresAt: expiredDate,
+        requestedBy: admin.uuid,
+        notes: null,
       });
       totalCreated++;
     }

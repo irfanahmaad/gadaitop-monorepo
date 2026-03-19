@@ -37,3 +37,9 @@ npm-debug.log*
 
 # Deployment Purpose
 ecosystem.config.js
+
+# Playwright
+apps/web/e2e/auth/
+apps/web/e2e/test-results/
+apps/web/e2e/reports/
+apps/web/playwright-report/

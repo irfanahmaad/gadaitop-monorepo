@@ -8,7 +8,6 @@ import type {
   CashDeposit,
   CreateCashDepositDto,
   PageOptions,
-  RejectCashDepositDto,
 } from "@/lib/api/types"
 
 // Query keys
@@ -40,7 +39,7 @@ export function useCashDeposit(id: string) {
   })
 }
 
-// Create cash deposit
+// Create cash deposit (Admin PT only)
 export function useCreateCashDeposit() {
   const queryClient = useQueryClient()
 
@@ -51,41 +50,6 @@ export function useCreateCashDeposit() {
         data
       ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: cashDepositKeys.lists() })
-    },
-  })
-}
-
-// Approve cash deposit (Admin PT)
-export function useApproveCashDeposit() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: (id: string) =>
-      apiClient.put<CashDeposit>(endpoints.cashDeposits.approve(id)),
-    onSuccess: (_, id) => {
-      queryClient.invalidateQueries({
-        queryKey: cashDepositKeys.detail(id),
-      })
-      queryClient.invalidateQueries({ queryKey: cashDepositKeys.lists() })
-    },
-  })
-}
-
-// Reject cash deposit
-export function useRejectCashDeposit() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: RejectCashDepositDto }) =>
-      apiClient.put<CashDeposit, RejectCashDepositDto>(
-        endpoints.cashDeposits.reject(id),
-        data
-      ),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: cashDepositKeys.detail(variables.id),
-      })
       queryClient.invalidateQueries({ queryKey: cashDepositKeys.lists() })
     },
   })

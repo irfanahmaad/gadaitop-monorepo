@@ -7,6 +7,7 @@ import { BranchEntity } from '../branch/entities/branch.entity';
 import { SpkModule } from '../spk/spk.module';
 import { NkbModule } from '../nkb/nkb.module';
 import { StockOpnameModule } from '../stock-opname/stock-opname.module';
+import { CapitalTopupModule } from '../capital-topup/capital-topup.module';
 import { ReportController } from './report.controller';
 import { ReportService } from './report.service';
 
@@ -17,6 +18,7 @@ import { ReportService } from './report.service';
     SpkModule,
     NkbModule,
     StockOpnameModule,
+    CapitalTopupModule,
   ],
   controllers: [ReportController],
   providers: [ReportService],

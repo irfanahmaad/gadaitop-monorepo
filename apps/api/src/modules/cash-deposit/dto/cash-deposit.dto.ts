@@ -1,4 +1,3 @@
-import { CashDepositPaymentMethodEnum } from '../../../constants/cash-deposit-payment-method';
 import { CashDepositStatusEnum } from '../../../constants/cash-deposit-status';
 import { CashDepositEntity } from '../entities/cash-deposit.entity';
 
@@ -8,17 +7,12 @@ export class CashDepositDto {
   storeId: string;
   ptId: string;
   amount: string;
-  paymentMethod: CashDepositPaymentMethodEnum;
-  paymentChannel: string | null;
-  qrCodeUrl: string | null;
   virtualAccount: string | null;
-  paymentProofUrl: string | null;
+  xenditExternalId: string | null;
   status: CashDepositStatusEnum;
+  expiresAt: Date | null;
   requestedBy: string;
-  approvedBy: string | null;
-  approvedAt: Date | null;
   notes: string | null;
-  rejectionReason: string | null;
   createdAt: Date;
   store?: { uuid: string; shortName: string; branchCode: string; fullName?: string };
   pt?: { uuid: string; companyName: string };
@@ -30,23 +24,19 @@ export class CashDepositDto {
     this.storeId = record.storeId;
     this.ptId = record.ptId;
     this.amount = record.amount;
-    this.paymentMethod = record.paymentMethod;
-    this.paymentChannel = record.paymentChannel ?? null;
-    this.qrCodeUrl = record.qrCodeUrl ?? null;
     this.virtualAccount = record.virtualAccount ?? null;
-    this.paymentProofUrl = record.paymentProofUrl ?? null;
+    this.xenditExternalId = record.xenditExternalId ?? null;
     this.status = record.status;
+    this.expiresAt = record.expiresAt ?? null;
     this.requestedBy = record.requestedBy;
-    this.approvedBy = record.approvedBy ?? null;
-    this.approvedAt = record.approvedAt ?? null;
     this.notes = record.notes ?? null;
-    this.rejectionReason = record.rejectionReason ?? null;
     this.createdAt = record.createdAt;
     if (record.store) {
       this.store = {
         uuid: record.store.uuid,
         shortName: record.store.shortName,
         branchCode: record.store.branchCode,
+        fullName: record.store.fullName,
       };
     }
     if (record.pt) {

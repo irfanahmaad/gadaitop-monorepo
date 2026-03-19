@@ -1,15 +1,15 @@
-export type SetorUangStatus = "Pending" | "Lunas" | "Failed" | "Expired"
+export type SetorUangStatus = "Pending" | "Lunas" | "Expired"
 
 export type SetorUang = {
   id: string
   uuid: string
+  depositCode: string
   tanggal: string
   dilakukanOleh: { name: string; avatar?: string }
   namaToko: string
   nominal: number
-  vaNumber: string
-  batasWaktu: string
+  virtualAccount: string | null
+  expiresAt: string | null
   status: SetorUangStatus
-  proofUrl?: string
-  rejectionReason?: string
+  notes?: string | null
 }

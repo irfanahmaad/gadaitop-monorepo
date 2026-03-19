@@ -98,8 +98,11 @@ export class CapitalTopupController {
   async disburse(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: DisburseCapitalTopupDto,
+    @Req() req: Request,
   ): Promise<CapitalTopupDto> {
-    return this.capitalTopupService.disburse(id, dto);
+    const user = (req as any).user;
+    const disbursedBy = user?.uuid ?? '';
+    return this.capitalTopupService.disburse(id, dto, disbursedBy);
   }
 
   @Get(':id')

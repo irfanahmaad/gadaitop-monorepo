@@ -30,13 +30,8 @@ import {
   Plus,
   SearchIcon,
   SlidersHorizontal,
-  Check,
-  Ban,
   MoreHorizontal,
   Eye,
-  Printer,
-  XCircle,
-  Pencil,
 } from "lucide-react"
 import { formatCurrencyDisplay } from "@/lib/format-currency"
 import { Card, CardContent, CardHeader } from "@workspace/ui/components/card"
@@ -56,50 +51,46 @@ import { toast } from "sonner"
 import { cn } from "@workspace/ui/lib/utils"
 import type { SetorUang } from "./types"
 
-function mapCashDepositStatus(
-  status: CashDeposit["status"],
-  rejectionReason?: string
-): SetorUang["status"] {
-  if (status === "pending") return "Pending"
-  if (status === "approved" || status === "confirmed") return "Lunas"
-  if (status === "expired") return "Expired"
-  if (status === "rejected") {
-    const reason = rejectionReason?.trim() ?? ""
-    return reason.startsWith("[system:") ? "Expired" : "Failed"
-  }
-  return "Pending"
-}
-
 function mapCashDepositToSetorUang(c: CashDeposit): SetorUang {
   const store = c.store as
     | { shortName?: string; branchCode?: string; fullName?: string }
     | undefined
-  const createdBy = c.createdBy as
+  const requester = c.requester as
     | { fullName?: string; name?: string; email?: string; imageUrl?: string }
     | undefined
   const name =
-    createdBy?.fullName ?? createdBy?.name ?? createdBy?.email ?? "-"
+    requester?.fullName ?? requester?.name ?? requester?.email ?? "-"
+
+  const statusMap: Record<CashDeposit["status"], SetorUang["status"]> = {
+    pending: "Pending",
+    lunas: "Lunas",
+    expired: "Expired",
+  }
+
   return {
     id: c.uuid,
     uuid: c.uuid,
+    depositCode: c.depositCode,
     tanggal: c.createdAt,
     dilakukanOleh: {
       name,
-      avatar: createdBy?.imageUrl,
+      avatar: requester?.imageUrl,
     },
     namaToko:
       store?.fullName ?? store?.shortName ?? store?.branchCode ?? c.storeId,
-    nominal: c.amount,
-    vaNumber: c.vaNumber ?? "-",
-    batasWaktu: c.expiresAt ?? "-",
-    status: mapCashDepositStatus(c.status, c.rejectionReason),
-    proofUrl: c.proofUrl,
-    rejectionReason: c.rejectionReason,
+    nominal: parseFloat(c.amount) || 0,
+    virtualAccount: c.virtualAccount ?? null,
+    expiresAt: c.expiresAt ?? null,
+    status: statusMap[c.status] ?? "Pending",
+    notes: c.notes,
   }
 }
 
 const StatusBadge = ({ status }: { status: SetorUang["status"] }) => {
-  const statusConfig = {
+  const statusConfig: Record<
+    SetorUang["status"],
+    { label: string; className: string }
+  > = {
     Pending: {
       label: "Pending",
       className:
@@ -109,11 +100,6 @@ const StatusBadge = ({ status }: { status: SetorUang["status"] }) => {
       label: "Lunas",
       className:
         "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20",
-    },
-    Failed: {
-      label: "Failed",
-      className:
-        "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400 border-0",
     },
     Expired: {
       label: "Expired",
@@ -151,6 +137,11 @@ const getBaseColumns = (): {
     enableSorting: false,
   },
   {
+    id: "depositCode",
+    accessorKey: "depositCode",
+    header: "Kode",
+  },
+  {
     id: "tanggal",
     accessorKey: "tanggal",
     header: "Tanggal",
@@ -158,17 +149,20 @@ const getBaseColumns = (): {
   {
     id: "dilakukanOleh",
     accessorKey: "dilakukanOleh",
-    header: "Dilakukan Oleh",
+    header: "Dibuat Oleh",
     cell: ({ row }) => {
-      const user = row.getValue("dilakukanOleh") as SetorUang["dilakukanOleh"] | undefined
+      const user = row.getValue("dilakukanOleh") as
+        | SetorUang["dilakukanOleh"]
+        | undefined
       const name = user?.name ?? "-"
-      const initials = name
-        .split(" ")
-        .filter(Boolean)
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2) || "-"
+      const initials =
+        name
+          .split(" ")
+          .filter(Boolean)
+          .map((n) => n[0])
+          .join("")
+          .toUpperCase()
+          .slice(0, 2) || "-"
       return (
         <div className="flex items-center gap-2">
           <Avatar className="h-8 w-8">
@@ -191,7 +185,9 @@ const getBaseColumns = (): {
     header: "Nominal",
     cell: ({ row }) => {
       const nominal = row.getValue("nominal") as number
-      return <span className="text-sm">Rp{formatCurrencyDisplay(nominal)}</span>
+      return (
+        <span className="text-sm">Rp{formatCurrencyDisplay(nominal)}</span>
+      )
     },
   },
   {
@@ -204,11 +200,7 @@ const getBaseColumns = (): {
   },
 ]
 
-const getActionColumn = (
-  onDetail: (row: SetorUang) => void,
-  onEdit: (row: SetorUang) => void,
-  showEdit: boolean
-) => ({
+const getActionColumn = (onDetail: (row: SetorUang) => void) => ({
   id: "actions",
   enableHiding: false as const,
   cell: ({ row }: { row: { original: SetorUang } }) => (
@@ -226,12 +218,6 @@ const getActionColumn = (
           <Eye className="mr-2 h-4 w-4" />
           Detail
         </DropdownMenuItem>
-        {showEdit && (
-          <DropdownMenuItem onClick={() => onEdit(row.original)}>
-            <Pencil className="mr-2 h-4 w-4" />
-            Edit
-          </DropdownMenuItem>
-        )}
       </DropdownMenuContent>
     </DropdownMenu>
   ),
@@ -242,6 +228,8 @@ export default function SetorUangPage() {
   const isCompanyAdmin =
     user?.roles?.some((r) => r.code === "company_admin") ?? false
   const isSuperAdmin = user?.roles?.some((r) => r.code === "owner") ?? false
+  const isBranchStaff =
+    user?.roles?.some((r) => r.code === "branch_staff") ?? false
 
   const effectiveCompanyId = isCompanyAdmin ? (user?.companyId ?? null) : null
 
@@ -255,8 +243,6 @@ export default function SetorUangPage() {
     return list.map((c) => ({ value: c.uuid, label: c.companyName }))
   }, [companiesData])
 
-  const isBranchStaff =
-    user?.roles?.some((r) => r.code === "branch_staff") ?? false
   const { data: branchStaffBranch } = useBranch(
     isBranchStaff && user?.branchId ? user.branchId : ""
   )
@@ -336,8 +322,7 @@ export default function SetorUangPage() {
         placeholder: "Semua",
         options: [
           { label: "Pending", value: "pending" },
-          { label: "Lunas", value: "approved" },
-          { label: "Failed", value: "rejected" },
+          { label: "Lunas", value: "lunas" },
           { label: "Expired", value: "expired" },
         ],
       },
@@ -382,10 +367,9 @@ export default function SetorUangPage() {
           storeId: data.storeId,
           ptId: effectivePT || undefined,
           amount: data.amount,
-          paymentMethod: "bank_transfer",
           notes: data.notes,
         })
-        toast.success("Permintaan setoran berhasil dibuat")
+        toast.success("Permintaan setoran berhasil dibuat. VA telah digenerate.")
         setCreateDialogOpen(false)
       } catch {
         toast.error("Gagal membuat request")
@@ -400,17 +384,10 @@ export default function SetorUangPage() {
     setDetailDialogOpen(true)
   }, [])
 
-  const handleEdit = useCallback((row: SetorUang) => {
-    // For now, open detail dialog - can be extended to a proper edit dialog
-    setDetailRow(row)
-    setDetailDialogOpen(true)
-  }, [])
-
   const columns = useMemo(() => {
-    const showEdit = !isCompanyAdmin
-    const actionColumn = getActionColumn(handleDetail, handleEdit, showEdit)
+    const actionColumn = getActionColumn(handleDetail)
     return [...getBaseColumns(), actionColumn]
-  }, [handleDetail, handleEdit, isCompanyAdmin])
+  }, [handleDetail])
 
   return (
     <div className="flex flex-col gap-6">
@@ -438,10 +415,13 @@ export default function SetorUangPage() {
             </Select>
           )}
 
-          <Button onClick={handleCreate} variant="destructive">
-            <Plus className="size-5" />
-            Tambah Data
-          </Button>
+          {/* Only Admin PT can create Setor Uang */}
+          {isCompanyAdmin && (
+            <Button onClick={handleCreate} variant="destructive">
+              <Plus className="size-5" />
+              Tambah Permintaan
+            </Button>
+          )}
         </div>
       </div>
 
@@ -477,7 +457,7 @@ export default function SetorUangPage() {
           columns={columns}
           data={rows}
           title="Daftar Permintaan Setor Uang"
-          searchPlaceholder="Cari berdasarkan toko, VA, atau nominal"
+          searchPlaceholder="Cari berdasarkan kode, toko, atau nominal"
           filterConfig={setorUangFilterConfig}
           filterValues={filterValues}
           onFilterChange={setFilterValues}
@@ -525,14 +505,16 @@ export default function SetorUangPage() {
         />
       )}
 
-      <CreateSetorUangDialog
-        open={createDialogOpen}
-        onOpenChange={setCreateDialogOpen}
-        onConfirm={handleCreateConfirm}
-        isSubmitting={createMutation.isPending}
-        branchOptions={branchOptions}
-        selectedBranch={effectiveBranch}
-      />
+      {isCompanyAdmin && (
+        <CreateSetorUangDialog
+          open={createDialogOpen}
+          onOpenChange={setCreateDialogOpen}
+          onConfirm={handleCreateConfirm}
+          isSubmitting={createMutation.isPending}
+          branchOptions={branchOptions}
+          selectedBranch={effectiveBranch}
+        />
+      )}
 
       <DetailSetorUangDialog
         open={detailDialogOpen}
