@@ -20,9 +20,9 @@ CUSTOMER_PIN = os.environ.get("E2E_CUSTOMER_PIN", "123456")
 
 TEST_CUSTOMERS = {
     "valid": {
-        "nik": "3201010101010001",
+        "nik": "3275012501900001",
         "name": "E2E Test Customer",
-        "pin": "111111",
+        "pin": "123456",
     },
     "blacklist": {
         "nik": "9999999999999999",

@@ -29,8 +29,8 @@ Environment Variables:
     E2E_STAFF_PASSWORD          - Staff password (default: test123)
     E2E_ADMIN_EMAIL             - Admin email (default: admin.pt001@test.com)
     E2E_ADMIN_PASSWORD          - Admin password (default: test123)
-    E2E_CUSTOMER_NIK            - Customer NIK (default: 3201010101010001)
-    E2E_CUSTOMER_PIN            - Customer PIN (default: 111111)
+    E2E_CUSTOMER_NIK            - Customer NIK (default: 3275012501900001)
+    E2E_CUSTOMER_PIN            - Customer PIN (default: 123456)
     HEADED=1                    - Run with visible browser
     SLOW=500                    - Slow motion for debugging
 
