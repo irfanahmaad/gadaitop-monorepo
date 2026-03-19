@@ -7,29 +7,11 @@ import { Button } from "@workspace/ui/components/button"
 import { Card, CardContent } from "@workspace/ui/components/card"
 import Image from "next/image"
 import { imgPaymentSuccess } from "@/assets/commons"
-import { useNkb } from "@/lib/react-query/hooks/use-nkb"
-
-function formatElapsed(seconds: number): string {
-  const m = Math.floor(seconds / 60)
-  const s = seconds % 60
-  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
-}
 
 export default function PaymentSuccessPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const nkbId = searchParams.get("nkbId") ?? ""
-
-  const { data: nkb } = useNkb(nkbId, { enabled: !!nkbId })
-
-  const elapsedSeconds =
-    nkb?.createdAt && nkb?.confirmedAt
-      ? Math.floor(
-          (new Date(nkb.confirmedAt).getTime() -
-            new Date(nkb.createdAt).getTime()) /
-            1000
-        )
-      : 0
 
   useEffect(() => {
     if (!nkbId) {
@@ -64,12 +46,6 @@ export default function PaymentSuccessPage() {
               <h2 className="text-2xl font-bold">Pembayaran Berhasil</h2>
               <p className="text-muted-foreground text-sm">
                 Pembayaran Telah Berhasil Dikonfirmasi
-              </p>
-            </div>
-
-            <div className="text-center">
-              <p className="text-3xl font-mono font-semibold tabular-nums">
-                00:{formatElapsed(elapsedSeconds)}
               </p>
             </div>
 
